@@ -106,7 +106,7 @@ function main(): void {
   }
 
   for (const expected of fixture.builds) {
-    const actual = payload.builds.items.find((b) => b.id === expected.id);
+    const actual = payload.builds.items.find((b: { id: string }) => b.id === expected.id);
     if (!actual) {
       mismatches.push(`build ${expected.id}: missing`);
       continue;

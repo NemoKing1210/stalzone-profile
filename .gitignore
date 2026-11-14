@@ -1,4 +1,6 @@
 node_modules/
+.nuxt/
+.output/
 dist/
 coverage/
 .vitest/
@@ -7,8 +9,6 @@ data/
 *.db-wal
 *.db-shm
 snapshots/
-apps/web/dist/
-apps/web/icons/
 test-results/
 playwright-report/
 .env
