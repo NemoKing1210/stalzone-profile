@@ -1,0 +1,91 @@
+{
+  "username": "Nemo_King",
+  "fetched": "2026-11-13",
+  "source": "https://sctools.tech/en/players/Nemo_King (данные на 13.11.2026)",
+  "note": "Официальное API eapi.stalzone.com отдаёт профиль только приложению с одобренным доступом; эти данные собраны через публичный профиль sctools.tech",
+  "region": "RU (подтвердил игрок 13.11.2026)",
+  "faction": "Duty",
+  "arrivedInZone": "2024-12-06",
+  "lastOnline": "~23 ч до снимка (12.11.2026)",
+  "playtimeHours": 981,
+  "kd": 0.3,
+  "accuracy": 55,
+  "headshotShare": 84,
+  "clanHistory": "нет клана (No clan history)",
+  "achievementPoints": 1300,
+  "stats": {
+    "survival": {
+      "Kills": 6293,
+      "Assists": 1382,
+      "Deaths": 3029,
+      "Longest killstreak": 32,
+      "Players blown up": 17,
+      "Players slaughtered": 28,
+      "Deaths from bullets": 2700,
+      "Mutants killed": 31481,
+      "NPCs killed": 52767,
+      "Deaths from anomalies": 39,
+      "Suicides": 113,
+      "Deaths from falling": 19
+    },
+    "combat": {
+      "Damage dealt to players": 1224518.99,
+      "Damage received from players": 665046.69,
+      "Total damage dealt": 28285241.91,
+      "Total damage received": 1333410.95,
+      "Damage dealt to players with explosions": 7674.07,
+      "Shots fired": 837438,
+      "Number of hits": 459726,
+      "Headshots": 386211,
+      "Shots to torso": 236739,
+      "Shots to limbs": 79031,
+      "Grenades thrown": 826
+    },
+    "sessionBattles": {
+      "Operations completed": 1,
+      "The Big Clean Up Operations completed": 1,
+      "Enemies killed in Operations": 702,
+      "Highest Clearance level (Big Clean Up)": 3,
+      "Players killed in Standoff mode": 6,
+      "Deaths in Standoff mode": 20,
+      "Damage dealt with Powerful Shot": 64092.61,
+      "Max damage Powerful Shot": 25457.6
+    },
+    "research": {
+      "Achievements obtained": 131,
+      "Medicines used": 19311,
+      "Stashes dug up": 4060,
+      "Artifacts collected": 576,
+      "Scans conducted": 4573,
+      "Signals discovered": 3826,
+      "Quests completed": 7932,
+      "Bolts thrown": 1650,
+      "Dropped containers broken into": 27,
+      "Time spent in a squad (h)": 92,
+      "Messages sent in chat": 470
+    },
+    "economy": {
+      "Weapons repaired": 1375,
+      "Armor repaired": 795,
+      "Gear upgrades": 3767,
+      "Successful gear upgrades": 351,
+      "Packages delivered": 114,
+      "Money earned by delivering packages": 1442250,
+      "Money earned from sales to merchants": 124796759,
+      "Money earned from quests": 7856400,
+      "Items bought from merchants": 22083,
+      "Items sold to merchants": 33790,
+      "Highest amount of money in your account": 27038525,
+      "Money found": 20300,
+      "Successful exchanges": 39
+    },
+    "shelter": {
+      "Items created on the workbench": 9,
+      "Items created on the laboratory table": 9,
+      "Items created on the kitchen table": 6,
+      "Energy burned to create items": 25250,
+      "Objects placed in the hideout": 25,
+      "Money spent on item creation": 67356
+    }
+  }
+}
