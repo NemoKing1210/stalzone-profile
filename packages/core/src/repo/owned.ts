@@ -11,6 +11,8 @@ export interface OwnedRow {
   note: string | null;
   role: string | null;
   slot: string | null;
+  qty: number;
+  display_name: string | null;
   extra: string | null;
   updated_at: string;
 }
@@ -50,6 +52,8 @@ export interface OwnedInput {
   note?: string | null;
   role?: string | null;
   slot?: string | null;
+  qty?: number;
+  displayName?: string | null;
   extra?: unknown;
 }
 
@@ -58,36 +62,45 @@ export function findOwned(
   characterId: number,
   itemId: number,
   level: number,
+  quality: string | null,
   skinItemId: number | null,
 ): OwnedRow | null {
   return (
     (db
       .prepare(
         `SELECT * FROM owned
-         WHERE character_id = ? AND item_id = ? AND level = ? AND COALESCE(skin_item_id, 0) = COALESCE(?, 0)`,
+         WHERE character_id = ? AND item_id = ? AND level = ?
+           AND COALESCE(quality, '') = COALESCE(?, '')
+           AND COALESCE(skin_item_id, 0) = COALESCE(?, 0)`,
       )
-      .get(characterId, itemId, level, skinItemId) as OwnedRow | undefined) ?? null
+      .get(characterId, itemId, level, quality, skinItemId) as OwnedRow | undefined) ?? null
   );
 }
 
 export function upsertOwned(db: Db, input: OwnedInput): number {
   const level = input.level ?? 0;
   const skinItemId = input.skinItemId ?? null;
-  const existing = findOwned(db, input.characterId, input.itemId, level, skinItemId);
+  const quality = input.quality ?? null;
+  const qty = Math.max(1, Math.trunc(input.qty ?? 1));
+  const displayName = input.displayName ?? null;
+  const existing = findOwned(db, input.characterId, input.itemId, level, quality, skinItemId);
   const now = new Date().toISOString();
   const extra = input.extra === undefined ? null : JSON.stringify(input.extra);
 
   if (existing) {
     db.prepare(
-      `UPDATE owned SET quality = COALESCE(@quality, quality), note = COALESCE(@note, note),
-        role = COALESCE(@role, role), slot = COALESCE(@slot, slot), extra = COALESCE(@extra, extra),
-        updated_at = @updated_at
+      `UPDATE owned SET quality = @quality, note = COALESCE(@note, note),
+        role = COALESCE(@role, role), slot = COALESCE(@slot, slot),
+        qty = @qty, display_name = COALESCE(@display_name, display_name),
+        extra = COALESCE(@extra, extra), updated_at = @updated_at
        WHERE id = @id`,
     ).run({
-      quality: input.quality ?? null,
+      quality,
       note: input.note ?? null,
       role: input.role ?? null,
       slot: input.slot ?? null,
+      qty,
+      display_name: displayName,
       extra,
       updated_at: now,
       id: existing.id,
@@ -97,8 +110,8 @@ export function upsertOwned(db: Db, input: OwnedInput): number {
 
   const info = db
     .prepare(
-      `INSERT INTO owned (character_id, item_id, kind, level, skin_item_id, quality, note, role, slot, extra, updated_at)
-       VALUES (@character_id, @item_id, @kind, @level, @skin_item_id, @quality, @note, @role, @slot, @extra, @updated_at)`,
+      `INSERT INTO owned (character_id, item_id, kind, level, skin_item_id, quality, note, role, slot, qty, display_name, extra, updated_at)
+       VALUES (@character_id, @item_id, @kind, @level, @skin_item_id, @quality, @note, @role, @slot, @qty, @display_name, @extra, @updated_at)`,
     )
     .run({
       character_id: input.characterId,
@@ -106,10 +119,12 @@ export function upsertOwned(db: Db, input: OwnedInput): number {
       kind: input.kind,
       level,
       skin_item_id: skinItemId,
-      quality: input.quality ?? null,
+      quality,
       note: input.note ?? null,
       role: input.role ?? null,
       slot: input.slot ?? null,
+      qty,
+      display_name: displayName,
       extra,
       updated_at: now,
     });
@@ -119,11 +134,11 @@ export function upsertOwned(db: Db, input: OwnedInput): number {
 export function updateOwnedById(
   db: Db,
   id: number,
-  patch: Partial<Pick<OwnedRow, 'level' | 'quality' | 'note' | 'role' | 'slot' | 'skin_item_id'>>,
+  patch: Partial<Pick<OwnedRow, 'level' | 'quality' | 'note' | 'role' | 'slot' | 'skin_item_id' | 'qty' | 'display_name'>>,
 ): void {
   const sets: string[] = [];
   const params: Record<string, unknown> = { id, updated_at: new Date().toISOString() };
-  for (const key of ['level', 'quality', 'note', 'role', 'slot', 'skin_item_id'] as const) {
+  for (const key of ['level', 'quality', 'note', 'role', 'slot', 'skin_item_id', 'qty', 'display_name'] as const) {
     if (patch[key] !== undefined) {
       sets.push(`${key} = @${key}`);
       params[key] = patch[key];
