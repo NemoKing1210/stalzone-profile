@@ -134,7 +134,7 @@ docs/                        ARCHITECTURE, API, MCP, DATA-MODEL, MIGRATION,
 - `scripts/golden.ts --write` builds fixture from legacy inputs; default compares `buildPayload` to fixture and prints a `legacyDeltas` report.
 
 - [ ] Fixture: 35 weapons (dmg, rof, dmg15, dps, ttk), 12 armor, 5 builds, 3 containers.
-- [ ] `npm run golden` — 0 mismatches; QBU-191 dps documented as a legacy anomaly, not a failure.
+- [ ] `npm run golden` — 0 mismatches; `legacyDeltas` is empty, any delta fails the check.
 - [ ] Boundary tests: level 0/15, 600 HP, missing damage → `null`.
 - [ ] Commit `feat(core): display rounding and golden parity`.
 
@@ -304,7 +304,7 @@ docs/                        ARCHITECTURE, API, MCP, DATA-MODEL, MIGRATION,
 - [ ] Restart keeps data; backup restores on a copy.
 - [ ] `npm run check && npm run golden && npm run build` green.
 - [ ] README: clone → install → migrate → import → dev → build → Docker; MCP connection.
-- [ ] `docs/MIGRATION.md`: rounding deltas, QBU anomaly, 2 duplicate catalog armor, 3 local items, catalog/detail tables.
+- [ ] `docs/MIGRATION.md`: no legacy formula deltas, 2 duplicate catalog armor, 3 local items, catalog/detail tables.
 - [ ] Commit `docs: runbook and acceptance`.
 
 ---

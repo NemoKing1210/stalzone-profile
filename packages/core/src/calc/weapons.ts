@@ -14,6 +14,28 @@ export function dps(damage: number | null | undefined, rof: number | null | unde
   return round((damage * rof) / 60, 1);
 }
 
+/** Damage as the dossier shows it: one decimal. */
+export function displayDmg(damage: number | null | undefined): number | null {
+  if (damage == null || !Number.isFinite(damage)) return null;
+  return round(damage, 1);
+}
+
+/** DPS from the displayed damage, rounded to a whole number (legacy parity). */
+export function displayDps(damage: number | null | undefined, rof: number | null | undefined): number | null {
+  const shown = displayDmg(damage);
+  if (shown == null || !rof || !Number.isFinite(rof)) return null;
+  return Math.round((shown * rof) / 60);
+}
+
+/** TTK on the 600 HP dummy from the displayed damage. */
+export function displayTtk(
+  damage: number | null | undefined,
+  rof: number | null | undefined,
+  hp = DUMMY_HP,
+): number | null {
+  return ttk(displayDmg(damage), rof, hp);
+}
+
 /** TTK on a 600 HP dummy: ceil(600/damage) shots, (n−1) × 60/rpm seconds. */
 export function ttk(
   damage: number | null | undefined,

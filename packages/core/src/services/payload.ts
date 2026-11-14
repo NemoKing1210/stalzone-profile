@@ -2,11 +2,11 @@ import { CAT_RU, norm, rankKey, round } from '@dossier/shared';
 import type { Db } from '../db/index.js';
 import {
   armorAtLevel,
-  dps,
+  displayDmg,
+  displayDps,
+  displayTtk,
   headMultiplier,
   protKeyFor,
-  statAtLevel,
-  ttk,
   type WeaponStatLike,
 } from '../calc/index.js';
 import * as repo from '../repo/index.js';
@@ -82,6 +82,14 @@ function valueAt(rows: StatRow[], key: string, level: number): number | null {
   return preferred(rows, key, level)?.value_num ?? null;
 }
 
+/** Exact level only: used for +15 values, where a lower level must not stand in. */
+function valueExact(rows: StatRow[], key: string, level: number): number | null {
+  const row = rows
+    .filter((r) => r.key === key && r.level === level && r.value_num != null)
+    .sort((a, b) => (SOURCE_PRIORITY[a.source_id ?? ''] ?? 9) - (SOURCE_PRIORITY[b.source_id ?? ''] ?? 9))[0];
+  return row?.value_num ?? null;
+}
+
 function textAt(rows: StatRow[], key: string): string | null {
   return preferred(rows, key)?.value_text ?? null;
 }
@@ -142,11 +150,12 @@ function weaponPayload(db: Db, owned: OwnedJoined): Json {
   const rows = statsOf(db, item.id);
   const level = owned.level;
   const extra = parseJson(owned.extra);
-  const legacy = raw?.ownedLegacy;
+  const legacy = raw?.ownedLegacy ?? extra?.legacy;
 
-  const dmg =
+  const rawDmg =
     valueAt(rows, 'damage.start', level) ?? legacy?.dmg ?? raw?.details?.p0?.d0 ?? raw?.catalog?.dmg15 ?? null;
-  const dmg15 = valueAt(rows, 'damage.start', 15) ?? legacy?.dmg15 ?? raw?.details?.p15?.d0 ?? dmg;
+  const rawDmg15 =
+    valueExact(rows, 'damage.start', 15) ?? legacy?.dmg15 ?? raw?.details?.p15?.d0 ?? null;
   const rof =
     valueAt(rows, 'weapon.tooltip.weapon.info.rate_of_fire', level) ??
     valueAt(rows, 'weapon.tooltip.weapon.info.rate_of_fire', 15) ??
@@ -156,7 +165,7 @@ function weaponPayload(db: Db, owned: OwnedJoined): Json {
     null;
 
   return {
-    name: item.name,
+    name: owned.display_name ?? item.name,
     skin: extra?.skin ?? null,
     slot: slotRu(owned.slot ?? item.slot) ?? null,
     lvl: level,
@@ -175,9 +184,9 @@ function weaponPayload(db: Db, owned: OwnedJoined): Json {
       raw?.catalog?.caliber ??
       null,
     cat: catShort(item, raw),
-    dmg,
+    dmg: displayDmg(rawDmg),
     rof,
-    dps: dps(dmg, rof),
+    dps: displayDps(rawDmg, rof),
     spread:
       valueAt(rows, 'weapon.tooltip.weapon.info.spread', level) ??
       legacy?.spread ??
@@ -198,10 +207,10 @@ function weaponPayload(db: Db, owned: OwnedJoined): Json {
       null,
     type: typeRu(item, raw),
     rank: rankKey(item.rank) ?? legacy?.rank ?? raw?.catalog?.rank ?? raw?.details?.rank ?? null,
-    dmg15,
-    dps15: dps(dmg15, rof),
-    ttk: ttk(dmg, rof),
-    ttk15: ttk(dmg15, rof),
+    dmg15: displayDmg(rawDmg15),
+    dps15: displayDps(rawDmg15, rof),
+    ttk: displayTtk(rawDmg, rof),
+    ttk15: displayTtk(rawDmg15, rof),
     headMul: headMultiplier({ txt: raw?.details?.txt ?? raw?.exbo?.txt ?? null }),
     icon: iconOf(item, raw),
   };
@@ -225,7 +234,7 @@ function armorPayload(db: Db, owned: OwnedJoined): Json {
   const level = owned.level;
   const curve = armorCurve(rows, raw);
   const extra = parseJson(owned.extra);
-  const legacy = raw?.ownedLegacy;
+  const legacy = raw?.ownedLegacy ?? extra?.legacy;
 
   const bullet =
     armorAtLevel(curve, level) ?? legacy?.armor ?? raw?.details?.prot?.bullet ?? null;
@@ -254,7 +263,7 @@ function armorPayload(db: Db, owned: OwnedJoined): Json {
   }
 
   return {
-    name: owned.item_name,
+    name: owned.display_name ?? owned.item_name,
     skin: extra?.skin ?? null,
     cls: clsRu(item, raw),
     weight: item.weight ?? legacy?.weight ?? raw?.details?.weight ?? null,
@@ -273,7 +282,7 @@ function containerPayload(db: Db, owned: OwnedJoined, fill: ContainerFillRow[]):
   const raw = item ? rawOf(item) : {};
   const extra = parseJson(owned.extra);
   return {
-    name: owned.item_name,
+    name: owned.display_name ?? owned.item_name,
     type: extra?.type ?? raw?.details?.type ?? 'контейнер',
     weight: extra?.weight ?? item?.weight ?? raw?.details?.weight ?? null,
     slots: extra?.slots ?? raw?.details?.slots ?? null,
@@ -293,7 +302,7 @@ function artifactPayload(db: Db, owned: OwnedJoined): Json {
   const raw = item ? rawOf(item) : {};
   const extra = parseJson(owned.extra);
   return {
-    name: owned.item_name,
+    name: owned.display_name ?? owned.item_name,
     type: extra?.type ?? CAT_RU[item?.category ?? ''] ?? raw?.details?.type ?? 'прочий',
     q: owned.quality ?? null,
     lvl: owned.level,
@@ -486,7 +495,7 @@ export function compareWeapons(db: Db, names: [string, string], level = 15): Jso
     if (!item) return { query: name, found: false };
     const rows = statsOf(db, item.id);
     const raw = rawOf(item);
-    const dmg = valueAt(rows, 'damage.start', level) ?? raw?.details?.p15?.d0 ?? null;
+    const rawDmg = valueExact(rows, 'damage.start', level) ?? raw?.details?.p15?.d0 ?? null;
     const rof =
       valueAt(rows, 'weapon.tooltip.weapon.info.rate_of_fire', level) ?? raw?.details?.rof ?? null;
     return {
@@ -495,10 +504,10 @@ export function compareWeapons(db: Db, names: [string, string], level = 15): Jso
       name: item.name,
       rank: rankKey(item.rank),
       type: typeRu(item, raw),
-      dmg,
+      dmg: displayDmg(rawDmg),
       rof,
-      dps: dps(dmg, rof),
-      ttk: ttk(dmg, rof),
+      dps: displayDps(rawDmg, rof),
+      ttk: displayTtk(rawDmg, rof),
       mag: valueAt(rows, 'weapon.tooltip.weapon.info.clip_size', level) ?? raw?.details?.mag ?? null,
       reload: valueAt(rows, 'weapon.tooltip.magazine.info.reload_time', level) ?? raw?.details?.reload ?? null,
       dist: valueAt(rows, 'weapon.tooltip.weapon.info.distance', level) ?? raw?.details?.distMax ?? null,
