@@ -8,6 +8,7 @@ export interface AppConfig {
   snapshotsDir: string;
   legacyRoot: string | null;
   seedsDir: string;
+  iconsDir: string;
   migrationsDir: string;
   host: string;
   port: number;
@@ -48,6 +49,10 @@ export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     snapshotsDir,
     legacyRoot: overrides.legacyRoot ?? process.env.LEGACY_ROOT ?? null,
     seedsDir: overrides.seedsDir ?? path.join(rootDir, 'db', 'seeds'),
+    iconsDir: path.resolve(
+      rootDir,
+      overrides.iconsDir ?? process.env.ICONS_DIR ?? path.join('public', 'icons'),
+    ),
     migrationsDir: overrides.migrationsDir ?? path.join(rootDir, 'db', 'migrations'),
     host: overrides.host ?? process.env.HOST ?? '127.0.0.1',
     port: overrides.port ?? Number(process.env.PORT ?? 3000),

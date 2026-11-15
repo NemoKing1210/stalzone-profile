@@ -16,6 +16,7 @@ import {
   getBuild,
   getCharacter,
   getOwned,
+  listContainerFill,
   listEvents,
   listOwned,
   migrate,
@@ -167,6 +168,41 @@ describe('updateOwned', () => {
     const patch = OwnedPatchSchema.parse({ qty: 1 });
     expect(() => updateOwned(db, 999_999, patch)).toThrowError(WriteError);
   });
+
+  it('keeps an unmapped legacy skin string when only notes change', () => {
+    const ownedId = upsertOwned(db, {
+      characterId,
+      itemId: ids.ak15,
+      kind: 'weapon',
+      level: 3,
+      qty: 1,
+      displayName: 'АК-15',
+      extra: { skin: '«Вепрь»' },
+    });
+    const result = updateOwned(db, ownedId, OwnedPatchSchema.parse({ note: 'на полке', dryRun: false }));
+    expect(result.eventId).toBeTypeOf('number');
+    expect(getOwned(db, ownedId)).toMatchObject({ note: 'на полке', skin_item_id: null });
+    expect(JSON.parse(getOwned(db, ownedId)!.extra!)).toMatchObject({ skin: '«Вепрь»' });
+  });
+
+  it('resolves a changed skin by exact motif name only', () => {
+    const ownedId = upsertOwned(db, {
+      characterId,
+      itemId: ids.ak15,
+      kind: 'weapon',
+      level: 3,
+      qty: 1,
+      extra: { skin: '«Вепрь»' },
+    });
+    updateOwned(db, ownedId, OwnedPatchSchema.parse({ skin: 'Камуфляж', dryRun: false }));
+    expect(getOwned(db, ownedId)?.skin_item_id).toBe(ids.camo);
+    expect(JSON.parse(getOwned(db, ownedId)!.extra!)).toMatchObject({ skin: 'Камуфляж' });
+
+    expect(() =>
+      updateOwned(db, ownedId, OwnedPatchSchema.parse({ skin: 'Несуществующий облик', dryRun: false })),
+    ).toThrowError(WriteError);
+    expect(getOwned(db, ownedId)?.skin_item_id).toBe(ids.camo);
+  });
 });
 
 describe('deleteOwned with copies', () => {
@@ -190,6 +226,61 @@ describe('deleteOwned with copies', () => {
     deleteOwned(db, row.id, { dryRun: true, qty: 1 });
     expect(getOwned(db, row.id)?.qty).toBe(3);
     expect(listEvents(db)).toHaveLength(0);
+  });
+
+  it('restores a deleted container with its fill and display extras', () => {
+    const container = listOwned(db, characterId, 'container')[0];
+    upsertOwned(db, {
+      characterId,
+      itemId: ids.backpack,
+      kind: 'container',
+      level: 0,
+      qty: 1,
+      displayName: 'Рюкзак',
+      extra: { type: 'backpack', shield: 12 },
+    });
+    setContainerFill(
+      db,
+      container.id,
+      ContainerFillSchema.parse({
+        artifacts: [{ name: 'Корка', level: 5, quality: 'Редкий' }],
+        dryRun: false,
+      }),
+    );
+
+    const removed = deleteOwned(db, container.id, { dryRun: false, qty: 1 });
+    expect(getOwned(db, container.id)).toBeNull();
+    expect(listContainerFill(db, container.id)).toHaveLength(0);
+
+    rollbackEvent(db, removed.eventId!, false);
+
+    const restored = listOwned(db, characterId, 'container')[0];
+    expect(restored.id).toBeTypeOf('number');
+    expect(JSON.parse(restored.extra!)).toMatchObject({ type: 'backpack', shield: 12 });
+    const fill = listContainerFill(db, restored.id);
+    expect(fill).toHaveLength(1);
+    expect(fill[0]).toMatchObject({ artifact_item_id: ids.korka, level: 5, quality: 'Редкий' });
+  });
+
+  it('refuses a fill rollback when its container is gone', () => {
+    const container = listOwned(db, characterId, 'container')[0];
+    const fill = setContainerFill(
+      db,
+      container.id,
+      ContainerFillSchema.parse({
+        artifacts: [{ name: 'Корка', level: 5 }],
+        dryRun: false,
+      }),
+    );
+    deleteOwned(db, container.id, { dryRun: false, qty: 1 });
+
+    try {
+      rollbackEvent(db, fill.eventId!, false);
+      throw new Error('expected WriteError');
+    } catch (error) {
+      expect(error).toBeInstanceOf(WriteError);
+      expect((error as WriteError).code).toBe('OWNED_NOT_FOUND');
+    }
   });
 });
 

@@ -26,6 +26,7 @@ export default defineNuxtConfig({
     mcpToken: '',
     loginRateMax: 5,
     loginWindowMs: 60_000,
+    trustProxy: '',
     public: {
       appName: 'STALZONE Dossier',
     },

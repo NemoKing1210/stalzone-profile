@@ -40,12 +40,14 @@ NUXT_PASSWORD=dev npm run dev
 | Переменная | По умолчанию | Назначение |
 |---|---|---|
 | `DB_PATH` | `./data/dossier.db` | файл SQLite (в Docker — `/data/dossier.db`) |
+| `ICONS_DIR` | `./public/icons` | каталог `.webp`-иконок (в Docker — `/data/icons`) |
 | `NUXT_PASSWORD_HASH` | — | scrypt-хеш пароля сайта |
 | `NUXT_PASSWORD` | — | простой пароль для разработки |
 | `NUXT_SESSION_SECRET` | эфемерный | HMAC-секрет cookie `dossier_session` |
 | `NUXT_MCP_TOKEN` | — | Bearer-токен `/mcp`; пусто — эндпоинт выключен |
 | `NUXT_LOGIN_RATE_MAX` | `5` | попыток входа в окне |
 | `NUXT_LOGIN_WINDOW_MS` | `60000` | окно rate limit |
+| `NUXT_TRUST_PROXY` | — | `1` — доверять `X-Forwarded-For` (только за Caddy/прокси) |
 | `REALM` | `ru` | регион источников |
 | `PROFILE_FILE` | `./db/seeds/profile.json` | снимок публичного профиля |
 | `SNAPSHOTS_DIR` | `./snapshots` | каталог резервных копий |

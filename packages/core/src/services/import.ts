@@ -6,6 +6,7 @@ import * as repo from '../repo/index.js';
 import { addItemStats, findItemByKindName, getItemById, kindFromCategory, replaceItemStats } from '../repo/items.js';
 import type { StatInput } from '../repo/items.js';
 import type { AppConfig } from '../config.js';
+import { ensureDir } from '../config.js';
 
 type Json = any;
 
@@ -663,9 +664,16 @@ export function importLegacy(db: Db, cfg: AppConfig): ImportReport {
     }
 
     /* ---------- 12. icons ---------- */
+    const iconsDir = ensureDir(cfg.iconsDir);
     for (const [key, dataUrl] of Object.entries<string>(iconsFile.icons ?? {})) {
       const hash = sha1(key);
-      repo.upsertIcon(db, key, `icons/${hash}.webp`, 'local', mimeOf(dataUrl));
+      const fileName = `${hash}.webp`;
+      fs.writeFileSync(path.join(iconsDir, fileName), decodeDataUrl(dataUrl));
+      const localPath = `/icons/${fileName}`;
+      repo.upsertIcon(db, key, localPath, 'local', mimeOf(dataUrl));
+      const target = iconTarget(key);
+      const item = target ? findItemByKindName(db, target.kind, target.name) : null;
+      if (item) repo.setItemIconPath(db, item.id, localPath);
       report.icons++;
     }
     repo.setMeta(db, 'icons_meta', iconsFile.meta ?? {});
@@ -755,6 +763,34 @@ function createLocalArmor(db: Db, armor: Json) {
 function mimeOf(dataUrl: string): string {
   const m = /^data:([^;]+);/.exec(dataUrl);
   return m?.[1] ?? 'image/webp';
+}
+
+const ICON_KINDS: Record<string, string> = {
+  w: 'weapon',
+  a: 'armor',
+  c: 'container',
+  art: 'artifact',
+};
+
+/** Icon seed keys look like `w:KS-1`, `a:«Соболь»`, `c:…`, `art:Нервяк[:15]`. */
+export function iconTarget(key: string): { kind: string; name: string } | null {
+  const colon = key.indexOf(':');
+  if (colon < 0) return null;
+  const kind = ICON_KINDS[key.slice(0, colon)];
+  if (!kind) return null;
+  const raw = key.slice(colon + 1);
+  const name = kind === 'artifact' ? raw.replace(/:\d+$/, '') : raw;
+  return name ? { kind, name } : null;
+}
+
+function decodeDataUrl(dataUrl: string): Buffer {
+  const comma = dataUrl.indexOf(',');
+  if (comma < 0) return Buffer.from(dataUrl, 'utf8');
+  const meta = dataUrl.slice(0, comma);
+  const payload = dataUrl.slice(comma + 1);
+  return meta.includes(';base64')
+    ? Buffer.from(payload, 'base64')
+    : Buffer.from(decodeURIComponent(payload), 'utf8');
 }
 
 /* ------------------------------- stats ------------------------------- */

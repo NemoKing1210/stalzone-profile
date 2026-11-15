@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { closeDb, loadConfig, migrate, openDb, type Db } from '@dossier/core';
+import { findItemByKindName, getIcon } from '@dossier/core/repo';
 import { importLegacy, type ImportReport } from '@dossier/core/services/import';
 import { exportLegacyJson } from '@dossier/core/services/export';
 import { buildPayload } from '@dossier/core/services/payload';
@@ -17,6 +18,7 @@ beforeAll(() => {
   const cfg = loadConfig({
     dbPath: path.join(dir, 'test.db'),
     seedsDir: path.join(process.cwd(), 'db', 'seeds'),
+    iconsDir: path.join(dir, 'icons'),
   });
   db = openDb(cfg.dbPath);
   migrate(db, cfg.migrationsDir);
@@ -41,6 +43,22 @@ describe('legacy import', () => {
     });
     expect(first.prices).toBeGreaterThan(0);
     expect(first.icons).toBe(99);
+  });
+
+  it('writes webp files and points items at the local icon', () => {
+    const icon = getIcon(db, 'w:KS-1');
+    expect(icon?.path).toMatch(/^\/icons\/[a-f0-9]{40}\.webp$/);
+    const file = path.join(dir, 'icons', path.basename(icon!.path));
+    expect(fs.existsSync(file)).toBe(true);
+    const bytes = fs.readFileSync(file);
+    expect(bytes.subarray(0, 4).toString('ascii')).toBe('RIFF');
+    expect(bytes.subarray(8, 12).toString('ascii')).toBe('WEBP');
+
+    expect(findItemByKindName(db, 'weapon', 'KS-1')?.icon_path).toBe(icon!.path);
+    expect(findItemByKindName(db, 'artifact', 'Нервяк')?.icon_path).toMatch(/^\/icons\/[a-f0-9]{40}\.webp$/);
+    expect(findItemByKindName(db, 'container', 'Контейнер «Бочонок»')?.icon_path).toMatch(
+      /^\/icons\/[a-f0-9]{40}\.webp$/,
+    );
   });
 
   it('is idempotent', () => {

@@ -16,7 +16,7 @@ SQLite в режиме WAL — единственный источник пра�
 | `build` / `build_slot` | сборки и их строки |
 | `price_snapshot` | история цен; view `price_latest` — последняя на имя+качество+бонус |
 | `content_block` | заметки, рекомендации, заработок, meta сборок и каталога |
-| `icon` | ключ → файл иконки (`icons/<sha1>.webp`) |
+| `icon` | ключ → файл иконки (`/icons/<sha1>.webp`, файлы в `ICONS_DIR`) |
 | `app_meta` | служебные JSON-блоки (meta, career, profile, порядок каталога) |
 | `event_log` | журнал записей: `before`/`after` снимки для отката |
 | `catalog_entry` | каталог оружия/брони в точном легаси-порядке, с дублями позиций |

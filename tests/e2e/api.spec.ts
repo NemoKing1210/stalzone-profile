@@ -43,6 +43,20 @@ test('payload returns the dossier counts and is not cached', async () => {
   expect(Object.keys(body.details)).toHaveLength(601);
 });
 
+test('payload icon paths resolve to local webp files', async () => {
+  const response = await api.get('/api/v1/payload');
+  const body = await response.json();
+  const icon: string = body.weapons[0].icon;
+  expect(icon).toMatch(/^\/icons\/[a-f0-9]{40}\.webp$/);
+
+  const file = await api.get(icon);
+  expect(file.status()).toBe(200);
+  expect(file.headers()['content-type']).toContain('image/webp');
+  const bytes = await file.body();
+  expect(bytes.subarray(0, 4).toString('ascii')).toBe('RIFF');
+  expect(bytes.subarray(8, 12).toString('ascii')).toBe('WEBP');
+});
+
 test('character exposes the owner profile', async () => {
   const response = await api.get('/api/v1/character');
   expect(response.status()).toBe(200);

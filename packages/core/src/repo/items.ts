@@ -149,6 +149,14 @@ export function upsertItem(db: Db, input: ItemInput): number {
   return Number(info.lastInsertRowid);
 }
 
+export function setItemIconPath(db: Db, itemId: number, iconPath: string): void {
+  db.prepare(`UPDATE item SET icon_path = ?, updated_at = ? WHERE id = ?`).run(
+    iconPath,
+    new Date().toISOString(),
+    itemId,
+  );
+}
+
 function insertStat(db: Db, itemId: number, stat: StatInput, mode: 'replace' | 'ignore'): void {
   const sql = `INSERT OR ${mode === 'ignore' ? 'IGNORE' : 'REPLACE'} INTO item_stat
     (item_id, key, label, level, value_num, value_min, value_max, value_text, pct, positive, is_additional, source_id)

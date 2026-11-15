@@ -100,6 +100,19 @@ function resolveOptionalItem(db: Db, name: string | null | undefined) {
   );
 }
 
+/** Skins may only bind by their exact motif name; guessing an "almost same" motif is worse than failing. */
+function resolveMotifExact(db: Db, name: string) {
+  const item = repo.findItemByKindName(db, 'motif', name);
+  if (!item) {
+    throw new WriteError(422, 'UNKNOWN_ITEM', `Облик «${name}» не найден`, {
+      query: name,
+      kind: 'motif',
+      suggestions: suggestionsFor(db, name, 'motif'),
+    });
+  }
+  return item;
+}
+
 function ownedSnapshot(row: OwnedRow, itemName?: string) {
   return {
     id: row.id,
@@ -113,6 +126,7 @@ function ownedSnapshot(row: OwnedRow, itemName?: string) {
     note: row.note,
     role: row.role,
     slot: row.slot,
+    extra: parseJson(row.extra),
   };
 }
 
@@ -178,11 +192,15 @@ export function patchCharacter(db: Db, patch: CharacterPatch): WriteResult {
 export function createOwned(db: Db, input: OwnedCreate): WriteResult {
   const character = characterOrThrow(db);
   const item = resolveItem(db, input.name, input.kind);
-  const skinItemId = input.skin ? resolveItem(db, input.skin, 'motif').id : null;
+  const skinItemId = input.skin ? resolveMotifExact(db, input.skin).id : null;
   const quality = input.quality ?? null;
   const existing = repo.findOwned(db, character.id, item.id, input.level, quality, skinItemId);
   const qty = (existing?.qty ?? 0) + input.qty;
   const before = existing ? ownedSnapshot(existing, item.name) : null;
+  const extra =
+    input.skin === undefined
+      ? undefined
+      : { ...((existing ? parseJson(existing.extra) : null) as Record<string, unknown> | null), skin: input.skin };
   const after = {
     id: existing?.id ?? null,
     itemId: item.id,
@@ -195,6 +213,7 @@ export function createOwned(db: Db, input: OwnedCreate): WriteResult {
     note: input.note ?? existing?.note ?? null,
     role: input.role ?? existing?.role ?? null,
     slot: input.slot ?? existing?.slot ?? item.slot ?? null,
+    extra: extra ?? (existing ? parseJson(existing.extra) : null),
   };
   const human = existing
     ? `Количество «${item.name}»: ${existing.qty} → ${qty}`
@@ -216,6 +235,7 @@ export function createOwned(db: Db, input: OwnedCreate): WriteResult {
       slot: after.slot,
       qty,
       displayName: item.name,
+      extra,
     });
     after.id = id;
     eventId = repo.logEvent(db, {
@@ -234,8 +254,21 @@ export function updateOwned(db: Db, id: number, patch: OwnedPatch): WriteResult 
   const row = repo.getOwned(db, id);
   if (!row) throw new WriteError(404, 'OWNED_NOT_FOUND', 'Запись не найдена');
 
-  const skinItemId =
-    patch.skin === undefined ? row.skin_item_id : patch.skin === null ? null : resolveItem(db, patch.skin, 'motif').id;
+  const currentExtra = (parseJson(row.extra) ?? {}) as Record<string, unknown>;
+  const currentSkin = typeof currentExtra.skin === 'string' ? currentExtra.skin : null;
+  let skinItemId = row.skin_item_id;
+  let extra = row.extra;
+  if (patch.skin !== undefined) {
+    if (patch.skin === null) {
+      skinItemId = null;
+      extra = JSON.stringify({ ...currentExtra, skin: null });
+    } else if (currentSkin !== null && patch.skin === currentSkin) {
+      // Unchanged legacy skin string: keep the existing mapping (possibly none) instead of guessing.
+    } else {
+      skinItemId = resolveMotifExact(db, patch.skin).id;
+      extra = JSON.stringify({ ...currentExtra, skin: patch.skin });
+    }
+  }
   const merged = {
     level: patch.level ?? row.level,
     quality: patch.quality === undefined ? row.quality : patch.quality,
@@ -245,6 +278,7 @@ export function updateOwned(db: Db, id: number, patch: OwnedPatch): WriteResult 
     qty: patch.qty ?? row.qty,
     displayName: patch.displayName === undefined ? row.display_name : patch.displayName,
     skinItemId,
+    extra: parseJson(extra),
   };
 
   const clash = repo.findOwned(db, row.character_id, row.item_id, merged.level, merged.quality, merged.skinItemId);
@@ -277,6 +311,7 @@ export function updateOwned(db: Db, id: number, patch: OwnedPatch): WriteResult 
       skin_item_id: merged.skinItemId,
       qty: merged.qty,
       display_name: merged.displayName,
+      extra: merged.extra == null ? null : JSON.stringify(merged.extra),
     });
     eventId = repo.logEvent(db, {
       actor: 'owner',
@@ -296,7 +331,8 @@ export function deleteOwned(db: Db, id: number, opts: { dryRun: boolean; qty?: n
 
   const remove = Math.min(Math.max(1, Math.trunc(opts.qty ?? 1)), row.qty);
   const remaining = row.qty - remove;
-  const before = ownedSnapshot(row);
+  const before: Record<string, unknown> = { ...ownedSnapshot(row) };
+  if (row.kind === 'container') before.fill = containerFillSnapshot(db, row.id);
   const after = remaining > 0 ? { ...before, qty: remaining } : null;
   const name = row.display_name ?? row.item_name;
   const human = remaining > 0 ? `Количество «${name}»: ${row.qty} → ${remaining}` : `Удалено «${name}»`;
@@ -566,7 +602,7 @@ function restoreSnapshot(db: Db, action: string, before: any, after: any): void 
     }
     case 'owned.delete': {
       if (before) {
-        repo.upsertOwned(db, {
+        const restoredId = repo.upsertOwned(db, {
           characterId: characterOrThrow(db).id,
           itemId: before.itemId,
           kind: before.kind,
@@ -578,12 +614,29 @@ function restoreSnapshot(db: Db, action: string, before: any, after: any): void 
           role: before.role,
           slot: before.slot,
           displayName: before.name,
+          extra: before.extra ?? undefined,
         });
+        const fill = before.fill as { asOf?: string | null; artifacts?: any[] } | null | undefined;
+        if (fill?.artifacts?.length) {
+          repo.replaceContainerFill(
+            db,
+            restoredId,
+            fill.artifacts.map((artifact) => ({
+              itemId: artifact.itemId,
+              level: artifact.level,
+              quality: artifact.quality,
+            })),
+            fill.asOf ?? new Date().toISOString(),
+          );
+        }
       }
       return;
     }
     case 'container.fill': {
       if (before) {
+        if (!repo.getOwned(db, before.ownedId)) {
+          throw new WriteError(409, 'OWNED_NOT_FOUND', 'Контейнер для отката не найден');
+        }
         repo.replaceContainerFill(
           db,
           before.ownedId,
@@ -630,5 +683,6 @@ function ownedPatch(snapshot: any) {
     role: snapshot.role,
     slot: snapshot.slot,
     display_name: snapshot.name,
+    extra: typeof snapshot.extra === 'string' ? snapshot.extra : snapshot.extra == null ? null : JSON.stringify(snapshot.extra),
   };
 }

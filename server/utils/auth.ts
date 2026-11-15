@@ -1,6 +1,13 @@
 import crypto from 'node:crypto';
 import type { H3Event } from 'h3';
-import { createSessionToken, safeEqual, SESSION_TTL_MS, verifySessionToken } from '@dossier/core';
+import {
+  createSessionToken,
+  isTruthy,
+  loginClientKey,
+  safeEqual,
+  SESSION_TTL_MS,
+  verifySessionToken,
+} from '@dossier/core';
 import { apiError, type ApiErrorBody } from './errors';
 
 export const SESSION_COOKIE = 'dossier_session';
@@ -99,7 +106,11 @@ export function assertLoginAllowed(event: H3Event): ApiErrorBody | null {
   const config = useRuntimeConfig();
   const windowMs = Number(config.loginWindowMs) || LOGIN_WINDOW_MS;
   const maxAttempts = Number(config.loginRateMax) || LOGIN_MAX_ATTEMPTS;
-  const ip = getRequestIP(event, { xForwardedFor: true }) ?? 'unknown';
+  const ip = loginClientKey(
+    getRequestIP(event),
+    getRequestHeader(event, 'x-forwarded-for'),
+    isTruthy(config.trustProxy),
+  );
   const now = Date.now();
   const recent = (loginAttempts.get(ip) ?? []).filter((at) => now - at < windowMs);
   recent.push(now);

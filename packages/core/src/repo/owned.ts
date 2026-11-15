@@ -134,11 +134,23 @@ export function upsertOwned(db: Db, input: OwnedInput): number {
 export function updateOwnedById(
   db: Db,
   id: number,
-  patch: Partial<Pick<OwnedRow, 'level' | 'quality' | 'note' | 'role' | 'slot' | 'skin_item_id' | 'qty' | 'display_name'>>,
+  patch: Partial<
+    Pick<OwnedRow, 'level' | 'quality' | 'note' | 'role' | 'slot' | 'skin_item_id' | 'qty' | 'display_name' | 'extra'>
+  >,
 ): void {
   const sets: string[] = [];
   const params: Record<string, unknown> = { id, updated_at: new Date().toISOString() };
-  for (const key of ['level', 'quality', 'note', 'role', 'slot', 'skin_item_id', 'qty', 'display_name'] as const) {
+  for (const key of [
+    'level',
+    'quality',
+    'note',
+    'role',
+    'slot',
+    'skin_item_id',
+    'qty',
+    'display_name',
+    'extra',
+  ] as const) {
     if (patch[key] !== undefined) {
       sets.push(`${key} = @${key}`);
       params[key] = patch[key];

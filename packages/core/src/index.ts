@@ -8,4 +8,5 @@ export * from './services/import.js';
 export * from './services/export.js';
 export * from './services/password.js';
 export * from './services/session.js';
+export * from './services/security.js';
 export * from './services/sync.js';

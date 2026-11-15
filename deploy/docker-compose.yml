@@ -12,11 +12,13 @@ services:
       PORT: '3000'
       HOST: 0.0.0.0
       DB_PATH: /data/dossier.db
+      ICONS_DIR: /data/icons
       NUXT_SESSION_SECRET: ${NUXT_SESSION_SECRET:-}
       NUXT_PASSWORD_HASH: ${NUXT_PASSWORD_HASH:-}
       NUXT_PASSWORD: ${NUXT_PASSWORD:-}
       NUXT_MCP_TOKEN: ${NUXT_MCP_TOKEN:-}
       NUXT_LOGIN_RATE_MAX: ${NUXT_LOGIN_RATE_MAX:-5}
+      NUXT_TRUST_PROXY: ${NUXT_TRUST_PROXY:-}
       PROFILE_FILE: /app/db/seeds/profile.json
     volumes:
       - dossier-data:/data

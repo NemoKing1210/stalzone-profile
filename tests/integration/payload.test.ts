@@ -16,6 +16,7 @@ beforeAll(() => {
   const cfg = loadConfig({
     dbPath: path.join(dir, 'test.db'),
     seedsDir: path.join(process.cwd(), 'db', 'seeds'),
+    iconsDir: path.join(dir, 'icons'),
   });
   db = openDb(cfg.dbPath);
   migrate(db, cfg.migrationsDir);
