@@ -1,16 +1,16 @@
-# Архитектура
+# Architecture
 
-## Компоненты
+## Components
 
 ```
                     ┌──────────────────────────────┐
-  Браузер ────────▶ │ Nuxt 4 (SSR) + Nuxt UI       │
-                    │ app/  → страницы и формы     │
+  Browser ────────▶ │ Nuxt 4 (SSR) + Nuxt UI       │
+                    │ app/  → pages and forms      │
                     │ server/api → REST /api/v1    │
                     └──────────────┬───────────────┘
                                    │ better-sqlite3
                     ┌──────────────▼───────────────┐
-  MCP-агент ──────▶ │ packages/core                │
+  MCP agent ──────▶ │ packages/core                │
   (stdio / HTTP)    │ repo · calc · services       │
                     └──────────────┬───────────────┘
                                    │
@@ -19,91 +19,96 @@
                     └──────────────▲───────────────┘
                                    │ runSync
                     ┌──────────────┴───────────────┐
-                    │ packages/sources адаптеры    │
+                    │ packages/sources adapters    │
                     │ EXBO · wiki · motifs ·       │
                     │ profile · scpmodel           │
                     └──────────────────────────────┘
 ```
 
-Один процесс: Nuxt/Nitro обслуживает и сайт, и API, и `/mcp`. Отдельного
-воркера и второй базы нет.
+One process: Nuxt/Nitro serves the site, the API and `/mcp`. There is no separate worker and
+no second database.
 
-## Пакеты
+## Packages
 
-| Пакет | Ответственность |
+| Package | Responsibility |
 |---|---|
-| `packages/shared` | zod-схемы API/MCP, `norm`, форматирование, ранги |
-| `packages/core` | открытие/миграции SQLite, репозитории, формулы, импорт, запись, синк, экспорт |
-| `packages/sources` | чистые адаптеры источников: fetch + разбор, без записи в БД |
-| `packages/mcp` | реестр 21 инструмента, локальный клиент, stdio и HTTP транспорты |
-| `app` | Nuxt UI: разделы, таблицы, модальные формы, журнал событий |
-| `server` | Nitro-роуты, сессия, origin-check, `/mcp`, `/api/v1/admin/*` |
+| `packages/shared` | zod schemas for API/MCP, `norm`, formatting, ranks |
+| `packages/core` | opening/migrating SQLite, repositories, formulas, import, writes, sync, export |
+| `packages/sources` | pure source adapters: fetch + parse, no DB writes |
+| `packages/mcp` | registry of 21 tools, local client, stdio and HTTP transports |
+| `app` | Nuxt UI: sections, tables, modal forms, event log, i18n catalogs |
+| `server` | Nitro routes, session, origin check, `/mcp`, `/api/v1/admin/*` |
 
-Зависимости направлены в одну сторону: `app/server → mcp → core → sources/shared`.
-Адаптеры не знают о БД; `core/services/sync.ts` соединяет их с репозиториями.
+Dependencies point one way: `app/server → mcp → core → sources/shared`. Adapters know
+nothing about the DB; `core/services/sync.ts` connects them to the repositories.
 
-## Поток чтения
+## Read flow
 
-1. Страница вызывает `useDossier()` → `GET /api/v1/payload` или `/api/v1/meta`.
-2. Роут берёт общий `Db` из `server/utils/db.ts` (WAL, одна миграция на процесс).
-3. `buildPayload` собирает снаряжение, каталог, карточки, сборки и блоки.
-4. Числа DPS/TTK считаются одной формулой (`packages/core/src/calc/weapons.ts`)
-   из сырого урона и скорострельности; сохранённые легаси-значения не
-   подставляются.
+1. A page calls `useDossier()` → `GET /api/v1/payload` or `/api/v1/meta`.
+2. The route gets the shared `Db` from `server/utils/db.ts` (WAL, one migration per process).
+3. `buildPayload` assembles gear, catalog, cards, builds and content blocks.
+4. DPS/TTK numbers come from one formula (`packages/core/src/calc/weapons.ts`) using raw
+   damage and rate of fire; stored legacy values are never substituted.
 
-## Поток записи
+## Write flow
 
 ```
-форма → useWrite → POST/PATCH/PUT/DELETE /api/v1/... 
-      → requireOrigin → zod → core write → event_log(before/after) → ответ
+form → useWrite → POST/PATCH/PUT/DELETE /api/v1/...
+     → requireOrigin → zod → core write → event_log(before/after) → response
 ```
 
 - `WriteResult { dryRun, diff:{before,after,human}, eventId? }`.
-- `dryRun: true` возвращает diff, ничего не меняя; реальная запись закрывает
-  форму и обновляет payload.
-- Rollback восстанавливает сущность из снимка в `event_log` и пишет новое
-  событие `rollback`; откат самого отката не предлагается.
-- Ошибки — единый конверт `{ error: { code, message, details? } }`.
+- `dryRun: true` returns the diff without changing anything; a real write closes the form
+  and refreshes the payload.
+- Rollback restores the entity from the snapshot in `event_log` and writes a new `rollback`
+  event; rolling back the rollback itself is not offered.
+- Errors use one envelope `{ error: { code, message, details? } }` with English messages;
+  the UI maps known codes through `useApiError`.
 
-## Авторизация
+## Authorization
 
-- Пароль: scrypt-хеш (`NUXT_PASSWORD_HASH`) или plain (`NUXT_PASSWORD`) для dev.
-- Cookie `dossier_session`: HMAC-SHA256, HttpOnly, SameSite=Lax, Secure при HTTPS.
-- Middleware закрывает всё, кроме `/login`, `/api/auth/login`, `/api/v1/healthz`, `/mcp`.
-- `/mcp` сам проверяет `Authorization: Bearer NUXT_MCP_TOKEN`; без токена — 404.
-- Мутации требуют совпадения `Origin` (или Bearer для не-браузерных клиентов).
-- Логин ограничен по частоте (`NUXT_LOGIN_RATE_MAX`, окно 60 с).
+- Password: a scrypt hash (`NUXT_PASSWORD_HASH`) or plain (`NUXT_PASSWORD`) for dev.
+- Cookie `dossier_session`: HMAC-SHA256, HttpOnly, SameSite=Lax, Secure over HTTPS.
+- Middleware guards everything except `/login`, `/api/auth/login`, `/api/v1/healthz`, `/mcp`.
+- `/mcp` checks `Authorization: Bearer NUXT_MCP_TOKEN` itself; without a token — 404.
+- Mutations require a matching `Origin` (or Bearer for non-browser clients).
+- Sign-in is rate-limited (`NUXT_LOGIN_RATE_MAX`, 60 s window).
 
 ## MCP
 
-Один реестр инструментов (`packages/mcp/src/registry.ts`) обслуживает оба
-транспорта:
+One tool registry (`packages/mcp/src/registry.ts`) serves both transports:
 
-- **stdio** — `packages/mcp/src/stdio.ts`: при `DOSSIER_API_URL` работает
-  HTTP-клиентом, иначе открывает `DB_PATH` и работает локально.
-- **HTTP** — `POST /mcp`: stateless `StreamableHTTPServerTransport`, новый
-  сервер на запрос, общий rate limiter на процесс.
+- **stdio** — `packages/mcp/src/stdio.ts`: with `DOSSIER_API_URL` it works as an HTTP
+  client, otherwise it opens `DB_PATH` and works locally.
+- **HTTP** — `POST /mcp`: stateless `StreamableHTTPServerTransport`, a new server per
+  request, one rate limiter per process.
 
-Запись: `dry_run` по умолчанию, `confirm: true` обязателен, не больше 30
-изменений в минуту. Ресурс `dossier://schema` отдаёт описание инструментов и
-правила записи.
+Writes: `dry_run` by default, `confirm: true` is mandatory, no more than 30 changes per
+minute. The `dossier://schema` resource describes the tools and the write rules.
 
-## Источники и свежесть
+## Sources and freshness
 
-| id | Источник | Что обновляет |
+| id | Source | What it updates |
 |---|---|---|
-| `exbo_base` | GitHub EXBO-Studio/stalzone-database | предметы и статы |
-| `wiki` | stalzone.wiki API | артефакты, броня, оружие, контейнеры, TTK |
-| `motifs` | stalzone.wiki `category=other` | `item.base_item_id` обликов |
-| `profile` | ручной снимок публичного профиля | `character.stats` |
-| `scpmodel` | scpmodel.ru/api/predictions | `price_snapshot` (TTL 15 мин) |
+| `exbo_base` | GitHub EXBO-Studio/stalzone-database | items and stats |
+| `wiki` | stalzone.wiki API | artifacts, armor, weapons, containers, TTK |
+| `motifs` | stalzone.wiki `category=other` | skins' `item.base_item_id` |
+| `profile` | a manual snapshot of the public profile | `character.stats` |
+| `scpmodel` | scpmodel.ru/api/predictions | `price_snapshot` (TTL 15 min) |
 
-`source.status`: `idle | ok | stale | error`; `last_ok_at`, `last_try_at`,
-`last_error`. При ошибке данные не стираются — UI показывает возраст
-последнего успешного снимка.
+`source.status`: `idle | ok | stale | error`; `last_ok_at`, `last_try_at`, `last_error`.
+On failure data is not erased — the UI shows the age of the last successful snapshot.
 
-## Развёртывание
+## Interface languages
 
-Один образ: сборка Nuxt + CLI, runtime с `.output`, `node_modules`,
-`dist`, `db/migrations`, `db/seeds`. Том `/data` хранит `dossier.db` и
-резервные копии. Caddy — опциональный профиль для TLS. См. `docs/RUNBOOK.md`.
+The site is an English-default Nuxt app with a Russian translation, powered by
+`@nuxtjs/i18n` in `no_prefix` mode. Catalogs are lazy-loaded from `i18n/locales/*.json`;
+`app/plugins/i18n-locale.ts` persists the choice in the `dossier_lang` cookie.
+Game data (item names, stat labels, categories from seeds/legacy) is not translated.
+Server and MCP messages are English; the UI localizes error codes. Details: `docs/I18N.md`.
+
+## Deployment
+
+One image: the Nuxt + CLI build, a runtime with `.output`, `node_modules`, `dist`,
+`db/migrations`, `db/seeds`. The `/data` volume holds `dossier.db` and backups. Caddy is an
+optional profile for TLS. See `docs/RUNBOOK.md`.

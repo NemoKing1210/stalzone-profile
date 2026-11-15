@@ -1,47 +1,47 @@
-# Модель данных
+# Data model
 
-SQLite в режиме WAL — единственный источник правды. Изменения только новыми
-миграциями в `db/migrations/`.
+SQLite in WAL mode is the single source of truth. Changes go only through new migrations
+in `db/migrations/`.
 
-## Таблицы
+## Tables
 
-| Таблица | Назначение |
+| Table | Purpose |
 |---|---|
-| `source` | статус и свежесть источника (`exbo_base`, `wiki`, `motifs`, `profile`, `scpmodel`, `local`) |
-| `character` | персонаж и снимок статистики (`stats JSON`) |
-| `item` | нормализованный каталог; `raw JSON` хранит исходный объект целиком |
-| `item_stat` | статы ключ-значение с уровнем заточки 0…15, диапазонами и `is_additional` |
-| `owned` | снаряжение персонажа: `qty` копий, качество, облик, заметка, `extra` для отображения |
-| `container_fill` | артефакты в слотах контейнера на дату `as_of` |
-| `build` / `build_slot` | сборки и их строки |
-| `price_snapshot` | история цен; view `price_latest` — последняя на имя+качество+бонус |
-| `content_block` | заметки, рекомендации, заработок, meta сборок и каталога |
-| `icon` | ключ → файл иконки (`/icons/<sha1>.webp`, файлы в `ICONS_DIR`) |
-| `app_meta` | служебные JSON-блоки (meta, career, profile, порядок каталога) |
-| `event_log` | журнал записей: `before`/`after` снимки для отката |
-| `catalog_entry` | каталог оружия/брони в точном легаси-порядке, с дублями позиций |
-| `details_card` | 601 легаси-карточка по ключу `w:`, `a:`, `art:`, `c:` |
+| `source` | source status and freshness (`exbo_base`, `wiki`, `motifs`, `profile`, `scpmodel`, `local`) |
+| `character` | character and a stats snapshot (`stats JSON`) |
+| `item` | the normalized catalog; `raw JSON` keeps the original object whole |
+| `item_stat` | key-value stats with refinement level 0…15, ranges and `is_additional` |
+| `owned` | the character's gear: `qty` copies, quality, skin, note, `extra` for display |
+| `container_fill` | artifacts in a container's slots as of `as_of` |
+| `build` / `build_slot` | builds and their rows |
+| `price_snapshot` | price history; view `price_latest` — the latest by name+quality+bonus |
+| `content_block` | notes, recommendations, earnings, build and catalog meta |
+| `icon` | key → icon file (`/icons/<sha1>.webp`, files in `ICONS_DIR`) |
+| `app_meta` | service JSON blocks (meta, career, profile, catalog order) |
+| `event_log` | write journal: `before`/`after` snapshots for rollback |
+| `catalog_entry` | the weapon/armor catalog in exact legacy order, with duplicate positions |
+| `details_card` | 601 legacy cards by key `w:`, `a:`, `art:`, `c:` |
 
-Миграции: `0001_init.sql` (базовая схема), `0002_owned_qty_catalog_details.sql`
-(копии `owned.qty`, `display_name`, `catalog_entry`, `details_card`).
+Migrations: `0001_init.sql` (base schema), `0002_owned_qty_catalog_details.sql`
+(`owned.qty` copies, `display_name`, `catalog_entry`, `details_card`).
 
-## Ключевые инварианты
+## Key invariants
 
-- `item` уникален по `(realm, exbo_id)`; `name_norm` — lower/ё→е/без кавычек.
-- `owned` уникален по `(character_id, item_id, level, quality, skin_item_id)`;
-  одинаковые копии схлопываются в одну строку с `qty`.
-- `item_stat` — `(item_id, key, level, is_additional)`; новые статы EXBO не
-  требуют миграции.
-- `catalog_entry` уникален по `(kind, position)`, поэтому две пары легаси-дублей
-  брони сохраняются как отдельные позиции.
-- `price_latest` не хранится, а вычисляется: `ROW_NUMBER()` по
-  `(name_norm, quality_norm, bonus)`, свежее — по `fetched_at, id`.
-- `event_log.before/after` — часть контракта отката; менять формат можно только
-  обратно совместимо.
+- `item` is unique by `(realm, exbo_id)`; `name_norm` is lower/ё→е/without quotes.
+- `owned` is unique by `(character_id, item_id, level, quality, skin_item_id)`; identical
+  copies collapse into one row with `qty`.
+- `item_stat` — `(item_id, key, level, is_additional)`; new EXBO stats do not require a
+  migration.
+- `catalog_entry` is unique by `(kind, position)`, so the two pairs of legacy armor
+  duplicates are kept as separate positions.
+- `price_latest` is computed, not stored: `ROW_NUMBER()` over
+  `(name_norm, quality_norm, bonus)`, newest by `fetched_at, id`.
+- `event_log.before/after` are part of the rollback contract; the format may change only
+  in a backward-compatible way.
 
-## Формулы отображения
+## Display formulas
 
-Одна формула на весь проект (`packages/core/src/calc/weapons.ts`):
+One formula for the whole project (`packages/core/src/calc/weapons.ts`):
 
 ```
 displayedDmg = round(rawDamage, 1)
@@ -49,25 +49,26 @@ dps          = Math.round(displayedDmg * rof / 60)
 ttk          = round((ceil(600 / displayedDmg) - 1) * 60 / rof, 2)
 ```
 
-- `rawDamage` — урон на нужном уровне заточки; `rof` — выстрелов в минуту.
-- Сначала округляется урон, затем из него считаются DPS и TTK.
-- Сохранённые легаси-значения не используются для вывода. `npm run golden`
-  доказывает, что расхождений с исходным досье нет.
+- `rawDamage` is damage at the required refinement level; `rof` is rounds per minute.
+- Damage is rounded first; DPS and TTK are then computed from it.
+- Stored legacy values are never used for output. `npm run golden` proves there are no
+  differences from the original dossier.
 
-## Правила предметов
+## Item rules
 
-- Облик — не предмет: `kind = motif`, база ищется по `name.key`
-  (`item.motif.wpn.ks1_ssop` → token `ks1_ssop`) и пишется в `base_item_id`.
-- Ранг берётся у самого оружия/брони, не у облика.
-- «(А)» — отдельный предмет.
-- Пулестойкость брони — из `numericVariants` вики, не из `bullet_dmg_factor`.
-- Нет лота — `null` («нет лота»), нет статы — `null` («нет данных»). Ноль и
-  пропуск не подменяют друг друга.
+- A skin is not an item: `kind = motif`, its base is found by `name.key`
+  (`item.motif.wpn.ks1_ssop` → token `ks1_ssop`) and written to `base_item_id`.
+- The rank belongs to the weapon/armor itself, not to the skin.
+- "(А)" is a separate item.
+- Armor bullet protection comes from the wiki's `numericVariants`, not from
+  `bullet_dmg_factor`.
+- No lot means `null` ("no lot"), no stat means `null` ("no data"). Zero and a missing
+  value never substitute for each other.
 
-## Снапшоты и фолбэки
+## Snapshots and fallbacks
 
-- Каждый успешный синк пишет новые строки/статы и обновляет `source.last_ok_at`.
-- Ошибка синка не удаляет старые данные: статус `stale`, ошибка в `last_error`.
-- Цены: 15-минутный TTL; при 5xx предыдущий `price_snapshot` продолжает
-  отдаваться через `price_latest`, UI показывает его возраст.
-- Импорт легаси идемпотентен: агрегация копий до upsert и абсолютный `qty`.
+- Every successful sync writes new rows/stats and updates `source.last_ok_at`.
+- A sync failure does not delete old data: status `stale`, the error in `last_error`.
+- Prices: a 15-minute TTL; on 5xx the previous `price_snapshot` keeps being served through
+  `price_latest`, and the UI shows its age.
+- The legacy import is idempotent: copies are aggregated before upsert and `qty` is absolute.

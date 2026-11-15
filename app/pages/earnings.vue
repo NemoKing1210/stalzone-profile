@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { ContentEditTarget } from '~/types/dossier';
 
-useHead({ title: 'Заработок — STALZONE Dossier' });
+const { t } = useI18n();
+useHead(() => ({ title: `${t('earnings.pageTitle')} — ${t('common.appName')}` }));
 
 interface EarningsRow {
   tier: string;
@@ -64,7 +65,7 @@ const filters = useFilters('earnings', {
 const sorting = usePersistentSorting(filters);
 
 const tierItems = computed(() => [
-  { label: 'Все уровни', value: 'all' },
+  { label: t('earnings.allTiers'), value: 'all' },
   ...tiers.value.map((tier) => ({ label: tier.title, value: tier.id })),
 ]);
 
@@ -86,23 +87,23 @@ function tierTitle(id: string): string {
 const columns = computed(() => [
   {
     accessorKey: 'activity',
-    header: sortableHeader('Занятие'),
+    header: sortableHeader(t('earnings.columns.activity')),
     enableSorting: true,
     meta: { class: { td: 'font-medium min-w-52' } },
   },
   {
     accessorKey: 'low',
-    header: sortableHeader('Доход'),
+    header: sortableHeader(t('earnings.columns.income')),
     enableSorting: true,
     meta: { class: { td: 'whitespace-nowrap tabular-nums' } },
   },
-  { accessorKey: 'tier', header: 'Уровень' },
-  { accessorKey: 'where', header: 'Где', meta: { class: { td: 'min-w-48' } } },
-  { accessorKey: 'needs', header: 'Нужно', meta: { class: { td: 'min-w-48' } } },
-  { accessorKey: 'risk', header: 'Риск' },
-  { accessorKey: 'trust', header: 'Надёжность' },
-  { accessorKey: 'note', header: 'Заметка', meta: { class: { td: 'min-w-64 text-muted' } } },
-  { accessorKey: 'srcDate', header: 'Источник' },
+  { accessorKey: 'tier', header: t('earnings.columns.tier') },
+  { accessorKey: 'where', header: t('earnings.columns.where'), meta: { class: { td: 'min-w-48' } } },
+  { accessorKey: 'needs', header: t('earnings.columns.needs'), meta: { class: { td: 'min-w-48' } } },
+  { accessorKey: 'risk', header: t('earnings.columns.risk') },
+  { accessorKey: 'trust', header: t('earnings.columns.trust') },
+  { accessorKey: 'note', header: t('earnings.columns.note'), meta: { class: { td: 'min-w-64 text-muted' } } },
+  { accessorKey: 'srcDate', header: t('earnings.columns.source') },
 ]);
 </script>
 
@@ -110,10 +111,10 @@ const columns = computed(() => [
   <section class="space-y-4">
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-semibold">Заработок</h1>
+        <h1 class="text-2xl font-semibold">{{ t('earnings.title') }}</h1>
         <p class="text-sm text-muted">
-          {{ rows.length }} способов
-          <span v-if="earnings?.updated"> · обновлено {{ formatDate(earnings.updated) }}</span>
+          {{ t('earnings.count', { count: rows.length }) }}
+          <span v-if="earnings?.updated"> · {{ t('earnings.updated', { date: formatDate(earnings.updated) }) }}</span>
         </p>
       </div>
       <FreshnessBadge
@@ -128,7 +129,7 @@ const columns = computed(() => [
       color="neutral"
       variant="outline"
       size="sm"
-      label="Изменить блок"
+      :label="t('earnings.editBlock')"
       @click="startEdit"
     />
 
@@ -137,7 +138,7 @@ const columns = computed(() => [
       color="neutral"
       variant="subtle"
       icon="i-lucide-info"
-      title="Как читать оценки"
+      :title="t('earnings.noteTitle')"
       :description="earnings.note"
     />
 
@@ -146,20 +147,25 @@ const columns = computed(() => [
         <p class="font-medium">{{ tier.title }}</p>
         <p class="mt-1 text-sm text-muted">{{ tier.lead }}</p>
         <p class="mt-2 text-xs text-muted">
-          {{ rows.filter((row) => row.tier === tier.id).length }} способов
+          {{ t('earnings.countMethods', { count: rows.filter((row) => row.tier === tier.id).length }) }}
         </p>
       </UCard>
     </div>
 
     <div class="flex flex-wrap items-center gap-2">
-      <UInput v-model="filters.q" icon="i-lucide-search" placeholder="Поиск: занятие, место, требование" class="w-full sm:w-80" />
-      <USelect v-model="filters.tier" :items="tierItems" class="w-56" aria-label="Уровень" />
+      <UInput
+        v-model="filters.q"
+        icon="i-lucide-search"
+        :placeholder="t('earnings.search')"
+        class="w-full sm:w-80"
+      />
+      <USelect v-model="filters.tier" :items="tierItems" class="w-56" :aria-label="t('earnings.tier')" />
       <UButton
         v-if="filters.q || filters.tier !== 'all'"
         icon="i-lucide-x"
         color="neutral"
         variant="ghost"
-        label="Сбросить"
+        :label="t('common.reset')"
         @click="
           () => {
             filters.q = '';
@@ -167,7 +173,7 @@ const columns = computed(() => [
           }
         "
       />
-      <span class="text-sm text-muted">{{ filteredRows.length }} из {{ rows.length }}</span>
+      <span class="text-sm text-muted">{{ t('earnings.shownOf', { shown: filteredRows.length, total: rows.length }) }}</span>
     </div>
 
     <UCard v-if="rows.length" :ui="{ body: 'p-0 sm:p-0' }">
@@ -189,20 +195,20 @@ const columns = computed(() => [
           </span>
         </template>
         <template #empty>
-          <UEmpty icon="i-lucide-coins" title="Пусто" description="Под фильтры ничего не подошло." />
+          <UEmpty icon="i-lucide-coins" :title="t('common.empty')" :description="t('filters.noMatch')" />
         </template>
       </UTable>
     </UCard>
     <UEmpty
       v-else
       icon="i-lucide-coins"
-      title="Пусто"
-      description="В досье пока нет оценок заработка. Добавьте их через API или MCP."
+      :title="t('common.empty')"
+      :description="t('earnings.emptyDescription')"
     />
 
     <UCard v-if="earnings?.forYou?.length">
       <template #header>
-        <h2 class="font-medium">Что подходит под твой стиль</h2>
+        <h2 class="font-medium">{{ t('earnings.forYouTitle') }}</h2>
       </template>
       <ul class="list-disc space-y-1 pl-5 text-sm">
         <li v-for="item in earnings.forYou" :key="item">{{ item }}</li>

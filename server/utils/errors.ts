@@ -22,5 +22,5 @@ export function apiError(
 }
 
 export function validationError(event: H3Event, error: ZodError): ApiErrorBody {
-  return apiError(event, 400, 'VALIDATION', 'Некорректные данные', error.issues);
+  return apiError(event, 400, 'VALIDATION', 'Invalid data', error.issues);
 }

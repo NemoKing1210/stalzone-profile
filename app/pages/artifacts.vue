@@ -2,7 +2,8 @@
 import type { ArtifactPayload } from '~/composables/useDossier';
 import type { OwnedEditTarget } from '~/types/dossier';
 
-useHead({ title: 'Артефакты — STALZONE Dossier' });
+const { t } = useI18n();
+useHead(() => ({ title: `${t('artifacts.pageTitle')} — ${t('common.appName')}` }));
 
 const { payload } = useDossier();
 const filters = useFilters('artifacts', { q: '', type: 'all', sort: 'name' });
@@ -26,15 +27,15 @@ const artifacts = computed(() => payload.value?.artifacts ?? []);
 const typeItems = computed(() => {
   const types = [...new Set(artifacts.value.map((artifact) => artifact.type).filter(Boolean))] as string[];
   types.sort((a, b) => a.localeCompare(b, 'ru'));
-  return [{ label: 'Все типы', value: 'all' }, ...types.map((type) => ({ label: type, value: type }))];
+  return [{ label: t('filters.allTypes'), value: 'all' }, ...types.map((type) => ({ label: type, value: type }))];
 });
 
-const sortItems = [
-  { label: 'По названию', value: 'name' },
-  { label: 'По уровню (сначала выше)', value: 'lvl-desc' },
-  { label: 'По уровню (сначала ниже)', value: 'lvl-asc' },
-  { label: 'По рангу', value: 'rank' },
-];
+const sortItems = computed(() => [
+  { label: t('artifacts.sortName'), value: 'name' },
+  { label: t('artifacts.sortLevelDesc'), value: 'lvl-desc' },
+  { label: t('artifacts.sortLevelAsc'), value: 'lvl-asc' },
+  { label: t('artifacts.sortRank'), value: 'rank' },
+]);
 
 const filtered = computed(() => {
   const query = filters.q.trim().toLowerCase();
@@ -79,8 +80,10 @@ function startEdit(artifact: ArtifactPayload): void {
   <section class="space-y-4">
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-semibold">Артефакты</h1>
-        <p class="text-sm text-muted">{{ filtered.length }} из {{ artifacts.length }} · эффекты и уровень заточки</p>
+        <h1 class="text-2xl font-semibold">{{ t('artifacts.title') }}</h1>
+        <p class="text-sm text-muted">
+          {{ t('artifacts.summary', { shown: filtered.length, total: artifacts.length }) }}
+        </p>
       </div>
       <FreshnessBadge
         :data-updated="payload?.freshness.dataUpdated"
@@ -89,15 +92,20 @@ function startEdit(artifact: ArtifactPayload): void {
     </div>
 
     <div class="flex flex-wrap items-center gap-2">
-      <UInput v-model="filters.q" icon="i-lucide-search" placeholder="Поиск: название, тип, эффект" class="w-full sm:w-72" />
-      <USelect v-model="filters.type" :items="typeItems" class="w-52" aria-label="Тип артефакта" />
-      <USelect v-model="filters.sort" :items="sortItems" class="w-64" aria-label="Сортировка" />
+      <UInput
+        v-model="filters.q"
+        icon="i-lucide-search"
+        :placeholder="t('filters.searchArtifacts')"
+        class="w-full sm:w-72"
+      />
+      <USelect v-model="filters.type" :items="typeItems" class="w-52" :aria-label="t('filters.artifactType')" />
+      <USelect v-model="filters.sort" :items="sortItems" class="w-64" :aria-label="t('filters.sort')" />
       <UButton
         v-if="filters.q || filters.type !== 'all'"
         icon="i-lucide-x"
         color="neutral"
         variant="ghost"
-        label="Сбросить"
+        :label="t('common.reset')"
         @click="
           () => {
             filters.q = '';
@@ -123,7 +131,7 @@ function startEdit(artifact: ArtifactPayload): void {
             </div>
             <div class="min-w-0 flex-1">
               <p class="font-medium">{{ artifact.name }}</p>
-              <p class="text-xs text-muted">{{ artifact.type ?? 'тип не указан' }}</p>
+              <p class="text-xs text-muted">{{ artifact.type ?? t('artifacts.typeFallback') }}</p>
               <div class="mt-1 flex flex-wrap gap-1">
                 <RankBadge :rank="artifact.rank" />
                 <UBadge v-if="artifact.q" color="neutral" variant="subtle">{{ artifact.q }}</UBadge>
@@ -137,17 +145,17 @@ function startEdit(artifact: ArtifactPayload): void {
               variant="ghost"
               size="xs"
               class="relative z-10"
-              :aria-label="`Изменить ${artifact.name}`"
+              :aria-label="t('artifacts.editAria', { name: artifact.name })"
               @click="startEdit(artifact)"
             />
           </div>
           <p v-if="artifact.effects" class="mt-3 line-clamp-3 text-sm text-muted">{{ artifact.effects }}</p>
-          <p v-else class="mt-3 text-sm text-muted">нет данных об эффектах</p>
+          <p v-else class="mt-3 text-sm text-muted">{{ t('artifacts.effectsEmpty') }}</p>
         </UCard>
         <button
           type="button"
           class="absolute inset-0 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          :aria-label="`Открыть карточку ${artifact.name}`"
+          :aria-label="t('artifacts.openAria', { name: artifact.name })"
           @click="selected = artifact"
         />
       </div>
@@ -155,17 +163,13 @@ function startEdit(artifact: ArtifactPayload): void {
     <UEmpty
       v-else
       icon="i-lucide-gem"
-      title="Пусто"
-      :description="
-        artifacts.length
-          ? 'Под фильтры ничего не подошло.'
-          : 'В досье пока нет артефактов. Добавьте их через API или MCP.'
-      "
+      :title="t('common.empty')"
+      :description="artifacts.length ? t('filters.noMatch') : t('artifacts.emptyDescription')"
     />
 
-    <p class="text-xs text-muted">Клик по карточке открывает исходную карточку артефакта с диапазонами значений.</p>
+    <p class="text-xs text-muted">{{ t('artifacts.hint') }}</p>
 
-    <UModal v-model:open="modalOpen" title="Карточка артефакта" :description="selected?.name" scrollable>
+    <UModal v-model:open="modalOpen" :title="t('items.artifactCardTitle')" :description="selected?.name" scrollable>
       <template #body>
         <ItemCard
           v-if="selected"

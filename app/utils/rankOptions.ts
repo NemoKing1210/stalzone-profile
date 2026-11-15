@@ -1,10 +1,10 @@
-import { RANK_ORDER, RANK_RU } from '@dossier/shared/ranks';
+import { RANK_ORDER } from '@dossier/shared/ranks';
 
 export const ALL_RANKS = 'all';
 
-export function rankOptions(): { label: string; value: string }[] {
+export function rankOptions(t: (key: string) => string): { label: string; value: string }[] {
   return [
-    { label: 'Все ранги', value: ALL_RANKS },
-    ...RANK_ORDER.map((key) => ({ label: RANK_RU[key], value: key })),
+    { label: t('filters.allRanks'), value: ALL_RANKS },
+    ...RANK_ORDER.map((key) => ({ label: t(`ranks.${key}`), value: key })),
   ];
 }

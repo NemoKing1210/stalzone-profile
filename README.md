@@ -1,186 +1,201 @@
-# STALZONE Dossier
+# Stalzone Profile
 
-Личное досье по STALZONE: снаряжение, контейнеры, сборки, рекомендации и цены аукциона.
-SQLite — источник правды, Nuxt 4 отдаёт сайт и HTTP API, MCP даёт агенту доступ к тем же данным.
+A personal STALZONE dossier: gear, containers, builds, recommendations and auction prices.
+SQLite is the source of truth, Nuxt 4 serves the site and the HTTP API, and MCP gives an
+agent access to the same data.
 
-- **Сайт** — разделы досье с поиском, сортировкой и редактированием.
-- **API** — `/api/v1/*` под сессионной авторизацией; запись только через API/MCP/CLI.
-- **MCP** — stdio для локального агента и HTTP `/mcp` с Bearer-токеном.
-- **Синхронизация** — EXBO-база, stalzone.wiki, облики, профиль, цены scpmodel.
+- **Site** — dossier sections with search, sorting and editing.
+- **API** — `/api/v1/*` behind session auth; writes go only through the API, MCP or CLI.
+- **MCP** — stdio for a local agent and HTTP `/mcp` with a bearer token.
+- **Sync** — EXBO database, stalzone.wiki, skins, profile, scpmodel prices.
 
-Данные персональные: наружу отдавайте только за HTTPS и с паролем.
+The data is personal: expose it only over HTTPS and behind a password.
 
-## Быстрый старт
+## Quick start
 
-Нужен Node.js 24 (минимум 22) и npm.
+Node.js 24 (22 minimum) and npm are required.
 
 ```bash
 npm ci
-npm run db:migrate        # схема SQLite
-npm run import:legacy     # сиды: досье, иконки, срез вики, цены
-npm run dev               # http://127.0.0.1:3000
+npm run db:migrate        # SQLite schema
+npm run import:legacy     # seeds: dossier, icons, wiki slice, prices
+npm run dev               # http://stalzone-profile.local
 ```
 
-Пароль для входа задаётся одним из двух способов:
+For the local domain add one line to `hosts` (administrator rights required):
+
+```
+127.0.0.1 stalzone-profile.local
+```
+
+The dev server listens on `127.0.0.1:80` and accepts that `Host`; the port and domain are
+set in `devServer` in `nuxt.config.ts`.
+
+The sign-in password is set in one of two ways:
 
 ```bash
-# рекомендуемый: scrypt-хеш в NUXT_PASSWORD_HASH
-npm run hash-password -- 'мой-пароль'
+# recommended: scrypt hash in NUXT_PASSWORD_HASH
+npm run hash-password -- 'my-password'
 
-# разработка: обычный пароль в NUXT_PASSWORD
+# development: a plain password in NUXT_PASSWORD
 NUXT_PASSWORD=dev npm run dev
 ```
 
-Секрет сессии — `NUXT_SESSION_SECRET`, не короче 32 символов. Без него сервер
-работает с эфемерным секретом и предупреждает в лог: после перезапуска все
-сессии сбрасываются.
+The session secret is `NUXT_SESSION_SECRET`, at least 32 characters long. Without it the
+server uses an ephemeral secret and warns in the log: every restart resets all sessions.
 
-### Переменные окружения
+### Environment variables
 
-| Переменная | По умолчанию | Назначение |
+| Variable | Default | Purpose |
 |---|---|---|
-| `DB_PATH` | `./data/dossier.db` | файл SQLite (в Docker — `/data/dossier.db`) |
-| `ICONS_DIR` | `./public/icons` | каталог `.webp`-иконок (в Docker — `/data/icons`) |
-| `NUXT_PASSWORD_HASH` | — | scrypt-хеш пароля сайта |
-| `NUXT_PASSWORD` | — | простой пароль для разработки |
-| `NUXT_SESSION_SECRET` | эфемерный | HMAC-секрет cookie `dossier_session` |
-| `NUXT_MCP_TOKEN` | — | Bearer-токен `/mcp`; пусто — эндпоинт выключен |
-| `NUXT_LOGIN_RATE_MAX` | `5` | попыток входа в окне |
-| `NUXT_LOGIN_WINDOW_MS` | `60000` | окно rate limit |
-| `NUXT_TRUST_PROXY` | — | `1` — доверять `X-Forwarded-For` (только за Caddy/прокси) |
-| `REALM` | `ru` | регион источников |
-| `PROFILE_FILE` | `./db/seeds/profile.json` | снимок публичного профиля |
-| `SNAPSHOTS_DIR` | `./snapshots` | каталог резервных копий |
+| `DB_PATH` | `./data/dossier.db` | SQLite file (in Docker — `/data/dossier.db`) |
+| `ICONS_DIR` | `./public/icons` | `.webp` icon directory (in Docker — `/data/icons`) |
+| `NUXT_PASSWORD_HASH` | — | scrypt hash of the site password |
+| `NUXT_PASSWORD` | — | plain password for development |
+| `NUXT_SESSION_SECRET` | ephemeral | HMAC secret for the `dossier_session` cookie |
+| `NUXT_MCP_TOKEN` | — | bearer token for `/mcp`; empty disables the endpoint |
+| `NUXT_LOGIN_RATE_MAX` | `5` | sign-in attempts per window |
+| `NUXT_LOGIN_WINDOW_MS` | `60000` | rate-limit window |
+| `NUXT_TRUST_PROXY` | — | `1` trusts `X-Forwarded-For` (only behind Caddy/proxy) |
+| `REALM` | `ru` | source region |
+| `PROFILE_FILE` | `./db/seeds/profile.json` | public profile snapshot |
+| `SNAPSHOTS_DIR` | `./snapshots` | backup directory |
 
-Полный шаблон — `.env.example`.
+The full template is `.env.example`.
 
-## Продакшен-сборка
+## Production build
 
 ```bash
 npm run build             # .output/
-npm run build:cli         # dist/cli.js и dist/mcp-stdio.js
+npm run build:cli         # dist/cli.js and dist/mcp-stdio.js
 DB_PATH=/data/dossier.db NUXT_SESSION_SECRET=... node .output/server/index.mjs
 ```
 
-Схема применяется при старте сервера, отдельный шаг миграции не обязателен.
+The schema is applied when the server starts; a separate migration step is optional.
 
 ## Docker
 
 ```bash
-cp .env.example .env      # заполните пароль и секрет
+cp .env.example .env      # fill in the password and secret
 docker compose -f deploy/docker-compose.yml build
 docker compose -f deploy/docker-compose.yml up -d
 curl http://127.0.0.1:3000/api/v1/healthz
 ```
 
-Контейнер мигрирует базу при старте и хранит её в томе `dossier-data`
-(`DB_PATH=/data/dossier.db`). Healthcheck бьёт в `/api/v1/healthz`.
+The container migrates the database on start and keeps it in the `dossier-data` volume
+(`DB_PATH=/data/dossier.db`). The healthcheck hits `/api/v1/healthz`.
 
-TLS через Caddy (опциональный профиль):
+TLS through Caddy (optional profile):
 
 ```bash
 DOSSIER_DOMAIN=dossier.example.com \
   docker compose -f deploy/docker-compose.yml --profile proxy up -d
 ```
 
-Первый запуск на пустом томе не содержит досье. Загрузите сиды:
+The first start on an empty volume has no dossier. Load the seeds:
 
 ```bash
 docker compose -f deploy/docker-compose.yml exec app \
   node dist/cli.js import
 ```
 
-### Резервные копии
+### Backups
 
 ```bash
-npm run backup                    # snapshots/dossier-<время>.db, хранение 14 дней
-deploy/backup.sh                  # то же внутри контейнера, /data/backups
+npm run backup                    # snapshots/dossier-<time>.db, kept for 14 days
+deploy/backup.sh                  # the same inside the container, /data/backups
 ```
 
-Восстановление: остановить приложение, положить копию на место `DB_PATH`
-(и удалить `-wal`/`-shm`), запустить. Подробности — `docs/RUNBOOK.md`.
+Restore: stop the application, put the copy in place of `DB_PATH` (and remove
+`-wal`/`-shm`), then start it. Details are in `docs/RUNBOOK.md`.
 
-## Синхронизация источников
+## Source sync
 
 ```bash
-npm run sync                # все источники
-npm run sync wiki           # один: exbo_base | wiki | motifs | profile | scpmodel
+npm run sync                # all sources
+npm run sync wiki           # one: exbo_base | wiki | motifs | profile | scpmodel
 npm run sync scpmodel -- --force
 ```
 
-То же доступно кнопками в `/settings` и MCP-инструментом `sync_source`.
-Ошибка источника переводит его в `stale`: предыдущий снимок остаётся, UI
-показывает его возраст и текст ошибки. Цены обновляются не чаще раза в 15 минут.
+The same is available through buttons in `/settings` and the `sync_source` MCP tool.
+A source failure marks it `stale`: the previous snapshot stays, and the UI shows its age
+and the error text. Prices refresh at most once every 15 minutes.
+
+## Interface languages
+
+The site defaults to English and ships a Russian translation. The language switch is in
+the header (and on the sign-in page) and persists in the `dossier_lang` cookie.
+Catalogs live in `i18n/locales/en.json` and `i18n/locales/ru.json`; see `docs/I18N.md`
+for the key layout, the data-versus-interface boundary and how to add a language.
 
 ## MCP
 
-stdio, локальная база:
+stdio with a local database:
 
 ```bash
 DB_PATH=./data/dossier.db npm run mcp
 ```
 
-stdio через HTTP (те же инструменты, другая машина):
+stdio over HTTP (the same tools, another machine):
 
 ```bash
 DOSSIER_API_URL=https://dossier.example.com \
 MCP_TOKEN=... npm run mcp
 ```
 
-Claude Code / Aside подключают сервер командой:
+Claude Code / Aside connect the server with:
 
 ```json
 {
   "mcpServers": {
-    "stalzone-dossier": {
+    "stalzone-profile": {
       "command": "node",
       "args": ["/app/dist/mcp-stdio.js"],
       "env": {
         "DOSSIER_API_URL": "https://dossier.example.com",
-        "MCP_TOKEN": "тот-же-токен-что-NUXT_MCP_TOKEN"
+        "MCP_TOKEN": "same-token-as-NUXT_MCP_TOKEN"
       }
     }
   }
 }
 ```
 
-HTTP-эндпоинт `POST /mcp` (stateless Streamable HTTP) требует
-`Authorization: Bearer <NUXT_MCP_TOKEN>`. Если токен не задан — 404.
-Запись по умолчанию идёт в режиме `dry_run`; реальная запись требует
-`confirm: true` и ограничена 30 изменениями в минуту. Полный список
-инструментов — `docs/MCP.md`.
+The HTTP endpoint `POST /mcp` (stateless Streamable HTTP) requires
+`Authorization: Bearer <NUXT_MCP_TOKEN>`. If no token is configured, it returns 404.
+Writes default to `dry_run`; a real write needs `confirm: true` and is limited to
+30 changes per minute. The full tool list is in `docs/MCP.md`.
 
-## Проверка
+## Checks
 
 ```bash
 npm run check      # typecheck + lint + unit/integration
-npm run golden     # паритет с легаси-досье: 0 расхождений
+npm run golden     # parity with the legacy dossier: 0 mismatches
 npm run build
-npm run e2e        # Playwright: сборка, сервер, все сценарии
-npm run smoke:mcp  # все read-инструменты MCP против текущей базы
+npm run e2e        # Playwright: build, server, all scenarios
+npm run smoke:mcp  # all read-only MCP tools against the current database
 ```
 
-## Структура
+## Layout
 
 ```
-app/                 Nuxt UI: страницы, формы, компоненты
-server/              Nitro: API, middleware авторизации, /mcp
-packages/core/       схема, репозитории, расчёты, импорт, запись, синк
-packages/shared/     zod-схемы, форматирование, ранги
-packages/sources/    адаптеры EXBO, wiki, motifs, profile, scpmodel
-packages/mcp/        реестр инструментов, stdio и HTTP транспорты
-db/migrations/       SQL-миграции
-db/seeds/            досье, иконки, срез вики, цены (без сырой базы EXBO)
+app/                 Nuxt UI: pages, forms, components
+server/              Nitro: API, auth middleware, /mcp
+packages/core/       schema, repositories, calculations, import, writes, sync
+packages/shared/     zod schemas, formatting, ranks
+packages/sources/    EXBO, wiki, motifs, profile, scpmodel adapters
+packages/mcp/        tool registry, stdio and HTTP transports
+db/migrations/       SQL migrations
+db/seeds/            dossier, icons, wiki slice, prices (no raw EXBO database)
 deploy/              Dockerfile, compose, Caddy, backup
-scripts/             CLI, импорт, golden, smoke
-docs/                архитектура, API, MCP, модель данных, миграция, runbook
+scripts/             CLI, import, golden, smoke
+docs/                architecture, API, MCP, data model, migration, runbook
 ```
 
-## Ограничения
+## Constraints
 
-- Никаких игровых учётных данных: проект не логинится в Steam/EXBO и не читает
-  файлы игры. Только публичные HTTP-источники.
-- Аукцион только читается: цены и лоты, без покупок и выставления.
-- Нельзя придумывать числа: нет лота — «нет лота», нет статы — «нет данных».
-- `dossier.db` и экспорт не редактируются руками — только API, MCP или CLI.
-- Все секреты живут в переменных окружения, не в репозитории.
+- No game credentials: the project does not sign in to Steam/EXBO and does not read game
+  files. Only public HTTP sources.
+- The auction is read-only: prices and lots, no buying or listing.
+- Numbers are never invented: no lot means "no lot", no stat means "no data".
+- `dossier.db` and the export are not edited by hand — only through the API, MCP or CLI.
+- All secrets live in environment variables, never in the repository.

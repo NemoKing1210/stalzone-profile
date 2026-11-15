@@ -8,6 +8,7 @@ const props = defineProps<{ target: OwnedEditTarget | null }>();
 const emit = defineEmits<{ saved: []; deleted: [] }>();
 
 const { write, busy } = useWrite();
+const { t } = useI18n();
 
 const form = reactive({
   level: 0,
@@ -97,43 +98,43 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <UModal v-model:open="open" title="Редактировать предмет" :description="props.target?.name" scrollable>
+  <UModal v-model:open="open" :title="t('items.editTitle')" :description="props.target?.name" scrollable>
     <template #body>
       <UForm :schema="OwnedPatchSchema" :state="form" class="space-y-4" @submit="submit">
         <div class="grid gap-3 sm:grid-cols-2">
-          <UFormField label="Уровень заточки" name="level">
+          <UFormField :label="t('forms.level')" name="level">
             <UInputNumber v-model="form.level" :min="0" :max="15" class="w-full" />
           </UFormField>
-          <UFormField label="Количество" name="qty">
+          <UFormField :label="t('forms.qty')" name="qty">
             <UInputNumber v-model="form.qty" :min="1" :max="99" class="w-full" />
           </UFormField>
-          <UFormField label="Качество" name="quality">
-            <UInput v-model.nullable="form.quality" placeholder="например, Редкий 141%" class="w-full" />
+          <UFormField :label="t('forms.quality')" name="quality">
+            <UInput v-model.nullable="form.quality" :placeholder="t('forms.qualityPlaceholder')" class="w-full" />
           </UFormField>
-          <UFormField label="Облик" name="skin">
+          <UFormField :label="t('forms.skin')" name="skin">
             <USelectMenu
               v-model="form.skin"
               :items="skinItems"
               searchable
               clearable
-              placeholder="Без облика"
+              :placeholder="t('forms.noSkin')"
               class="w-full"
             />
           </UFormField>
-          <UFormField label="Роль" name="role">
-            <UInput v-model.nullable="form.role" placeholder="универсал, ПвЕ" class="w-full" />
+          <UFormField :label="t('forms.role')" name="role">
+            <UInput v-model.nullable="form.role" :placeholder="t('forms.rolePlaceholder')" class="w-full" />
           </UFormField>
-          <UFormField label="Слот" name="slot">
-            <UInput v-model.nullable="form.slot" placeholder="основное или вторичное" class="w-full" />
+          <UFormField :label="t('forms.slot')" name="slot">
+            <UInput v-model.nullable="form.slot" :placeholder="t('forms.slotPlaceholder')" class="w-full" />
           </UFormField>
         </div>
 
-        <UFormField label="Заметка" name="note">
+        <UFormField :label="t('forms.note')" name="note">
           <UTextarea v-model.nullable="form.note" :rows="2" class="w-full" />
         </UFormField>
 
         <UFormField name="dryRun">
-          <USwitch v-model="form.dryRun" label="Пробный прогон: показать изменения без записи" />
+          <USwitch v-model="form.dryRun" :label="t('common.dryRun')" />
         </UFormField>
 
         <UAlert
@@ -141,7 +142,7 @@ async function remove(): Promise<void> {
           :color="lastResult.dryRun ? 'info' : 'success'"
           variant="subtle"
           icon="i-lucide-list-checks"
-          :title="lastResult.dryRun ? 'Пробный прогон' : 'Изменение записано'"
+          :title="lastResult.dryRun ? t('common.dryRunTitle') : t('common.changeWritten')"
           :description="lastResult.diff.human"
         />
 
@@ -151,12 +152,16 @@ async function remove(): Promise<void> {
             color="error"
             variant="soft"
             icon="i-lucide-trash-2"
-            label="Удалить"
+            :label="t('common.delete')"
             @click="confirmOpen = true"
           />
           <div class="flex gap-2">
-            <UButton type="button" color="neutral" variant="ghost" label="Отмена" @click="open = false" />
-            <UButton type="submit" :loading="busy" :label="form.dryRun ? 'Проверить' : 'Сохранить'" />
+            <UButton type="button" color="neutral" variant="ghost" :label="t('common.cancel')" @click="open = false" />
+            <UButton
+              type="submit"
+              :loading="busy"
+              :label="form.dryRun ? t('common.check') : t('common.save')"
+            />
           </div>
         </div>
       </UForm>
@@ -165,9 +170,9 @@ async function remove(): Promise<void> {
 
   <ConfirmActionModal
     v-model:open="confirmOpen"
-    title="Удалить предмет"
-    :description="`Удалить «${props.target?.name ?? ''}» и всё количество (${form.qty} шт.)? Действие можно откатить в настройках.`"
-    confirm-label="Удалить"
+    :title="t('items.deleteTitle')"
+    :description="t('items.deleteConfirm', { name: props.target?.name ?? '', qty: form.qty })"
+    :confirm-label="t('common.delete')"
     :loading="busy"
     @confirm="remove"
   />

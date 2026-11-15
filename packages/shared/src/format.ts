@@ -7,30 +7,50 @@ export function norm(s: unknown): string {
     .trim();
 }
 
-export function num(v: number | null | undefined): string {
-  return typeof v === 'number' ? v.toLocaleString('ru-RU') : '—';
+function usesComma(locale: string): boolean {
+  return locale.toLowerCase().startsWith('ru');
 }
 
-export function g1(v: number | null | undefined): string {
-  return v == null ? '—' : Number(v).toFixed(1).replace('.', ',');
+function fixed(value: number, digits: number, locale: string): string {
+  const text = value.toFixed(digits);
+  return usesComma(locale) ? text.replace('.', ',') : text;
 }
 
-export function g2(v: number | null | undefined): string {
-  return v == null ? '—' : Number(v).toFixed(2).replace('.', ',');
+export function num(v: number | null | undefined, locale = 'en-US'): string {
+  return typeof v === 'number' ? v.toLocaleString(locale) : '—';
 }
 
-export function fmtMoney(v: number | null | undefined): string {
+export function g1(v: number | null | undefined, locale = 'en-US'): string {
+  return v == null ? '—' : fixed(Number(v), 1, locale);
+}
+
+export function g2(v: number | null | undefined, locale = 'en-US'): string {
+  return v == null ? '—' : fixed(Number(v), 2, locale);
+}
+
+/** Up to `digits` decimals with trailing zeros trimmed; keeps the stored precision. */
+export function dec(v: number | null | undefined, locale = 'en-US', digits = 2): string {
   if (v == null) return '—';
-  if (v >= 1e6) return (v / 1e6).toFixed(2).replace('.', ',') + ' млн';
-  if (v >= 1e3) return Math.round(v / 1e3) + ' тыс.';
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: digits,
+  }).format(Number(v));
+}
+
+export function fmtMoney(v: number | null | undefined, locale = 'en-US'): string {
+  if (v == null) return '—';
+  const ru = usesComma(locale);
+  if (v >= 1e6) return fixed(v / 1e6, 2, locale) + (ru ? ' млн' : 'M');
+  if (v >= 1e3) return Math.round(v / 1e3) + (ru ? ' тыс.' : 'K');
   return String(Math.round(v));
 }
 
-export function compactNum(v: number | null | undefined): string {
+export function compactNum(v: number | null | undefined, locale = 'en-US'): string {
   if (typeof v !== 'number') return '—';
-  if (v >= 1e6) return (v / 1e6).toFixed(2).replace('.', ',') + ' млн';
-  if (v >= 1e4) return Math.round(v / 1e3).toLocaleString('ru-RU') + ' тыс.';
-  return num(v);
+  const ru = usesComma(locale);
+  if (v >= 1e6) return fixed(v / 1e6, 2, locale) + (ru ? ' млн' : 'M');
+  if (v >= 1e4) return Math.round(v / 1e3).toLocaleString(locale) + (ru ? ' тыс.' : 'K');
+  return num(v, locale);
 }
 
 /** Rounds to `digits` decimals without negative-zero surprises. */

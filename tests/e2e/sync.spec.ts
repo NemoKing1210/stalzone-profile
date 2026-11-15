@@ -5,7 +5,7 @@ const ORIGIN = 'http://127.0.0.1:3100';
 async function login(page: Page): Promise<void> {
   await page.goto('/login');
   await page.locator('input[type="password"]').fill('e2e-password');
-  await page.getByRole('button', { name: 'Войти' }).click();
+  await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/\/$/);
 }
 
@@ -29,6 +29,6 @@ test('sync endpoint validates the source and the origin', async ({ page }) => {
 test('settings shows source sync buttons', async ({ page }) => {
   await login(page);
   await page.goto('/settings');
-  const button = page.getByRole('button', { name: 'База EXBO', exact: true });
+  const button = page.getByRole('button', { name: 'EXBO base', exact: true });
   await expect(button).toBeEnabled();
 });

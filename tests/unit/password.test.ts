@@ -23,4 +23,10 @@ describe('password hashing', () => {
     expect(verifyPassword('anything', {})).toBe(false);
     expect(verifyPassword('anything', { passwordHash: 'not-a-hash' })).toBe(false);
   });
+
+  it('accepts numeric env values that Nitro runtime config parses as numbers', () => {
+    const numeric = 123456789 as unknown as string;
+    expect(verifyPassword('123456789', { password: numeric })).toBe(true);
+    expect(verifyPassword('987654321', { password: numeric })).toBe(false);
+  });
 });

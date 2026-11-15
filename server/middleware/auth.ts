@@ -14,7 +14,7 @@ export default defineEventHandler((event) => {
   if (isAuthenticated(event)) return;
 
   if (path.startsWith('/api/')) {
-    return apiError(event, 401, 'UNAUTHORIZED', 'Требуется вход');
+    return apiError(event, 401, 'UNAUTHORIZED', 'Authentication required');
   }
 
   const next = `${path}${url.search}`;

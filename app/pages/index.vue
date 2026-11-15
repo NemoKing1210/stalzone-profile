@@ -1,8 +1,9 @@
 <script setup lang="ts">
-useHead({ title: 'Обзор — STALZONE Dossier' });
+const { t } = useI18n();
+useHead(() => ({ title: `${t('overview.pageTitle')} — ${t('common.appName')}` }));
 
 const { payload } = useDossier();
-const { fmtMoney, num, formatDate } = useFormat();
+const { fmtMoney, dec, num, formatDate } = useFormat();
 
 const character = computed(() => payload.value?.character ?? {});
 const hasCharacter = computed(() => Object.keys(character.value).length > 0);
@@ -10,37 +11,44 @@ const metaInfo = computed(() => payload.value?.meta ?? {});
 const editOpen = ref(false);
 
 const counts = computed(() => [
-  { label: 'Оружие', value: payload.value?.weapons.length ?? 0, icon: 'i-lucide-crosshair', to: '/weapons' },
-  { label: 'Броня', value: payload.value?.armor.length ?? 0, icon: 'i-lucide-shield', to: '/armor' },
-  { label: 'Контейнеры', value: payload.value?.containers.length ?? 0, icon: 'i-lucide-backpack', to: '/containers' },
-  { label: 'Артефакты', value: payload.value?.artifacts.length ?? 0, icon: 'i-lucide-gem', to: '/artifacts' },
-  { label: 'Сборки', value: payload.value?.builds.items.length ?? 0, icon: 'i-lucide-layers', to: '/builds' },
+  { label: t('nav.weapons'), value: payload.value?.weapons.length ?? 0, icon: 'i-lucide-crosshair', to: '/weapons' },
+  { label: t('nav.armor'), value: payload.value?.armor.length ?? 0, icon: 'i-lucide-shield', to: '/armor' },
+  {
+    label: t('nav.containers'),
+    value: payload.value?.containers.length ?? 0,
+    icon: 'i-lucide-backpack',
+    to: '/containers',
+  },
+  { label: t('nav.artifacts'), value: payload.value?.artifacts.length ?? 0, icon: 'i-lucide-gem', to: '/artifacts' },
+  { label: t('nav.builds'), value: payload.value?.builds.items.length ?? 0, icon: 'i-lucide-layers', to: '/builds' },
 ]);
 
 const stats = computed(() => [
-  { label: 'Часов в игре', value: character.value.hours == null ? '—' : num(character.value.hours) },
-  { label: 'K/D', value: character.value.kd == null ? '—' : String(character.value.kd).replace('.', ',') },
+  { label: t('overview.stats.hours'), value: character.value.hours == null ? '—' : num(character.value.hours) },
+  { label: t('overview.stats.kd'), value: dec(character.value.kd) },
   {
-    label: 'Точность',
+    label: t('overview.stats.accuracy'),
     value: character.value.accuracy == null ? '—' : `${character.value.accuracy}%`,
   },
   {
-    label: 'В голову',
+    label: t('overview.stats.headshot'),
     value: character.value.headshot == null ? '—' : `${character.value.headshot}%`,
   },
   {
-    label: 'Достижения',
+    label: t('overview.stats.achievements'),
     value:
       character.value.achievements == null
         ? '—'
-        : `${num(character.value.achievements)} · ${num(character.value.achievementPoints ?? 0)} очков`,
+        : `${num(character.value.achievements)} · ${t('overview.points', {
+            count: num(character.value.achievementPoints ?? 0),
+          })}`,
   },
-  { label: 'Деньги', value: character.value.money == null ? '—' : fmtMoney(character.value.money) },
+  { label: t('overview.stats.money'), value: character.value.money == null ? '—' : fmtMoney(character.value.money) },
   {
-    label: 'Максимум денег',
+    label: t('overview.stats.maxMoney'),
     value: character.value.maxMoney == null ? '—' : fmtMoney(character.value.maxMoney),
   },
-  { label: 'В Зоне с', value: formatDate(character.value.arrived) },
+  { label: t('overview.stats.inZoneSince'), value: formatDate(character.value.arrived) },
 ]);
 
 const career = computed(() => {
@@ -55,10 +63,10 @@ const career = computed(() => {
   <section class="space-y-6">
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <p class="text-sm text-muted">Личное досье</p>
+        <p class="text-sm text-muted">{{ t('overview.kicker') }}</p>
         <h1 class="text-3xl font-semibold">{{ character.nick ?? 'STALZONE' }}</h1>
         <p class="text-sm text-muted">
-          {{ character.faction ?? 'фракция не указана' }}
+          {{ character.faction ?? t('overview.factionMissing') }}
           <span v-if="character.clan"> · {{ character.clan }}</span>
           <span v-if="character.realm"> · {{ character.realm }}</span>
         </p>
@@ -69,10 +77,10 @@ const career = computed(() => {
           icon="i-lucide-pencil"
           color="neutral"
           variant="outline"
-          label="Изменить профиль"
+          :label="t('overview.editProfile')"
           @click="editOpen = true"
         />
-        <UBadge color="neutral" variant="subtle" icon="i-lucide-shield-check">Доступ только для владельца</UBadge>
+        <UBadge color="neutral" variant="subtle" icon="i-lucide-shield-check">{{ t('overview.ownerOnly') }}</UBadge>
       </div>
     </div>
 
@@ -94,7 +102,7 @@ const career = computed(() => {
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon name="i-lucide-user-round" class="size-5 text-primary" />
-              <h2 class="font-medium">Персонаж</h2>
+              <h2 class="font-medium">{{ t('overview.character') }}</h2>
             </div>
           </template>
           <dl class="grid gap-3 sm:grid-cols-2">
@@ -104,8 +112,8 @@ const career = computed(() => {
             </div>
           </dl>
           <p v-if="character.stash || character.playstyle" class="mt-3 text-sm text-muted">
-            <span v-if="character.stash">Тайник: {{ character.stash }}.</span>
-            <span v-if="character.playstyle"> Стиль: {{ character.playstyle }}.</span>
+            <span v-if="character.stash">{{ t('overview.stash', { value: character.stash }) }}</span>
+            <span v-if="character.playstyle"> {{ t('overview.playstyle', { value: character.playstyle }) }}</span>
           </p>
         </UCard>
 
@@ -113,7 +121,7 @@ const career = computed(() => {
           <template #header>
             <div class="flex items-center gap-2">
               <UIcon name="i-lucide-chart-no-axes-column" class="size-5 text-primary" />
-              <h2 class="font-medium">Карьера</h2>
+              <h2 class="font-medium">{{ t('overview.career') }}</h2>
             </div>
           </template>
           <dl v-if="career.length" class="grid grid-cols-1 gap-x-4 gap-y-1 text-sm">
@@ -122,7 +130,7 @@ const career = computed(() => {
               <dd class="tabular-nums">{{ num(entry.value) }}</dd>
             </div>
           </dl>
-          <p v-else class="text-sm text-muted">нет данных о карьере</p>
+          <p v-else class="text-sm text-muted">{{ t('overview.careerEmpty') }}</p>
         </UCard>
       </div>
 
@@ -130,14 +138,13 @@ const career = computed(() => {
         <template #header>
           <div class="flex items-center gap-2">
             <UIcon name="i-lucide-info" class="size-5 text-primary" />
-            <h2 class="font-medium">О данных</h2>
+            <h2 class="font-medium">{{ t('overview.about') }}</h2>
           </div>
         </template>
         <p class="text-sm text-muted">
-          Снимок досье: {{ formatDate(payload?.freshness.dataUpdated) }}.
-          <span v-if="metaInfo.source"> Источники: {{ metaInfo.source }}.</span>
-          Цены обновляются отдельно; отсутствующий лот показывается как «нет лота», отсутствующая характеристика — «нет
-          данных». Все числа пересчитаны по единой формуле из базы.
+          {{ t('overview.aboutSnapshot', { date: formatDate(payload?.freshness.dataUpdated) }) }}
+          <span v-if="metaInfo.source"> {{ t('overview.aboutSources', { sources: metaInfo.source }) }}</span>
+          {{ t('overview.aboutNote') }}
         </p>
       </UCard>
     </template>
@@ -145,8 +152,8 @@ const career = computed(() => {
     <UEmpty
       v-else
       icon="i-lucide-folder-open"
-      title="Досье пусто"
-      description="Импортируйте исходные данные командой npm run import:legacy или добавьте снаряжение через API или MCP."
+      :title="t('overview.emptyTitle')"
+      :description="t('overview.emptyDescription')"
     />
 
     <EditCharacterModal v-model:open="editOpen" :character="character" />

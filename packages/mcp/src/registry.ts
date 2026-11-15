@@ -41,7 +41,7 @@ const GetItemInputSchema = z
     kind: ItemKindSchema.optional(),
   })
   .refine((value) => value.id != null || value.name != null, {
-    message: 'Укажите id или name',
+    message: 'Provide id or name',
   });
 
 const GetBuildInputSchema = z.object({ slug: z.string().min(1) });
@@ -155,27 +155,27 @@ export const READ_OUTPUT_SCHEMAS: Record<string, z.ZodTypeAny> = {
 };
 
 const TOOL_DOCS: Record<string, string> = {
-    get_character: 'Профиль и статистика персонажа из досье',
-    find_items: 'Поиск предметов каталога по названию, типу, рангу и слоту',
-    get_item: 'Карточка предмета: характеристики, иконка и исходная legacy-карточка',
-    compare_items: 'Сравнить два оружия по DPS и TTK на уровне заточки',
-    list_owned: 'Список принадлежащих персонажу предметов',
-    list_containers: 'Контейнеры с текущим наполнением',
-    list_builds: 'Сборки, текущий набор и список того, чего избегать',
-    get_build: 'Одна сборка по slug',
-    plan_artifact_build: 'Подобрать артефакты под пресет эффектов, слоты и бюджет',
-    get_prices: 'Последние цены аукциона по названиям предметов',
-    sources_status: 'Состояние источников данных и свежесть',
-    export_legacy_json: 'Экспорт досье в формате исходного legacy JSON',
-    upsert_owned_item: 'Добавить или обновить предмет персонажа (по умолчанию dry_run)',
-    remove_owned_item: 'Удалить одну копию предмета (по умолчанию dry_run)',
-    set_container_artifacts: 'Заменить наполнение контейнера (по умолчанию dry_run)',
-    save_build: 'Создать или обновить сборку (по умолчанию dry_run)',
-    delete_build: 'Удалить сборку (по умолчанию dry_run)',
-    upsert_content_block: 'Записать блок заметок, рекомендаций или заработка (по умолчанию dry_run)',
-    sync_source: 'Запустить синхронизацию источника; требует confirm',
-    rebuild_site: 'Пересборка сайта деплоем; MCP только сообщает команду',
-    rollback_event: 'Откатить событие журнала (по умолчанию dry_run)',
+    get_character: 'Character profile and stats from the dossier',
+    find_items: 'Search catalog items by name, kind, rank and slot',
+    get_item: 'Item card: stats, icon and the raw legacy card',
+    compare_items: 'Compare two weapons by DPS and TTK at a refinement level',
+    list_owned: 'Items owned by the character',
+    list_containers: 'Containers with their current fill',
+    list_builds: 'Builds, the current loadout and what to avoid',
+    get_build: 'A single build by slug',
+    plan_artifact_build: 'Pick artifacts for an effect preset, slots and budget',
+    get_prices: 'Latest auction prices by item name',
+    sources_status: 'Data source state and freshness',
+    export_legacy_json: 'Export the dossier in the original legacy JSON format',
+    upsert_owned_item: 'Add or update a character item (dry_run by default)',
+    remove_owned_item: 'Remove one copy of an item (dry_run by default)',
+    set_container_artifacts: 'Replace a container fill (dry_run by default)',
+    save_build: 'Create or update a build (dry_run by default)',
+    delete_build: 'Delete a build (dry_run by default)',
+    upsert_content_block: 'Write a notes, recommendations or earnings block (dry_run by default)',
+    sync_source: 'Run a source sync; requires confirm',
+    rebuild_site: 'Site rebuild happens on deploy; MCP only reports the command',
+    rollback_event: 'Roll back a journal event (dry_run by default)',
 };
 
 function ok(data: unknown) {
@@ -201,7 +201,7 @@ function errorResult(error: unknown) {
 function confirmation(dryRun: boolean, confirm: boolean) {
   if (dryRun) return null;
   if (!confirm) {
-    return fail('CONFIRM_REQUIRED', 'Для записи передайте dry_run: false и confirm: true');
+    return fail('CONFIRM_REQUIRED', 'To write, pass dry_run: false and confirm: true');
   }
   return null;
 }
@@ -217,8 +217,8 @@ export function createDossierServer(
   options: DossierServerOptions = {},
 ): McpServer {
   const server = new McpServer(
-    { name: 'stalzone-dossier', version: '0.1.0' },
-    { instructions: 'Личное досье STALZONE. Чтение свободно; записи по умолчанию dry_run и требуют confirm.' },
+    { name: 'stalzone-profile', version: '0.1.0' },
+    { instructions: 'Personal STALZONE dossier. Reads are open; writes default to dry_run and require confirm.' },
   );
   const limiter = options.limiter ?? writeLimiter(options.writesPerMinute ?? 30);
 
@@ -252,7 +252,7 @@ export function createDossierServer(
     async (args) => {
       try {
         const item = await client.getItem(args);
-        if (!item) return fail('ITEM_NOT_FOUND', 'Предмет не найден');
+        if (!item) return fail('ITEM_NOT_FOUND', 'Item not found');
         return ok({ item });
       } catch (error) {
         return errorResult(error);
@@ -317,7 +317,7 @@ export function createDossierServer(
     async (args) => {
       try {
         const build = await client.getBuild(args.slug);
-        if (!build) return fail('BUILD_NOT_FOUND', 'Сборка не найдена');
+        if (!build) return fail('BUILD_NOT_FOUND', 'Build not found');
         return ok({ build });
       } catch (error) {
         return errorResult(error);
@@ -381,7 +381,7 @@ export function createDossierServer(
       const dryRun = args.dry_run ?? true;
       const gate = confirmation(dryRun, args.confirm ?? false);
       if (gate) return gate;
-      if (!dryRun && !limiter.take()) return fail('RATE_LIMITED', 'Не больше 30 записей в минуту');
+      if (!dryRun && !limiter.take()) return fail('RATE_LIMITED', 'No more than 30 writes per minute');
       try {
         return ok(
           await client.upsertOwnedItem({
@@ -408,7 +408,7 @@ export function createDossierServer(
       const dryRun = args.dry_run ?? true;
       const gate = confirmation(dryRun, args.confirm ?? false);
       if (gate) return gate;
-      if (!dryRun && !limiter.take()) return fail('RATE_LIMITED', 'Не больше 30 записей в минуту');
+      if (!dryRun && !limiter.take()) return fail('RATE_LIMITED', 'No more than 30 writes per minute');
       try {
         return ok(
           await client.removeOwnedItem({
@@ -431,7 +431,7 @@ export function createDossierServer(
       const dryRun = args.dry_run ?? true;
       const gate = confirmation(dryRun, args.confirm ?? false);
       if (gate) return gate;
-      if (!dryRun && !limiter.take()) return fail('RATE_LIMITED', 'Не больше 30 записей в минуту');
+      if (!dryRun && !limiter.take()) return fail('RATE_LIMITED', 'No more than 30 writes per minute');
       try {
         return ok(
           await client.setContainerArtifacts({
@@ -454,7 +454,7 @@ export function createDossierServer(
       const dryRun = args.dry_run ?? true;
       const gate = confirmation(dryRun, args.confirm ?? false);
       if (gate) return gate;
-      if (!dryRun && !limiter.take()) return fail('RATE_LIMITED', 'Не больше 30 записей в минуту');
+      if (!dryRun && !limiter.take()) return fail('RATE_LIMITED', 'No more than 30 writes per minute');
       try {
         return ok(
           await client.saveBuild({
@@ -487,7 +487,7 @@ export function createDossierServer(
       const dryRun = args.dry_run ?? true;
       const gate = confirmation(dryRun, args.confirm ?? false);
       if (gate) return gate;
-      if (!dryRun && !limiter.take()) return fail('RATE_LIMITED', 'Не больше 30 записей в минуту');
+      if (!dryRun && !limiter.take()) return fail('RATE_LIMITED', 'No more than 30 writes per minute');
       try {
         return ok(await client.deleteBuild(args.slug, dryRun));
       } catch (error) {
@@ -503,7 +503,7 @@ export function createDossierServer(
       const dryRun = args.dry_run ?? true;
       const gate = confirmation(dryRun, args.confirm ?? false);
       if (gate) return gate;
-      if (!dryRun && !limiter.take()) return fail('RATE_LIMITED', 'Не больше 30 записей в минуту');
+      if (!dryRun && !limiter.take()) return fail('RATE_LIMITED', 'No more than 30 writes per minute');
       try {
         return ok(
           await client.upsertContentBlock({
@@ -527,9 +527,9 @@ export function createDossierServer(
     { description: TOOL_DOCS.sync_source, inputSchema: SyncSourceInputSchema },
     async (args) => {
       if (!args.confirm) {
-        return fail('CONFIRM_REQUIRED', 'Синхронизация меняет данные: передайте confirm: true');
+        return fail('CONFIRM_REQUIRED', 'Sync changes data: pass confirm: true');
       }
-      if (!limiter.take()) return fail('RATE_LIMITED', 'Не больше 30 записей в минуту');
+      if (!limiter.take()) return fail('RATE_LIMITED', 'No more than 30 writes per minute');
       try {
         return ok({ result: await client.syncSource(args.source, args.force) });
       } catch (error) {
@@ -557,7 +557,7 @@ export function createDossierServer(
       const dryRun = args.dry_run ?? true;
       const gate = confirmation(dryRun, args.confirm ?? false);
       if (gate) return gate;
-      if (!dryRun && !limiter.take()) return fail('RATE_LIMITED', 'Не больше 30 записей в минуту');
+      if (!dryRun && !limiter.take()) return fail('RATE_LIMITED', 'No more than 30 writes per minute');
       try {
         return ok(await client.rollbackEvent(args.event_id, dryRun));
       } catch (error) {
@@ -571,7 +571,7 @@ export function createDossierServer(
     'dossier://schema',
     {
       title: 'Dossier MCP schema',
-      description: 'Инструменты досье, их назначение и правило dry_run/confirm',
+      description: 'Dossier tools, their purpose and the dry_run/confirm rule',
       mimeType: 'application/json',
     },
     async (uri) => ({

@@ -1,5 +1,7 @@
 <script setup lang="ts">
-useHead({ title: 'Настройки — STALZONE Dossier' });
+const { t } = useI18n();
+const { message: apiMessage } = useApiError();
+useHead(() => ({ title: `${t('settings.pageTitle')} — ${t('common.appName')}` }));
 
 const { payload, meta, refresh } = useDossier();
 const { formatAge, formatDate } = useFormat();
@@ -13,15 +15,6 @@ interface SyncResult {
 }
 
 const syncing = ref<string | null>(null);
-
-const SOURCE_LABELS: Record<string, string> = {
-  exbo_base: 'База EXBO',
-  wiki: 'stalzone.wiki',
-  scpmodel: 'Аукцион (scpmodel)',
-  profile: 'Профиль игрока',
-  motifs: 'Облики',
-  local: 'Локальные данные',
-};
 
 const sources = computed(() => payload.value?.freshness.sources ?? []);
 const syncableSources = computed(() => sources.value.filter((source) => source.id !== 'local'));
@@ -37,13 +30,13 @@ const profileFetched = computed(() =>
   typeof metaInfo.value.statsFetched === 'string' ? metaInfo.value.statsFetched : null,
 );
 
-const sourceColumns = [
-  { accessorKey: 'id', header: 'Источник' },
-  { accessorKey: 'status', header: 'Статус' },
-  { accessorKey: 'lastOkAt', header: 'Последний успех' },
-  { accessorKey: 'lastTryAt', header: 'Последняя попытка' },
-  { accessorKey: 'lastError', header: 'Ошибка' },
-];
+const sourceColumns = computed(() => [
+  { accessorKey: 'id', header: t('settings.columns.source') },
+  { accessorKey: 'status', header: t('settings.columns.status') },
+  { accessorKey: 'lastOkAt', header: t('settings.columns.lastOkAt') },
+  { accessorKey: 'lastTryAt', header: t('settings.columns.lastTryAt') },
+  { accessorKey: 'lastError', header: t('settings.columns.error') },
+]);
 
 const statusColor: Record<string, 'success' | 'warning' | 'error' | 'neutral'> = {
   ok: 'success',
@@ -53,14 +46,15 @@ const statusColor: Record<string, 'success' | 'warning' | 'error' | 'neutral'> =
 };
 
 function sourceLabel(id: string): string {
-  return SOURCE_LABELS[id] ?? id;
+  const key = `sources.${id}`;
+  const label = t(key);
+  return label === key ? id : label;
 }
 
 function statusLabel(status: string): string {
-  if (status === 'ok') return 'ок';
-  if (status === 'stale') return 'устарело';
-  if (status === 'error') return 'ошибка';
-  return 'не запускался';
+  const key = `sources.status.${status}`;
+  const label = t(key);
+  return label === key ? status : label;
 }
 
 async function syncSource(id: string): Promise<void> {
@@ -73,25 +67,28 @@ async function syncSource(id: string): Promise<void> {
     const result = response.results[0];
     if (result?.status === 'ok') {
       toast.add({
-        title: 'Источник обновлён',
-        description: `${sourceLabel(id)}: записей — ${result.items}`,
+        title: t('settings.toast.sourceUpdated'),
+        description: t('settings.toast.sourceUpdatedDescription', {
+          source: sourceLabel(id),
+          count: result.items,
+        }),
         color: 'success',
         icon: 'i-lucide-check',
       });
     } else {
       toast.add({
-        title: 'Источник недоступен',
-        description: result?.error ?? 'Сохранён последний удачный снимок',
+        title: t('settings.toast.sourceUnavailable'),
+        description: result?.error ?? t('settings.toast.sourceUnavailableDescription'),
         color: 'warning',
         icon: 'i-lucide-cloud-off',
       });
     }
     await refresh();
   } catch (error) {
-    const data = (error as { data?: { error?: { message?: string } } }).data;
+    const data = (error as { data?: { error?: { code?: string; message?: string } } }).data?.error;
     toast.add({
-      title: 'Синхронизация не запущена',
-      description: data?.error?.message ?? 'Проверьте соединение и повторите',
+      title: t('settings.toast.syncFailed'),
+      description: apiMessage(data?.code, data?.message || t('settings.toast.syncFailedDescription')),
       color: 'error',
       icon: 'i-lucide-triangle-alert',
     });
@@ -105,8 +102,8 @@ async function syncSource(id: string): Promise<void> {
   <section class="space-y-4">
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-semibold">Настройки</h1>
-        <p class="text-sm text-muted">Состояние источников, выгрузка и обслуживание базы</p>
+        <h1 class="text-2xl font-semibold">{{ t('settings.title') }}</h1>
+        <p class="text-sm text-muted">{{ t('settings.subtitle') }}</p>
       </div>
       <FreshnessBadge
         :data-updated="payload?.freshness.dataUpdated"
@@ -119,7 +116,7 @@ async function syncSource(id: string): Promise<void> {
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div class="flex items-center gap-2">
             <UIcon name="i-lucide-cloud-download" class="size-5 text-primary" />
-            <h2 class="font-medium">Источники данных</h2>
+            <h2 class="font-medium">{{ t('settings.dataSources') }}</h2>
           </div>
           <div class="flex flex-wrap gap-1">
             <UButton
@@ -161,8 +158,8 @@ async function syncSource(id: string): Promise<void> {
       <div v-else class="p-4">
         <UEmpty
           icon="i-lucide-cloud-off"
-          title="Источники не зарегистрированы"
-          description="Выполните миграции и импорт, чтобы создать записи источников."
+          :title="t('settings.emptyTitle')"
+          :description="t('settings.emptyDescription')"
         />
       </div>
     </UCard>
@@ -174,11 +171,11 @@ async function syncSource(id: string): Promise<void> {
         <template #header>
           <div class="flex items-center gap-2">
             <UIcon name="i-lucide-file-down" class="size-5 text-primary" />
-            <h2 class="font-medium">Выгрузка досье</h2>
+            <h2 class="font-medium">{{ t('settings.exportTitle') }}</h2>
           </div>
         </template>
         <p class="text-sm text-muted">
-          JSON в формате исходного досье: персонаж, снаряжение, каталог, карточки, сборки и рекомендации.
+          {{ t('settings.exportText') }}
         </p>
         <div class="mt-3">
           <UButton
@@ -187,7 +184,7 @@ async function syncSource(id: string): Promise<void> {
             icon="i-lucide-download"
             color="neutral"
             variant="outline"
-            label="Скачать JSON"
+            :label="t('settings.downloadJson')"
           />
         </div>
       </UCard>
@@ -196,12 +193,11 @@ async function syncSource(id: string): Promise<void> {
         <template #header>
           <div class="flex items-center gap-2">
             <UIcon name="i-lucide-database-backup" class="size-5 text-primary" />
-            <h2 class="font-medium">Резервные копии</h2>
+            <h2 class="font-medium">{{ t('settings.backupsTitle') }}</h2>
           </div>
         </template>
         <p class="text-sm text-muted">
-          SQLite хранится в одном файле. Резервная копия снимается командой <code>npm run backup</code> без остановки
-          сервера; хранится 14 дней. Восстановление — по RUNBOOK на копии базы.
+          {{ t('settings.backupsBefore') }}<code>npm run backup</code>{{ t('settings.backupsAfter') }}
         </p>
       </UCard>
 
@@ -209,28 +205,28 @@ async function syncSource(id: string): Promise<void> {
         <template #header>
           <div class="flex items-center gap-2">
             <UIcon name="i-lucide-info" class="size-5 text-primary" />
-            <h2 class="font-medium">Данные</h2>
+            <h2 class="font-medium">{{ t('settings.dataTitle') }}</h2>
           </div>
         </template>
         <dl class="space-y-2 text-sm">
           <div class="flex justify-between gap-4">
-            <dt class="text-muted">Досье обновлено</dt>
+            <dt class="text-muted">{{ t('settings.dossierUpdated') }}</dt>
             <dd>{{ formatDate(payload?.freshness.dataUpdated) }}</dd>
           </div>
           <div class="flex justify-between gap-4">
-            <dt class="text-muted">Цены</dt>
+            <dt class="text-muted">{{ t('settings.prices') }}</dt>
             <dd>{{ formatAge(payload?.freshness.pricesAgeMin) }}</dd>
           </div>
           <div class="flex justify-between gap-4">
-            <dt class="text-muted">Каталог обновлён</dt>
+            <dt class="text-muted">{{ t('settings.catalogUpdated') }}</dt>
             <dd>{{ formatDate(catalogUpdated) }}</dd>
           </div>
           <div class="flex justify-between gap-4">
-            <dt class="text-muted">Источник каталога</dt>
+            <dt class="text-muted">{{ t('settings.catalogSource') }}</dt>
             <dd class="text-right">{{ catalogSource ?? '—' }}</dd>
           </div>
           <div class="flex justify-between gap-4">
-            <dt class="text-muted">Снимок профиля</dt>
+            <dt class="text-muted">{{ t('settings.profileSnapshot') }}</dt>
             <dd>{{ formatDate(profileFetched) }}</dd>
           </div>
         </dl>
@@ -240,13 +236,11 @@ async function syncSource(id: string): Promise<void> {
         <template #header>
           <div class="flex items-center gap-2">
             <UIcon name="i-lucide-lock" class="size-5 text-primary" />
-            <h2 class="font-medium">Доступ</h2>
+            <h2 class="font-medium">{{ t('settings.accessTitle') }}</h2>
           </div>
         </template>
         <p class="text-sm text-muted">
-          Сайт закрыт паролем: сессия хранится в HttpOnly-cookie, изменения принимаются только с этого домена.
-          Пароль задаётся в <code>NUXT_PASSWORD_HASH</code> (scrypt) или <code>NUXT_PASSWORD</code> для локальной
-          разработки. Секреты не хранятся в репозитории.
+          {{ t('settings.accessBefore') }}<code>NUXT_PASSWORD_HASH</code>{{ t('settings.accessBetween') }}<code>NUXT_PASSWORD</code>{{ t('settings.accessAfter') }}
         </p>
       </UCard>
     </div>

@@ -70,7 +70,7 @@ export function isAuthenticated(event: H3Event): boolean {
 
 /** Defence in depth for write routes; middleware already rejects anonymous requests. */
 export function requireSession(event: H3Event): ApiErrorBody | null {
-  if (sessionExpiresAt(event) === null) return apiError(event, 401, 'UNAUTHORIZED', 'Требуется вход');
+  if (sessionExpiresAt(event) === null) return apiError(event, 401, 'UNAUTHORIZED', 'Authentication required');
   return null;
 }
 
@@ -87,12 +87,12 @@ export function requireOrigin(event: H3Event): ApiErrorBody | null {
   const origin = getRequestHeader(event, 'origin');
   if (!origin) {
     if (hasValidBearer(event)) return null;
-    return apiError(event, 403, 'ORIGIN_REQUIRED', 'Не удалось проверить источник запроса');
+    return apiError(event, 403, 'ORIGIN_REQUIRED', 'Could not verify the request origin');
   }
   const host = getRequestHeader(event, 'x-forwarded-host') ?? getRequestHeader(event, 'host') ?? '';
   const originHost = hostOf(origin);
   if (!originHost || originHost !== host) {
-    return apiError(event, 403, 'ORIGIN_MISMATCH', 'Запрос с чужого источника отклонён');
+    return apiError(event, 403, 'ORIGIN_MISMATCH', 'Request from a foreign origin rejected');
   }
   return null;
 }
@@ -116,7 +116,7 @@ export function assertLoginAllowed(event: H3Event): ApiErrorBody | null {
   recent.push(now);
   loginAttempts.set(ip, recent);
   if (recent.length > maxAttempts) {
-    return apiError(event, 429, 'TOO_MANY_ATTEMPTS', 'Слишком много попыток. Повторите через минуту.');
+    return apiError(event, 429, 'TOO_MANY_ATTEMPTS', 'Too many attempts. Try again in a minute.');
   }
   return null;
 }

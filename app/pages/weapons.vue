@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { OwnedEditTarget } from '~/types/dossier';
 
-useHead({ title: 'Оружие — STALZONE Dossier' });
+const { t } = useI18n();
+useHead(() => ({ title: `${t('weapons.pageTitle')} — ${t('common.appName')}` }));
 
 interface WeaponRow {
   key: string;
@@ -50,7 +51,7 @@ const modalOpen = computed({
   },
 });
 
-const rankItems = rankOptions();
+const rankItems = computed(() => rankOptions(t));
 
 const ownedRows = computed<WeaponRow[]>(() =>
   (payload.value?.weapons ?? []).map((weapon, index) => ({
@@ -123,17 +124,17 @@ const columns = computed(() => {
   }[] = [
     {
       accessorKey: 'name',
-      header: sortableHeader('Название'),
+      header: sortableHeader(t('table.name')),
       enableSorting: true,
       meta: { class: { td: 'font-medium min-w-48' } },
     },
-    { accessorKey: 'rank', header: 'Ранг' },
-    { accessorKey: 'type', header: 'Тип' },
+    { accessorKey: 'rank', header: t('table.rank') },
+    { accessorKey: 'type', header: t('table.type') },
   ];
   if (!catalog) {
     list.push({
       accessorKey: 'lvl',
-      header: sortableHeader('Ур.'),
+      header: sortableHeader(t('table.level')),
       enableSorting: true,
       meta: { class: { th: 'text-right', td: 'text-right tabular-nums' } },
     });
@@ -141,13 +142,13 @@ const columns = computed(() => {
   list.push(
     {
       accessorKey: 'dmg',
-      header: sortableHeader(catalog ? 'Урон +15' : 'Урон'),
+      header: sortableHeader(catalog ? t('table.damage15') : t('table.damage')),
       enableSorting: true,
       meta: { class: { th: 'text-right', td: 'text-right tabular-nums' } },
     },
     {
       accessorKey: 'rof',
-      header: sortableHeader('Выстр./мин'),
+      header: sortableHeader(t('table.rof')),
       enableSorting: true,
       meta: { class: { th: 'text-right', td: 'text-right tabular-nums' } },
     },
@@ -165,14 +166,14 @@ const columns = computed(() => {
     },
     {
       accessorKey: 'mag',
-      header: sortableHeader('Магазин'),
+      header: sortableHeader(t('table.mag')),
       enableSorting: true,
       meta: { class: { th: 'text-right', td: 'text-right tabular-nums' } },
     },
-    { accessorKey: 'caliber', header: 'Калибр' },
+    { accessorKey: 'caliber', header: t('table.caliber') },
     {
       accessorKey: 'weight',
-      header: sortableHeader('Вес'),
+      header: sortableHeader(t('table.weight')),
       enableSorting: true,
       meta: { class: { th: 'text-right', td: 'text-right tabular-nums' } },
     },
@@ -188,11 +189,9 @@ const selectedCard = computed(() =>
 
 const emptyText = computed(() => {
   if (!rows.value.length) {
-    return filters.mode === 'catalog'
-      ? 'Каталог оружия пуст. Загрузите базу EXBO.'
-      : 'В досье пока нет оружия. Добавьте его через API или MCP.';
+    return filters.mode === 'catalog' ? t('weapons.emptyCatalog') : t('weapons.emptyOwned');
   }
-  return 'Под фильтры ничего не подошло.';
+  return t('filters.noMatch');
 });
 
 function startEdit(row: WeaponRow): void {
@@ -216,9 +215,9 @@ function startEdit(row: WeaponRow): void {
   <section class="space-y-4">
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-semibold">Оружие</h1>
+        <h1 class="text-2xl font-semibold">{{ t('weapons.title') }}</h1>
         <p class="text-sm text-muted">
-          {{ filteredRows.length }} из {{ rows.length }} · DPS и TTK пересчитаны на уровень заточки каждого ствола
+          {{ t('weapons.summary', { shown: filteredRows.length, total: rows.length }) }}
         </p>
       </div>
       <FreshnessBadge
@@ -234,29 +233,29 @@ function startEdit(row: WeaponRow): void {
           color="neutral"
           @click="filters.mode = 'owned'"
         >
-          Моё · {{ ownedRows.length }}
+          {{ t('common.owned') }} · {{ ownedRows.length }}
         </UButton>
         <UButton
           :variant="filters.mode === 'catalog' ? 'solid' : 'outline'"
           color="neutral"
           @click="filters.mode = 'catalog'"
         >
-          Каталог · {{ catalogRows.length }}
+          {{ t('common.catalog') }} · {{ catalogRows.length }}
         </UButton>
       </div>
       <UInput
         v-model="filters.q"
         icon="i-lucide-search"
-        placeholder="Поиск: название, тип, калибр"
+        :placeholder="t('filters.searchWeapons')"
         class="w-full sm:w-72"
       />
-      <USelect v-model="filters.rank" :items="rankItems" class="w-40" aria-label="Ранг" />
+      <USelect v-model="filters.rank" :items="rankItems" class="w-40" :aria-label="t('filters.rank')" />
       <UButton
         v-if="filters.q || filters.rank !== ALL_RANKS"
         icon="i-lucide-x"
         color="neutral"
         variant="ghost"
-        label="Сбросить"
+        :label="t('common.reset')"
         @click="
           () => {
             filters.q = '';
@@ -308,21 +307,21 @@ function startEdit(row: WeaponRow): void {
             color="neutral"
             variant="ghost"
             size="xs"
-            :aria-label="`Изменить ${row.original.name}`"
+            :aria-label="t('weapons.editAria', { name: row.original.name })"
             @click.stop="startEdit(row.original)"
           />
         </template>
         <template #empty>
-          <UEmpty icon="i-lucide-crosshair" title="Пусто" :description="emptyText" />
+          <UEmpty icon="i-lucide-crosshair" :title="t('common.empty')" :description="emptyText" />
         </template>
       </UTable>
     </UCard>
 
     <p class="text-xs text-muted">
-      Клик по строке открывает карточку предмета из исходного досье. Сортировка и фильтры сохраняются в браузере.
+      {{ t('weapons.hint') }}
     </p>
 
-    <UModal v-model:open="modalOpen" title="Карточка предмета" :description="selected?.name" scrollable>
+    <UModal v-model:open="modalOpen" :title="t('items.cardTitle')" :description="selected?.name" scrollable>
       <template #body>
         <ItemCard
           v-if="selected"

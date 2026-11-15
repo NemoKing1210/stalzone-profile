@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
     passwordHash: config.passwordHash,
     password: config.password,
   });
-  if (!valid) return apiError(event, 401, 'INVALID_PASSWORD', 'Неверный пароль');
+  if (!valid) return apiError(event, 401, 'INVALID_PASSWORD', 'Incorrect password');
 
   createSession(event);
   return { ok: true };

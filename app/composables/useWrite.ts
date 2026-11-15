@@ -23,6 +23,8 @@ interface ApiErrorData {
 export function useWrite() {
   const toast = useToast();
   const { refresh } = useDossier();
+  const { t } = useI18n();
+  const { message: apiMessage } = useApiError();
   const busy = ref(false);
 
   async function write<T = WriteResult>(url: string, options: WriteOptions): Promise<T | null> {
@@ -36,14 +38,14 @@ export function useWrite() {
       const writeResult = result as unknown as WriteResult;
       if (writeResult?.dryRun) {
         toast.add({
-          title: 'Пробный прогон',
+          title: t('common.dryRunTitle'),
           description: writeResult.diff.human,
           color: 'info',
           icon: 'i-lucide-eye',
         });
       } else {
         toast.add({
-          title: 'Сохранено',
+          title: t('common.changeWritten'),
           description: writeResult?.diff?.human,
           color: 'success',
           icon: 'i-lucide-check',
@@ -54,10 +56,12 @@ export function useWrite() {
     } catch (error) {
       const data = (error as { data?: ApiErrorData }).data;
       const suggestions = data?.error?.details?.suggestions;
-      const message = data?.error?.message ?? 'Не удалось сохранить изменения';
+      const message = apiMessage(data?.error?.code, data?.error?.message);
       toast.add({
-        title: 'Не сохранено',
-        description: suggestions?.length ? `${message}. Похожие: ${suggestions.join(', ')}` : message,
+        title: t('common.notSaved'),
+        description: suggestions?.length
+          ? `${message} ${t('common.similar', { list: suggestions.join(', ') })}`
+          : message,
         color: 'error',
         icon: 'i-lucide-triangle-alert',
       });

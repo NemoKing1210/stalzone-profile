@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { ContentEditTarget, ContentKind } from '~/types/dossier';
 
-useHead({ title: 'Заметки — STALZONE Dossier' });
+const { t } = useI18n();
+useHead(() => ({ title: `${t('notes.pageTitle')} — ${t('common.appName')}` }));
 
 interface Note {
   title?: string;
@@ -49,8 +50,8 @@ const filtered = computed(() => {
   <section class="space-y-4">
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-semibold">Заметки</h1>
-        <p class="text-sm text-muted">{{ filtered.length }} из {{ notes.length }} · правила игры и расчётов</p>
+        <h1 class="text-2xl font-semibold">{{ t('notes.title') }}</h1>
+        <p class="text-sm text-muted">{{ t('notes.summary', { shown: filtered.length, total: notes.length }) }}</p>
       </div>
       <FreshnessBadge
         :data-updated="payload?.freshness.dataUpdated"
@@ -58,7 +59,12 @@ const filtered = computed(() => {
       />
     </div>
 
-    <UInput v-model="filters.q" icon="i-lucide-search" placeholder="Поиск по заметкам" class="w-full sm:w-80" />
+    <UInput
+      v-model="filters.q"
+      icon="i-lucide-search"
+      :placeholder="t('notes.search')"
+      class="w-full sm:w-80"
+    />
 
     <div v-if="filtered.length" class="grid gap-4 lg:grid-cols-2">
       <UCard v-for="note in filtered" :key="note.title">
@@ -72,7 +78,7 @@ const filtered = computed(() => {
               variant="ghost"
               size="xs"
               class="ml-auto"
-              :aria-label="`Изменить заметку ${note.title ?? ''}`"
+              :aria-label="t('notes.editAria', { title: note.title ?? '' })"
               @click="startEdit(note)"
             />
           </div>
@@ -83,10 +89,8 @@ const filtered = computed(() => {
     <UEmpty
       v-else
       icon="i-lucide-notebook-pen"
-      title="Пусто"
-      :description="
-        notes.length ? 'Под фильтры ничего не подошло.' : 'В досье пока нет заметок. Добавьте их через API или MCP.'
-      "
+      :title="t('common.empty')"
+      :description="notes.length ? t('filters.noMatch') : t('notes.emptyDescription')"
     />
 
     <EditContentBlock v-model:open="editOpen" :target="editTarget" />

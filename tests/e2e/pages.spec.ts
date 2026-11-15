@@ -8,20 +8,28 @@ const EMPTY_DB = './data/e2e-empty.db';
 async function login(page: Page, base = ''): Promise<void> {
   await page.goto(`${base}/login`);
   await page.locator('input[type="password"]').fill('e2e-password');
-  await page.getByRole('button', { name: 'Войти' }).click();
+  await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(new RegExp(`${base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\/$`));
 }
 
+/** Waits until Vue finished hydrating so typing cannot race the restored filters. */
+async function hydrated(page: Page): Promise<void> {
+  await page.waitForFunction(() => {
+    const root = document.getElementById('__nuxt');
+    return Boolean(root && (root as unknown as { __vue_app__?: unknown }).__vue_app__);
+  });
+}
+
 const SECTIONS: { path: string; heading: string; expected: string }[] = [
-  { path: '/weapons', heading: 'Оружие', expected: 'KS-1' },
-  { path: '/armor', heading: 'Броня', expected: 'SBA TANK' },
-  { path: '/containers', heading: 'Контейнеры', expected: 'Контейнер «Бочонок»' },
-  { path: '/artifacts', heading: 'Артефакты', expected: 'Атом' },
-  { path: '/builds', heading: 'Сборки', expected: 'Максимум скорости · до 1 млн' },
-  { path: '/recommendations', heading: 'Рекомендации', expected: 'Фарм артефактов и хабар' },
-  { path: '/earnings', heading: 'Заработок', expected: 'Прикопы и хлам на юге' },
-  { path: '/notes', heading: 'Заметки', expected: 'Два слота оружия' },
-  { path: '/settings', heading: 'Настройки', expected: 'База EXBO' },
+  { path: '/weapons', heading: 'Weapons', expected: 'KS-1' },
+  { path: '/armor', heading: 'Armor', expected: 'SBA TANK' },
+  { path: '/containers', heading: 'Containers', expected: 'Контейнер «Бочонок»' },
+  { path: '/artifacts', heading: 'Artifacts', expected: 'Атом' },
+  { path: '/builds', heading: 'Builds', expected: 'Максимум скорости · до 1 млн' },
+  { path: '/recommendations', heading: 'Recommendations', expected: 'Фарм артефактов и хабар' },
+  { path: '/earnings', heading: 'Earnings', expected: 'Прикопы и хлам на юге' },
+  { path: '/notes', heading: 'Notes', expected: 'Два слота оружия' },
+  { path: '/settings', heading: 'Settings', expected: 'EXBO base' },
 ];
 
 test('every section renders seeded content', async ({ page }) => {
@@ -39,8 +47,9 @@ test('every section renders seeded content', async ({ page }) => {
 test('clicking a weapon opens its exact legacy card', async ({ page }) => {
   await login(page);
   await page.goto('/weapons');
+  await hydrated(page);
 
-  await page.getByPlaceholder('Поиск: название, тип, калибр').fill('KS-1');
+  await page.getByPlaceholder('Search: name, type, caliber').fill('KS-1');
   const cell = page.getByRole('cell', { name: 'KS-1', exact: true });
   await expect(cell).toBeVisible();
   await expect(cell).toHaveCount(1);
@@ -48,11 +57,11 @@ test('clicking a weapon opens its exact legacy card', async ({ page }) => {
 
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByText('Карточка предмета', { exact: true }).first()).toBeVisible();
-  await expect(dialog.getByText('Тактическая перезарядка', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Item card', { exact: true }).first()).toBeVisible();
+  await expect(dialog.getByText('Tactical reload', { exact: true })).toBeVisible();
   await expect(dialog.getByText('2.5', { exact: true }).first()).toBeVisible();
-  await expect(dialog.getByText('Текущая кривая', { exact: true })).toBeVisible();
-  await expect(dialog.getByText('Исходные данные карточки')).toBeVisible();
+  await expect(dialog.getByText('Current curve', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Raw card data')).toBeVisible();
 
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
@@ -61,10 +70,11 @@ test('clicking a weapon opens its exact legacy card', async ({ page }) => {
 test('sorting and filters survive a reload', async ({ page }) => {
   await login(page);
   await page.goto('/weapons');
+  await hydrated(page);
 
-  const search = page.getByPlaceholder('Поиск: название, тип, калибр');
+  const search = page.getByPlaceholder('Search: name, type, caliber');
   await search.fill('АК');
-  await page.getByRole('button', { name: 'Урон', exact: true }).click();
+  await page.getByRole('button', { name: 'Damage', exact: true }).click();
 
   await page.waitForFunction(() => {
     const raw = localStorage.getItem('dossier:filters:weapons');
@@ -78,7 +88,7 @@ test('sorting and filters survive a reload', async ({ page }) => {
   const before = (await firstRow.locator('td').first().innerText()).trim();
 
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Оружие', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Weapons', exact: true })).toBeVisible();
   await expect(search).toHaveValue('АК');
   await expect(page.locator('tbody tr').first()).toBeVisible();
   const after = (await page.locator('tbody tr').first().locator('td').first().innerText()).trim();
@@ -136,18 +146,18 @@ test.describe('empty dossier', () => {
 
   test('every section shows an empty state without seed data', async ({ page }) => {
     await login(page, EMPTY_BASE);
-    await expect(page.getByText('Досье пусто')).toBeVisible();
+    await expect(page.getByText('Dossier is empty')).toBeVisible();
 
     const expected: { path: string; text: string }[] = [
-      { path: '/weapons', text: 'В досье пока нет оружия' },
-      { path: '/armor', text: 'В досье пока нет брони' },
-      { path: '/containers', text: 'В досье пока нет контейнеров' },
-      { path: '/artifacts', text: 'В досье пока нет артефактов' },
-      { path: '/builds', text: 'В досье пока нет сборок' },
-      { path: '/recommendations', text: 'В досье пока нет рекомендаций' },
-      { path: '/earnings', text: 'В досье пока нет оценок заработка' },
-      { path: '/notes', text: 'В досье пока нет заметок' },
-      { path: '/settings', text: 'Источники не зарегистрированы' },
+      { path: '/weapons', text: 'No weapons in the dossier' },
+      { path: '/armor', text: 'No armor in the dossier' },
+      { path: '/containers', text: 'No containers in the dossier' },
+      { path: '/artifacts', text: 'No artifacts in the dossier' },
+      { path: '/builds', text: 'No builds in the dossier' },
+      { path: '/recommendations', text: 'No recommendations in the dossier' },
+      { path: '/earnings', text: 'No earnings estimates in the dossier' },
+      { path: '/notes', text: 'No notes in the dossier' },
+      { path: '/settings', text: 'No sources registered' },
     ];
 
     for (const section of expected) {

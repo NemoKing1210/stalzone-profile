@@ -5,10 +5,10 @@ import { parseJson } from '../../../utils/serialize';
 
 export default defineEventHandler((event) => {
   const key = getRouterParam(event, 'key') ?? '';
-  if (!key || key.length > 300) return apiError(event, 400, 'VALIDATION', 'Некорректный ключ карточки');
+  if (!key || key.length > 300) return apiError(event, 400, 'VALIDATION', 'Invalid card key');
 
   const card = getDetailsCard(useDb(), key);
-  if (!card) return apiError(event, 404, 'DETAIL_NOT_FOUND', 'Карточка не найдена');
+  if (!card) return apiError(event, 404, 'DETAIL_NOT_FOUND', 'Card not found');
 
   return {
     key: card.key,

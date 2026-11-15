@@ -2,6 +2,7 @@
 import type { EventRow } from '~/types/dossier';
 
 const { write, busy } = useWrite();
+const { t, locale } = useI18n();
 
 const { data: events, refresh } = useFetch<EventRow[]>('/api/v1/events', {
   query: { limit: 50 },
@@ -17,35 +18,37 @@ const confirmOpen = computed({
   },
 });
 
-const ACTION_LABELS: Record<string, string> = {
-  'character.update': 'Профиль',
-  'owned.create': 'Добавление предмета',
-  'owned.update': 'Изменение предмета',
-  'owned.delete': 'Удаление предмета',
-  'container.fill': 'Наполнение контейнера',
-  'build.save': 'Сохранение сборки',
-  'build.delete': 'Удаление сборки',
-  'content.put': 'Изменение блока',
-  rollback: 'Откат',
+const ACTION_KEYS: Record<string, string> = {
+  'character.update': 'profile',
+  'owned.create': 'ownedCreate',
+  'owned.update': 'ownedUpdate',
+  'owned.delete': 'ownedDelete',
+  'container.fill': 'containerFill',
+  'build.save': 'buildSave',
+  'build.delete': 'buildDelete',
+  'content.put': 'contentPut',
+  rollback: 'rollback',
 };
 
-const columns = [
-  { accessorKey: 'at', header: 'Когда', meta: { class: { td: 'whitespace-nowrap text-xs' } } },
-  { accessorKey: 'action', header: 'Действие' },
-  { accessorKey: 'entityId', header: 'Объект', meta: { class: { td: 'text-xs' } } },
-  { accessorKey: 'actor', header: 'Кто' },
-  { accessorKey: 'note', header: 'Примечание', meta: { class: { td: 'text-xs text-muted min-w-40' } } },
-  { accessorKey: 'actions', header: ' ', enableSorting: false, meta: { class: { td: 'text-right' } } },
-];
+const columns = computed(() => [
+  { accessorKey: 'at', header: t('events.columns.at'), meta: { class: { td: 'whitespace-nowrap text-xs' } } },
+  { accessorKey: 'action', header: t('events.columns.action') },
+  { accessorKey: 'entityId', header: t('events.columns.entityId'), meta: { class: { td: 'text-xs' } } },
+  { accessorKey: 'actor', header: t('events.columns.actor') },
+  { accessorKey: 'note', header: t('events.columns.note'), meta: { class: { td: 'text-xs text-muted min-w-40' } } },
+  { accessorKey: 'actions', header: ' ', enableSorting: false, meta: { class: { td: 'text-right' } } },
+]);
 
 function actionLabel(action: string): string {
-  return ACTION_LABELS[action] ?? action;
+  const suffix = ACTION_KEYS[action];
+  return suffix ? t(`events.actions.${suffix}`) : action;
 }
 
 function formatDateTime(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
-  return new Intl.DateTimeFormat('ru-RU', { dateStyle: 'short', timeStyle: 'short' }).format(date);
+  const intlLocale = locale.value === 'ru' ? 'ru-RU' : 'en-US';
+  return new Intl.DateTimeFormat(intlLocale, { dateStyle: 'short', timeStyle: 'short' }).format(date);
 }
 
 function startRollback(row: EventRow): void {
@@ -74,14 +77,14 @@ async function rollback(): Promise<void> {
       <div class="flex flex-wrap items-center justify-between gap-2">
         <div class="flex items-center gap-2">
           <UIcon name="i-lucide-history" class="size-5 text-primary" />
-          <h2 class="font-medium">Журнал изменений</h2>
+          <h2 class="font-medium">{{ t('events.title') }}</h2>
         </div>
         <UButton
           icon="i-lucide-refresh-cw"
           color="neutral"
           variant="ghost"
           size="xs"
-          label="Обновить"
+          :label="t('events.refresh')"
           :loading="busy"
           @click="refresh()"
         />
@@ -105,27 +108,32 @@ async function rollback(): Promise<void> {
           color="neutral"
           variant="ghost"
           size="xs"
-          :aria-label="`Откатить событие ${row.original.id}`"
+          :aria-label="t('events.rollbackAria', { id: row.original.id })"
           @click="startRollback(row.original)"
         />
       </template>
       <template #empty>
-        <span class="text-muted">Изменений пока не было.</span>
+        <span class="text-muted">{{ t('events.empty') }}</span>
       </template>
     </UTable>
     <div v-else class="p-4">
       <UEmpty
         icon="i-lucide-history"
-        title="Журнал пуст"
-        description="Здесь появятся правки из сайта, API и MCP."
+        :title="t('events.emptyTitle')"
+        :description="t('events.emptyDescription')"
       />
     </div>
 
     <ConfirmActionModal
       v-model:open="confirmOpen"
-      title="Откатить изменение"
-      :description="`Вернуть состояние до события #${target?.id ?? ''} (${target ? actionLabel(target.action) : ''})? Откат тоже попадёт в журнал.`"
-      confirm-label="Откатить"
+      :title="t('events.rollbackTitle')"
+      :description="
+        t('events.rollbackConfirm', {
+          id: target?.id ?? '',
+          action: target ? actionLabel(target.action) : '',
+        })
+      "
+      :confirm-label="t('common.rollback')"
       :loading="busy"
       @confirm="rollback"
     />

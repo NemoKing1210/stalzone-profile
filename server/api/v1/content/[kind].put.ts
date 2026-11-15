@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
   if (originError) return originError;
 
   const kind = getRouterParam(event, 'kind') ?? '';
-  if (!KINDS.has(kind)) return apiError(event, 400, 'VALIDATION', 'Неизвестный тип блока');
+  if (!KINDS.has(kind)) return apiError(event, 400, 'VALIDATION', 'Unknown block kind');
 
   const body = (await readBody(event).catch(() => null)) as Record<string, unknown> | null;
   const parsed = ContentBlockInputSchema.safeParse({ ...body, kind });

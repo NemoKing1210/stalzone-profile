@@ -8,6 +8,7 @@ const props = defineProps<{ target: ContentEditTarget | null }>();
 const emit = defineEmits<{ saved: [] }>();
 
 const { write, busy } = useWrite();
+const { t } = useI18n();
 
 const form = reactive({
   kind: 'notes' as ContentEditTarget['kind'],
@@ -54,7 +55,7 @@ async function submit(): Promise<void> {
     payload = JSON.parse(payloadText.value);
     jsonError.value = null;
   } catch {
-    jsonError.value = 'Поле содержит некорректный JSON. Исправьте его перед сохранением.';
+    jsonError.value = t('forms.jsonError');
     return;
   }
 
@@ -96,23 +97,28 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <UModal v-model:open="open" title="Редактировать блок" :description="props.target?.title ?? props.target?.kind" scrollable>
+  <UModal
+    v-model:open="open"
+    :title="t('forms.editBlockTitle')"
+    :description="props.target?.title ?? props.target?.kind"
+    scrollable
+  >
     <template #body>
       <UForm :schema="ContentBlockInputSchema" :state="form" class="space-y-4" @submit="submit">
         <div v-if="form.slug" class="rounded-md bg-elevated/60 px-3 py-2 text-sm">
-          <span class="text-muted">Ключ:</span> <code>{{ form.kind }}/{{ form.slug }}</code>
+          <span class="text-muted">{{ t('forms.key') }}</span> <code>{{ form.kind }}/{{ form.slug }}</code>
         </div>
 
         <div v-if="form.kind !== 'earnings'" class="grid gap-3 sm:grid-cols-2">
-          <UFormField label="Заголовок" name="title">
+          <UFormField :label="t('forms.title')" name="title">
             <UInput v-model.nullable="form.title" class="w-full" />
           </UFormField>
-          <UFormField label="Подзаголовок" name="lead">
+          <UFormField :label="t('forms.subheading')" name="lead">
             <UInput v-model.nullable="form.lead" class="w-full" />
           </UFormField>
         </div>
 
-        <UFormField label="JSON" name="payload">
+        <UFormField :label="t('forms.json')" name="payload">
           <UTextarea v-model="payloadText" :rows="16" class="w-full font-mono text-xs" spellcheck="false" />
         </UFormField>
 
@@ -121,12 +127,12 @@ async function submit(): Promise<void> {
           color="error"
           variant="subtle"
           icon="i-lucide-triangle-alert"
-          title="Ошибка JSON"
+          :title="t('forms.jsonErrorTitle')"
           :description="jsonError"
         />
 
         <UFormField name="dryRun">
-          <USwitch v-model="form.dryRun" label="Пробный прогон: показать изменения без записи" />
+          <USwitch v-model="form.dryRun" :label="t('common.dryRun')" />
         </UFormField>
 
         <UAlert
@@ -134,13 +140,13 @@ async function submit(): Promise<void> {
           :color="lastResult.dryRun ? 'info' : 'success'"
           variant="subtle"
           icon="i-lucide-list-checks"
-          :title="lastResult.dryRun ? 'Пробный прогон' : 'Изменение записано'"
+          :title="lastResult.dryRun ? t('common.dryRunTitle') : t('common.changeWritten')"
           :description="lastResult.diff.human"
         />
 
         <div class="flex justify-end gap-2">
-          <UButton type="button" color="neutral" variant="ghost" label="Отмена" @click="open = false" />
-          <UButton type="submit" :loading="busy" :label="form.dryRun ? 'Проверить' : 'Сохранить'" />
+          <UButton type="button" color="neutral" variant="ghost" :label="t('common.cancel')" @click="open = false" />
+          <UButton type="submit" :loading="busy" :label="form.dryRun ? t('common.check') : t('common.save')" />
         </div>
       </UForm>
     </template>

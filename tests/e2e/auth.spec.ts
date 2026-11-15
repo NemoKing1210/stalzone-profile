@@ -14,7 +14,7 @@ test('anonymous visitors are redirected to the login page', async ({ page }) => 
   await page.goto('/');
   await expect(page).toHaveURL(/\/login\?next=/);
   expect(new URL(page.url()).searchParams.get('next')).toBe('/');
-  await expect(page.getByRole('heading', { name: 'STALZONE Dossier' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Stalzone Profile' })).toBeVisible();
   await expect(page.locator('input[type="password"]')).toBeVisible();
 });
 
@@ -22,7 +22,7 @@ test('anonymous API calls get the standard 401 envelope', async ({ request }) =>
   const response = await request.get('/api/auth/me');
   expect(response.status()).toBe(401);
   await expect(response.json()).resolves.toEqual({
-    error: { code: 'UNAUTHORIZED', message: 'Требуется вход' },
+    error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
   });
 });
 
@@ -39,7 +39,7 @@ test('wrong password returns 401 and sets no cookie', async ({ request }) => {
 test('the correct password signs an HttpOnly session and opens the dossier', async ({ page, context }) => {
   await page.goto('/login');
   await page.locator('input[type="password"]').fill('e2e-password');
-  await page.getByRole('button', { name: 'Войти' }).click();
+  await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole('heading', { name: 'Nemo_King' })).toBeVisible();
 

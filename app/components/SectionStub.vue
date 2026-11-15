@@ -1,5 +1,6 @@
 <script setup lang="ts">
 defineProps<{ title: string; icon?: string; text?: string }>();
+const { t } = useI18n();
 </script>
 
 <template>
@@ -9,7 +10,7 @@ defineProps<{ title: string; icon?: string; text?: string }>();
       <h1 class="text-2xl font-semibold">{{ title }}</h1>
     </div>
     <UCard>
-      <p class="text-muted">{{ text ?? 'Раздел готовится: данные и таблицы появятся на следующем шаге.' }}</p>
+      <p class="text-muted">{{ text ?? t('common.sectionStub') }}</p>
     </UCard>
   </section>
 </template>

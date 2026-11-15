@@ -1,11 +1,11 @@
-name: stalzone-dossier
+name: stalzone-profile
 
 services:
   app:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
-    image: stalzone-dossier:latest
+    image: stalzone-profile:latest
     restart: unless-stopped
     environment:
       NODE_ENV: production

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { BuildPayload } from '~/composables/useDossier';
 
-useHead({ title: 'Сборки — STALZONE Dossier' });
+const { t } = useI18n();
+useHead(() => ({ title: `${t('builds.pageTitle')} — ${t('common.appName')}` }));
 
 type BuildRow = BuildPayload['rows'][number];
 
@@ -50,26 +51,26 @@ function openRow(row: BuildRow): void {
   };
 }
 
-const rowColumns = [
-  { accessorKey: 'name', header: 'Предмет', meta: { class: { td: 'font-medium min-w-40' } } },
-  { accessorKey: 'q', header: 'Качество' },
-  { accessorKey: 'price', header: 'Лот', meta: { class: { th: 'text-right', td: 'text-right' } } },
-  { accessorKey: 'eff', header: 'Эффект', meta: { class: { td: 'min-w-40' } } },
-  { accessorKey: 'bonus', header: 'Плюсы' },
-  { accessorKey: 'minus', header: 'Минусы' },
-  { accessorKey: 'why', header: 'Почему', meta: { class: { td: 'min-w-56 text-muted' } } },
-  { accessorKey: 'rank', header: 'Ранг' },
-];
+const rowColumns = computed(() => [
+  { accessorKey: 'name', header: t('builds.columns.item'), meta: { class: { td: 'font-medium min-w-40' } } },
+  { accessorKey: 'q', header: t('builds.columns.quality') },
+  { accessorKey: 'price', header: t('builds.columns.lot'), meta: { class: { th: 'text-right', td: 'text-right' } } },
+  { accessorKey: 'eff', header: t('builds.columns.effect'), meta: { class: { td: 'min-w-40' } } },
+  { accessorKey: 'bonus', header: t('builds.columns.plus') },
+  { accessorKey: 'minus', header: t('builds.columns.minus') },
+  { accessorKey: 'why', header: t('builds.columns.why'), meta: { class: { td: 'min-w-56 text-muted' } } },
+  { accessorKey: 'rank', header: t('builds.columns.rank') },
+]);
 </script>
 
 <template>
   <section class="space-y-4">
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-semibold">Сборки</h1>
+        <h1 class="text-2xl font-semibold">{{ t('builds.title') }}</h1>
         <p class="text-sm text-muted">
-          {{ items.length }} шт.
-          <span v-if="builds?.updated"> · обновлено {{ formatDate(builds.updated) }}</span>
+          {{ t('builds.count', { count: items.length }) }}
+          <span v-if="builds?.updated"> · {{ t('builds.updated', { date: formatDate(builds.updated) }) }}</span>
         </p>
       </div>
       <FreshnessBadge
@@ -83,7 +84,7 @@ const rowColumns = [
       color="neutral"
       variant="subtle"
       icon="i-lucide-info"
-      title="О ценах"
+      :title="t('builds.pricesTitle')"
       :description="builds.priceNote"
     />
 
@@ -91,7 +92,7 @@ const rowColumns = [
       <template #header>
         <div class="flex flex-wrap items-center gap-2">
           <UIcon name="i-lucide-package-check" class="size-5 text-primary" />
-          <h2 class="font-medium">{{ current.title ?? 'Текущий набор' }}</h2>
+          <h2 class="font-medium">{{ current.title ?? t('builds.currentFallback') }}</h2>
         </div>
       </template>
       <p v-if="current.note" class="text-sm text-muted">{{ current.note }}</p>
@@ -116,19 +117,19 @@ const rowColumns = [
             </div>
             <dl class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-4">
               <div>
-                <dt class="text-xs text-muted">Контейнер</dt>
+                <dt class="text-xs text-muted">{{ t('builds.container') }}</dt>
                 <dd>{{ build.container ?? '—' }}</dd>
               </div>
               <div>
-                <dt class="text-xs text-muted">Слоты</dt>
+                <dt class="text-xs text-muted">{{ t('builds.slots') }}</dt>
                 <dd class="tabular-nums">{{ build.slots ?? '—' }}</dd>
               </div>
               <div>
-                <dt class="text-xs text-muted">Бюджет</dt>
+                <dt class="text-xs text-muted">{{ t('builds.budget') }}</dt>
                 <dd class="tabular-nums">{{ fmtMoney(build.budget) }}</dd>
               </div>
               <div>
-                <dt class="text-xs text-muted">Итого</dt>
+                <dt class="text-xs text-muted">{{ t('builds.total') }}</dt>
                 <dd class="tabular-nums">{{ fmtMoney(build.total) }}</dd>
               </div>
             </dl>
@@ -137,7 +138,7 @@ const rowColumns = [
               color="neutral"
               variant="ghost"
               size="xs"
-              :aria-label="`Изменить сборку ${build.title}`"
+              :aria-label="t('builds.editAria', { title: build.title })"
               @click="startEdit(build)"
             />
           </div>
@@ -165,7 +166,7 @@ const rowColumns = [
                 <RankBadge :rank="row.original.rank" />
               </template>
               <template #empty>
-                <span class="text-muted">нет данных о составе</span>
+                <span class="text-muted">{{ t('builds.emptyRows') }}</span>
               </template>
             </UTable>
           </div>
@@ -175,7 +176,7 @@ const rowColumns = [
             color="primary"
             variant="subtle"
             icon="i-lucide-message-square-quote"
-            title="Вывод"
+            :title="t('builds.verdict')"
             :description="build.verdict"
           />
         </div>
@@ -184,15 +185,15 @@ const rowColumns = [
     <UEmpty
       v-else
       icon="i-lucide-layers"
-      title="Пусто"
-      description="В досье пока нет сборок. Добавьте их через API или MCP."
+      :title="t('common.empty')"
+      :description="t('builds.emptyDescription')"
     />
 
     <UCard v-if="avoid.length">
       <template #header>
         <div class="flex items-center gap-2">
           <UIcon name="i-lucide-triangle-alert" class="size-5 text-warning" />
-          <h2 class="font-medium">Чего избегать</h2>
+          <h2 class="font-medium">{{ t('builds.avoidTitle') }}</h2>
         </div>
       </template>
       <ul class="space-y-2 text-sm">
@@ -204,10 +205,10 @@ const rowColumns = [
     </UCard>
 
     <p class="text-xs text-muted">
-      Клик по строке открывает карточку предмета. Цены — минимальный лот на аукционе, показан только для чтения.
+      {{ t('builds.hint') }}
     </p>
 
-    <UModal v-model:open="modalOpen" title="Карточка предмета" :description="selected?.name" scrollable>
+    <UModal v-model:open="modalOpen" :title="t('items.cardTitle')" :description="selected?.name" scrollable>
       <template #body>
         <ItemCard
           v-if="selected"

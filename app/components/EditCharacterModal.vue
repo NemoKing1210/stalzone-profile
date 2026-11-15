@@ -8,6 +8,7 @@ const props = defineProps<{ character: DossierCharacter }>();
 const emit = defineEmits<{ saved: [] }>();
 
 const { write, busy } = useWrite();
+const { t } = useI18n();
 
 const form = reactive({
   nick: '',
@@ -94,60 +95,65 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <UModal v-model:open="open" title="Персонаж" description="Правка профиля и статистики" scrollable>
+  <UModal
+    v-model:open="open"
+    :title="t('forms.characterTitle')"
+    :description="t('forms.characterDescription')"
+    scrollable
+  >
     <template #body>
       <UForm :schema="CharacterPatchSchema" :state="form" class="space-y-4" @submit="submit">
         <div class="grid gap-3 sm:grid-cols-2">
-          <UFormField label="Ник" name="nick">
+          <UFormField :label="t('forms.nick')" name="nick">
             <UInput v-model="form.nick" class="w-full" />
           </UFormField>
-          <UFormField label="Фракция" name="faction">
+          <UFormField :label="t('forms.faction')" name="faction">
             <UInput v-model.nullable="form.faction" class="w-full" />
           </UFormField>
-          <UFormField label="Альянс" name="alliance">
+          <UFormField :label="t('forms.alliance')" name="alliance">
             <UInput v-model.nullable="form.alliance" class="w-full" />
           </UFormField>
-          <UFormField label="Клан" name="clan">
+          <UFormField :label="t('forms.clan')" name="clan">
             <UInput v-model.nullable="form.clan" class="w-full" />
           </UFormField>
-          <UFormField label="В Зоне с" name="arrived">
+          <UFormField :label="t('forms.arrived')" name="arrived">
             <UInput v-model.nullable="form.arrived" placeholder="2024-12-06" class="w-full" />
           </UFormField>
-          <UFormField label="Часов в игре" name="hours">
+          <UFormField :label="t('forms.hours')" name="hours">
             <UInputNumber v-model="form.hours" :min="0" class="w-full" />
           </UFormField>
-          <UFormField label="K/D" name="kd">
+          <UFormField :label="t('overview.stats.kd')" name="kd">
             <UInputNumber v-model="form.kd" :step="0.01" :min="0" class="w-full" />
           </UFormField>
-          <UFormField label="Точность, %" name="accuracy">
+          <UFormField :label="t('forms.accuracyPercent')" name="accuracy">
             <UInputNumber v-model="form.accuracy" :min="0" :max="100" class="w-full" />
           </UFormField>
-          <UFormField label="В голову, %" name="headshot">
+          <UFormField :label="t('forms.headshotPercent')" name="headshot">
             <UInputNumber v-model="form.headshot" :min="0" :max="100" class="w-full" />
           </UFormField>
-          <UFormField label="Достижения" name="achievements">
+          <UFormField :label="t('forms.achievements')" name="achievements">
             <UInputNumber v-model="form.achievements" :min="0" class="w-full" />
           </UFormField>
-          <UFormField label="Очки достижений" name="achievementPoints">
+          <UFormField :label="t('forms.achievementPoints')" name="achievementPoints">
             <UInputNumber v-model="form.achievementPoints" :min="0" class="w-full" />
           </UFormField>
-          <UFormField label="Деньги" name="money">
+          <UFormField :label="t('forms.money')" name="money">
             <UInputNumber v-model="form.money" :min="0" class="w-full" />
           </UFormField>
-          <UFormField label="Максимум денег" name="maxMoney">
+          <UFormField :label="t('forms.maxMoney')" name="maxMoney">
             <UInputNumber v-model="form.maxMoney" :min="0" class="w-full" />
           </UFormField>
         </div>
 
-        <UFormField label="Тайник" name="stash">
+        <UFormField :label="t('forms.stash')" name="stash">
           <UInput v-model.nullable="form.stash" class="w-full" />
         </UFormField>
-        <UFormField label="Стиль игры" name="playstyle">
+        <UFormField :label="t('forms.playstyle')" name="playstyle">
           <UTextarea v-model.nullable="form.playstyle" :rows="2" class="w-full" />
         </UFormField>
 
         <UFormField name="dryRun">
-          <USwitch v-model="form.dryRun" label="Пробный прогон: показать изменения без записи" />
+          <USwitch v-model="form.dryRun" :label="t('common.dryRun')" />
         </UFormField>
 
         <UAlert
@@ -155,13 +161,13 @@ async function submit(): Promise<void> {
           :color="lastResult.dryRun ? 'info' : 'success'"
           variant="subtle"
           icon="i-lucide-list-checks"
-          :title="lastResult.dryRun ? 'Пробный прогон' : 'Изменение записано'"
+          :title="lastResult.dryRun ? t('common.dryRunTitle') : t('common.changeWritten')"
           :description="lastResult.diff.human"
         />
 
         <div class="flex justify-end gap-2">
-          <UButton type="button" color="neutral" variant="ghost" label="Отмена" @click="open = false" />
-          <UButton type="submit" :loading="busy" :label="form.dryRun ? 'Проверить' : 'Сохранить'" />
+          <UButton type="button" color="neutral" variant="ghost" :label="t('common.cancel')" @click="open = false" />
+          <UButton type="submit" :loading="busy" :label="form.dryRun ? t('common.check') : t('common.save')" />
         </div>
       </UForm>
     </template>

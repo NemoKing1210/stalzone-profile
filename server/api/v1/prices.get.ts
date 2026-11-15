@@ -16,7 +16,7 @@ export default defineEventHandler((event) => {
     .split(',')
     .map((name) => name.trim())
     .filter(Boolean);
-  if (!names.length) return apiError(event, 400, 'VALIDATION', 'Укажите хотя бы одно название');
+  if (!names.length) return apiError(event, 400, 'VALIDATION', 'Provide at least one name');
 
   const prices = latestPricesForNames(useDb(), names);
   return Object.fromEntries(Object.entries(prices).map(([name, rows]) => [name, rows.map(priceJson)]));

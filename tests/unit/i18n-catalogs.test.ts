@@ -1,0 +1,55 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+type Catalog = Record<string, unknown>;
+
+function readCatalog(locale: string): Catalog {
+  const file = path.join(process.cwd(), 'i18n', 'locales', `${locale}.json`);
+  return JSON.parse(fs.readFileSync(file, 'utf8')) as Catalog;
+}
+
+function flatten(value: Catalog, prefix = '', out: Record<string, string> = {}): Record<string, string> {
+  for (const [key, entry] of Object.entries(value)) {
+    const full = prefix ? `${prefix}.${key}` : key;
+    if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+      flatten(entry as Catalog, full, out);
+    } else {
+      out[full] = String(entry);
+    }
+  }
+  return out;
+}
+
+function params(text: string): string[] {
+  return [...text.matchAll(/\{(\w+)\}/g)].map((match) => match[1]!).sort();
+}
+
+describe('i18n catalogs', () => {
+  const en = flatten(readCatalog('en'));
+  const ru = flatten(readCatalog('ru'));
+
+  it('has the same key set in both locales', () => {
+    expect(Object.keys(ru).sort()).toEqual(Object.keys(en).sort());
+  });
+
+  it('uses the same interpolation params for every key', () => {
+    for (const key of Object.keys(en)) {
+      expect({ key, params: params(en[key]!) }).toEqual({ key, params: params(ru[key] ?? '') });
+    }
+  });
+
+  it('contains the base keys the shell depends on', () => {
+    for (const key of ['common.language', 'nav.weapons', 'errors.UNAUTHORIZED']) {
+      expect(en[key]).toBeTruthy();
+      expect(ru[key]).toBeTruthy();
+    }
+  });
+
+  it('gives every rank a name instead of a missing-value label', () => {
+    for (const rank of ['default', 'newbie', 'stalker', 'veteran', 'master', 'legend']) {
+      expect(en[`ranks.${rank}`]).not.toMatch(/^(no|none|—)/i);
+      expect(ru[`ranks.${rank}`]).not.toMatch(/^(нет|—)/i);
+    }
+  });
+});

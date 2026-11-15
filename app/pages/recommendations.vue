@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { ContentEditTarget } from '~/types/dossier';
 
-useHead({ title: 'Рекомендации — STALZONE Dossier' });
+const { t } = useI18n();
+useHead(() => ({ title: `${t('recommendations.pageTitle')} — ${t('common.appName')}` }));
 
 interface RecommendationRow {
   k: string;
@@ -47,8 +48,10 @@ function startEdit(recommendation: Recommendation): void {
   <section class="space-y-4">
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-semibold">Рекомендации</h1>
-        <p class="text-sm text-muted">{{ recommendations.length }} сценария · готовые наборы из досье</p>
+        <h1 class="text-2xl font-semibold">{{ t('recommendations.title') }}</h1>
+        <p class="text-sm text-muted">
+          {{ t('recommendations.summary', { count: recommendations.length }) }}
+        </p>
       </div>
       <FreshnessBadge
         :data-updated="payload?.freshness.dataUpdated"
@@ -69,7 +72,7 @@ function startEdit(recommendation: Recommendation): void {
               color="neutral"
               variant="ghost"
               size="xs"
-              :aria-label="`Изменить рекомендацию ${recommendation.title ?? ''}`"
+              :aria-label="t('recommendations.editAria', { title: recommendation.title ?? '' })"
               @click="startEdit(recommendation)"
             />
           </div>
@@ -87,14 +90,14 @@ function startEdit(recommendation: Recommendation): void {
             </dd>
           </div>
         </dl>
-        <p v-else class="text-sm text-muted">нет данных о составе</p>
+        <p v-else class="text-sm text-muted">{{ t('recommendations.emptyRows') }}</p>
       </UCard>
     </div>
     <UEmpty
       v-else
       icon="i-lucide-lightbulb"
-      title="Пусто"
-      description="В досье пока нет рекомендаций. Добавьте их через API или MCP."
+      :title="t('common.empty')"
+      :description="t('recommendations.emptyDescription')"
     />
 
     <EditContentBlock v-model:open="editOpen" :target="editTarget" />

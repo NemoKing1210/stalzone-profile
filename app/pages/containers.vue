@@ -2,7 +2,8 @@
 import type { ContainerPayload } from '~/composables/useDossier';
 import type { OwnedEditTarget } from '~/types/dossier';
 
-useHead({ title: 'Контейнеры — STALZONE Dossier' });
+const { t } = useI18n();
+useHead(() => ({ title: `${t('containers.pageTitle')} — ${t('common.appName')}` }));
 
 interface Selection {
   kind: 'container' | 'artifact';
@@ -82,8 +83,8 @@ function startFill(container: ContainerPayload): void {
   <section class="space-y-4">
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-semibold">Контейнеры</h1>
-        <p class="text-sm text-muted">{{ containers.length }} шт. · слоты, эффективность и текущее наполнение</p>
+        <h1 class="text-2xl font-semibold">{{ t('containers.title') }}</h1>
+        <p class="text-sm text-muted">{{ t('containers.summary', { count: containers.length }) }}</p>
       </div>
       <FreshnessBadge
         :data-updated="payload?.freshness.dataUpdated"
@@ -107,7 +108,7 @@ function startFill(container: ContainerPayload): void {
             </div>
             <div class="min-w-0 flex-1">
               <p class="font-medium">{{ container.name }}</p>
-              <p class="text-xs text-muted">{{ container.type ?? 'контейнер' }}</p>
+              <p class="text-xs text-muted">{{ container.type ?? t('containers.typeFallback') }}</p>
               <div class="mt-1 flex flex-wrap gap-1">
                 <RankBadge :rank="container.rank" />
                 <UBadge v-if="container.bonus" color="neutral" variant="subtle">{{ container.bonus }}</UBadge>
@@ -117,7 +118,7 @@ function startFill(container: ContainerPayload): void {
               icon="i-lucide-panel-right-open"
               color="neutral"
               variant="ghost"
-              label="Карточка"
+              :label="t('containers.card')"
               @click="openContainer(container)"
             />
           </div>
@@ -127,7 +128,7 @@ function startFill(container: ContainerPayload): void {
               color="neutral"
               variant="outline"
               size="xs"
-              label="Изменить"
+              :label="t('common.edit')"
               @click="startEdit(container)"
             />
             <UButton
@@ -135,7 +136,7 @@ function startFill(container: ContainerPayload): void {
               color="neutral"
               variant="outline"
               size="xs"
-              label="Наполнение"
+              :label="t('containers.fill')"
               @click="startFill(container)"
             />
           </div>
@@ -144,30 +145,32 @@ function startFill(container: ContainerPayload): void {
         <div class="space-y-4">
           <dl class="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
             <div class="rounded-md bg-elevated/60 p-2">
-              <dt class="text-xs text-muted">Слоты</dt>
+              <dt class="text-xs text-muted">{{ t('containers.slots') }}</dt>
               <dd class="font-medium tabular-nums">{{ container.slots ?? '—' }}</dd>
             </div>
             <div class="rounded-md bg-elevated/60 p-2">
-              <dt class="text-xs text-muted">Эффективность</dt>
+              <dt class="text-xs text-muted">{{ t('containers.efficiency') }}</dt>
               <dd class="font-medium tabular-nums">{{ container.eff == null ? '—' : `${g1(container.eff)}%` }}</dd>
             </div>
             <div class="rounded-md bg-elevated/60 p-2">
-              <dt class="text-xs text-muted">Эквивалент</dt>
+              <dt class="text-xs text-muted">{{ t('containers.equivalent') }}</dt>
               <dd class="font-medium tabular-nums">{{ slotEquivalent(container) }}</dd>
             </div>
             <div class="rounded-md bg-elevated/60 p-2">
-              <dt class="text-xs text-muted">Вес</dt>
-              <dd class="font-medium tabular-nums">{{ container.weight == null ? '—' : `${g2(container.weight)} кг` }}</dd>
+              <dt class="text-xs text-muted">{{ t('containers.weight') }}</dt>
+              <dd class="font-medium tabular-nums">
+                {{ container.weight == null ? '—' : t('containers.weightValue', { value: g2(container.weight) }) }}
+              </dd>
             </div>
           </dl>
 
           <div class="flex flex-wrap gap-x-6 gap-y-1 text-sm">
-            <span><span class="text-muted">Защита:</span> {{ container.prot ?? '—' }}</span>
-            <span><span class="text-muted">Щит:</span> {{ container.shield ?? '—' }}</span>
+            <span><span class="text-muted">{{ t('containers.protection') }}</span> {{ container.prot ?? '—' }}</span>
+            <span><span class="text-muted">{{ t('containers.shield') }}</span> {{ container.shield ?? '—' }}</span>
           </div>
 
           <div>
-            <p class="mb-2 text-sm font-medium">Наполнение</p>
+            <p class="mb-2 text-sm font-medium">{{ t('containers.fillTitle') }}</p>
             <ul v-if="container.artifacts.length" class="flex flex-wrap gap-1">
               <li v-for="(artifact, index) in container.artifacts" :key="`${artifact.name}-${index}`">
                 <button type="button" @click="openArtifact(artifact.name, artifact.lvl)">
@@ -177,14 +180,20 @@ function startFill(container: ContainerPayload): void {
                 </button>
               </li>
             </ul>
-            <p v-else class="text-sm text-muted">нет данных о наполнении</p>
+            <p v-else class="text-sm text-muted">{{ t('containers.fillEmpty') }}</p>
             <p v-if="container.artifactsAsOf" class="mt-2 text-xs text-muted">
-              Наполнение на {{ formatDate(container.artifactsAsOf) }}
+              {{ t('containers.fillAsOf', { date: formatDate(container.artifactsAsOf) }) }}
             </p>
           </div>
 
           <p v-if="container.slots != null && container.eff != null" class="text-xs text-muted">
-            {{ num(container.slots) }} слота × {{ g1(container.eff) }}% = {{ slotEquivalent(container) }} эффекта
+            {{
+              t('containers.formula', {
+                slots: num(container.slots),
+                eff: g1(container.eff),
+                value: slotEquivalent(container),
+              })
+            }}
           </p>
         </div>
       </UCard>
@@ -192,11 +201,11 @@ function startFill(container: ContainerPayload): void {
     <UEmpty
       v-else
       icon="i-lucide-backpack"
-      title="Пусто"
-      description="В досье пока нет контейнеров. Добавьте их через API или MCP."
+      :title="t('common.empty')"
+      :description="t('containers.emptyDescription')"
     />
 
-    <UModal v-model:open="modalOpen" title="Карточка предмета" :description="selected?.name" scrollable>
+    <UModal v-model:open="modalOpen" :title="t('items.cardTitle')" :description="selected?.name" scrollable>
       <template #body>
         <ItemCard
           v-if="selected"

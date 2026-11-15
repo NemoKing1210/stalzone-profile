@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
   if (originError) return originError;
 
   const slug = getRouterParam(event, 'slug');
-  if (!slug) return apiError(event, 400, 'VALIDATION', 'slug обязателен');
+  if (!slug) return apiError(event, 400, 'VALIDATION', 'slug is required');
 
   const parsed = BodySchema.safeParse((await readBody(event).catch(() => null)) ?? {});
   if (!parsed.success) return validationError(event, parsed.error);

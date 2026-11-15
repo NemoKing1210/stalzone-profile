@@ -24,7 +24,7 @@ test('anonymous API calls are rejected with the standard envelope', async () => 
     const response = await anon.get('/api/v1/payload');
     expect(response.status()).toBe(401);
     await expect(response.json()).resolves.toEqual({
-      error: { code: 'UNAUTHORIZED', message: 'Требуется вход' },
+      error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
     });
   } finally {
     await anon.dispose();

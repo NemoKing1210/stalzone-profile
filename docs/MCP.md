@@ -1,37 +1,37 @@
-# MCP-сервер
+# MCP server
 
-Один реестр инструментов обслуживает stdio и HTTP — результаты не расходятся.
+One tool registry serves both stdio and HTTP — results never diverge.
 
-## Подключение
+## Connecting
 
-### stdio, локальная база
+### stdio, local database
 
 ```bash
 DB_PATH=./data/dossier.db npm run mcp
-# продакшен:
+# production:
 node dist/mcp-stdio.js
 ```
 
-### stdio через HTTP
+### stdio over HTTP
 
 ```bash
 DOSSIER_API_URL=https://dossier.example.com MCP_TOKEN=... npm run mcp
 ```
 
-Без `DOSSIER_API_URL` шим открывает SQLite напрямую; с ним — ходит в `/mcp`.
+Without `DOSSIER_API_URL` the shim opens SQLite directly; with it, it talks to `/mcp`.
 
 ### HTTP
 
-`POST /mcp` — stateless Streamable HTTP, заголовок
+`POST /mcp` — stateless Streamable HTTP, header
 `Authorization: Bearer <NUXT_MCP_TOKEN>`.
-`NUXT_MCP_TOKEN` пуст → 404 (эндпоинт выключен); неверный токен → 401.
+Empty `NUXT_MCP_TOKEN` → 404 (the endpoint is disabled); a wrong token → 401.
 
-Конфиг клиента:
+Client config:
 
 ```json
 {
   "mcpServers": {
-    "stalzone-dossier": {
+    "stalzone-profile": {
       "command": "node",
       "args": ["/app/dist/mcp-stdio.js"],
       "env": { "DOSSIER_API_URL": "https://dossier.example.com", "MCP_TOKEN": "..." }
@@ -40,58 +40,60 @@ DOSSIER_API_URL=https://dossier.example.com MCP_TOKEN=... npm run mcp
 }
 ```
 
-## Политика записи
+## Write policy
 
-- `dry_run` по умолчанию `true`: возвращается `{ dryRun, diff, eventId? }`, база не меняется.
-- Реальная запись: `dry_run: false` **и** `confirm: true`, иначе `CONFIRM_REQUIRED`.
-- Не больше 30 применённых записей в минуту на процесс; иначе `RATE_LIMITED`.
-- `sync_source` также требует `confirm: true`.
-- `rebuild_site` не пересобирает сайт: возвращает `NOT_SUPPORTED` с командой деплоя.
-- `rollback_event` восстанавливает сущность из снимка `event_log`.
+- `dry_run` defaults to `true`: it returns `{ dryRun, diff, eventId? }` and does not change
+  the database.
+- A real write needs `dry_run: false` **and** `confirm: true`, otherwise `CONFIRM_REQUIRED`.
+- No more than 30 applied writes per minute per process; otherwise `RATE_LIMITED`.
+- `sync_source` also requires `confirm: true`.
+- `rebuild_site` does not rebuild the site: it returns `NOT_SUPPORTED` with the deploy
+  command.
+- `rollback_event` restores an entity from the `event_log` snapshot.
 
-Ошибки инструмента: `{ isError: true, content: [{ text: "{\"error\":{\"code\",\"message\"}}" }] }`.
+Tool errors: `{ isError: true, content: [{ text: "{\"error\":{\"code\",\"message\"}}" }] }`.
 
-Ресурс `dossier://schema` отдаёт описания инструментов и правила записи.
+The `dossier://schema` resource provides tool descriptions and the write rules.
 
-## Инструменты чтения
+## Read tools
 
-| Инструмент | Аргументы | Что возвращает |
+| Tool | Arguments | What it returns |
 |---|---|---|
-| `get_character` | — | персонаж и meta |
-| `find_items` | `q?`, `kind?`, `rank?`, `slot?`, `limit?` | список предметов |
-| `get_item` | `id` или `name` + `kind?` | предмет, статы, карточка, иконка |
-| `compare_items` | `a`, `b`, `level` | DPS/TTK и статы двух предметов |
-| `list_owned` | `kind?` | снаряжение с `ownedId`, `qty`, качествами |
-| `list_containers` | — | контейнеры и наполнение |
-| `list_builds` | — | сборки и meta |
-| `get_build` | `slug` | одна сборка |
-| `plan_artifact_build` | preset/effects, slots, budget, mode, quality, unique, requireLot | план артефактов по цене |
-| `get_prices` | `names[]`, `quality?` | последние цены по каждой комбинации |
-| `sources_status` | — | статус, `lastOkAt`, `lastError` источников |
-| `export_legacy_json` | — | JSON старого формата |
+| `get_character` | — | character and meta |
+| `find_items` | `q?`, `kind?`, `rank?`, `slot?`, `limit?` | a list of items |
+| `get_item` | `id` or `name` + `kind?` | item, stats, card, icon |
+| `compare_items` | `a`, `b`, `level` | DPS/TTK and stats of two items |
+| `list_owned` | `kind?` | gear with `ownedId`, `qty`, qualities |
+| `list_containers` | — | containers and their fill |
+| `list_builds` | — | builds and meta |
+| `get_build` | `slug` | one build |
+| `plan_artifact_build` | preset/effects, slots, budget, mode, quality, unique, requireLot | an artifact plan by price |
+| `get_prices` | `names[]`, `quality?` | latest prices for each combination |
+| `sources_status` | — | source status, `lastOkAt`, `lastError` |
+| `export_legacy_json` | — | JSON in the old format |
 
-## Инструменты записи и обслуживания
+## Write and maintenance tools
 
-| Инструмент | Аргументы |
+| Tool | Arguments |
 |---|---|
 | `upsert_owned_item` | `name`, `kind`, `level`, `skin?`, `quality?`, `note?`, `role?`, `dry_run?` |
 | `remove_owned_item` | `name`, `kind`, `level?`, `dry_run?` |
 | `set_container_artifacts` | `container`, `artifacts[]`, `as_of?`, `dry_run?` |
-| `save_build` | `slug`, `title`, `rows[]`, остальные поля сборки, `dry_run?` |
+| `save_build` | `slug`, `title`, `rows[]`, the remaining build fields, `dry_run?` |
 | `delete_build` | `slug`, `dry_run?` |
 | `upsert_content_block` | `kind`, `slug?`, `title?`, `lead?`, `payload`, `position?`, `dry_run?` |
 | `sync_source` | `source`: `exbo \| wiki \| motifs \| profile \| scpmodel`, `force?`, `confirm` |
 | `rollback_event` | `event_id`, `dry_run?` |
 | `rebuild_site` | — |
 
-`upsert_owned_item` добавляет одну копию, `remove_owned_item` удаляет одну:
-MCP не управляет количеством, для этого есть сайт/API с `qty`.
+`upsert_owned_item` adds one copy, `remove_owned_item` removes one: MCP does not manage
+quantity; the site/API with `qty` does.
 
-## Проверка
+## Checks
 
 ```bash
 DB_PATH=./data/dossier.db npm run smoke:mcp
 ```
 
-Скрипт вызывает все read-инструменты и валидирует ответы zod-схемами;
-падает с кодом 1 при первом несоответствии.
+The script calls every read tool and validates responses with zod schemas; it exits with
+code 1 on the first mismatch.

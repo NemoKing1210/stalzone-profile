@@ -27,7 +27,7 @@ const server = createDossierServer(client);
 const transport = new StdioServerTransport();
 
 await server.connect(transport);
-console.error(`[mcp] stalzone-dossier ready (${apiUrl ? `http ${apiUrl}` : 'local database'})`);
+console.error(`[mcp] stalzone-profile ready (${apiUrl ? `http ${apiUrl}` : 'local database'})`);
 
 async function shutdown(): Promise<void> {
   await client.close?.();

@@ -2,6 +2,7 @@
 const props = defineProps<{ dataUpdated?: string | null; pricesAgeMin?: number | null }>();
 
 const { formatAge, formatDate } = useFormat();
+const { t } = useI18n();
 
 const color = computed(() => {
   const age = props.pricesAgeMin;
@@ -11,8 +12,8 @@ const color = computed(() => {
   return 'error';
 });
 
-const label = computed(() => `Цены: ${formatAge(props.pricesAgeMin)}`);
-const tooltip = computed(() => `Данные досье: ${formatDate(props.dataUpdated)}`);
+const label = computed(() => t('freshness.prices', { age: formatAge(props.pricesAgeMin) }));
+const tooltip = computed(() => t('freshness.data', { date: formatDate(props.dataUpdated) }));
 </script>
 
 <template>

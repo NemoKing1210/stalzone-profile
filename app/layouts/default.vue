@@ -1,21 +1,25 @@
 <script setup lang="ts">
-const sections = [
-  { label: 'Обзор', icon: 'i-lucide-house', to: '/' },
-  { label: 'Оружие', icon: 'i-lucide-crosshair', to: '/weapons' },
-  { label: 'Броня', icon: 'i-lucide-shield', to: '/armor' },
-  { label: 'Контейнеры', icon: 'i-lucide-backpack', to: '/containers' },
-  { label: 'Артефакты', icon: 'i-lucide-gem', to: '/artifacts' },
-  { label: 'Сборки', icon: 'i-lucide-layers', to: '/builds' },
-  { label: 'Рекомендации', icon: 'i-lucide-lightbulb', to: '/recommendations' },
-  { label: 'Заработок', icon: 'i-lucide-coins', to: '/earnings' },
-  { label: 'Заметки', icon: 'i-lucide-notebook-pen', to: '/notes' },
-];
+const { t } = useI18n();
 
-const navItems = sections.map((section) => ({
-  label: section.label,
-  icon: section.icon,
-  to: section.to,
-}));
+const sections = computed(() => [
+  { label: t('nav.overview'), icon: 'i-lucide-house', to: '/' },
+  { label: t('nav.weapons'), icon: 'i-lucide-crosshair', to: '/weapons' },
+  { label: t('nav.armor'), icon: 'i-lucide-shield', to: '/armor' },
+  { label: t('nav.containers'), icon: 'i-lucide-backpack', to: '/containers' },
+  { label: t('nav.artifacts'), icon: 'i-lucide-gem', to: '/artifacts' },
+  { label: t('nav.builds'), icon: 'i-lucide-layers', to: '/builds' },
+  { label: t('nav.recommendations'), icon: 'i-lucide-lightbulb', to: '/recommendations' },
+  { label: t('nav.earnings'), icon: 'i-lucide-coins', to: '/earnings' },
+  { label: t('nav.notes'), icon: 'i-lucide-notebook-pen', to: '/notes' },
+]);
+
+const navItems = computed(() =>
+  sections.value.map((section) => ({
+    label: section.label,
+    icon: section.icon,
+    to: section.to,
+  })),
+);
 
 const route = useRoute();
 const { meta } = useDossier();
@@ -41,7 +45,7 @@ async function logout(): Promise<void> {
       <div class="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
         <NuxtLink to="/" class="flex items-center gap-2 font-semibold">
           <UIcon name="i-lucide-folder-search" class="size-6 text-primary" />
-          <span class="hidden sm:inline">STALZONE Dossier</span>
+          <span class="hidden sm:inline">Stalzone Profile</span>
         </NuxtLink>
 
         <div class="order-3 w-full min-w-0 overflow-x-auto sm:order-none sm:w-auto sm:flex-1">
@@ -58,18 +62,19 @@ async function logout(): Promise<void> {
             :data-updated="meta?.freshness?.dataUpdated"
             :prices-age-min="meta?.freshness?.pricesAgeMin"
           />
+          <LocaleSwitcher />
           <UButton
             :to="'/settings'"
             icon="i-lucide-settings"
             color="neutral"
             variant="ghost"
-            aria-label="Настройки"
+            :aria-label="t('nav.settings')"
           />
           <UButton
             icon="i-lucide-log-out"
             color="neutral"
             variant="ghost"
-            aria-label="Выйти"
+            :aria-label="t('nav.logout')"
             :loading="loggingOut"
             @click="logout"
           />
@@ -82,8 +87,8 @@ async function logout(): Promise<void> {
     </main>
 
     <footer class="border-t border-default py-4 text-center text-xs text-muted">
-      Личное досье STALZONE. Данные обновляются вручную, цены — только чтение.
-      <span class="sr-only">Текущий раздел: {{ route.path }}</span>
+      {{ t('nav.footer') }}
+      <span class="sr-only">{{ t('nav.currentSection', { path: route.path }) }}</span>
     </footer>
   </div>
 </template>

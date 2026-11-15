@@ -379,7 +379,7 @@ export function localClient(db: Db): DossierClient {
 
     async removeOwnedItem(input) {
       const character = repo.getCharacter(db);
-      if (!character) throw new McpClientError('NO_CHARACTER', 'В базе нет персонажа');
+      if (!character) throw new McpClientError('NO_CHARACTER', 'No character in the dossier');
       const target = repo
         .listOwned(db, character.id, input.kind)
         .find(
@@ -388,7 +388,7 @@ export function localClient(db: Db): DossierClient {
             (input.level == null || row.level === input.level),
         );
       if (!target) {
-        throw new McpClientError('OWNED_NOT_FOUND', `«${input.name}» нет в досье этого типа`);
+        throw new McpClientError('OWNED_NOT_FOUND', `${input.name} is not in the dossier for this kind`);
       }
       try {
         return deleteOwned(db, target.id, { dryRun: input.dryRun, qty: 1 });
@@ -402,7 +402,7 @@ export function localClient(db: Db): DossierClient {
         (row) => norm(String(row.name)) === norm(input.container),
       );
       if (!container?.ownedId) {
-        throw new McpClientError('CONTAINER_NOT_FOUND', `Контейнер «${input.container}» не найден`);
+        throw new McpClientError('CONTAINER_NOT_FOUND', `Container ${input.container} not found`);
       }
       try {
         return setContainerFill(db, Number(container.ownedId), {
@@ -476,7 +476,7 @@ export function localClient(db: Db): DossierClient {
     async rebuildSite() {
       throw new McpClientError(
         'NOT_SUPPORTED',
-        'Пересборка сайта выполняется деплоем: npm run build или docker compose build && up -d',
+        'The site is rebuilt by deploy: npm run build or docker compose build && up -d',
       );
     },
 
@@ -504,7 +504,7 @@ function unwrap(raw: unknown): Json {
       .join(' ')
       .trim();
     let code = 'MCP_ERROR';
-    let message = text || 'Инструмент завершился ошибкой';
+    let message = text || 'The tool failed';
     try {
       const parsed = JSON.parse(text) as { error?: { code?: string; message?: string } };
       if (parsed.error?.code) code = parsed.error.code;

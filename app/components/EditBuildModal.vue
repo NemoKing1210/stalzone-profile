@@ -8,6 +8,7 @@ const props = defineProps<{ build: BuildPayload | null; containerOptions: string
 const emit = defineEmits<{ saved: []; deleted: [] }>();
 
 const { write, busy } = useWrite();
+const { t } = useI18n();
 
 interface BuildRowForm {
   name: string | null | undefined;
@@ -159,30 +160,30 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <UModal v-model:open="open" title="Редактировать сборку" :description="props.build?.title" scrollable>
+  <UModal v-model:open="open" :title="t('forms.editBuildTitle')" :description="props.build?.title" scrollable>
     <template #body>
       <UForm :schema="BuildInputSchema" :state="form" class="space-y-4" @submit="submit">
         <div class="grid gap-3 sm:grid-cols-2">
-          <UFormField label="Slug" name="slug" hint="не меняется">
+          <UFormField :label="t('forms.slug')" name="slug" :hint="t('forms.slugHint')">
             <UInput v-model="form.slug" disabled class="w-full" />
           </UFormField>
-          <UFormField label="Название" name="title">
+          <UFormField :label="t('forms.title')" name="title">
             <UInput v-model="form.title" class="w-full" />
           </UFormField>
-          <UFormField label="Коротко" name="short">
+          <UFormField :label="t('forms.short')" name="short">
             <UInput v-model.nullable="form.short" class="w-full" />
           </UFormField>
-          <UFormField label="Тег" name="tag">
-            <UInput v-model.nullable="form.tag" placeholder="скорость" class="w-full" />
+          <UFormField :label="t('forms.tag')" name="tag">
+            <UInput v-model.nullable="form.tag" :placeholder="t('forms.tagPlaceholder')" class="w-full" />
           </UFormField>
         </div>
 
-        <UFormField label="Цель" name="goal">
+        <UFormField :label="t('forms.goal')" name="goal">
           <UTextarea v-model.nullable="form.goal" :rows="2" class="w-full" />
         </UFormField>
 
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <UFormField label="Контейнер" name="container">
+          <UFormField :label="t('forms.container')" name="container">
             <USelectMenu
               v-model="form.container"
               :items="props.containerOptions"
@@ -191,24 +192,31 @@ async function remove(): Promise<void> {
               class="w-full"
             />
           </UFormField>
-          <UFormField label="Слоты" name="slots">
+          <UFormField :label="t('forms.slots')" name="slots">
             <UInputNumber v-model="form.slots" :min="0" class="w-full" />
           </UFormField>
-          <UFormField label="Эффективность, %" name="eff">
+          <UFormField :label="t('forms.efficiencyPercent')" name="eff">
             <UInputNumber v-model="form.eff" :min="0" class="w-full" />
           </UFormField>
-          <UFormField label="Бюджет" name="budget">
+          <UFormField :label="t('forms.budget')" name="budget">
             <UInputNumber v-model="form.budget" :min="0" class="w-full" />
           </UFormField>
-          <UFormField label="Итого" name="total">
+          <UFormField :label="t('forms.total')" name="total">
             <UInputNumber v-model="form.total" :min="0" class="w-full" />
           </UFormField>
         </div>
 
         <div class="space-y-3">
           <div class="flex items-center justify-between">
-            <p class="text-sm font-medium">Состав</p>
-            <UButton type="button" color="neutral" variant="outline" icon="i-lucide-plus" label="Добавить строку" @click="addRow" />
+            <p class="text-sm font-medium">{{ t('forms.composition') }}</p>
+            <UButton
+              type="button"
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-plus"
+              :label="t('forms.addRow')"
+              @click="addRow"
+            />
           </div>
 
           <div
@@ -216,17 +224,17 @@ async function remove(): Promise<void> {
             :key="index"
             class="grid gap-2 rounded-md border border-default p-3 sm:grid-cols-2 lg:grid-cols-4"
           >
-            <UFormField label="Предмет" :name="`rows.${index}.name`">
+            <UFormField :label="t('forms.item')" :name="`rows.${index}.name`">
               <UInput v-model.nullable="row.name" class="w-full" />
             </UFormField>
-            <UFormField label="Качество" :name="`rows.${index}.quality`">
+            <UFormField :label="t('forms.quality')" :name="`rows.${index}.quality`">
               <UInput v-model.nullable="row.quality" class="w-full" />
             </UFormField>
-            <UFormField label="Ранг" :name="`rows.${index}.rank`">
+            <UFormField :label="t('forms.rank')" :name="`rows.${index}.rank`">
               <UInput v-model.nullable="row.rank" class="w-full" />
             </UFormField>
             <div class="flex items-end gap-2">
-              <UFormField label="Цена" :name="`rows.${index}.price`" class="flex-1">
+              <UFormField :label="t('forms.price')" :name="`rows.${index}.price`" class="flex-1">
                 <UInputNumber v-model="row.price" :min="0" class="w-full" />
               </UFormField>
               <UButton
@@ -234,34 +242,34 @@ async function remove(): Promise<void> {
                 color="error"
                 variant="ghost"
                 icon="i-lucide-trash-2"
-                :aria-label="`Убрать строку ${index + 1}`"
+                :aria-label="t('forms.removeRow', { index: index + 1 })"
                 @click="removeRow(index)"
               />
             </div>
-            <UFormField label="Лотов" :name="`rows.${index}.lots`">
+            <UFormField :label="t('forms.lots')" :name="`rows.${index}.lots`">
               <UInputNumber v-model="row.lots" :min="0" class="w-full" />
             </UFormField>
-            <UFormField label="Эффект" :name="`rows.${index}.eff`">
+            <UFormField :label="t('forms.effect')" :name="`rows.${index}.eff`">
               <UInput v-model.nullable="row.eff" class="w-full" />
             </UFormField>
-            <UFormField label="Плюсы" :name="`rows.${index}.bonus`">
+            <UFormField :label="t('forms.plus')" :name="`rows.${index}.bonus`">
               <UInput v-model.nullable="row.bonus" class="w-full" />
             </UFormField>
-            <UFormField label="Минусы" :name="`rows.${index}.minus`">
+            <UFormField :label="t('forms.minus')" :name="`rows.${index}.minus`">
               <UInput v-model.nullable="row.minus" class="w-full" />
             </UFormField>
-            <UFormField label="Почему" :name="`rows.${index}.why`" class="sm:col-span-2 lg:col-span-4">
+            <UFormField :label="t('forms.why')" :name="`rows.${index}.why`" class="sm:col-span-2 lg:col-span-4">
               <UInput v-model.nullable="row.why" class="w-full" />
             </UFormField>
           </div>
         </div>
 
-        <UFormField label="Вывод" name="verdict">
+        <UFormField :label="t('forms.verdict')" name="verdict">
           <UTextarea v-model.nullable="form.verdict" :rows="2" class="w-full" />
         </UFormField>
 
         <UFormField name="dryRun">
-          <USwitch v-model="form.dryRun" label="Пробный прогон: показать изменения без записи" />
+          <USwitch v-model="form.dryRun" :label="t('common.dryRun')" />
         </UFormField>
 
         <UAlert
@@ -269,7 +277,7 @@ async function remove(): Promise<void> {
           :color="lastResult.dryRun ? 'info' : 'success'"
           variant="subtle"
           icon="i-lucide-list-checks"
-          :title="lastResult.dryRun ? 'Пробный прогон' : 'Изменение записано'"
+          :title="lastResult.dryRun ? t('common.dryRunTitle') : t('common.changeWritten')"
           :description="lastResult.diff.human"
         />
 
@@ -279,12 +287,12 @@ async function remove(): Promise<void> {
             color="error"
             variant="soft"
             icon="i-lucide-trash-2"
-            label="Удалить сборку"
+            :label="t('forms.deleteBuild')"
             @click="confirmOpen = true"
           />
           <div class="flex gap-2">
-            <UButton type="button" color="neutral" variant="ghost" label="Отмена" @click="open = false" />
-            <UButton type="submit" :loading="busy" :label="form.dryRun ? 'Проверить' : 'Сохранить'" />
+            <UButton type="button" color="neutral" variant="ghost" :label="t('common.cancel')" @click="open = false" />
+            <UButton type="submit" :loading="busy" :label="form.dryRun ? t('common.check') : t('common.save')" />
           </div>
         </div>
       </UForm>
@@ -293,9 +301,9 @@ async function remove(): Promise<void> {
 
   <ConfirmActionModal
     v-model:open="confirmOpen"
-    title="Удалить сборку"
-    :description="`Удалить «${props.build?.title ?? ''}»? Действие можно откатить в настройках.`"
-    confirm-label="Удалить"
+    :title="t('forms.deleteBuild')"
+    :description="t('forms.deleteBuildConfirm', { title: props.build?.title ?? '' })"
+    :confirm-label="t('common.delete')"
     :loading="busy"
     @confirm="remove"
   />

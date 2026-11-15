@@ -57,7 +57,7 @@ export function createMcpHttpHandler(options: McpHttpOptions) {
       return;
     }
     if (!authorized(req, options.token)) {
-      sendJson(res, 401, { error: { code: 'UNAUTHORIZED', message: 'Требуется Bearer-токен MCP' } });
+      sendJson(res, 401, { error: { code: 'UNAUTHORIZED', message: 'MCP bearer token required' } });
       return;
     }
     if (req.method !== 'POST') {
@@ -75,7 +75,7 @@ export function createMcpHttpHandler(options: McpHttpOptions) {
       sendJson(res, tooLarge ? 413 : 400, {
         error: {
           code: tooLarge ? 'BODY_TOO_LARGE' : 'INVALID_JSON',
-          message: tooLarge ? 'Тело запроса слишком большое' : 'Некорректный JSON',
+          message: tooLarge ? 'Request body too large' : 'Invalid JSON',
         },
       });
       return;
@@ -98,7 +98,7 @@ export function createMcpHttpHandler(options: McpHttpOptions) {
     } catch (error) {
       if (!res.headersSent) {
         sendJson(res, 500, {
-          error: { code: 'MCP_ERROR', message: error instanceof Error ? error.message : 'Ошибка MCP' },
+          error: { code: 'MCP_ERROR', message: error instanceof Error ? error.message : 'MCP error' },
         });
       } else {
         res.end();

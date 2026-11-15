@@ -7,8 +7,12 @@ import {
   LoginSchema,
   OwnedCreateSchema,
   OwnedPatchSchema,
+  dec,
   fmtMoney,
+  g1,
+  g2,
   norm,
+  num,
   rankKey,
   round,
   sha1,
@@ -40,14 +44,55 @@ describe('rankKey', () => {
 });
 
 describe('fmtMoney', () => {
-  it('formats thousands and millions in Russian', () => {
+  it('formats thousands and millions in English by default', () => {
     expect(fmtMoney(999)).toBe('999');
-    expect(fmtMoney(1500)).toBe('2 тыс.');
-    expect(fmtMoney(2_500_000)).toBe('2,50 млн');
+    expect(fmtMoney(1500)).toBe('2K');
+    expect(fmtMoney(2_500_000)).toBe('2.50M');
+  });
+
+  it('formats thousands and millions in Russian when asked', () => {
+    expect(fmtMoney(999, 'ru-RU')).toBe('999');
+    expect(fmtMoney(1500, 'ru-RU')).toBe('2 тыс.');
+    expect(fmtMoney(2_500_000, 'ru-RU')).toBe('2,50 млн');
   });
 
   it('returns a dash for missing values', () => {
     expect(fmtMoney(null)).toBe('—');
+  });
+});
+
+describe('locale-aware decimals', () => {
+  it('uses a dot for English and a comma for Russian', () => {
+    expect(g1(2.5)).toBe('2.5');
+    expect(g1(2.5, 'ru-RU')).toBe('2,5');
+    expect(g2(2.5)).toBe('2.50');
+    expect(g2(2.5, 'ru-RU')).toBe('2,50');
+  });
+});
+
+describe('dec', () => {
+  it('keeps up to two decimals, trims trailing zeros and follows the locale', () => {
+    expect(dec(1.25)).toBe('1.25');
+    expect(dec(1.25, 'ru-RU')).toBe('1,25');
+    expect(dec(2)).toBe('2');
+    expect(dec(2, 'ru-RU')).toBe('2');
+    expect(dec(1.239)).toBe('1.24');
+  });
+
+  it('returns a dash for missing values', () => {
+    expect(dec(null)).toBe('—');
+    expect(dec(undefined)).toBe('—');
+  });
+});
+
+describe('num', () => {
+  it('groups digits for the requested locale', () => {
+    expect(num(12345)).toBe('12,345');
+    expect(num(12345, 'ru-RU')).toBe('12 345');
+  });
+
+  it('returns a dash for missing values', () => {
+    expect(num(null)).toBe('—');
   });
 });
 

@@ -151,7 +151,7 @@ async function getJson(url: string, fetchImpl: FetchLike, init?: RequestInit): P
     ...init,
     headers: {
       accept: 'application/vnd.github+json',
-      'user-agent': 'stalcraft-dossier',
+      'user-agent': 'stalzone-profile',
       ...(init?.headers ?? {}),
     },
   });
@@ -209,7 +209,7 @@ export const exboAdapter = {
     const labels: Record<string, string> = {};
     const items = await mapLimit(paths, options.concurrency ?? 16, async (file) => {
       const response = await fetchImpl(EXBO_RAW + file, {
-        headers: { 'user-agent': 'stalcraft-dossier' },
+        headers: { 'user-agent': 'stalzone-profile' },
       });
       if (response.status !== 200) throw new Error(`EXBO HTTP ${response.status}: ${file}`);
       return parseExboItem((await response.json()) as Json, labels);

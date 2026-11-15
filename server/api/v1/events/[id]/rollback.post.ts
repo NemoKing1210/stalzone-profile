@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
   if (originError) return originError;
 
   const id = parseId(event);
-  if (id === null) return apiError(event, 400, 'VALIDATION', 'id должен быть положительным целым числом');
+  if (id === null) return apiError(event, 400, 'VALIDATION', 'id must be a positive integer');
 
   const parsed = BodySchema.safeParse((await readBody(event).catch(() => null)) ?? {});
   if (!parsed.success) return validationError(event, parsed.error);

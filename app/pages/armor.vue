@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { OwnedEditTarget } from '~/types/dossier';
 
-useHead({ title: 'Броня — STALZONE Dossier' });
+const { t } = useI18n();
+useHead(() => ({ title: `${t('armor.pageTitle')} — ${t('common.appName')}` }));
 
 interface ArmorRow {
   key: string;
@@ -44,7 +45,7 @@ const modalOpen = computed({
   },
 });
 
-const rankItems = rankOptions();
+const rankItems = computed(() => rankOptions(t));
 
 const ownedRows = computed<ArmorRow[]>(() =>
   (payload.value?.armor ?? []).map((armor, index) => ({
@@ -105,17 +106,17 @@ const columns = computed(() => {
   }[] = [
     {
       accessorKey: 'name',
-      header: sortableHeader('Название'),
+      header: sortableHeader(t('table.name')),
       enableSorting: true,
       meta: { class: { td: 'font-medium min-w-48' } },
     },
-    { accessorKey: 'rank', header: 'Ранг' },
-    { accessorKey: 'cls', header: 'Класс' },
+    { accessorKey: 'rank', header: t('table.rank') },
+    { accessorKey: 'cls', header: t('table.class') },
   ];
   if (!catalog) {
     list.push({
       accessorKey: 'lvl',
-      header: sortableHeader('Ур.'),
+      header: sortableHeader(t('table.level')),
       enableSorting: true,
       meta: { class: { th: 'text-right', td: 'text-right tabular-nums' } },
     });
@@ -123,7 +124,7 @@ const columns = computed(() => {
   list.push(
     {
       accessorKey: 'armor',
-      header: sortableHeader(catalog ? 'Пулестойкость +15' : 'Пулестойкость'),
+      header: sortableHeader(catalog ? t('table.armor15') : t('table.armor')),
       enableSorting: true,
       meta: { class: { th: 'text-right', td: 'text-right tabular-nums font-medium' } },
     },
@@ -138,7 +139,7 @@ const columns = computed(() => {
   }
   list.push({
     accessorKey: 'weight',
-    header: sortableHeader('Вес'),
+    header: sortableHeader(t('table.weight')),
     enableSorting: true,
     meta: { class: { th: 'text-right', td: 'text-right tabular-nums' } },
   });
@@ -153,11 +154,9 @@ const selectedCard = computed(() =>
 
 const emptyText = computed(() => {
   if (!rows.value.length) {
-    return filters.mode === 'catalog'
-      ? 'Каталог брони пуст. Загрузите базу EXBO.'
-      : 'В досье пока нет брони. Добавьте её через API или MCP.';
+    return filters.mode === 'catalog' ? t('armor.emptyCatalog') : t('armor.emptyOwned');
   }
-  return 'Под фильтры ничего не подошло.';
+  return t('filters.noMatch');
 });
 
 function startEdit(row: ArmorRow): void {
@@ -181,9 +180,9 @@ function startEdit(row: ArmorRow): void {
   <section class="space-y-4">
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-semibold">Броня</h1>
+        <h1 class="text-2xl font-semibold">{{ t('armor.title') }}</h1>
         <p class="text-sm text-muted">
-          {{ filteredRows.length }} из {{ rows.length }} · пулестойкость на текущем уровне заточки и на +15
+          {{ t('armor.summary', { shown: filteredRows.length, total: rows.length }) }}
         </p>
       </div>
       <FreshnessBadge
@@ -199,29 +198,29 @@ function startEdit(row: ArmorRow): void {
           color="neutral"
           @click="filters.mode = 'owned'"
         >
-          Моё · {{ ownedRows.length }}
+          {{ t('common.owned') }} · {{ ownedRows.length }}
         </UButton>
         <UButton
           :variant="filters.mode === 'catalog' ? 'solid' : 'outline'"
           color="neutral"
           @click="filters.mode = 'catalog'"
         >
-          Каталог · {{ catalogRows.length }}
+          {{ t('common.catalog') }} · {{ catalogRows.length }}
         </UButton>
       </div>
       <UInput
         v-model="filters.q"
         icon="i-lucide-search"
-        placeholder="Поиск: название или класс"
+        :placeholder="t('filters.searchArmor')"
         class="w-full sm:w-72"
       />
-      <USelect v-model="filters.rank" :items="rankItems" class="w-40" aria-label="Ранг" />
+      <USelect v-model="filters.rank" :items="rankItems" class="w-40" :aria-label="t('filters.rank')" />
       <UButton
         v-if="filters.q || filters.rank !== ALL_RANKS"
         icon="i-lucide-x"
         color="neutral"
         variant="ghost"
-        label="Сбросить"
+        :label="t('common.reset')"
         @click="
           () => {
             filters.q = '';
@@ -263,21 +262,21 @@ function startEdit(row: ArmorRow): void {
             color="neutral"
             variant="ghost"
             size="xs"
-            :aria-label="`Изменить ${row.original.name}`"
+            :aria-label="t('weapons.editAria', { name: row.original.name })"
             @click.stop="startEdit(row.original)"
           />
         </template>
         <template #empty>
-          <UEmpty icon="i-lucide-shield" title="Пусто" :description="emptyText" />
+          <UEmpty icon="i-lucide-shield" :title="t('common.empty')" :description="emptyText" />
         </template>
       </UTable>
     </UCard>
 
     <p class="text-xs text-muted">
-      Клик по строке открывает карточку брони из исходного досье: защиты, модификаторы и кривую пулестойкости.
+      {{ t('armor.hint') }}
     </p>
 
-    <UModal v-model:open="modalOpen" title="Карточка предмета" :description="selected?.name" scrollable>
+    <UModal v-model:open="modalOpen" :title="t('items.cardTitle')" :description="selected?.name" scrollable>
       <template #body>
         <ItemCard
           v-if="selected"

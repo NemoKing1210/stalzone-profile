@@ -46,7 +46,7 @@ export const OwnedPatchSchema = WriteOptionsSchema.extend({
   qty: z.number().int().min(1).max(99).optional(),
   displayName: z.string().min(1).max(200).nullish(),
 }).refine((value) => Object.keys(value).some((key) => key !== 'dryRun'), {
-  message: 'Нужно хотя бы одно поле для изменения',
+  message: 'At least one field must be changed',
 });
 
 export type OwnedPatch = z.infer<typeof OwnedPatchSchema>;
@@ -68,7 +68,7 @@ export const CharacterPatchSchema = WriteOptionsSchema.extend({
   stash: z.string().max(500).nullish(),
   playstyle: z.string().max(500).nullish(),
 }).refine((value) => Object.keys(value).some((key) => key !== 'dryRun'), {
-  message: 'Нужно хотя бы одно поле для изменения',
+  message: 'At least one field must be changed',
 });
 
 export type CharacterPatch = z.infer<typeof CharacterPatchSchema>;
@@ -102,7 +102,7 @@ export const BuildSlotSchema = z.object({
 });
 
 export const BuildInputSchema = WriteOptionsSchema.extend({
-  slug: z.string().min(1).regex(/^[a-z0-9][a-z0-9-]*$/i, 'slug: латиница, цифры, дефис'),
+  slug: z.string().min(1).regex(/^[a-z0-9][a-z0-9-]*$/i, 'slug: latin letters, digits, hyphen'),
   title: z.string().min(1).max(200),
   short: z.string().max(100).nullish(),
   tag: z.string().max(100).nullish(),

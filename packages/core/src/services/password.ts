@@ -24,7 +24,8 @@ function sha256(value: string): Buffer {
  * hash to a fixed length so a length difference cannot leak through timing.
  */
 export function verifyPassword(plain: string, config: PasswordConfig): boolean {
-  const hash = config.passwordHash?.trim();
+  // Env values that look numeric arrive as numbers through Nitro runtime config.
+  const hash = config.passwordHash == null ? '' : String(config.passwordHash).trim();
   if (hash) {
     const parts = hash.split('$');
     if (parts.length !== 3 || parts[0] !== 'scrypt') return false;
@@ -37,7 +38,7 @@ export function verifyPassword(plain: string, config: PasswordConfig): boolean {
     return crypto.timingSafeEqual(actual, expected);
   }
 
-  const password = config.password ?? '';
+  const password = config.password == null ? '' : String(config.password);
   if (!password) return false;
   return crypto.timingSafeEqual(sha256(plain), sha256(password));
 }

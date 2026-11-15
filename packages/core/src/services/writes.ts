@@ -48,7 +48,7 @@ function parseJson(value: string | null | undefined): unknown {
 
 function characterOrThrow(db: Db): CharacterRow {
   const character = repo.getCharacter(db);
-  if (!character) throw new WriteError(409, 'NO_CHARACTER', 'В базе нет персонажа — сначала импортируйте досье');
+  if (!character) throw new WriteError(409, 'NO_CHARACTER', 'No character in the dossier — import the dossier first');
   return character;
 }
 
@@ -79,7 +79,7 @@ function suggestionsFor(db: Db, name: string, kind: string): string[] {
 function resolveItem(db: Db, name: string, kind: string) {
   const item = repo.findItemByKindName(db, kind, name) ?? repo.searchItems(db, { q: name, kind, limit: 1 })[0];
   if (!item) {
-    throw new WriteError(422, 'UNKNOWN_ITEM', `Предмет «${name}» не найден`, {
+    throw new WriteError(422, 'UNKNOWN_ITEM', `Item "${name}" not found`, {
       query: name,
       kind,
       suggestions: suggestionsFor(db, name, kind),
@@ -104,7 +104,7 @@ function resolveOptionalItem(db: Db, name: string | null | undefined) {
 function resolveMotifExact(db: Db, name: string) {
   const item = repo.findItemByKindName(db, 'motif', name);
   if (!item) {
-    throw new WriteError(422, 'UNKNOWN_ITEM', `Облик «${name}» не найден`, {
+    throw new WriteError(422, 'UNKNOWN_ITEM', `Skin "${name}" not found`, {
       query: name,
       kind: 'motif',
       suggestions: suggestionsFor(db, name, 'motif'),
@@ -167,8 +167,8 @@ export function patchCharacter(db: Db, patch: CharacterPatch): WriteResult {
   const after = { ...before, ...defined };
   const changed = Object.keys(defined);
   const human = changed.length
-    ? `Персонаж: ${changed.map((key) => `${key} ${String(before[key])} → ${String(after[key])}`).join(', ')}`
-    : 'Без изменений';
+    ? `Character: ${changed.map((key) => `${key} ${String(before[key])} → ${String(after[key])}`).join(', ')}`
+    : 'No changes';
 
   if (patch.dryRun) return { dryRun: true, diff: { before, after, human } };
 
@@ -216,8 +216,8 @@ export function createOwned(db: Db, input: OwnedCreate): WriteResult {
     extra: extra ?? (existing ? parseJson(existing.extra) : null),
   };
   const human = existing
-    ? `Количество «${item.name}»: ${existing.qty} → ${qty}`
-    : `Добавлено «${item.name}» ×${qty}`;
+    ? `Quantity of "${item.name}": ${existing.qty} → ${qty}`
+    : `Added "${item.name}" ×${qty}`;
 
   if (input.dryRun) return { dryRun: true, diff: { before, after, human } };
 
@@ -252,7 +252,7 @@ export function createOwned(db: Db, input: OwnedCreate): WriteResult {
 
 export function updateOwned(db: Db, id: number, patch: OwnedPatch): WriteResult {
   const row = repo.getOwned(db, id);
-  if (!row) throw new WriteError(404, 'OWNED_NOT_FOUND', 'Запись не найдена');
+  if (!row) throw new WriteError(404, 'OWNED_NOT_FOUND', 'Record not found');
 
   const currentExtra = (parseJson(row.extra) ?? {}) as Record<string, unknown>;
   const currentSkin = typeof currentExtra.skin === 'string' ? currentExtra.skin : null;
@@ -283,7 +283,7 @@ export function updateOwned(db: Db, id: number, patch: OwnedPatch): WriteResult 
 
   const clash = repo.findOwned(db, row.character_id, row.item_id, merged.level, merged.quality, merged.skinItemId);
   if (clash && clash.id !== row.id) {
-    throw new WriteError(409, 'OWNED_CONFLICT', 'Такая запись уже существует — измените количество в ней', {
+    throw new WriteError(409, 'OWNED_CONFLICT', 'Such a record already exists — change the quantity in it', {
       ownedId: clash.id,
     });
   }
@@ -295,8 +295,8 @@ export function updateOwned(db: Db, id: number, patch: OwnedPatch): WriteResult 
     if (before[key] !== after[key]) changes.push(`${key}: ${String(before[key])} → ${String(after[key])}`);
   }
   if (before.name !== after.name) changes.push(`name: ${before.name} → ${after.name}`);
-  if (before.skinItemId !== after.skinItemId) changes.push('skin: изменён');
-  const human = changes.length ? `«${row.display_name ?? row.item_name}»: ${changes.join(', ')}` : 'Без изменений';
+  if (before.skinItemId !== after.skinItemId) changes.push('skin: changed');
+  const human = changes.length ? `"${row.display_name ?? row.item_name}": ${changes.join(', ')}` : 'No changes';
 
   if (patch.dryRun) return { dryRun: true, diff: { before, after, human } };
 
@@ -327,7 +327,7 @@ export function updateOwned(db: Db, id: number, patch: OwnedPatch): WriteResult 
 
 export function deleteOwned(db: Db, id: number, opts: { dryRun: boolean; qty?: number }): WriteResult {
   const row = repo.getOwned(db, id);
-  if (!row) throw new WriteError(404, 'OWNED_NOT_FOUND', 'Запись не найдена');
+  if (!row) throw new WriteError(404, 'OWNED_NOT_FOUND', 'Record not found');
 
   const remove = Math.min(Math.max(1, Math.trunc(opts.qty ?? 1)), row.qty);
   const remaining = row.qty - remove;
@@ -335,7 +335,7 @@ export function deleteOwned(db: Db, id: number, opts: { dryRun: boolean; qty?: n
   if (row.kind === 'container') before.fill = containerFillSnapshot(db, row.id);
   const after = remaining > 0 ? { ...before, qty: remaining } : null;
   const name = row.display_name ?? row.item_name;
-  const human = remaining > 0 ? `Количество «${name}»: ${row.qty} → ${remaining}` : `Удалено «${name}»`;
+  const human = remaining > 0 ? `Quantity of "${name}": ${row.qty} → ${remaining}` : `Removed "${name}"`;
 
   if (opts.dryRun) return { dryRun: true, diff: { before, after, human } };
 
@@ -373,8 +373,8 @@ function containerFillSnapshot(db: Db, ownedId: number) {
 
 export function setContainerFill(db: Db, id: number, input: ContainerFill): WriteResult {
   const row = repo.getOwned(db, id);
-  if (!row) throw new WriteError(404, 'OWNED_NOT_FOUND', 'Контейнер не найден');
-  if (row.kind !== 'container') throw new WriteError(422, 'NOT_A_CONTAINER', 'Эта запись не является контейнером');
+  if (!row) throw new WriteError(404, 'OWNED_NOT_FOUND', 'Container not found');
+  if (row.kind !== 'container') throw new WriteError(422, 'NOT_A_CONTAINER', 'This record is not a container');
 
   const before = containerFillSnapshot(db, id);
   const artifacts = input.artifacts.map((artifact) => {
@@ -383,7 +383,7 @@ export function setContainerFill(db: Db, id: number, input: ContainerFill): Writ
   });
   const asOf = input.asOf ?? new Date().toISOString();
   const after = { ownedId: id, asOf, artifacts };
-  const human = `Наполнение «${row.display_name ?? row.item_name}»: ${before.artifacts.length} → ${artifacts.length}`;
+  const human = `Container fill "${row.display_name ?? row.item_name}": ${before.artifacts.length} → ${artifacts.length}`;
 
   if (input.dryRun) return { dryRun: true, diff: { before, after, human } };
 
@@ -475,7 +475,7 @@ export function saveBuild(db: Db, input: BuildInputPayload): WriteResult {
     position: existing?.position ?? repo.listBuilds(db).length,
     rows,
   };
-  const human = existing ? `Сборка «${input.title}» обновлена` : `Сборка «${input.title}» создана`;
+  const human = existing ? `Build "${input.title}" updated` : `Build "${input.title}" created`;
 
   if (input.dryRun) return { dryRun: true, diff: { before: existing, after, human } };
 
@@ -496,8 +496,8 @@ export function saveBuild(db: Db, input: BuildInputPayload): WriteResult {
 
 export function deleteBuild(db: Db, slug: string, dryRun: boolean): WriteResult {
   const before = buildSnapshot(db, slug);
-  if (!before) throw new WriteError(404, 'BUILD_NOT_FOUND', 'Сборка не найдена');
-  const human = `Удалена сборка «${before.title}»`;
+  if (!before) throw new WriteError(404, 'BUILD_NOT_FOUND', 'Build not found');
+  const human = `Build "${before.title}" deleted`;
 
   if (dryRun) return { dryRun: true, diff: { before, after: null, human } };
 
@@ -541,8 +541,8 @@ export function putContentBlock(db: Db, input: ContentBlockInput): WriteResult {
     position: input.position,
   };
   const human = before
-    ? `Блок ${input.kind}/${input.slug ?? '—'} обновлён`
-    : `Блок ${input.kind}/${input.slug ?? '—'} создан`;
+    ? `Block ${input.kind}/${input.slug ?? '—'} updated`
+    : `Block ${input.kind}/${input.slug ?? '—'} created`;
 
   if (input.dryRun) return { dryRun: true, diff: { before, after, human } };
 
@@ -565,11 +565,11 @@ export function putContentBlock(db: Db, input: ContentBlockInput): WriteResult {
 
 export function rollbackEvent(db: Db, eventId: number, dryRun: boolean): WriteResult {
   const event = repo.getEvent(db, eventId);
-  if (!event) throw new WriteError(404, 'EVENT_NOT_FOUND', 'Событие не найдено');
+  if (!event) throw new WriteError(404, 'EVENT_NOT_FOUND', 'Event not found');
 
   const before = parseJson(event.after);
   const after = parseJson(event.before);
-  const human = `Откат события #${eventId} (${event.action})`;
+  const human = `Rollback of event #${eventId} (${event.action})`;
 
   if (dryRun) return { dryRun: true, diff: { before, after, human } };
 
@@ -583,7 +583,7 @@ export function rollbackEvent(db: Db, eventId: number, dryRun: boolean): WriteRe
       entityId: event.id,
       before,
       after,
-      note: `Откат ${event.action}`,
+      note: `Rollback of ${event.action}`,
     });
   })();
   return { dryRun: false, diff: { before, after, human }, eventId: rollbackId };
@@ -635,7 +635,7 @@ function restoreSnapshot(db: Db, action: string, before: any, after: any): void 
     case 'container.fill': {
       if (before) {
         if (!repo.getOwned(db, before.ownedId)) {
-          throw new WriteError(409, 'OWNED_NOT_FOUND', 'Контейнер для отката не найден');
+          throw new WriteError(409, 'OWNED_NOT_FOUND', 'Container to roll back not found');
         }
         repo.replaceContainerFill(
           db,
@@ -669,7 +669,7 @@ function restoreSnapshot(db: Db, action: string, before: any, after: any): void 
       return;
     }
     default:
-      throw new WriteError(400, 'NOT_ROLLBACKABLE', `Событие «${action}» нельзя откатить`);
+      throw new WriteError(400, 'NOT_ROLLBACKABLE', `Event "${action}" cannot be rolled back`);
   }
 }
 

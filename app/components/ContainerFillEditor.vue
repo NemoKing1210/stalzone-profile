@@ -8,6 +8,7 @@ const props = defineProps<{ container: ContainerPayload | null }>();
 const emit = defineEmits<{ saved: [] }>();
 
 const { write, busy } = useWrite();
+const { t } = useI18n();
 
 interface ArtifactRowForm {
   name: string;
@@ -90,7 +91,7 @@ async function submit(): Promise<void> {
 <template>
   <UModal
     v-model:open="open"
-    title="Наполнение контейнера"
+    :title="t('forms.fillTitle')"
     :description="props.container?.name"
     scrollable
   >
@@ -100,8 +101,8 @@ async function submit(): Promise<void> {
           color="warning"
           variant="subtle"
           icon="i-lucide-triangle-alert"
-          title="Наполнение заменяется целиком"
-          description="Существующий список артефактов будет заменён новым. Откат доступен в настройках."
+          :title="t('forms.fillReplacesTitle')"
+          :description="t('forms.fillReplacesText')"
         />
 
         <div class="space-y-3">
@@ -110,34 +111,41 @@ async function submit(): Promise<void> {
             :key="index"
             class="grid items-end gap-2 rounded-md border border-default p-3 sm:grid-cols-[1fr_7rem_9rem_auto]"
           >
-            <UFormField :label="`Артефакт ${index + 1}`" :name="`artifacts.${index}.name`">
+            <UFormField :label="t('forms.artifactN', { index: index + 1 })" :name="`artifacts.${index}.name`">
               <USelectMenu v-model="row.name" :items="artifactItems" searchable class="w-full" />
             </UFormField>
-            <UFormField label="Уровень" :name="`artifacts.${index}.level`">
+            <UFormField :label="t('forms.level')" :name="`artifacts.${index}.level`">
               <UInputNumber v-model="row.level" :min="0" :max="15" class="w-full" />
             </UFormField>
-            <UFormField label="Качество" :name="`artifacts.${index}.quality`">
-              <UInput v-model.nullable="row.quality" placeholder="не указано" class="w-full" />
+            <UFormField :label="t('forms.quality')" :name="`artifacts.${index}.quality`">
+              <UInput v-model.nullable="row.quality" :placeholder="t('forms.notSpecified')" class="w-full" />
             </UFormField>
             <UButton
               type="button"
               color="error"
               variant="ghost"
               icon="i-lucide-trash-2"
-              :aria-label="`Убрать артефакт ${index + 1}`"
+              :aria-label="t('forms.removeArtifact', { index: index + 1 })"
               @click="removeRow(index)"
             />
           </div>
         </div>
 
-        <UButton type="button" color="neutral" variant="outline" icon="i-lucide-plus" label="Добавить артефакт" @click="addRow" />
+        <UButton
+          type="button"
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-plus"
+          :label="t('forms.addArtifact')"
+          @click="addRow"
+        />
 
-        <UFormField label="Дата снимка" name="asOf">
+        <UFormField :label="t('forms.snapshotDate')" name="asOf">
           <UInput v-model.nullable="form.asOf" placeholder="2026-11-15T12:00:00.000Z" class="w-full" />
         </UFormField>
 
         <UFormField name="dryRun">
-          <USwitch v-model="form.dryRun" label="Пробный прогон: показать изменения без записи" />
+          <USwitch v-model="form.dryRun" :label="t('common.dryRun')" />
         </UFormField>
 
         <UAlert
@@ -145,13 +153,13 @@ async function submit(): Promise<void> {
           :color="lastResult.dryRun ? 'info' : 'success'"
           variant="subtle"
           icon="i-lucide-list-checks"
-          :title="lastResult.dryRun ? 'Пробный прогон' : 'Изменение записано'"
+          :title="lastResult.dryRun ? t('common.dryRunTitle') : t('common.changeWritten')"
           :description="lastResult.diff.human"
         />
 
         <div class="flex justify-end gap-2">
-          <UButton type="button" color="neutral" variant="ghost" label="Отмена" @click="open = false" />
-          <UButton type="submit" :loading="busy" :label="form.dryRun ? 'Проверить' : 'Сохранить'" />
+          <UButton type="button" color="neutral" variant="ghost" :label="t('common.cancel')" @click="open = false" />
+          <UButton type="submit" :loading="busy" :label="form.dryRun ? t('common.check') : t('common.save')" />
         </div>
       </UForm>
     </template>
