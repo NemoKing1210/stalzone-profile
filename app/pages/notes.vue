@@ -1,14 +1,38 @@
 <script setup lang="ts">
+import type { ContentEditTarget, ContentKind } from '~/types/dossier';
+
 useHead({ title: 'Заметки — STALZONE Dossier' });
 
 interface Note {
   title?: string;
   text?: string;
+  slug?: string | null;
+  position?: number;
+  [key: string]: unknown;
 }
 
 const { payload } = useDossier();
 const filters = useFilters('notes', { q: '' });
-const notes = computed(() => (payload.value?.notes ?? []) as unknown as Note[]);
+const notes = computed(() => (payload.value?.notes ?? []) as Note[]);
+const editTarget = ref<ContentEditTarget | null>(null);
+const editOpen = computed({
+  get: () => editTarget.value !== null,
+  set: (value: boolean) => {
+    if (!value) editTarget.value = null;
+  },
+});
+
+function startEdit(note: Note): void {
+  const kind: ContentKind = 'notes';
+  editTarget.value = {
+    kind,
+    slug: note.slug ?? null,
+    title: note.title ?? null,
+    lead: null,
+    payload: note,
+    position: note.position ?? 0,
+  };
+}
 
 const filtered = computed(() => {
   const query = filters.q.trim().toLowerCase();
@@ -42,6 +66,15 @@ const filtered = computed(() => {
           <div class="flex items-center gap-2">
             <UIcon name="i-lucide-notebook-pen" class="size-5 text-primary" />
             <h2 class="font-medium">{{ note.title }}</h2>
+            <UButton
+              icon="i-lucide-pencil"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              class="ml-auto"
+              :aria-label="`Изменить заметку ${note.title ?? ''}`"
+              @click="startEdit(note)"
+            />
           </div>
         </template>
         <p class="whitespace-pre-line text-sm text-muted">{{ note.text }}</p>
@@ -55,5 +88,7 @@ const filtered = computed(() => {
         notes.length ? 'Под фильтры ничего не подошло.' : 'В досье пока нет заметок. Добавьте их через API или MCP.'
       "
     />
+
+    <EditContentBlock v-model:open="editOpen" :target="editTarget" />
   </section>
 </template>

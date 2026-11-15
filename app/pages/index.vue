@@ -7,6 +7,7 @@ const { fmtMoney, num, formatDate } = useFormat();
 const character = computed(() => payload.value?.character ?? {});
 const hasCharacter = computed(() => Object.keys(character.value).length > 0);
 const metaInfo = computed(() => payload.value?.meta ?? {});
+const editOpen = ref(false);
 
 const counts = computed(() => [
   { label: 'Оружие', value: payload.value?.weapons.length ?? 0, icon: 'i-lucide-crosshair', to: '/weapons' },
@@ -62,7 +63,17 @@ const career = computed(() => {
           <span v-if="character.realm"> · {{ character.realm }}</span>
         </p>
       </div>
-      <UBadge color="neutral" variant="subtle" icon="i-lucide-shield-check">Доступ только для владельца</UBadge>
+      <div class="flex flex-wrap items-center gap-2">
+        <UButton
+          v-if="hasCharacter"
+          icon="i-lucide-pencil"
+          color="neutral"
+          variant="outline"
+          label="Изменить профиль"
+          @click="editOpen = true"
+        />
+        <UBadge color="neutral" variant="subtle" icon="i-lucide-shield-check">Доступ только для владельца</UBadge>
+      </div>
     </div>
 
     <template v-if="hasCharacter">
@@ -137,5 +148,7 @@ const career = computed(() => {
       title="Досье пусто"
       description="Импортируйте исходные данные командой npm run import:legacy или добавьте снаряжение через API или MCP."
     />
+
+    <EditCharacterModal v-model:open="editOpen" :character="character" />
   </section>
 </template>

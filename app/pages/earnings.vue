@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ContentEditTarget } from '~/types/dossier';
+
 useHead({ title: 'Заработок — STALZONE Dossier' });
 
 interface EarningsRow {
@@ -35,6 +37,23 @@ const { num, formatDate } = useFormat();
 const earnings = computed(() => (payload.value?.earnings ?? null) as Earnings | null);
 const rows = computed(() => earnings.value?.rows ?? []);
 const tiers = computed(() => earnings.value?.tiers ?? []);
+const editTarget = ref<ContentEditTarget | null>(null);
+const editOpen = computed({
+  get: () => editTarget.value !== null,
+  set: (value: boolean) => {
+    if (!value) editTarget.value = null;
+  },
+});
+
+function startEdit(): void {
+  editTarget.value = {
+    kind: 'earnings',
+    slug: null,
+    title: null,
+    lead: null,
+    payload: earnings.value ?? {},
+  };
+}
 
 const filters = useFilters('earnings', {
   q: '',
@@ -102,6 +121,16 @@ const columns = computed(() => [
         :prices-age-min="payload?.freshness.pricesAgeMin"
       />
     </div>
+
+    <UButton
+      v-if="earnings"
+      icon="i-lucide-pencil"
+      color="neutral"
+      variant="outline"
+      size="sm"
+      label="Изменить блок"
+      @click="startEdit"
+    />
 
     <UAlert
       v-if="earnings?.note"
@@ -179,5 +208,7 @@ const columns = computed(() => [
         <li v-for="item in earnings.forYou" :key="item">{{ item }}</li>
       </ul>
     </UCard>
+
+    <EditContentBlock v-model:open="editOpen" :target="editTarget" />
   </section>
 </template>

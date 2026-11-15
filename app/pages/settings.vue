@@ -121,6 +121,8 @@ function statusLabel(status: string): string {
       </div>
     </UCard>
 
+    <EventLog />
+
     <div class="grid gap-4 lg:grid-cols-2">
       <UCard>
         <template #header>

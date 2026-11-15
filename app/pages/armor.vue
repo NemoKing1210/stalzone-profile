@@ -1,8 +1,15 @@
 <script setup lang="ts">
+import type { OwnedEditTarget } from '~/types/dossier';
+
 useHead({ title: 'Броня — STALZONE Dossier' });
 
 interface ArmorRow {
   key: string;
+  ownedId: number | null;
+  qty: number;
+  quality: string | null;
+  skin: string | null;
+  note: string | null;
   name: string;
   rank: string | null;
   cls: string | null;
@@ -23,6 +30,13 @@ const filters = useFilters('armor', {
 });
 const sorting = usePersistentSorting(filters);
 const selected = ref<ArmorRow | null>(null);
+const editTarget = ref<OwnedEditTarget | null>(null);
+const editOpen = computed({
+  get: () => editTarget.value !== null,
+  set: (value: boolean) => {
+    if (!value) editTarget.value = null;
+  },
+});
 const modalOpen = computed({
   get: () => selected.value !== null,
   set: (value: boolean) => {
@@ -35,6 +49,11 @@ const rankItems = rankOptions();
 const ownedRows = computed<ArmorRow[]>(() =>
   (payload.value?.armor ?? []).map((armor, index) => ({
     key: `owned-${index}-${armor.name}`,
+    ownedId: armor.ownedId ?? null,
+    qty: armor.qty ?? 1,
+    quality: armor.quality ?? null,
+    skin: armor.skin ?? null,
+    note: armor.note ?? null,
     name: armor.name,
     rank: armor.rank ?? null,
     cls: armor.cls ?? null,
@@ -48,6 +67,11 @@ const ownedRows = computed<ArmorRow[]>(() =>
 const catalogRows = computed<ArmorRow[]>(() =>
   (payload.value?.catalog.armor ?? []).map((entry, index) => ({
     key: `catalog-${index}-${entry.name}`,
+    ownedId: null,
+    qty: 1,
+    quality: null,
+    skin: null,
+    note: null,
     name: entry.name,
     rank: entry.rank ?? null,
     cls: entry.cls ?? null,
@@ -118,6 +142,7 @@ const columns = computed(() => {
     enableSorting: true,
     meta: { class: { th: 'text-right', td: 'text-right tabular-nums' } },
   });
+  list.push({ accessorKey: 'actions', header: ' ', enableSorting: false, meta: { class: { td: 'text-right' } } });
   return list;
 });
 
@@ -134,6 +159,22 @@ const emptyText = computed(() => {
   }
   return 'Под фильтры ничего не подошло.';
 });
+
+function startEdit(row: ArmorRow): void {
+  if (row.ownedId == null) return;
+  editTarget.value = {
+    ownedId: row.ownedId,
+    name: row.name,
+    kind: 'armor',
+    level: row.lvl ?? 0,
+    qty: row.qty,
+    quality: row.quality,
+    skin: row.skin,
+    note: row.note,
+    role: null,
+    slot: null,
+  };
+}
 </script>
 
 <template>
@@ -215,6 +256,17 @@ const emptyText = computed(() => {
         <template #weight-cell="{ row }">
           {{ row.original.weight == null ? '—' : g2(row.original.weight) }}
         </template>
+        <template #actions-cell="{ row }">
+          <UButton
+            v-if="row.original.ownedId"
+            icon="i-lucide-pencil"
+            color="neutral"
+            variant="ghost"
+            size="xs"
+            :aria-label="`Изменить ${row.original.name}`"
+            @click.stop="startEdit(row.original)"
+          />
+        </template>
         <template #empty>
           <UEmpty icon="i-lucide-shield" title="Пусто" :description="emptyText" />
         </template>
@@ -237,5 +289,7 @@ const emptyText = computed(() => {
         />
       </template>
     </UModal>
+
+    <EditOwnedModal v-model:open="editOpen" :target="editTarget" />
   </section>
 </template>

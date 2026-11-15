@@ -32,6 +32,11 @@ export interface DossierCharacter {
 
 export interface WeaponPayload {
   name: string;
+  ownedId?: number;
+  qty?: number;
+  note?: string | null;
+  quality?: string | null;
+  skin?: string | null;
   lvl: number;
   dmg: number | null;
   rof: number | null;
@@ -53,6 +58,11 @@ export interface WeaponPayload {
 
 export interface ArmorPayload {
   name: string;
+  ownedId?: number;
+  qty?: number;
+  note?: string | null;
+  quality?: string | null;
+  skin?: string | null;
   lvl: number;
   cls: string | null;
   armor: number | null;
@@ -66,6 +76,11 @@ export interface ArmorPayload {
 
 export interface ArtifactPayload {
   name: string;
+  ownedId?: number;
+  qty?: number;
+  note?: string | null;
+  quality?: string | null;
+  skin?: string | null;
   type: string | null;
   q: string | null;
   lvl: number;
@@ -77,6 +92,11 @@ export interface ArtifactPayload {
 
 export interface ContainerPayload {
   name: string;
+  ownedId?: number;
+  qty?: number;
+  note?: string | null;
+  quality?: string | null;
+  skin?: string | null;
   type: string | null;
   weight: number | null;
   slots: number | null;
@@ -143,9 +163,16 @@ export interface DossierPayload {
   armor: ArmorPayload[];
   containers: ContainerPayload[];
   artifacts: ArtifactPayload[];
-  notes: { title?: string; [key: string]: unknown }[];
+  notes: { title?: string; slug?: string | null; position?: number; [key: string]: unknown }[];
   catalog: { weapons: CatalogEntry[]; armor: CatalogEntry[]; meta: Record<string, unknown> };
-  recommendations: { id?: string; title?: string; lead?: string; [key: string]: unknown }[];
+  recommendations: {
+    id?: string;
+    title?: string;
+    lead?: string;
+    slug?: string | null;
+    position?: number;
+    [key: string]: unknown;
+  }[];
   details: Record<string, unknown>;
   earnings: { updated?: string; note?: string; rows?: Record<string, unknown>[]; [key: string]: unknown } | null;
   builds: {

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ContentEditTarget } from '~/types/dossier';
+
 useHead({ title: 'Рекомендации — STALZONE Dossier' });
 
 interface RecommendationRow {
@@ -12,12 +14,33 @@ interface Recommendation {
   title?: string;
   lead?: string;
   rows?: RecommendationRow[];
+  slug?: string | null;
+  position?: number;
+  [key: string]: unknown;
 }
 
 const { payload } = useDossier();
 const recommendations = computed(
   () => (payload.value?.recommendations ?? []) as unknown as Recommendation[],
 );
+const editTarget = ref<ContentEditTarget | null>(null);
+const editOpen = computed({
+  get: () => editTarget.value !== null,
+  set: (value: boolean) => {
+    if (!value) editTarget.value = null;
+  },
+});
+
+function startEdit(recommendation: Recommendation): void {
+  editTarget.value = {
+    kind: 'recs',
+    slug: recommendation.slug ?? null,
+    title: recommendation.title ?? null,
+    lead: recommendation.lead ?? null,
+    payload: recommendation,
+    position: recommendation.position ?? 0,
+  };
+}
 </script>
 
 <template>
@@ -36,9 +59,19 @@ const recommendations = computed(
     <div v-if="recommendations.length" class="grid gap-4 lg:grid-cols-2">
       <UCard v-for="recommendation in recommendations" :key="recommendation.id ?? recommendation.title">
         <template #header>
-          <div>
-            <h2 class="text-lg font-semibold">{{ recommendation.title }}</h2>
-            <p v-if="recommendation.lead" class="mt-1 text-sm text-muted">{{ recommendation.lead }}</p>
+          <div class="flex items-start gap-2">
+            <div class="min-w-0 flex-1">
+              <h2 class="text-lg font-semibold">{{ recommendation.title }}</h2>
+              <p v-if="recommendation.lead" class="mt-1 text-sm text-muted">{{ recommendation.lead }}</p>
+            </div>
+            <UButton
+              icon="i-lucide-pencil"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              :aria-label="`Изменить рекомендацию ${recommendation.title ?? ''}`"
+              @click="startEdit(recommendation)"
+            />
           </div>
         </template>
         <dl v-if="recommendation.rows?.length" class="divide-y divide-default text-sm">
@@ -63,5 +96,7 @@ const recommendations = computed(
       title="Пусто"
       description="В досье пока нет рекомендаций. Добавьте их через API или MCP."
     />
+
+    <EditContentBlock v-model:open="editOpen" :target="editTarget" />
   </section>
 </template>

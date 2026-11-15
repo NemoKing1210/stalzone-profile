@@ -152,6 +152,10 @@ function weaponPayload(db: Db, owned: OwnedJoined): Json {
 
   return {
     name: owned.display_name ?? item.name,
+    ownedId: owned.id,
+    qty: owned.qty,
+    note: owned.note,
+    quality: owned.quality,
     skin: extra?.skin ?? null,
     slot: slotRu(owned.slot ?? item.slot) ?? null,
     lvl: level,
@@ -250,6 +254,10 @@ function armorPayload(db: Db, owned: OwnedJoined): Json {
 
   return {
     name: owned.display_name ?? owned.item_name,
+    ownedId: owned.id,
+    qty: owned.qty,
+    note: owned.note,
+    quality: owned.quality,
     skin: extra?.skin ?? null,
     cls: clsRu(item, raw),
     weight: item.weight ?? legacy?.weight ?? raw?.details?.weight ?? null,
@@ -269,6 +277,11 @@ function containerPayload(db: Db, owned: OwnedJoined, fill: ContainerFillRow[]):
   const extra = parseJson(owned.extra);
   return {
     name: owned.display_name ?? owned.item_name,
+    ownedId: owned.id,
+    qty: owned.qty,
+    note: owned.note,
+    quality: owned.quality,
+    skin: extra?.skin ?? null,
     type: extra?.type ?? raw?.details?.type ?? 'контейнер',
     weight: extra?.weight ?? item?.weight ?? raw?.details?.weight ?? null,
     slots: extra?.slots ?? raw?.details?.slots ?? null,
@@ -289,6 +302,11 @@ function artifactPayload(db: Db, owned: OwnedJoined): Json {
   const extra = parseJson(owned.extra);
   return {
     name: owned.display_name ?? owned.item_name,
+    ownedId: owned.id,
+    qty: owned.qty,
+    note: owned.note,
+    quality: owned.quality,
+    skin: extra?.skin ?? null,
     type: extra?.type ?? CAT_RU[item?.category ?? ''] ?? raw?.details?.type ?? 'прочий',
     q: owned.quality ?? null,
     lvl: owned.level,
@@ -487,13 +505,21 @@ export function buildPayload(db: Db, characterId?: number): Payload {
     armor: owned.filter((o) => o.kind === 'armor').map((o) => armorPayload(db, o)),
     containers: owned.filter((o) => o.kind === 'container').map((o) => containerPayload(db, o, fill[o.id] ?? [])),
     artifacts: owned.filter((o) => o.kind === 'artifact').map((o) => artifactPayload(db, o)),
-    notes: repo.listBlocks(db, 'notes').map((b) => repo.blockPayload(b) ?? {}),
+    notes: repo.listBlocks(db, 'notes').map((b) => ({
+      ...(repo.blockPayload<Json>(b) ?? {}),
+      slug: b.slug,
+      position: b.position,
+    })),
     catalog: {
       weapons: catalogOf(db, 'weapon'),
       armor: catalogOf(db, 'armor'),
       meta: repo.blockPayload<Json>(repo.getBlock(db, 'catalog_meta')) ?? {},
     },
-    recommendations: repo.listBlocks(db, 'recs').map((b) => repo.blockPayload(b) ?? {}),
+    recommendations: repo.listBlocks(db, 'recs').map((b) => ({
+      ...(repo.blockPayload<Json>(b) ?? {}),
+      slug: b.slug,
+      position: b.position,
+    })),
     details: detailsMap(db),
     earnings: repo.blockPayload<Json>(repo.getBlock(db, 'earnings')),
     builds: buildsOf(db),

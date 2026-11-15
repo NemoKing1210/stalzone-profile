@@ -59,6 +59,8 @@ const CHARACTER_KEYS = [
   'stash',
   'playstyle',
 ];
+const NOTE_KEYS = ['title', 'text'];
+const RECOMMENDATION_KEYS = ['id', 'title', 'lead', 'rows'];
 
 function pick(obj: Json, keys: string[]): Json {
   const out: Json = {};
@@ -80,9 +82,9 @@ export function exportLegacyJson(db: Db, characterId?: number): Json {
     armor: payload.armor.map((a) => pick(a, ARMOR_KEYS)),
     containers: payload.containers.map((c) => pick(c, CONTAINER_KEYS)),
     artifacts: payload.artifacts.map((a) => pick(a, ARTIFACT_KEYS)),
-    notes: payload.notes,
+    notes: payload.notes.map((note) => pick(note, NOTE_KEYS)),
     catalog: payload.catalog,
-    recommendations: payload.recommendations,
+    recommendations: payload.recommendations.map((recommendation) => pick(recommendation, RECOMMENDATION_KEYS)),
     details: payload.details,
     earnings: payload.earnings,
     builds: {

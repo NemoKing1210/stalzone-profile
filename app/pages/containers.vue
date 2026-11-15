@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ContainerPayload } from '~/composables/useDossier';
+import type { OwnedEditTarget } from '~/types/dossier';
 
 useHead({ title: 'Контейнеры — STALZONE Dossier' });
 
@@ -16,6 +17,20 @@ const containers = computed(() => payload.value?.containers ?? []);
 const details = computed(() => payload.value?.details ?? {});
 
 const selected = ref<Selection | null>(null);
+const editTarget = ref<OwnedEditTarget | null>(null);
+const fillTarget = ref<ContainerPayload | null>(null);
+const editOpen = computed({
+  get: () => editTarget.value !== null,
+  set: (value: boolean) => {
+    if (!value) editTarget.value = null;
+  },
+});
+const fillOpen = computed({
+  get: () => fillTarget.value !== null,
+  set: (value: boolean) => {
+    if (!value) fillTarget.value = null;
+  },
+});
 const modalOpen = computed({
   get: () => selected.value !== null,
   set: (value: boolean) => {
@@ -39,6 +54,27 @@ function openArtifact(name: string, level: number): void {
 function slotEquivalent(container: ContainerPayload): string {
   if (container.slots == null || container.eff == null) return '—';
   return g2((container.slots * container.eff) / 100);
+}
+
+function startEdit(container: ContainerPayload): void {
+  if (container.ownedId == null) return;
+  editTarget.value = {
+    ownedId: container.ownedId,
+    name: container.name,
+    kind: 'container',
+    level: 0,
+    qty: container.qty ?? 1,
+    quality: container.quality ?? null,
+    skin: container.skin ?? null,
+    note: container.note ?? null,
+    role: null,
+    slot: null,
+  };
+}
+
+function startFill(container: ContainerPayload): void {
+  if (container.ownedId == null) return;
+  fillTarget.value = container;
 }
 </script>
 
@@ -83,6 +119,24 @@ function slotEquivalent(container: ContainerPayload): string {
               variant="ghost"
               label="Карточка"
               @click="openContainer(container)"
+            />
+          </div>
+          <div v-if="container.ownedId" class="mt-2 flex flex-wrap gap-1">
+            <UButton
+              icon="i-lucide-pencil"
+              color="neutral"
+              variant="outline"
+              size="xs"
+              label="Изменить"
+              @click="startEdit(container)"
+            />
+            <UButton
+              icon="i-lucide-gem"
+              color="neutral"
+              variant="outline"
+              size="xs"
+              label="Наполнение"
+              @click="startFill(container)"
             />
           </div>
         </template>
@@ -154,5 +208,8 @@ function slotEquivalent(container: ContainerPayload): string {
         />
       </template>
     </UModal>
+
+    <EditOwnedModal v-model:open="editOpen" :target="editTarget" />
+    <ContainerFillEditor v-model:open="fillOpen" :container="fillTarget" />
   </section>
 </template>

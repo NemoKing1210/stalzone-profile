@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { closeDb, loadConfig, migrate, openDb, type Db } from '@dossier/core';
 import { importLegacy } from '@dossier/core/services/import';
 import { buildPayload, type Payload } from '@dossier/core/services/payload';
+import { exportLegacyJson } from '@dossier/core/services/export';
 
 let dir: string;
 let db: Db;
@@ -74,6 +75,27 @@ describe('buildPayload contract', () => {
     const ezhik = payload.artifacts.filter((a: { name: string }) => a.name === 'Стальной Ежик');
     expect(ezhik).toHaveLength(2);
     expect(ezhik.map((a: { q: string | null }) => a.q).sort()).toEqual(['Редкий 141%', 'Редкий 142,32%']);
+  });
+
+  it('exposes owned ids and content slugs for edit forms without changing the legacy export', () => {
+    for (const section of [payload.weapons, payload.armor, payload.containers, payload.artifacts]) {
+      expect(section.every((row: { ownedId?: number }) => typeof row.ownedId === 'number')).toBe(true);
+    }
+    expect(payload.notes.map((note: { slug?: string }) => note.slug)).toEqual([
+      'note-1',
+      'note-2',
+      'note-3',
+      'note-4',
+      'note-5',
+      'note-6',
+      'note-7',
+      'note-8',
+    ]);
+
+    const exported = exportLegacyJson(db);
+    expect(Object.keys(exported.weapons[0])).not.toContain('ownedId');
+    expect(Object.keys(exported.notes[0]).sort()).toEqual(['text', 'title']);
+    expect(Object.keys(exported.recommendations[0]).sort()).toEqual(['id', 'lead', 'rows', 'title']);
   });
 });
 

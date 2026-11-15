@@ -18,6 +18,20 @@ const items = computed(() => builds.value?.items ?? []);
 const current = computed(() => builds.value?.current ?? null);
 const avoid = computed(() => builds.value?.avoid ?? []);
 const details = computed(() => payload.value?.details ?? {});
+const containerOptions = computed(() =>
+  (payload.value?.containers ?? []).map((container) => container.name),
+);
+const buildTarget = ref<BuildPayload | null>(null);
+const buildOpen = computed({
+  get: () => buildTarget.value !== null,
+  set: (value: boolean) => {
+    if (!value) buildTarget.value = null;
+  },
+});
+
+function startEdit(build: BuildPayload): void {
+  buildTarget.value = build;
+}
 
 const selected = ref<Selection | null>(null);
 const modalOpen = computed({
@@ -118,6 +132,14 @@ const rowColumns = [
                 <dd class="tabular-nums">{{ fmtMoney(build.total) }}</dd>
               </div>
             </dl>
+            <UButton
+              icon="i-lucide-pencil"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              :aria-label="`Изменить сборку ${build.title}`"
+              @click="startEdit(build)"
+            />
           </div>
         </template>
 
@@ -195,5 +217,7 @@ const rowColumns = [
         />
       </template>
     </UModal>
+
+    <EditBuildModal v-model:open="buildOpen" :build="buildTarget" :container-options="containerOptions" />
   </section>
 </template>

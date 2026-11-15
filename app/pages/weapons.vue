@@ -1,8 +1,17 @@
 <script setup lang="ts">
+import type { OwnedEditTarget } from '~/types/dossier';
+
 useHead({ title: 'Оружие — STALZONE Dossier' });
 
 interface WeaponRow {
   key: string;
+  ownedId: number | null;
+  qty: number;
+  quality: string | null;
+  skin: string | null;
+  note: string | null;
+  role: string | null;
+  slot: string | null;
   name: string;
   rank: string | null;
   type: string | null;
@@ -27,6 +36,13 @@ const filters = useFilters('weapons', {
 });
 const sorting = usePersistentSorting(filters);
 const selected = ref<WeaponRow | null>(null);
+const editTarget = ref<OwnedEditTarget | null>(null);
+const editOpen = computed({
+  get: () => editTarget.value !== null,
+  set: (value: boolean) => {
+    if (!value) editTarget.value = null;
+  },
+});
 const modalOpen = computed({
   get: () => selected.value !== null,
   set: (value: boolean) => {
@@ -39,6 +55,13 @@ const rankItems = rankOptions();
 const ownedRows = computed<WeaponRow[]>(() =>
   (payload.value?.weapons ?? []).map((weapon, index) => ({
     key: `owned-${index}-${weapon.name}`,
+    ownedId: weapon.ownedId ?? null,
+    qty: weapon.qty ?? 1,
+    quality: weapon.quality ?? null,
+    skin: weapon.skin ?? null,
+    note: weapon.note ?? null,
+    role: weapon.role ?? null,
+    slot: weapon.slot ?? null,
     name: weapon.name,
     rank: weapon.rank ?? null,
     type: weapon.type ?? null,
@@ -56,6 +79,13 @@ const ownedRows = computed<WeaponRow[]>(() =>
 const catalogRows = computed<WeaponRow[]>(() =>
   (payload.value?.catalog.weapons ?? []).map((entry, index) => ({
     key: `catalog-${index}-${entry.name}`,
+    ownedId: null,
+    qty: 1,
+    quality: null,
+    skin: null,
+    note: null,
+    role: null,
+    slot: null,
     name: entry.name,
     rank: entry.rank ?? null,
     type: entry.type ?? null,
@@ -146,6 +176,7 @@ const columns = computed(() => {
       enableSorting: true,
       meta: { class: { th: 'text-right', td: 'text-right tabular-nums' } },
     },
+    { accessorKey: 'actions', header: ' ', enableSorting: false, meta: { class: { td: 'text-right' } } },
   );
   return list;
 });
@@ -163,6 +194,22 @@ const emptyText = computed(() => {
   }
   return 'Под фильтры ничего не подошло.';
 });
+
+function startEdit(row: WeaponRow): void {
+  if (row.ownedId == null) return;
+  editTarget.value = {
+    ownedId: row.ownedId,
+    name: row.name,
+    kind: 'weapon',
+    level: row.lvl ?? 0,
+    qty: row.qty,
+    quality: row.quality,
+    skin: row.skin,
+    note: row.note,
+    role: row.role,
+    slot: row.slot,
+  };
+}
 </script>
 
 <template>
@@ -254,6 +301,17 @@ const emptyText = computed(() => {
         <template #weight-cell="{ row }">
           {{ row.original.weight == null ? '—' : g2(row.original.weight) }}
         </template>
+        <template #actions-cell="{ row }">
+          <UButton
+            v-if="row.original.ownedId"
+            icon="i-lucide-pencil"
+            color="neutral"
+            variant="ghost"
+            size="xs"
+            :aria-label="`Изменить ${row.original.name}`"
+            @click.stop="startEdit(row.original)"
+          />
+        </template>
         <template #empty>
           <UEmpty icon="i-lucide-crosshair" title="Пусто" :description="emptyText" />
         </template>
@@ -276,5 +334,7 @@ const emptyText = computed(() => {
         />
       </template>
     </UModal>
+
+    <EditOwnedModal v-model:open="editOpen" :target="editTarget" />
   </section>
 </template>

@@ -1,11 +1,19 @@
 <script setup lang="ts">
 import type { ArtifactPayload } from '~/composables/useDossier';
+import type { OwnedEditTarget } from '~/types/dossier';
 
 useHead({ title: 'Артефакты — STALZONE Dossier' });
 
 const { payload } = useDossier();
 const filters = useFilters('artifacts', { q: '', type: 'all', sort: 'name' });
 const selected = ref<ArtifactPayload | null>(null);
+const editTarget = ref<OwnedEditTarget | null>(null);
+const editOpen = computed({
+  get: () => editTarget.value !== null,
+  set: (value: boolean) => {
+    if (!value) editTarget.value = null;
+  },
+});
 const modalOpen = computed({
   get: () => selected.value !== null,
   set: (value: boolean) => {
@@ -49,6 +57,22 @@ const details = computed(() => payload.value?.details ?? {});
 const selectedCard = computed(() =>
   selected.value ? findDetailsCard(details.value, 'art', selected.value.name) : null,
 );
+
+function startEdit(artifact: ArtifactPayload): void {
+  if (artifact.ownedId == null) return;
+  editTarget.value = {
+    ownedId: artifact.ownedId,
+    name: artifact.name,
+    kind: 'artifact',
+    level: artifact.lvl,
+    qty: artifact.qty ?? 1,
+    quality: artifact.quality ?? null,
+    skin: artifact.skin ?? null,
+    note: artifact.note ?? null,
+    role: null,
+    slot: null,
+  };
+}
 </script>
 
 <template>
@@ -84,13 +108,7 @@ const selectedCard = computed(() =>
     </div>
 
     <div v-if="filtered.length" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      <button
-        v-for="artifact in filtered"
-        :key="`${artifact.name}-${artifact.lvl}`"
-        type="button"
-        class="w-full text-left"
-        @click="selected = artifact"
-      >
+      <div v-for="artifact in filtered" :key="`${artifact.name}-${artifact.lvl}`" class="relative">
         <UCard class="h-full transition hover:border-primary/40">
           <div class="flex items-start gap-3">
             <img
@@ -112,11 +130,27 @@ const selectedCard = computed(() =>
                 <UBadge color="neutral" variant="subtle">+{{ artifact.lvl }}</UBadge>
               </div>
             </div>
+            <UButton
+              v-if="artifact.ownedId"
+              icon="i-lucide-pencil"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              class="relative z-10"
+              :aria-label="`Изменить ${artifact.name}`"
+              @click="startEdit(artifact)"
+            />
           </div>
           <p v-if="artifact.effects" class="mt-3 line-clamp-3 text-sm text-muted">{{ artifact.effects }}</p>
           <p v-else class="mt-3 text-sm text-muted">нет данных об эффектах</p>
         </UCard>
-      </button>
+        <button
+          type="button"
+          class="absolute inset-0 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          :aria-label="`Открыть карточку ${artifact.name}`"
+          @click="selected = artifact"
+        />
+      </div>
     </div>
     <UEmpty
       v-else
@@ -143,5 +177,7 @@ const selectedCard = computed(() =>
         />
       </template>
     </UModal>
+
+    <EditOwnedModal v-model:open="editOpen" :target="editTarget" />
   </section>
 </template>
