@@ -41,7 +41,7 @@ test('the correct password signs an HttpOnly session and opens the dossier', asy
   await page.locator('input[type="password"]').fill('e2e-password');
   await page.getByRole('button', { name: 'Войти' }).click();
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole('heading', { name: 'STALZONE Dossier' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Nemo_King' })).toBeVisible();
 
   const cookie = (await context.cookies()).find((item) => item.name === 'dossier_session');
   expect(cookie).toBeTruthy();

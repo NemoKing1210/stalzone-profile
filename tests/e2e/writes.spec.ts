@@ -243,6 +243,7 @@ test('character edits are validated and rolled back', async () => {
 test('export returns the legacy dossier shape', async () => {
   const response = await api.get('/api/v1/admin/export');
   expect(response.status()).toBe(200);
+  expect(response.headers()['content-disposition']).toContain('attachment');
   const body = await response.json();
   expect(body.weapons).toHaveLength(35);
   expect(body.artifacts).toHaveLength((await (await api.get('/api/v1/payload')).json()).artifacts.length);

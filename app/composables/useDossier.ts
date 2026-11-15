@@ -97,8 +97,14 @@ export interface CatalogEntry {
   type?: string | null;
   cls?: string | null;
   icon?: string | null;
+  slot?: string | null;
+  caliber?: string | null;
+  mag?: number | null;
+  weight?: number | null;
   dmg15?: number | null;
   rof?: number | null;
+  dps15?: number | null;
+  ttk15?: number | null;
   armor15?: number | null;
   [key: string]: unknown;
 }
@@ -146,8 +152,8 @@ export interface DossierPayload {
     updated: string | null;
     priceNote: string | null;
     items: BuildPayload[];
-    avoid: string[];
-    current: string | null;
+    avoid: { name: string; why: string }[];
+    current: { title?: string; note?: string; rows?: { name: string; lvl: number }[] } | null;
   };
   icons: Record<string, string>;
   freshness: DossierFreshness;
