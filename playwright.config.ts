@@ -13,16 +13,17 @@ export default defineConfig({
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
-        command: 'npm run build && node .output/server/index.mjs',
+        command: 'npm run db:reset && npm run import:legacy && npm run build && node .output/server/index.mjs',
         url: 'http://127.0.0.1:3100/',
         reuseExistingServer: !process.env.CI,
-        timeout: 180_000,
+        timeout: 240_000,
         env: {
           PORT: '3100',
           HOST: '127.0.0.1',
           NUXT_SESSION_SECRET: 'e2e-session-secret-at-least-32-characters',
           NUXT_PASSWORD: 'e2e-password',
           NUXT_DB_PATH: './data/e2e.db',
+          DB_PATH: './data/e2e.db',
           NUXT_MCP_TOKEN: 'e2e-mcp-token',
         },
       },
