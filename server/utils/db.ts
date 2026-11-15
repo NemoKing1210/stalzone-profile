@@ -10,7 +10,8 @@ let instance: Db | null = null;
 export function useDb(): Db {
   if (instance) return instance;
   const config = useRuntimeConfig();
-  const dbPath = path.resolve(String(config.dbPath || './data/dossier.db'));
+  // DB_PATH is read at runtime so the same image works with any mounted volume.
+  const dbPath = path.resolve(String(process.env.DB_PATH || config.dbPath || './data/dossier.db'));
   const migrationsDir = path.resolve(process.cwd(), 'db', 'migrations');
   instance = openDb(dbPath);
   migrate(instance, migrationsDir);

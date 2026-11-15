@@ -1,0 +1,59 @@
+name: stalzone-dossier
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: stalzone-dossier:latest
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      HOST: 0.0.0.0
+      DB_PATH: /data/dossier.db
+      NUXT_SESSION_SECRET: ${NUXT_SESSION_SECRET:-}
+      NUXT_PASSWORD_HASH: ${NUXT_PASSWORD_HASH:-}
+      NUXT_PASSWORD: ${NUXT_PASSWORD:-}
+      NUXT_MCP_TOKEN: ${NUXT_MCP_TOKEN:-}
+      NUXT_LOGIN_RATE_MAX: ${NUXT_LOGIN_RATE_MAX:-5}
+      PROFILE_FILE: /app/db/seeds/profile.json
+    volumes:
+      - dossier-data:/data
+    ports:
+      - '${APP_PORT:-3000}:3000'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/api/v1/healthz').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # Optional TLS front. Enable with: docker compose --profile proxy up -d
+  caddy:
+    image: caddy:2-alpine
+    profiles: ['proxy']
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      DOSSIER_DOMAIN: ${DOSSIER_DOMAIN:-localhost}
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  dossier-data:
+  caddy-data:
+  caddy-config:

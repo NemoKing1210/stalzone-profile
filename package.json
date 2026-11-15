@@ -34,7 +34,8 @@
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "check": "npm run typecheck && npm run lint && npm run test"
+    "check": "npm run typecheck && npm run lint && npm run test",
+    "hash-password": "tsx scripts/cli.ts hash-password"
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.155",
