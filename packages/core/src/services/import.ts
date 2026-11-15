@@ -7,16 +7,18 @@ import { addItemStats, findItemByKindName, getItemById, kindFromCategory, replac
 import type { StatInput } from '../repo/items.js';
 import type { AppConfig } from '../config.js';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 type Json = any;
 
 export interface ImportReport {
   items: number;
-  owned: number;
+  ownedRows: number;
+  ownedCopies: number;
   builds: number;
   prices: number;
   icons: number;
   blocks: number;
+  catalog: number;
+  details: number;
   skipped: string[];
   local: string[];
 }
@@ -101,7 +103,19 @@ export function importLegacy(db: Db, cfg: AppConfig): ImportReport {
     ttk: (readJson(path.join(seeds, 'wiki', 'ttk_weapon.json')) ?? []) as Json[],
   };
 
-  const report: ImportReport = { items: 0, owned: 0, builds: 0, prices: 0, icons: 0, blocks: 0, skipped: [], local: [] };
+  const report: ImportReport = {
+    items: 0,
+    ownedRows: 0,
+    ownedCopies: 0,
+    builds: 0,
+    prices: 0,
+    icons: 0,
+    blocks: 0,
+    catalog: 0,
+    details: 0,
+    skipped: [],
+    local: [],
+  };
 
   const run = db.transaction(() => {
     repo.ensureDefaultSources(db);
@@ -205,7 +219,15 @@ export function importLegacy(db: Db, cfg: AppConfig): ImportReport {
       }
       if (!item) continue;
       addItemStats(db, item.id, detailsStats(card), 'local');
-      // keep the card in raw for the modal (exact copy)
+      repo.upsertDetailsCard(db, {
+        key,
+        itemId: item.id,
+        kind,
+        name: card.name,
+        data: card,
+      });
+      report.details++;
+      // keep the card in raw for compatibility with older consumers
       repo.upsertItem(db, {
         sourceId: item.source_id,
         exboId: item.exbo_id,
@@ -214,7 +236,6 @@ export function importLegacy(db: Db, cfg: AppConfig): ImportReport {
         category: item.category,
         raw: { details: card },
       });
-      void key;
     }
 
     /* ---------- 5. catalog entries (fill gaps, keep display fields) ---------- */
@@ -279,6 +300,20 @@ export function importLegacy(db: Db, cfg: AppConfig): ImportReport {
       if (item) addItemStats(db, item.id, catalogArmorStats(entry), 'local');
     }
 
+    const catalogWeapons = (legacy.catalog?.weapons ?? []) as Json[];
+    const catalogArmor = (legacy.catalog?.armor ?? []) as Json[];
+    repo.insertCatalogEntries(
+      db,
+      'weapon',
+      catalogWeapons.map((entry) => ({ name: entry.name, data: entry })),
+    );
+    repo.insertCatalogEntries(
+      db,
+      'armor',
+      catalogArmor.map((entry) => ({ name: entry.name, data: entry })),
+    );
+    report.catalog = catalogWeapons.length + catalogArmor.length;
+
     /* ---------- 6. motifs (cosmetic name -> base item) ---------- */
     for (const [index, row] of (motifs.rows ?? []).entries()) {
       if (!row?.skin) continue;
@@ -338,40 +373,105 @@ export function importLegacy(db: Db, cfg: AppConfig): ImportReport {
     const skinId = (skin: string | null | undefined): number | null =>
       skin ? (motifByName.get(norm(skin)) ?? null) : null;
 
+    interface OwnedGroup {
+      itemId: number;
+      level: number;
+      skinItemId: number | null;
+      quality: string | null;
+      qty: number;
+      name: string;
+      role: string | null;
+      slot: string | null;
+      extra: Json;
+    }
+
+    const weaponGroups = new Map<string, OwnedGroup>();
     for (const weapon of legacy.weapons ?? []) {
       let item = findItemByKindName(db, 'weapon', weapon.name);
       if (!item) {
         item = createLocalWeapon(db, weapon);
         report.local.push(`weapon:${weapon.name}`);
       }
+      const level = weapon.lvl ?? 0;
+      const skinItemId = skinId(weapon.skin);
+      const key = `${item.id}|${level}|${skinItemId ?? 0}`;
+      const group = weaponGroups.get(key);
+      if (group) {
+        group.qty++;
+      } else {
+        weaponGroups.set(key, {
+          itemId: item.id,
+          level,
+          skinItemId,
+          quality: null,
+          qty: 1,
+          name: weapon.name,
+          role: weapon.role ?? null,
+          slot: weapon.slot ?? item.slot ?? null,
+          extra: { skin: weapon.skin ?? null, legacy: weapon },
+        });
+      }
+    }
+    for (const group of weaponGroups.values()) {
       repo.upsertOwned(db, {
         characterId,
-        itemId: item.id,
         kind: 'weapon',
-        level: weapon.lvl ?? 0,
-        skinItemId: skinId(weapon.skin),
-        role: weapon.role ?? null,
-        slot: weapon.slot ?? item.slot ?? null,
-        extra: { skin: weapon.skin ?? null, legacy: weapon },
+        itemId: group.itemId,
+        level: group.level,
+        skinItemId: group.skinItemId,
+        quality: group.quality,
+        qty: group.qty,
+        displayName: group.name,
+        role: group.role,
+        slot: group.slot,
+        extra: group.extra,
       });
-      report.owned++;
+      report.ownedRows++;
+      report.ownedCopies += group.qty;
     }
 
+    const armorGroups = new Map<string, OwnedGroup>();
     for (const armor of legacy.armor ?? []) {
       let item = findItemByKindName(db, 'armor', armor.name);
       if (!item) {
         item = createLocalArmor(db, armor);
         report.local.push(`armor:${armor.name}`);
       }
+      const level = armor.lvl ?? 0;
+      const skinItemId = skinId(armor.skin);
+      const quality = armor.q ?? null;
+      const key = `${item.id}|${level}|${skinItemId ?? 0}|${norm(quality ?? '')}`;
+      const group = armorGroups.get(key);
+      if (group) {
+        group.qty++;
+      } else {
+        armorGroups.set(key, {
+          itemId: item.id,
+          level,
+          skinItemId,
+          quality,
+          qty: 1,
+          name: armor.name,
+          role: null,
+          slot: null,
+          extra: { skin: armor.skin ?? null, legacy: armor },
+        });
+      }
+    }
+    for (const group of armorGroups.values()) {
       repo.upsertOwned(db, {
         characterId,
-        itemId: item.id,
         kind: 'armor',
-        level: armor.lvl ?? 0,
-        skinItemId: skinId(armor.skin),
-        extra: { skin: armor.skin ?? null, legacy: armor },
+        itemId: group.itemId,
+        level: group.level,
+        skinItemId: group.skinItemId,
+        quality: group.quality,
+        qty: group.qty,
+        displayName: group.name,
+        extra: group.extra,
       });
-      report.owned++;
+      report.ownedRows++;
+      report.ownedCopies += group.qty;
     }
 
     for (const container of legacy.containers ?? []) {
@@ -385,6 +485,8 @@ export function importLegacy(db: Db, cfg: AppConfig): ImportReport {
         itemId: item.id,
         kind: 'container',
         level: 0,
+        qty: 1,
+        displayName: container.name,
         extra: {
           type: container.type ?? null,
           shield: container.shield ?? null,
@@ -403,24 +505,50 @@ export function importLegacy(db: Db, cfg: AppConfig): ImportReport {
         })
         .filter(Boolean) as { itemId: number; level: number; quality: string | null }[];
       repo.replaceContainerFill(db, ownedId, fill, container.artifactsAsOf ?? legacy.meta?.updated ?? new Date().toISOString());
-      report.owned++;
+      report.ownedRows++;
+      report.ownedCopies++;
     }
 
+    const artifactGroups = new Map<string, OwnedGroup>();
     for (const artifact of legacy.artifacts ?? []) {
       const item = findItemByKindName(db, 'artifact', artifact.name);
       if (!item) {
         report.skipped.push(`artifact:${artifact.name}`);
         continue;
       }
+      const level = artifact.lvl ?? 0;
+      const quality = artifact.q ?? null;
+      const key = `${item.id}|${level}|${norm(quality ?? '')}`;
+      const group = artifactGroups.get(key);
+      if (group) {
+        group.qty++;
+      } else {
+        artifactGroups.set(key, {
+          itemId: item.id,
+          level,
+          skinItemId: null,
+          quality,
+          qty: 1,
+          name: artifact.name,
+          role: null,
+          slot: null,
+          extra: { type: artifact.type ?? null, effects: artifact.effects ?? null, rank: artifact.rank ?? null },
+        });
+      }
+    }
+    for (const group of artifactGroups.values()) {
       repo.upsertOwned(db, {
         characterId,
-        itemId: item.id,
         kind: 'artifact',
-        level: artifact.lvl ?? 0,
-        quality: artifact.q ?? null,
-        extra: { type: artifact.type ?? null, effects: artifact.effects ?? null, rank: artifact.rank ?? null },
+        itemId: group.itemId,
+        level: group.level,
+        quality: group.quality,
+        qty: group.qty,
+        displayName: group.name,
+        extra: group.extra,
       });
-      report.owned++;
+      report.ownedRows++;
+      report.ownedCopies += group.qty;
     }
 
     /* ---------- 9. builds ---------- */

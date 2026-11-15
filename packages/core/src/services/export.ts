@@ -1,7 +1,6 @@
 import type { Db } from '../db/index.js';
 import { buildPayload } from './payload.js';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 type Json = any;
 
 const WEAPON_KEYS = [

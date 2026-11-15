@@ -14,7 +14,6 @@ import { itemStats, rawOf } from '../repo/items.js';
 import type { ItemRow } from '../repo/items.js';
 import type { OwnedJoined, ContainerFillRow } from '../repo/owned.js';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 type Json = any;
 
 export interface PayloadFreshness {
@@ -123,24 +122,6 @@ function catShort(item: ItemRow, raw: Json): string | null {
 
 function iconOf(item: ItemRow, raw: Json): string | null {
   return item.icon_path ?? raw?.catalog?.icon ?? raw?.details?.icon ?? raw?.icon ?? null;
-}
-
-function damageProfile(rows: StatRow[], raw: Json, level: number): Json | null {
-  const d0 = valueAt(rows, 'damage.start', level);
-  const dA = d0;
-  const dB = valueAt(rows, 'damage.end', level);
-  const distA = valueAt(rows, 'damage.decrease_start', level);
-  const distB = valueAt(rows, 'damage.decrease_end', level);
-  const distMax = valueAt(rows, 'damage.max_distance', level);
-  if (d0 != null && dB != null && distA != null && distB != null && distMax != null) {
-    return { d0, dA, dB, distA, distB, distMax };
-  }
-  const card = raw?.details;
-  if (card) {
-    const p = level >= 15 ? card.p15 : card.p0;
-    if (p) return { ...p };
-  }
-  return null;
 }
 
 function weaponPayload(db: Db, owned: OwnedJoined): Json {
@@ -331,6 +312,12 @@ function parseJson(value: string | null | undefined): Json {
 }
 
 function detailsMap(db: Db): Record<string, Json> {
+  const rows = repo.listDetailsCards(db);
+  if (rows.length) {
+    const out: Record<string, Json> = {};
+    for (const row of rows) out[row.key] = parseJson(row.data) ?? {};
+    return out;
+  }
   const out: Record<string, Json> = {};
   for (const item of repo.listItems(db)) {
     const card = rawOf(item)?.details;
@@ -342,6 +329,18 @@ function detailsMap(db: Db): Record<string, Json> {
 }
 
 function catalogOf(db: Db, kind: 'weapon' | 'armor'): Json[] {
+  const entries = repo.listCatalogEntries(db, kind);
+  if (entries.length) {
+    const iconByName = new Map<string, string>();
+    for (const item of repo.listItems(db, kind)) {
+      const icon = item.icon_path ?? iconOf(item, rawOf(item));
+      if (icon) iconByName.set(norm(item.name), icon);
+    }
+    return entries.map((entry) => {
+      const data = parseJson(entry.data) ?? {};
+      return { ...data, icon: data.icon ?? iconByName.get(entry.name_norm) ?? null };
+    });
+  }
   const list: Json[] = [];
   for (const item of repo.listItems(db, kind)) {
     const raw = rawOf(item);
@@ -353,6 +352,16 @@ function catalogOf(db: Db, kind: 'weapon' | 'armor'): Json[] {
     list.sort((a, b) => (index.get(norm(a.name)) ?? 9999) - (index.get(norm(b.name)) ?? 9999));
   }
   return list;
+}
+
+/** Identical ownership rows are stored once with `qty`; the dossier shows one entry per copy. */
+function expandOwned(rows: OwnedJoined[]): OwnedJoined[] {
+  const out: OwnedJoined[] = [];
+  for (const row of rows) {
+    const copies = Math.max(1, Math.trunc(row.qty ?? 1));
+    for (let i = 0; i < copies; i++) out.push(row);
+  }
+  return out;
 }
 
 function buildsOf(db: Db): Json {
@@ -460,7 +469,7 @@ export function buildPayload(db: Db, characterId?: number): Payload {
     };
   }
 
-  const owned = repo.listOwned(db, c.id);
+  const owned = expandOwned(repo.listOwned(db, c.id));
   const fill = repo.allContainerFill(db, c.id);
   const character = characterPayload(db, c.id);
   const meta = repo.getMeta<Json>(db, 'meta') ?? {};

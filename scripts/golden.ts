@@ -7,7 +7,6 @@ import { migrate } from '@dossier/core/db/migrate';
 import { buildPayload } from '@dossier/core/services/payload';
 import { round } from '@dossier/shared';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 type Json = any;
 
 /** Stored legacy values that disagree with the formula; asserted exactly. */

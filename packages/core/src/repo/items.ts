@@ -74,7 +74,6 @@ export function isCosmeticCategory(category: string | null | undefined, nameKey?
   return cat === 'other' && /(motif|style)/i.test(key);
 }
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 export function rawOf(row: Pick<ItemRow, 'raw'>): Record<string, any> {
   try {
     return JSON.parse(row.raw) as Record<string, any>;
