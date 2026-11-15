@@ -92,6 +92,7 @@ export const BuildSlotSchema = z.object({
   name: z.string().nullish(),
   label: z.string().nullish(),
   quality: z.string().nullish(),
+  rank: z.string().nullish(),
   price: z.number().int().nonnegative().nullish(),
   lots: z.number().int().nonnegative().nullish(),
   eff: z.string().nullish(),

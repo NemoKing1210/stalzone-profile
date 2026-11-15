@@ -24,6 +24,8 @@ export default defineNuxtConfig({
     passwordHash: '',
     password: '',
     mcpToken: '',
+    loginRateMax: 5,
+    loginWindowMs: 60_000,
     public: {
       appName: 'STALZONE Dossier',
     },

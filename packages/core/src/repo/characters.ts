@@ -137,3 +137,33 @@ export function findCharacterByName(db: Db, nick: string, realm = 'ru'): Charact
       | undefined) ?? null
   );
 }
+
+const PATCH_COLUMNS: Record<string, string> = {
+  nick: 'nick',
+  faction: 'faction',
+  alliance: 'alliance',
+  clan: 'clan',
+  arrived: 'arrived',
+  hours: 'hours',
+  kd: 'kd',
+  accuracy: 'accuracy',
+  headshot: 'headshot',
+  achievements: 'achievements',
+  achievementPoints: 'achievement_points',
+  money: 'money',
+  maxMoney: 'max_money',
+  stash: 'stash',
+  playstyle: 'playstyle',
+};
+
+export function updateCharacterById(db: Db, id: number, patch: Record<string, unknown>): void {
+  const sets: string[] = [];
+  const params: Record<string, unknown> = { id, updated_at: new Date().toISOString() };
+  for (const [key, column] of Object.entries(PATCH_COLUMNS)) {
+    if (patch[key] === undefined) continue;
+    sets.push(`${column} = @${column}`);
+    params[column] = patch[key];
+  }
+  if (!sets.length) return;
+  db.prepare(`UPDATE character SET ${sets.join(', ')}, updated_at = @updated_at WHERE id = @id`).run(params);
+}

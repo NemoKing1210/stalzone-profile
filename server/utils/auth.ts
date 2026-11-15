@@ -94,14 +94,17 @@ const LOGIN_WINDOW_MS = 60_000;
 const LOGIN_MAX_ATTEMPTS = 5;
 const loginAttempts = new Map<string, number[]>();
 
-/** Five attempts per minute per IP, counted before the password is checked. */
+/** Five attempts per minute per IP by default, counted before the password is checked. */
 export function assertLoginAllowed(event: H3Event): ApiErrorBody | null {
+  const config = useRuntimeConfig();
+  const windowMs = Number(config.loginWindowMs) || LOGIN_WINDOW_MS;
+  const maxAttempts = Number(config.loginRateMax) || LOGIN_MAX_ATTEMPTS;
   const ip = getRequestIP(event, { xForwardedFor: true }) ?? 'unknown';
   const now = Date.now();
-  const recent = (loginAttempts.get(ip) ?? []).filter((at) => now - at < LOGIN_WINDOW_MS);
+  const recent = (loginAttempts.get(ip) ?? []).filter((at) => now - at < windowMs);
   recent.push(now);
   loginAttempts.set(ip, recent);
-  if (recent.length > LOGIN_MAX_ATTEMPTS) {
+  if (recent.length > maxAttempts) {
     return apiError(event, 429, 'TOO_MANY_ATTEMPTS', 'Слишком много попыток. Повторите через минуту.');
   }
   return null;

@@ -4,6 +4,7 @@ export default defineConfig({
   testDir: 'tests/e2e',
   timeout: 60_000,
   fullyParallel: false,
+  workers: 1,
   retries: 0,
   use: {
     baseURL: process.env.E2E_BASE_URL || 'http://127.0.0.1:3100',
@@ -25,6 +26,7 @@ export default defineConfig({
           NUXT_DB_PATH: './data/e2e.db',
           DB_PATH: './data/e2e.db',
           NUXT_MCP_TOKEN: 'e2e-mcp-token',
+          NUXT_LOGIN_RATE_MAX: '100',
         },
       },
 });
