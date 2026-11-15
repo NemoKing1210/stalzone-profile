@@ -1,7 +1,7 @@
 import { apiError } from '../utils/errors';
 import { isAuthenticated } from '../utils/auth';
 
-const PUBLIC_PATHS = new Set(['/login', '/api/auth/login', '/api/v1/healthz']);
+const PUBLIC_PATHS = new Set(['/login', '/api/auth/login', '/api/v1/healthz', '/mcp']);
 
 export default defineEventHandler((event) => {
   const url = getRequestURL(event);
