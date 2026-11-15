@@ -1,8 +1,8 @@
 # Migration from the legacy project
 
-Source: a local `[redacted legacy source]` folder — a static page inside an
-Aside project. The data lived in `data/my-gear.json` (~795 KB); the page loaded the whole
-payload (~1.2 MB of JS) and there was no change history.
+Source: a static page backed by a single JSON payload. The data lived in
+`data/my-gear.json` (~795 KB); the page loaded the whole payload (~1.2 MB of JS) and there
+was no change history.
 
 The repository seeds (`db/seeds/`) contain the dossier, icons, the wiki slice, prices and
 the profile. The raw EXBO database (~25 MB, 9,996 items) is not committed: `sync exbo_base`
