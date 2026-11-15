@@ -17,6 +17,7 @@ import {
   type WriteResult,
 } from '@dossier/core/services/writes';
 import { planArtifactBuild, type PlanInput, type PriceQuote } from '@dossier/core/calc';
+import { runSync } from '@dossier/core/services/sync';
 
 type Json = Record<string, unknown>;
 
@@ -461,11 +462,15 @@ export function localClient(db: Db): DossierClient {
       }
     },
 
-    async syncSource() {
-      throw new McpClientError(
-        'SYNC_NOT_AVAILABLE',
-        'Синхронизация источников подключается вместе с адаптерами (Task 14)',
-      );
+    async syncSource(source, force) {
+      try {
+        return (await runSync(db, source === 'exbo' ? 'exbo_base' : source, { force })) as unknown as Json;
+      } catch (error) {
+        if (error instanceof Error && error.message.startsWith('unknown source')) {
+          throw new McpClientError('UNKNOWN_SOURCE', error.message);
+        }
+        throw error;
+      }
     },
 
     async rebuildSite() {

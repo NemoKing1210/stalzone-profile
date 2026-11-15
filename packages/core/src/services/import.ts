@@ -33,7 +33,7 @@ function readJson(file: string): Json | null {
   }
 }
 
-function localExboId(kind: string, name: string): string {
+export function localExboId(kind: string, name: string): string {
   return `local:${kind}:${shortHash(norm(name), 10)}`;
 }
 
@@ -77,7 +77,7 @@ function armorCategory(cls: string | null | undefined): string {
   return ARMOR_CATEGORY[String(cls ?? '')] ?? `armor/${slugify(String(cls ?? 'other')) || 'other'}`;
 }
 
-function remoteIcon(rec: Json): string | null {
+export function remoteIcon(rec: Json): string | null {
   if (!rec?.id || !rec?.cat) return null;
   return `https://raw.githubusercontent.com/EXBO-Studio/stalzone-database/main/ru/icons/${rec.cat}/${String(
     rec.id,
@@ -759,7 +759,7 @@ function mimeOf(dataUrl: string): string {
 
 /* ------------------------------- stats ------------------------------- */
 
-function exboStats(rec: Json, labels: Record<string, string>): StatInput[] {
+export function exboStats(rec: Json, labels: Record<string, string>): StatInput[] {
   const out: StatInput[] = [];
   for (const [rawKey, value] of Object.entries<Json>(rec?.st ?? {})) {
     const key = rawKey;
@@ -771,7 +771,7 @@ function exboStats(rec: Json, labels: Record<string, string>): StatInput[] {
   return out;
 }
 
-function wikiStats(rec: Json, labels: Record<string, string>): StatInput[] {
+export function wikiStats(rec: Json, labels: Record<string, string>): StatInput[] {
   const out: StatInput[] = [];
   const push = (stat: Json, additional: boolean) => {
     const keyRaw = String(stat?.key ?? stat?.name?.key ?? '');
@@ -813,7 +813,7 @@ function wikiStats(rec: Json, labels: Record<string, string>): StatInput[] {
   return out;
 }
 
-function ttkStats(rec: Json): StatInput[] {
+export function ttkStats(rec: Json): StatInput[] {
   const out: StatInput[] = [];
   const dv = rec?.damageVariants ?? {};
   const variants: [string, string][] = [

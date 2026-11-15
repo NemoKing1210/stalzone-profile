@@ -1,8 +1,18 @@
 <script setup lang="ts">
 useHead({ title: 'Настройки — STALZONE Dossier' });
 
-const { payload, meta } = useDossier();
+const { payload, meta, refresh } = useDossier();
 const { formatAge, formatDate } = useFormat();
+const toast = useToast();
+
+interface SyncResult {
+  source: string;
+  status: 'ok' | 'stale';
+  items: number;
+  error?: string;
+}
+
+const syncing = ref<string | null>(null);
 
 const SOURCE_LABELS: Record<string, string> = {
   exbo_base: 'База EXBO',
@@ -14,6 +24,7 @@ const SOURCE_LABELS: Record<string, string> = {
 };
 
 const sources = computed(() => payload.value?.freshness.sources ?? []);
+const syncableSources = computed(() => sources.value.filter((source) => source.id !== 'local'));
 const catalogMeta = computed(() => meta.value?.catalogMeta ?? {});
 const metaInfo = computed(() => payload.value?.meta ?? {});
 const catalogUpdated = computed(() =>
@@ -51,6 +62,43 @@ function statusLabel(status: string): string {
   if (status === 'error') return 'ошибка';
   return 'не запускался';
 }
+
+async function syncSource(id: string): Promise<void> {
+  syncing.value = id;
+  try {
+    const response = await $fetch<{ results: SyncResult[] }>('/api/v1/admin/sync', {
+      method: 'POST',
+      body: { source: id },
+    });
+    const result = response.results[0];
+    if (result?.status === 'ok') {
+      toast.add({
+        title: 'Источник обновлён',
+        description: `${sourceLabel(id)}: записей — ${result.items}`,
+        color: 'success',
+        icon: 'i-lucide-check',
+      });
+    } else {
+      toast.add({
+        title: 'Источник недоступен',
+        description: result?.error ?? 'Сохранён последний удачный снимок',
+        color: 'warning',
+        icon: 'i-lucide-cloud-off',
+      });
+    }
+    await refresh();
+  } catch (error) {
+    const data = (error as { data?: { error?: { message?: string } } }).data;
+    toast.add({
+      title: 'Синхронизация не запущена',
+      description: data?.error?.message ?? 'Проверьте соединение и повторите',
+      color: 'error',
+      icon: 'i-lucide-triangle-alert',
+    });
+  } finally {
+    syncing.value = null;
+  }
+}
 </script>
 
 <template>
@@ -74,20 +122,18 @@ function statusLabel(status: string): string {
             <h2 class="font-medium">Источники данных</h2>
           </div>
           <div class="flex flex-wrap gap-1">
-            <UTooltip
-              v-for="source in sources"
+            <UButton
+              v-for="source in syncableSources"
               :key="source.id"
-              text="Ручная синхронизация подключается вместе с адаптерами источников"
-            >
-              <UButton
-                :label="sourceLabel(source.id)"
-                icon="i-lucide-refresh-cw"
-                color="neutral"
-                variant="outline"
-                size="xs"
-                disabled
-              />
-            </UTooltip>
+              :label="sourceLabel(source.id)"
+              icon="i-lucide-refresh-cw"
+              color="neutral"
+              variant="outline"
+              size="xs"
+              :loading="syncing === source.id"
+              :disabled="syncing !== null && syncing !== source.id"
+              @click="syncSource(source.id)"
+            />
           </div>
         </div>
       </template>

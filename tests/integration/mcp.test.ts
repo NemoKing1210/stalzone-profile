@@ -163,6 +163,18 @@ describe('MCP write safety', () => {
     expect(copies).toBe(22);
   });
 
+  it('runs a source sync through the MCP tool', async () => {
+    const result = await callTool('sync_source', {
+      source: 'profile',
+      force: false,
+      confirm: true,
+    });
+    expect(result.isError).not.toBe(true);
+    expect(result.structuredContent).toMatchObject({
+      result: { source: 'profile', status: 'ok', items: 1 },
+    });
+  });
+
   it('stops writes at the shared rate limit', async () => {
     const limited = createDossierServer(localClient(db), { limiter: { take: () => false } });
     const limitedClient = await connectInMemory(limited);
