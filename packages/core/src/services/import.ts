@@ -754,7 +754,7 @@ function createLocalArmor(db: Db, armor: Json) {
 
 function mimeOf(dataUrl: string): string {
   const m = /^data:([^;]+);/.exec(dataUrl);
-  return m ? m[1] : 'image/webp';
+  return m?.[1] ?? 'image/webp';
 }
 
 /* ------------------------------- stats ------------------------------- */

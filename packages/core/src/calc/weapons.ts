@@ -55,7 +55,8 @@ export function headMultiplier(rec: { txt?: string[] | null; stats?: Record<stri
   for (const line of rec?.txt ?? []) {
     if (!/голов/i.test(line)) continue;
     const m = line.match(/х\s*([\d.,]+)/i);
-    if (m) return parseFloat(m[1].replace(',', '.'));
+    const group = m?.[1];
+    if (group) return parseFloat(group.replace(',', '.'));
   }
   return 1.4;
 }
@@ -68,7 +69,8 @@ export function statAtLevel(stats: WeaponStatLike[], key: string, level: number)
   if (exact) return exact.value_num;
   const lower = rows.filter((s) => s.level < level).sort((a, b) => b.level - a.level)[0];
   if (lower) return lower.value_num;
-  return rows.sort((a, b) => a.level - b.level)[0].value_num;
+  const first = rows.sort((a, b) => a.level - b.level)[0];
+  return first?.value_num ?? null;
 }
 
 export function project15(

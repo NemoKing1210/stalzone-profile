@@ -71,10 +71,15 @@ function preferred(rows: StatRow[], key: string, level?: number): StatRow | null
     if (exact.length) pool = exact;
     else {
       const lower = pool.filter((r) => r.level < level).sort((a, b) => b.level - a.level);
-      if (lower.length) pool = [lower[0]];
+      const nearest = lower[0];
+      if (nearest) pool = [nearest];
     }
   }
-  return pool.sort((a, b) => (SOURCE_PRIORITY[a.source_id ?? ''] ?? 9) - (SOURCE_PRIORITY[b.source_id ?? ''] ?? 9))[0];
+  return (
+    pool.sort(
+      (a, b) => (SOURCE_PRIORITY[a.source_id ?? ''] ?? 9) - (SOURCE_PRIORITY[b.source_id ?? ''] ?? 9),
+    )[0] ?? null
+  );
 }
 
 function valueAt(rows: StatRow[], key: string, level: number): number | null {
@@ -116,7 +121,7 @@ function clsRu(item: ItemRow, raw: Json): string {
 }
 
 function catShort(item: ItemRow, raw: Json): string | null {
-  if (item.category?.includes('/')) return item.category.split('/')[1];
+  if (item.category?.includes('/')) return item.category.split('/')[1] ?? null;
   return raw?.catalog?.cat ?? raw?.details?.cat ?? raw?.ownedLegacy?.cat ?? null;
 }
 
