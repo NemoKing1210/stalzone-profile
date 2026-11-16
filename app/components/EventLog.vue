@@ -72,50 +72,52 @@ async function rollback(): Promise<void> {
 </script>
 
 <template>
-  <UCard :ui="{ body: 'p-0 sm:p-0' }">
-    <template #header>
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <div class="flex items-center gap-2">
-          <UIcon name="i-lucide-history" class="size-5 text-primary" />
-          <h2 class="font-medium">{{ t('events.title') }}</h2>
-        </div>
-        <UButton
-          icon="i-lucide-refresh-cw"
-          color="neutral"
-          variant="ghost"
-          size="xs"
-          :label="t('events.refresh')"
-          :loading="busy"
-          @click="refresh()"
-        />
-      </div>
+  <DossierPane flush :title="t('events.title')">
+    <template #actions>
+      <UButton
+        icon="i-lucide-refresh-cw"
+        color="neutral"
+        variant="ghost"
+        size="xs"
+        :label="t('events.refresh')"
+        :loading="busy"
+        @click="refresh()"
+      />
     </template>
 
-    <UTable v-if="events.length" :data="events" :columns="columns">
-      <template #at-cell="{ row }">
-        {{ formatDateTime(row.original.at) }}
-      </template>
-      <template #action-cell="{ row }">
-        <UBadge color="neutral" variant="subtle">{{ actionLabel(row.original.action) }}</UBadge>
-      </template>
-      <template #entityId-cell="{ row }">
-        <span class="font-mono">{{ row.original.entity }} / {{ row.original.entityId }}</span>
-      </template>
-      <template #actions-cell="{ row }">
-        <UButton
-          v-if="row.original.action !== 'rollback'"
-          icon="i-lucide-undo-2"
-          color="neutral"
-          variant="ghost"
-          size="xs"
-          :aria-label="t('events.rollbackAria', { id: row.original.id })"
-          @click="startRollback(row.original)"
-        />
-      </template>
-      <template #empty>
-        <span class="text-muted">{{ t('events.empty') }}</span>
-      </template>
-    </UTable>
+    <div v-if="events.length" class="max-h-[480px] overflow-auto">
+      <UTable :data="events" :columns="columns" sticky="header" class="min-w-[760px] text-[12.5px]">
+        <template #at-cell="{ row }">
+          <span class="whitespace-nowrap tabular-nums text-[var(--sz-text-muted)]">
+            {{ formatDateTime(row.original.at) }}
+          </span>
+        </template>
+        <template #action-cell="{ row }">
+          <span
+            class="inline-flex border border-[var(--sz-border)] px-1.5 py-0.5 text-[11px] uppercase leading-none tracking-[0.1em] text-[var(--sz-text-muted)]"
+          >
+            {{ actionLabel(row.original.action) }}
+          </span>
+        </template>
+        <template #entityId-cell="{ row }">
+          <span class="font-mono text-[11px]">{{ row.original.entity }} / {{ row.original.entityId }}</span>
+        </template>
+        <template #actions-cell="{ row }">
+          <UButton
+            v-if="row.original.action !== 'rollback'"
+            icon="i-lucide-undo-2"
+            color="neutral"
+            variant="ghost"
+            size="xs"
+            :aria-label="t('events.rollbackAria', { id: row.original.id })"
+            @click="startRollback(row.original)"
+          />
+        </template>
+        <template #empty>
+          <span class="text-[var(--sz-text-muted)]">{{ t('events.empty') }}</span>
+        </template>
+      </UTable>
+    </div>
     <div v-else class="p-4">
       <UEmpty
         icon="i-lucide-history"
@@ -123,19 +125,19 @@ async function rollback(): Promise<void> {
         :description="t('events.emptyDescription')"
       />
     </div>
+  </DossierPane>
 
-    <ConfirmActionModal
-      v-model:open="confirmOpen"
-      :title="t('events.rollbackTitle')"
-      :description="
-        t('events.rollbackConfirm', {
-          id: target?.id ?? '',
-          action: target ? actionLabel(target.action) : '',
-        })
-      "
-      :confirm-label="t('common.rollback')"
-      :loading="busy"
-      @confirm="rollback"
-    />
-  </UCard>
+  <ConfirmActionModal
+    v-model:open="confirmOpen"
+    :title="t('events.rollbackTitle')"
+    :description="
+      t('events.rollbackConfirm', {
+        id: target?.id ?? '',
+        action: target ? actionLabel(target.action) : '',
+      })
+    "
+    :confirm-label="t('common.rollback')"
+    :loading="busy"
+    @confirm="rollback"
+  />
 </template>

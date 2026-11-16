@@ -114,9 +114,17 @@ const effectsText = computed(() => {
   return typeof value === 'string' && value ? value : null;
 });
 
+const cardTitle = computed(() =>
+  props.kind === 'artifact' ? t('items.artifactCardTitle') : t('items.cardTitle'),
+);
+
 function label(key: string): string {
   const map = CARD_LABEL_KEYS[key];
   return map ? t(map) : key;
+}
+
+function scalar(value: unknown): string | number | null {
+  return typeof value === 'number' || typeof value === 'string' ? value : null;
 }
 
 function display(value: unknown): string {
@@ -143,111 +151,118 @@ function display(value: unknown): string {
 </script>
 
 <template>
-  <div class="space-y-4">
-    <div class="flex items-start gap-4">
+  <div class="min-w-0 space-y-4">
+    <div class="flex items-start gap-3">
       <img
         v-if="image"
         :src="image"
         :alt="props.name"
-        class="size-16 rounded-lg bg-elevated object-contain p-1"
+        class="size-16 shrink-0 border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] object-contain p-1"
         loading="lazy"
       >
-      <div v-else class="flex size-16 items-center justify-center rounded-lg bg-elevated">
-        <UIcon name="i-lucide-package" class="size-7 text-muted" />
+      <div
+        v-else
+        class="flex size-16 shrink-0 items-center justify-center border border-[var(--sz-border)] bg-[var(--sz-surface-alt)]"
+      >
+        <UIcon name="i-lucide-package" class="size-7 text-[var(--sz-text-dim)]" />
       </div>
       <div class="min-w-0 flex-1">
-        <p class="text-lg font-semibold">{{ props.name }}</p>
-        <p class="text-sm text-muted">
+        <p><RarityName :name="props.name" :rank="rank" size="lg" /></p>
+        <p class="text-[12.5px] text-[var(--sz-text-muted)]">
           {{ t(KIND_KEYS[props.kind] ?? 'items.kind.container') }}
           <span v-if="props.level != null">{{ t('items.level', { level: props.level }) }}</span>
         </p>
-        <div class="mt-1 flex flex-wrap items-center gap-2">
+        <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
           <RankBadge v-if="rank" :rank="rank" />
-          <UBadge v-if="quality" color="neutral" variant="subtle">{{ quality }}</UBadge>
+          <span
+            v-if="quality"
+            class="border border-[var(--sz-border)] px-1.5 py-0.5 text-[11px] uppercase leading-none tracking-[0.12em] text-[var(--sz-text-muted)]"
+          >
+            {{ quality }}
+          </span>
         </div>
       </div>
     </div>
 
-    <dl v-if="props.kind === 'weapon' && data" class="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-      <div class="rounded-md bg-elevated/60 p-2">
-        <dt class="text-xs text-muted">{{ t('items.damage') }}{{ data.dmg == null && data.dmg15 != null ? ' +15' : '' }}</dt>
-        <dd class="font-medium tabular-nums">{{ weaponDmg ?? '—' }}</dd>
-      </div>
-      <div class="rounded-md bg-elevated/60 p-2">
-        <dt class="text-xs text-muted">{{ t('items.dps') }}{{ data.dps == null && data.dps15 != null ? ' +15' : '' }}</dt>
-        <dd class="font-medium tabular-nums">{{ weaponDps ?? '—' }}</dd>
-      </div>
-      <div class="rounded-md bg-elevated/60 p-2">
-        <dt class="text-xs text-muted">{{ t('items.ttk') }}{{ data.ttk == null && data.ttk15 != null ? ' +15' : '' }}</dt>
-        <dd class="font-medium tabular-nums">{{ weaponTtk ?? '—' }}</dd>
-      </div>
-      <div class="rounded-md bg-elevated/60 p-2">
-        <dt class="text-xs text-muted">{{ t('items.magazine') }}</dt>
-        <dd class="font-medium tabular-nums">{{ data.mag ?? '—' }}</dd>
-      </div>
-    </dl>
+    <div
+      v-if="props.kind === 'weapon' && data"
+      class="grid grid-cols-1 gap-x-4 border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] px-2.5 py-1.5 sm:grid-cols-2"
+    >
+      <StatRow
+        :label="`${t('items.damage')}${data.dmg == null && data.dmg15 != null ? ' +15' : ''}`"
+        :value="scalar(weaponDmg)"
+      />
+      <StatRow
+        :label="`${t('items.dps')}${data.dps == null && data.dps15 != null ? ' +15' : ''}`"
+        :value="scalar(weaponDps)"
+      />
+      <StatRow
+        :label="`${t('items.ttk')}${data.ttk == null && data.ttk15 != null ? ' +15' : ''}`"
+        :value="scalar(weaponTtk)"
+      />
+      <StatRow :label="t('items.magazine')" :value="scalar(data.mag)" />
+    </div>
 
-    <dl v-else-if="props.kind === 'armor' && data" class="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
-      <div class="rounded-md bg-elevated/60 p-2">
-        <dt class="text-xs text-muted">{{ t('items.bulletProtection') }}</dt>
-        <dd class="font-medium tabular-nums">{{ armorValue ?? '—' }}</dd>
-      </div>
-      <div class="rounded-md bg-elevated/60 p-2">
-        <dt class="text-xs text-muted">{{ t('items.plus15') }}</dt>
-        <dd class="font-medium tabular-nums">{{ data.armor15 ?? cardBullet15 ?? '—' }}</dd>
-      </div>
-      <div class="rounded-md bg-elevated/60 p-2">
-        <dt class="text-xs text-muted">{{ t('items.fields.weight') }}</dt>
-        <dd class="font-medium tabular-nums">
-          {{ t('items.weightValue', { value: data.weight ?? card?.weight ?? '—' }) }}
-        </dd>
-      </div>
-    </dl>
+    <div
+      v-else-if="props.kind === 'armor' && data"
+      class="grid grid-cols-1 gap-x-4 border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] px-2.5 py-1.5 sm:grid-cols-2"
+    >
+      <StatRow :label="t('items.bulletProtection')" :value="scalar(armorValue)" />
+      <StatRow :label="t('items.plus15')" :value="scalar(data.armor15 ?? cardBullet15)" />
+      <StatRow
+        :label="t('items.fields.weight')"
+        :value="data.weight != null || card?.weight != null
+          ? t('items.weightValue', { value: data.weight ?? card?.weight })
+          : null"
+      />
+    </div>
 
-    <p v-if="props.kind === 'artifact' && effectsText" class="rounded-md bg-elevated/60 p-3 text-sm">
+    <p
+      v-if="props.kind === 'artifact' && effectsText"
+      class="border-l-2 border-[var(--sz-accent)] bg-[var(--sz-surface-alt)] px-3 py-2 text-[12.5px]"
+    >
       {{ effectsText }}
     </p>
 
-    <div v-if="props.kind === 'container' && (data || card)" class="space-y-2 text-sm">
-      <p class="text-muted">
+    <div v-if="props.kind === 'container' && (data || card)" class="space-y-2 text-[12.5px]">
+      <p class="text-[var(--sz-text-muted)]">
         {{ data?.type ?? card?.type ?? t('items.kind.container') }}
         · {{ t('items.slotsValue', { slots: data?.slots ?? card?.slots ?? '—', eff: data?.eff ?? card?.eff ?? '—' }) }}
         <span v-if="data?.prot ?? card?.prot"> · {{ t('items.protectionValue', { value: data?.prot ?? card?.prot }) }}</span>
         <span v-if="data?.shield ?? card?.shield"> · {{ t('items.shieldValue', { value: data?.shield ?? card?.shield }) }}</span>
       </p>
-      <p v-if="data?.bonus ?? card?.bonus" class="text-muted">
+      <p v-if="data?.bonus ?? card?.bonus" class="text-[var(--sz-text-muted)]">
         {{ t('items.bonusValue', { value: data?.bonus ?? card?.bonus }) }}
       </p>
       <ul class="flex flex-wrap gap-1">
         <li v-for="(artifact, index) in containerArtifacts" :key="`${artifact.name}-${index}`">
-          <UBadge color="neutral" variant="subtle">{{ artifact.name }} · {{ artifact.lvl }}</UBadge>
+          <span class="border border-[var(--sz-border)] px-1.5 py-0.5 text-[11px] uppercase tracking-[0.1em]">
+            {{ artifact.name }} · {{ artifact.lvl }}
+          </span>
         </li>
       </ul>
-      <p v-if="containerAsOf" class="text-xs text-muted">
+      <p v-if="containerAsOf" class="text-[11px] text-[var(--sz-text-dim)]">
         {{ t('items.fillAsOf', { date: formatDate(containerAsOf) }) }}
       </p>
     </div>
 
     <div v-if="entries.length" class="space-y-1">
-      <p class="text-sm font-medium">{{ t('items.cardTitle') }}</p>
-      <dl class="divide-y divide-default rounded-md border border-default text-sm">
+      <p class="sz-caps text-[11px] text-[var(--sz-text-muted)]">{{ cardTitle }}</p>
+      <dl class="divide-y divide-[var(--sz-border)] border border-[var(--sz-border)] text-[12.5px]">
         <div v-for="[key, value] in entries" :key="key" class="grid grid-cols-3 gap-2 px-3 py-1.5">
-          <dt class="text-muted">{{ label(key) }}</dt>
+          <dt class="text-[var(--sz-text-muted)]">{{ label(key) }}</dt>
           <dd class="col-span-2 break-words">{{ display(value) }}</dd>
         </div>
       </dl>
     </div>
-    <UAlert
-      v-else
-      color="neutral"
-      variant="subtle"
-      :title="t('items.notFoundTitle')"
-      :description="t('items.notFoundDescription')"
-    />
+    <div v-else class="border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] px-3 py-2">
+      <p class="text-[12.5px] font-medium">{{ t('items.notFoundTitle') }}</p>
+      <p class="text-[11px] text-[var(--sz-text-muted)]">{{ t('items.notFoundDescription') }}</p>
+    </div>
 
-    <details v-if="card" class="text-xs text-muted">
+    <details v-if="card" class="text-[11px] text-[var(--sz-text-muted)]">
       <summary class="cursor-pointer">{{ t('items.rawData') }}</summary>
-      <pre class="mt-2 max-h-64 overflow-auto rounded-md bg-elevated p-2">{{ JSON.stringify(card, null, 2) }}</pre>
+      <pre class="mt-2 max-h-64 overflow-auto border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] p-2">{{ JSON.stringify(card, null, 2) }}</pre>
     </details>
   </div>
 </template>

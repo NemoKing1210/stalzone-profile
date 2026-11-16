@@ -40,24 +40,30 @@ async function logout(): Promise<void> {
 </script>
 
 <template>
-  <div class="min-h-screen bg-default text-default">
-    <header class="sticky top-0 z-40 border-b border-default bg-default/90 backdrop-blur">
-      <div class="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
-        <NuxtLink to="/" class="flex items-center gap-2 font-semibold">
-          <UIcon name="i-lucide-folder-search" class="size-6 text-primary" />
-          <span class="hidden sm:inline">Stalzone Profile</span>
+  <div class="flex min-h-screen flex-col bg-[var(--sz-bg)] text-[var(--sz-text)]">
+    <header class="sticky top-0 z-40 border-b border-[var(--sz-border)] bg-ink-950">
+      <div class="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-4 px-4 sm:px-6">
+        <NuxtLink to="/" class="flex h-12 shrink-0 items-center gap-1.5">
+          <span class="font-brand text-[17px] leading-none tracking-[0.12em]">{{ t('common.brandLeft') }}</span>
+          <span class="hidden text-[17px] leading-none text-[var(--sz-accent)] sm:inline">//</span>
+          <span class="hidden font-brand text-[17px] leading-none tracking-[0.12em] sm:inline">{{ t('common.brandRight') }}</span>
         </NuxtLink>
 
-        <div class="order-3 w-full min-w-0 overflow-x-auto sm:order-none sm:w-auto sm:flex-1">
+        <div class="sz-nav order-3 w-full min-w-0 overflow-x-auto lg:order-none lg:w-auto lg:flex-1">
           <UNavigationMenu
             :items="navItems"
             orientation="horizontal"
             class="min-w-max"
-            :ui="{ list: 'gap-0.5' }"
+            :ui="{
+              list: 'h-full gap-0',
+              item: 'py-0',
+              link: 'gap-1 rounded-none px-2 py-0 text-[var(--sz-text-muted)] hover:text-[var(--sz-text)]',
+              linkLeadingIcon: 'size-4',
+            }"
           />
         </div>
 
-        <div class="ml-auto flex items-center gap-2">
+        <div class="ml-auto flex items-center gap-1">
           <FreshnessBadge
             :data-updated="meta?.freshness?.dataUpdated"
             :prices-age-min="meta?.freshness?.pricesAgeMin"
@@ -68,12 +74,14 @@ async function logout(): Promise<void> {
             icon="i-lucide-settings"
             color="neutral"
             variant="ghost"
+            size="sm"
             :aria-label="t('nav.settings')"
           />
           <UButton
             icon="i-lucide-log-out"
             color="neutral"
             variant="ghost"
+            size="sm"
             :aria-label="t('nav.logout')"
             :loading="loggingOut"
             @click="logout"
@@ -82,11 +90,11 @@ async function logout(): Promise<void> {
       </div>
     </header>
 
-    <main class="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
+    <main class="mx-auto w-full max-w-[1600px] flex-1 px-4 py-4 sm:px-6">
       <slot />
     </main>
 
-    <footer class="border-t border-default py-4 text-center text-xs text-muted">
+    <footer class="border-t border-[var(--sz-border)] px-4 py-2 text-[11px] text-[var(--sz-text-dim)] sm:px-6">
       {{ t('nav.footer') }}
       <span class="sr-only">{{ t('nav.currentSection', { path: route.path }) }}</span>
     </footer>

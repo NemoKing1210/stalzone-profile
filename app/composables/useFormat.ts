@@ -1,16 +1,13 @@
 import { dec, fmtMoney, g1, g2, num } from '@dossier/shared/format';
 import { RANK_COLOR, rankKey } from '@dossier/shared/ranks';
+import { formatDateValue } from '../utils/formatDateValue';
+import { rankTextColor as rankTextColorValue } from '../utils/rankText';
 
 export function useFormat() {
   const { locale, t } = useI18n();
   const intlLocale = computed(() => (locale.value === 'ru' ? 'ru-RU' : 'en-US'));
 
-  const formatDate = (iso: string | null | undefined): string => {
-    if (!iso) return '—';
-    const date = new Date(iso);
-    if (Number.isNaN(date.getTime())) return '—';
-    return new Intl.DateTimeFormat(intlLocale.value, { dateStyle: 'medium' }).format(date);
-  };
+  const formatDate = (iso: string | null | undefined): string => formatDateValue(iso, intlLocale.value);
 
   const formatAge = (minutes: number | null | undefined): string => {
     if (minutes == null) return t('common.noData');
@@ -35,5 +32,6 @@ export function useFormat() {
       const key = rankKey(raw);
       return key ? RANK_COLOR[key] : null;
     },
+    rankTextColor: (raw: string | null | undefined) => rankTextColorValue(raw),
   };
 }

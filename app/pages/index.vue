@@ -2,13 +2,21 @@
 const { t } = useI18n();
 useHead(() => ({ title: `${t('overview.pageTitle')} — ${t('common.appName')}` }));
 
-const { payload } = useDossier();
-const { fmtMoney, dec, num, formatDate } = useFormat();
+const { payload, meta } = useDossier();
+const { fmtMoney, dec, num, formatDate, formatAge } = useFormat();
 
 const character = computed(() => payload.value?.character ?? {});
 const hasCharacter = computed(() => Object.keys(character.value).length > 0);
 const metaInfo = computed(() => payload.value?.meta ?? {});
+const catalogMeta = computed(() => meta.value?.catalogMeta ?? {});
 const editOpen = ref(false);
+
+const catalogUpdated = computed(() =>
+  typeof catalogMeta.value.updated === 'string' ? catalogMeta.value.updated : null,
+);
+const catalogSource = computed(() =>
+  typeof catalogMeta.value.source === 'string' ? catalogMeta.value.source : null,
+);
 
 const counts = computed(() => [
   { label: t('nav.weapons'), value: payload.value?.weapons.length ?? 0, icon: 'i-lucide-crosshair', to: '/weapons' },
@@ -51,6 +59,13 @@ const stats = computed(() => [
   { label: t('overview.stats.inZoneSince'), value: formatDate(character.value.arrived) },
 ]);
 
+const dataState = computed(() => [
+  { label: t('settings.dossierUpdated'), value: formatDate(payload.value?.freshness.dataUpdated) },
+  { label: t('settings.prices'), value: formatAge(payload.value?.freshness.pricesAgeMin) },
+  { label: t('settings.catalogUpdated'), value: formatDate(catalogUpdated.value) },
+  { label: t('settings.catalogSource'), value: catalogSource.value },
+]);
+
 const career = computed(() => {
   const list = payload.value?.career ?? [];
   return list
@@ -60,93 +75,108 @@ const career = computed(() => {
 </script>
 
 <template>
-  <section class="space-y-6">
+  <section class="space-y-4">
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <p class="text-sm text-muted">{{ t('overview.kicker') }}</p>
-        <h1 class="text-3xl font-semibold">{{ character.nick ?? 'STALZONE' }}</h1>
-        <p class="text-sm text-muted">
+        <p class="sz-caps text-[11px] text-[var(--sz-text-dim)]">{{ t('overview.kicker') }}</p>
+        <h1>{{ character.nick ?? 'STALZONE' }}</h1>
+        <p class="text-[12.5px] text-[var(--sz-text-muted)]">
           {{ character.faction ?? t('overview.factionMissing') }}
           <span v-if="character.clan"> · {{ character.clan }}</span>
           <span v-if="character.realm"> · {{ character.realm }}</span>
         </p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
-        <UButton
-          v-if="hasCharacter"
-          icon="i-lucide-pencil"
-          color="neutral"
-          variant="outline"
-          :label="t('overview.editProfile')"
-          @click="editOpen = true"
-        />
-        <UBadge color="neutral" variant="subtle" icon="i-lucide-shield-check">{{ t('overview.ownerOnly') }}</UBadge>
+        <span
+          class="inline-flex items-center gap-1.5 border border-[var(--sz-border)] px-1.5 py-1 text-[11px] uppercase tracking-[0.12em] text-[var(--sz-text-muted)]"
+        >
+          <UIcon name="i-lucide-shield-check" class="size-3.5" />
+          {{ t('overview.ownerOnly') }}
+        </span>
       </div>
     </div>
 
     <template v-if="hasCharacter">
-      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <NuxtLink v-for="card in counts" :key="card.to" :to="card.to" class="block">
-          <UCard class="h-full transition hover:border-primary/40">
-            <div class="flex items-center justify-between">
-              <UIcon :name="card.icon" class="size-5 text-primary" />
-              <span class="text-2xl font-semibold tabular-nums">{{ card.value }}</span>
+      <div class="grid grid-cols-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)_320px]">
+        <DossierPane class="order-1 min-w-0" :title="t('overview.character')" dense>
+          <div class="flex gap-3">
+            <div
+              class="flex h-[112px] w-[86px] shrink-0 items-center justify-center border border-[var(--sz-border)] bg-[var(--sz-surface-alt)]"
+              aria-hidden="true"
+            >
+              <UIcon name="i-lucide-user-round" class="size-9 text-[var(--sz-text-dim)]" />
             </div>
-            <p class="mt-2 text-sm text-muted">{{ card.label }}</p>
-          </UCard>
-        </NuxtLink>
-      </div>
-
-      <div class="grid gap-4 lg:grid-cols-[2fr_1fr]">
-        <UCard>
-          <template #header>
-            <div class="flex items-center gap-2">
-              <UIcon name="i-lucide-user-round" class="size-5 text-primary" />
-              <h2 class="font-medium">{{ t('overview.character') }}</h2>
+            <div class="min-w-0 flex-1 space-y-1">
+              <p class="font-display text-[15px] uppercase tracking-[0.06em]">{{ character.nick ?? 'STALZONE' }}</p>
+              <p class="text-[12.5px] text-[var(--sz-text-muted)]">
+                {{ character.faction ?? t('overview.factionMissing') }}
+                <span v-if="character.clan"> · {{ character.clan }}</span>
+              </p>
+              <p v-if="character.playstyle" class="text-[11px] text-[var(--sz-text-muted)]">
+                {{ t('overview.playstyle', { value: character.playstyle }) }}
+              </p>
+              <UButton
+                v-if="hasCharacter"
+                icon="i-lucide-pencil"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                :label="t('overview.editProfile')"
+                @click="editOpen = true"
+              />
             </div>
-          </template>
-          <dl class="grid gap-3 sm:grid-cols-2">
-            <div v-for="stat in stats" :key="stat.label" class="rounded-md bg-elevated/60 p-3">
-              <dt class="text-xs text-muted">{{ stat.label }}</dt>
-              <dd class="font-medium tabular-nums">{{ stat.value }}</dd>
-            </div>
-          </dl>
-          <p v-if="character.stash || character.playstyle" class="mt-3 text-sm text-muted">
-            <span v-if="character.stash">{{ t('overview.stash', { value: character.stash }) }}</span>
-            <span v-if="character.playstyle"> {{ t('overview.playstyle', { value: character.playstyle }) }}</span>
-          </p>
-        </UCard>
-
-        <UCard>
-          <template #header>
-            <div class="flex items-center gap-2">
-              <UIcon name="i-lucide-chart-no-axes-column" class="size-5 text-primary" />
-              <h2 class="font-medium">{{ t('overview.career') }}</h2>
-            </div>
-          </template>
-          <dl v-if="career.length" class="grid grid-cols-1 gap-x-4 gap-y-1 text-sm">
-            <div v-for="entry in career" :key="entry.label" class="flex justify-between gap-3 border-b border-default py-1">
-              <dt class="text-muted">{{ entry.label }}</dt>
-              <dd class="tabular-nums">{{ num(entry.value) }}</dd>
-            </div>
-          </dl>
-          <p v-else class="text-sm text-muted">{{ t('overview.careerEmpty') }}</p>
-        </UCard>
-      </div>
-
-      <UCard>
-        <template #header>
-          <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-info" class="size-5 text-primary" />
-            <h2 class="font-medium">{{ t('overview.about') }}</h2>
           </div>
-        </template>
-        <p class="text-sm text-muted">
-          {{ t('overview.aboutSnapshot', { date: formatDate(payload?.freshness.dataUpdated) }) }}
-          <span v-if="metaInfo.source"> {{ t('overview.aboutSources', { sources: metaInfo.source }) }}</span>
-          {{ t('overview.aboutNote') }}
-        </p>
-      </UCard>
+
+          <div class="mt-3 divide-y divide-[var(--sz-border)] border-t border-[var(--sz-border)]">
+            <StatRow v-for="stat in stats" :key="stat.label" :label="stat.label" :value="stat.value" />
+          </div>
+
+          <p v-if="character.stash" class="mt-2 text-[12.5px] text-[var(--sz-text-muted)]">
+            {{ t('overview.stash', { value: character.stash }) }}
+          </p>
+        </DossierPane>
+
+        <div class="order-2 min-w-0 space-y-4 lg:order-3">
+          <DossierPane :title="t('overview.sections')" dense>
+            <NuxtLink
+              v-for="card in counts"
+              :key="card.to"
+              :to="card.to"
+              class="flex items-center gap-2 border-b border-[var(--sz-border)] px-1 py-2 text-[12.5px] last:border-b-0 hover:bg-[var(--sz-surface-alt)]"
+            >
+              <UIcon :name="card.icon" class="size-4 text-[var(--sz-text-dim)]" />
+              <span class="flex-1">{{ card.label }}</span>
+              <span class="tabular-nums text-[var(--sz-text-muted)]">{{ card.value }}</span>
+              <UIcon name="i-lucide-chevron-right" class="size-3.5 text-[var(--sz-text-dim)]" />
+            </NuxtLink>
+          </DossierPane>
+
+          <DossierPane :title="t('overview.dataState')" dense>
+            <div class="divide-y divide-[var(--sz-border)]">
+              <StatRow v-for="entry in dataState" :key="entry.label" :label="entry.label" :value="entry.value" />
+            </div>
+            <p class="mt-2 text-[11px] leading-relaxed text-[var(--sz-text-dim)]">
+              {{ t('overview.aboutSnapshot', { date: formatDate(payload?.freshness.dataUpdated) }) }}
+              <span v-if="metaInfo.source"> {{ t('overview.aboutSources', { sources: metaInfo.source }) }}</span>
+              {{ t('overview.aboutNote') }}
+            </p>
+          </DossierPane>
+        </div>
+
+        <DossierPane class="order-3 min-w-0 lg:order-2" :title="t('overview.career')" dense>
+          <div v-if="career.length" class="divide-y divide-[var(--sz-border)]">
+            <div
+              v-for="entry in career"
+              :key="entry.label"
+              class="flex justify-between gap-3 py-1.5 text-[12.5px]"
+            >
+              <span class="min-w-0 break-words text-[var(--sz-text-muted)]">{{ entry.label }}</span>
+              <span class="shrink-0 tabular-nums">{{ num(entry.value) }}</span>
+            </div>
+          </div>
+          <p v-else class="text-[12.5px] text-[var(--sz-text-muted)]">{{ t('overview.careerEmpty') }}</p>
+        </DossierPane>
+      </div>
     </template>
 
     <UEmpty

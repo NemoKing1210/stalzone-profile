@@ -67,16 +67,12 @@ const rowColumns = computed(() => [
   <section class="space-y-4">
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-semibold">{{ t('builds.title') }}</h1>
-        <p class="text-sm text-muted">
+        <h1>{{ t('builds.title') }}</h1>
+        <p class="text-[12.5px] text-[var(--sz-text-muted)]">
           {{ t('builds.count', { count: items.length }) }}
           <span v-if="builds?.updated"> · {{ t('builds.updated', { date: formatDate(builds.updated) }) }}</span>
         </p>
       </div>
-      <FreshnessBadge
-        :data-updated="payload?.freshness.dataUpdated"
-        :prices-age-min="payload?.freshness.pricesAgeMin"
-      />
     </div>
 
     <UAlert
@@ -88,68 +84,63 @@ const rowColumns = computed(() => [
       :description="builds.priceNote"
     />
 
-    <UCard v-if="current">
-      <template #header>
-        <div class="flex flex-wrap items-center gap-2">
-          <UIcon name="i-lucide-package-check" class="size-5 text-primary" />
-          <h2 class="font-medium">{{ current.title ?? t('builds.currentFallback') }}</h2>
-        </div>
-      </template>
-      <p v-if="current.note" class="text-sm text-muted">{{ current.note }}</p>
-      <ul v-if="current.rows?.length" class="mt-3 flex flex-wrap gap-1">
+    <DossierPane v-if="current" :title="current.title ?? t('builds.currentFallback')" dense>
+      <p v-if="current.note" class="text-[12.5px] text-[var(--sz-text-muted)]">{{ current.note }}</p>
+      <ul v-if="current.rows?.length" class="mt-2 flex flex-wrap gap-1">
         <li v-for="row in current.rows" :key="row.name">
-          <UBadge color="neutral" variant="subtle">{{ row.name }} · +{{ row.lvl }}</UBadge>
+          <span class="border border-[var(--sz-border)] px-1.5 py-0.5 text-[11px] uppercase tracking-[0.1em]">
+            {{ row.name }} · +{{ row.lvl }}
+          </span>
         </li>
       </ul>
-    </UCard>
+    </DossierPane>
 
     <div v-if="items.length" class="space-y-4">
-      <UCard v-for="build in items" :key="build.id">
+      <DossierPane v-for="build in items" :key="build.id" :label="build.title" dense>
         <template #header>
-          <div class="flex flex-wrap items-start justify-between gap-2">
-            <div>
-              <div class="flex flex-wrap items-center gap-2">
-                <h2 class="text-lg font-semibold">{{ build.title }}</h2>
-                <UBadge v-if="build.tag" color="primary" variant="subtle">{{ build.tag }}</UBadge>
-              </div>
-              <p v-if="build.short" class="text-sm text-muted">{{ build.short }}</p>
-              <p v-if="build.goal" class="mt-1 text-sm">{{ build.goal }}</p>
-            </div>
-            <dl class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-4">
-              <div>
-                <dt class="text-xs text-muted">{{ t('builds.container') }}</dt>
-                <dd>{{ build.container ?? '—' }}</dd>
-              </div>
-              <div>
-                <dt class="text-xs text-muted">{{ t('builds.slots') }}</dt>
-                <dd class="tabular-nums">{{ build.slots ?? '—' }}</dd>
-              </div>
-              <div>
-                <dt class="text-xs text-muted">{{ t('builds.budget') }}</dt>
-                <dd class="tabular-nums">{{ fmtMoney(build.budget) }}</dd>
-              </div>
-              <div>
-                <dt class="text-xs text-muted">{{ t('builds.total') }}</dt>
-                <dd class="tabular-nums">{{ fmtMoney(build.total) }}</dd>
-              </div>
-            </dl>
-            <UButton
-              icon="i-lucide-pencil"
-              color="neutral"
-              variant="ghost"
-              size="xs"
-              :aria-label="t('builds.editAria', { title: build.title })"
-              @click="startEdit(build)"
-            />
+          <div class="flex min-w-0 flex-wrap items-center gap-2">
+            <h2 class="sz-caps truncate text-[var(--sz-text-muted)]" :title="build.title">{{ build.title }}</h2>
+            <span
+              v-if="build.tag"
+              class="border border-[var(--sz-border)] px-1.5 py-0.5 text-[11px] uppercase leading-none tracking-[0.12em] text-[var(--sz-accent)]"
+            >
+              {{ build.tag }}
+            </span>
           </div>
         </template>
+        <template #actions>
+          <UButton
+            icon="i-lucide-pencil"
+            color="neutral"
+            variant="ghost"
+            size="xs"
+            :aria-label="t('builds.editAria', { title: build.title })"
+            @click="startEdit(build)"
+          />
+        </template>
 
-        <div class="space-y-4">
-          <dl v-if="build.metrics.length" class="grid grid-cols-2 gap-2 text-sm lg:grid-cols-4">
-            <div v-for="metric in build.metrics" :key="metric.l" class="rounded-md bg-elevated/60 p-2">
-              <dt class="text-xs text-muted">{{ metric.l }}</dt>
-              <dd class="font-medium tabular-nums">{{ metric.v }}</dd>
-              <dd v-if="metric.s" class="text-xs text-muted">{{ metric.s }}</dd>
+        <div class="space-y-3">
+          <div v-if="build.short || build.goal" class="space-y-1">
+            <p v-if="build.short" class="text-[12.5px] text-[var(--sz-text-muted)]">{{ build.short }}</p>
+            <p v-if="build.goal" class="text-[12.5px]">{{ build.goal }}</p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-x-4 border-y border-[var(--sz-border)] py-1 sm:grid-cols-4">
+            <StatRow :label="t('builds.container')" :value="build.container ?? '—'" />
+            <StatRow :label="t('builds.slots')" :value="build.slots ?? '—'" />
+            <StatRow :label="t('builds.budget')" :value="fmtMoney(build.budget)" />
+            <StatRow :label="t('builds.total')" :value="fmtMoney(build.total)" />
+          </div>
+
+          <dl v-if="build.metrics.length" class="grid grid-cols-2 gap-2 lg:grid-cols-4">
+            <div
+              v-for="metric in build.metrics"
+              :key="metric.l"
+              class="border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] px-2 py-1"
+            >
+              <dt class="sz-caps text-[11px] text-[var(--sz-text-muted)]">{{ metric.l }}</dt>
+              <dd class="text-[12.5px] font-medium tabular-nums">{{ metric.v }}</dd>
+              <dd v-if="metric.s" class="text-[11px] text-[var(--sz-text-muted)]">{{ metric.s }}</dd>
             </div>
           </dl>
 
@@ -158,6 +149,8 @@ const rowColumns = computed(() => [
               :data="build.rows"
               :columns="rowColumns"
               :on-select="(_event, row) => openRow(row.original)"
+              class="min-w-[720px]"
+              :ui="{ td: 'whitespace-normal align-top' }"
             >
               <template #price-cell="{ row }">
                 <PriceCell :price="row.original.price" :lots="row.original.lots" />
@@ -166,7 +159,7 @@ const rowColumns = computed(() => [
                 <RankBadge :rank="row.original.rank" />
               </template>
               <template #empty>
-                <span class="text-muted">{{ t('builds.emptyRows') }}</span>
+                <span class="text-[var(--sz-text-muted)]">{{ t('builds.emptyRows') }}</span>
               </template>
             </UTable>
           </div>
@@ -180,7 +173,7 @@ const rowColumns = computed(() => [
             :description="build.verdict"
           />
         </div>
-      </UCard>
+      </DossierPane>
     </div>
     <UEmpty
       v-else
@@ -189,22 +182,16 @@ const rowColumns = computed(() => [
       :description="t('builds.emptyDescription')"
     />
 
-    <UCard v-if="avoid.length">
-      <template #header>
-        <div class="flex items-center gap-2">
-          <UIcon name="i-lucide-triangle-alert" class="size-5 text-warning" />
-          <h2 class="font-medium">{{ t('builds.avoidTitle') }}</h2>
-        </div>
-      </template>
-      <ul class="space-y-2 text-sm">
-        <li v-for="item in avoid" :key="item.name">
+    <DossierPane v-if="avoid.length" :title="t('builds.avoidTitle')" dense>
+      <ul class="divide-y divide-[var(--sz-border)]">
+        <li v-for="item in avoid" :key="item.name" class="py-1.5 text-[12.5px]">
           <span class="font-medium">{{ item.name }}</span>
-          <span class="text-muted"> — {{ item.why }}</span>
+          <span class="text-[var(--sz-text-muted)]">: {{ item.why }}</span>
         </li>
       </ul>
-    </UCard>
+    </DossierPane>
 
-    <p class="text-xs text-muted">
+    <p class="text-[11px] text-[var(--sz-text-dim)]">
       {{ t('builds.hint') }}
     </p>
 
@@ -216,6 +203,9 @@ const rowColumns = computed(() => [
           :kind="selected.kind"
           :card="selected.card"
         />
+      </template>
+      <template #footer>
+        <KeyHint :keys="['Esc']" :label="t('common.close')" />
       </template>
     </UModal>
 

@@ -38,6 +38,9 @@
     "hash-password": "tsx scripts/cli.ts hash-password"
   },
   "dependencies": {
+    "@fontsource/bebas-neue": "^5.3.0",
+    "@fontsource/oswald": "^5.3.0",
+    "@fontsource/roboto-condensed": "^5.3.0",
     "@iconify-json/lucide": "^1.2.155",
     "@modelcontextprotocol/sdk": "^1.32.2",
     "@nuxt/ui": "^4.12.0",

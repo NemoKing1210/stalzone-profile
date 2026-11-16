@@ -6,8 +6,9 @@ const { t } = useI18n();
 useHead(() => ({ title: `${t('artifacts.pageTitle')} — ${t('common.appName')}` }));
 
 const { payload } = useDossier();
-const filters = useFilters('artifacts', { q: '', type: 'all', sort: 'name' });
+const filters = useFilters('artifacts', { q: '', type: 'all', sort: 'name', rank: ALL_RANKS });
 const selected = ref<ArtifactPayload | null>(null);
+const dialogOpen = ref(false);
 const editTarget = ref<OwnedEditTarget | null>(null);
 const editOpen = computed({
   get: () => editTarget.value !== null,
@@ -15,14 +16,9 @@ const editOpen = computed({
     if (!value) editTarget.value = null;
   },
 });
-const modalOpen = computed({
-  get: () => selected.value !== null,
-  set: (value: boolean) => {
-    if (!value) selected.value = null;
-  },
-});
 
 const artifacts = computed(() => payload.value?.artifacts ?? []);
+const rankItems = computed(() => rankOptions(t));
 
 const typeItems = computed(() => {
   const types = [...new Set(artifacts.value.map((artifact) => artifact.type).filter(Boolean))] as string[];
@@ -40,6 +36,7 @@ const sortItems = computed(() => [
 const filtered = computed(() => {
   const query = filters.q.trim().toLowerCase();
   const list = artifacts.value.filter((artifact) => {
+    if (filters.rank !== ALL_RANKS && artifact.rank !== filters.rank) return false;
     if (filters.type !== 'all' && artifact.type !== filters.type) return false;
     if (!query) return true;
     return [artifact.name, artifact.type, artifact.effects]
@@ -58,6 +55,18 @@ const details = computed(() => payload.value?.details ?? {});
 const selectedCard = computed(() =>
   selected.value ? findDetailsCard(details.value, 'art', selected.value.name) : null,
 );
+
+function cardStats(artifact: ArtifactPayload): { label: string; value: string }[] {
+  return [
+    { label: '', value: artifact.q ?? '—' },
+    { label: '', value: `+${artifact.lvl}` },
+  ];
+}
+
+function selectArtifact(artifact: ArtifactPayload): void {
+  selected.value = artifact;
+  if (import.meta.client && window.matchMedia('(max-width: 1023px)').matches) dialogOpen.value = true;
+}
 
 function startEdit(artifact: ArtifactPayload): void {
   if (artifact.ownedId == null) return;
@@ -80,96 +89,143 @@ function startEdit(artifact: ArtifactPayload): void {
   <section class="space-y-4">
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-semibold">{{ t('artifacts.title') }}</h1>
-        <p class="text-sm text-muted">
+        <h1>{{ t('artifacts.title') }}</h1>
+        <p class="text-[12.5px] text-[var(--sz-text-muted)]">
           {{ t('artifacts.summary', { shown: filtered.length, total: artifacts.length }) }}
         </p>
       </div>
-      <FreshnessBadge
-        :data-updated="payload?.freshness.dataUpdated"
-        :prices-age-min="payload?.freshness.pricesAgeMin"
-      />
     </div>
 
-    <div class="flex flex-wrap items-center gap-2">
-      <UInput
-        v-model="filters.q"
-        icon="i-lucide-search"
-        :placeholder="t('filters.searchArtifacts')"
-        class="w-full sm:w-72"
-      />
-      <USelect v-model="filters.type" :items="typeItems" class="w-52" :aria-label="t('filters.artifactType')" />
-      <USelect v-model="filters.sort" :items="sortItems" class="w-64" :aria-label="t('filters.sort')" />
-      <UButton
-        v-if="filters.q || filters.type !== 'all'"
-        icon="i-lucide-x"
-        color="neutral"
-        variant="ghost"
-        :label="t('common.reset')"
-        @click="
-          () => {
-            filters.q = '';
-            filters.type = 'all';
-          }
-        "
-      />
-    </div>
+    <div v-if="artifacts.length" class="grid grid-cols-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+      <DossierPane :title="t('artifacts.filtersTitle')" dense>
+        <div class="space-y-2">
+          <UInput
+            v-model="filters.q"
+            icon="i-lucide-search"
+            size="xs"
+            :placeholder="t('filters.searchArtifacts')"
+            class="w-full"
+          />
+          <USelect
+            v-model="filters.type"
+            :items="typeItems"
+            size="xs"
+            class="w-full"
+            :aria-label="t('filters.artifactType')"
+          />
+          <USelect
+            v-model="filters.rank"
+            :items="rankItems"
+            size="xs"
+            class="w-full"
+            :aria-label="t('filters.rank')"
+          />
+          <USelect
+            v-model="filters.sort"
+            :items="sortItems"
+            size="xs"
+            class="w-full"
+            :aria-label="t('filters.sort')"
+          />
+          <UButton
+            v-if="filters.q || filters.type !== 'all' || filters.rank !== ALL_RANKS"
+            icon="i-lucide-x"
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            :label="t('common.reset')"
+            @click="
+              () => {
+                filters.q = '';
+                filters.type = 'all';
+                filters.rank = ALL_RANKS;
+              }
+            "
+          />
+          <p class="border-t border-[var(--sz-border)] pt-2 text-[11px] tabular-nums text-[var(--sz-text-dim)]">
+            {{ filtered.length }} / {{ artifacts.length }}
+          </p>
+        </div>
+      </DossierPane>
 
-    <div v-if="filtered.length" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      <div v-for="artifact in filtered" :key="`${artifact.name}-${artifact.lvl}`" class="relative">
-        <UCard class="h-full transition hover:border-primary/40">
-          <div class="flex items-start gap-3">
-            <img
-              v-if="artifact.icon"
-              :src="artifact.icon"
-              :alt="artifact.name"
-              class="size-12 rounded-md bg-elevated object-contain p-1"
-              loading="lazy"
+      <div class="space-y-4">
+        <DossierPane
+          :label="t('artifacts.title')"
+          flush
+          :hint="`${filtered.length} / ${artifacts.length}`"
+        >
+          <template #header>
+            <span class="sz-caps truncate text-[var(--sz-text-muted)]">{{ t('artifacts.title') }}</span>
+          </template>
+          <div class="p-2">
+            <div
+              v-if="filtered.length"
+              data-testid="artifact-grid"
+              class="grid grid-cols-1 gap-2 lg:grid-cols-2"
             >
-            <div v-else class="flex size-12 items-center justify-center rounded-md bg-elevated">
-              <UIcon name="i-lucide-gem" class="size-6 text-muted" />
+              <DossierItemCard
+                v-for="(artifact, index) in filtered"
+                :key="`${artifact.name}-${artifact.lvl}`"
+                :name="artifact.name"
+                :rank="artifact.rank"
+                :category="artifact.type"
+                :icon="artifact.icon"
+                :description="artifact.effects ?? undefined"
+                :stats="cardStats(artifact)"
+                :selected="selected?.name === artifact.name && selected?.lvl === artifact.lvl"
+                :priority="index === 0"
+                @select="selectArtifact(artifact)"
+              />
             </div>
-            <div class="min-w-0 flex-1">
-              <p class="font-medium">{{ artifact.name }}</p>
-              <p class="text-xs text-muted">{{ artifact.type ?? t('artifacts.typeFallback') }}</p>
-              <div class="mt-1 flex flex-wrap gap-1">
-                <RankBadge :rank="artifact.rank" />
-                <UBadge v-if="artifact.q" color="neutral" variant="subtle">{{ artifact.q }}</UBadge>
-                <UBadge color="neutral" variant="subtle">+{{ artifact.lvl }}</UBadge>
-              </div>
-            </div>
+            <UEmpty
+              v-else
+              icon="i-lucide-gem"
+              :title="t('common.empty')"
+              :description="artifacts.length ? t('filters.noMatch') : t('artifacts.emptyDescription')"
+            />
+          </div>
+        </DossierPane>
+
+        <DossierPane :title="t('artifacts.detailTitle')" dense>
+          <template v-if="selected?.ownedId" #actions>
             <UButton
-              v-if="artifact.ownedId"
               icon="i-lucide-pencil"
               color="neutral"
               variant="ghost"
               size="xs"
-              class="relative z-10"
-              :aria-label="t('artifacts.editAria', { name: artifact.name })"
-              @click="startEdit(artifact)"
+              :aria-label="t('artifacts.editAria', { name: selected.name })"
+              @click="startEdit(selected)"
             />
-          </div>
-          <p v-if="artifact.effects" class="mt-3 line-clamp-3 text-sm text-muted">{{ artifact.effects }}</p>
-          <p v-else class="mt-3 text-sm text-muted">{{ t('artifacts.effectsEmpty') }}</p>
-        </UCard>
-        <button
-          type="button"
-          class="absolute inset-0 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          :aria-label="t('artifacts.openAria', { name: artifact.name })"
-          @click="selected = artifact"
-        />
+          </template>
+
+          <ItemCard
+            v-if="selected"
+            :name="selected.name"
+            kind="artifact"
+            :data="selected"
+            :card="selectedCard"
+            :level="selected.lvl"
+          />
+          <p v-else class="text-[12.5px] text-[var(--sz-text-muted)]">{{ t('artifacts.noSelection') }}</p>
+        </DossierPane>
       </div>
     </div>
+
     <UEmpty
       v-else
       icon="i-lucide-gem"
       :title="t('common.empty')"
-      :description="artifacts.length ? t('filters.noMatch') : t('artifacts.emptyDescription')"
+      :description="t('artifacts.emptyDescription')"
     />
 
-    <p class="text-xs text-muted">{{ t('artifacts.hint') }}</p>
+    <p class="text-[11px] text-[var(--sz-text-dim)]">{{ t('artifacts.hint') }}</p>
 
-    <UModal v-model:open="modalOpen" :title="t('items.artifactCardTitle')" :description="selected?.name" scrollable>
+    <UModal
+      v-model:open="dialogOpen"
+      :title="t('items.artifactCardTitle')"
+      :description="selected?.name"
+      scrollable
+    >
       <template #body>
         <ItemCard
           v-if="selected"
@@ -179,6 +235,19 @@ function startEdit(artifact: ArtifactPayload): void {
           :card="selectedCard"
           :level="selected.lvl"
         />
+        <div v-if="selected?.ownedId" class="mt-3 border-t border-[var(--sz-border)] pt-3">
+          <UButton
+            icon="i-lucide-pencil"
+            color="neutral"
+            variant="outline"
+            size="xs"
+            :label="t('common.edit')"
+            @click="startEdit(selected)"
+          />
+        </div>
+      </template>
+      <template #footer>
+        <KeyHint :keys="['Esc']" :label="t('common.close')" />
       </template>
     </UModal>
 

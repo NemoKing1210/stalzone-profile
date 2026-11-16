@@ -1,6 +1,8 @@
 {
   "common": {
     "appName": "Stalzone Profile",
+    "brandLeft": "STALZONE",
+    "brandRight": "PROFILE",
     "language": "Language",
     "save": "Save",
     "cancel": "Cancel",
@@ -45,6 +47,13 @@
     "logout": "Sign out",
     "footer": "Personal STALZONE dossier. Data is updated manually; prices are read-only.",
     "currentSection": "Current section: {path}"
+  },
+  "accents": {
+    "green": "Zone green",
+    "amber": "Amber",
+    "blue": "Signal blue",
+    "violet": "Violet",
+    "bone": "Bone"
   },
   "ranks": {
     "default": "Lockpick",
@@ -105,6 +114,8 @@
     "playstyle": "Play style: {value}.",
     "career": "Career",
     "careerEmpty": "no career data",
+    "sections": "Sections",
+    "dataState": "Data state",
     "about": "About the data",
     "aboutSnapshot": "Dossier snapshot: {date}.",
     "aboutSources": "Sources: {sources}.",
@@ -159,7 +170,11 @@
     "emptyCatalog": "The weapon catalog is empty. Load the EXBO base.",
     "emptyOwned": "No weapons in the dossier yet. Add them through the API or MCP.",
     "hint": "Click a row to open the item card from the source dossier. Sorting and filters are saved in the browser.",
-    "editAria": "Edit {name}"
+    "editAria": "Edit {name}",
+    "detailTitle": "Item",
+    "noSelection": "Select an item to see its card.",
+    "viewGrid": "Grid",
+    "viewList": "List"
   },
   "armor": {
     "pageTitle": "Armor",
@@ -167,11 +182,15 @@
     "summary": "{shown} of {total} · bullet protection at the current upgrade level and at +15",
     "emptyCatalog": "The armor catalog is empty. Load the EXBO base.",
     "emptyOwned": "No armor in the dossier yet. Add it through the API or MCP.",
-    "hint": "Click a row to open the armor card from the source dossier: protection, modifiers and the bullet-protection curve."
+    "hint": "Click a row to open the armor card from the source dossier: protection, modifiers and the bullet-protection curve.",
+    "detailTitle": "Armor item",
+    "noSelection": "Select an armor item to see its card."
   },
-  "containers": {
-    "pageTitle": "Containers",
+  "containers": {    "pageTitle": "Containers",
     "title": "Containers",
+    "listTitle": "Containers",
+    "detailTitle": "Container",
+    "noSelection": "Select a container.",
     "summary": "{count} pcs · slots, efficiency and current fill",
     "typeFallback": "container",
     "card": "Card",
@@ -202,7 +221,10 @@
     "emptyDescription": "No artifacts in the dossier yet. Add them through the API or MCP.",
     "hint": "Click a card to open the source artifact card with value ranges.",
     "editAria": "Edit {name}",
-    "openAria": "Open the card for {name}"
+    "openAria": "Open the card for {name}",
+    "filtersTitle": "Filters",
+    "detailTitle": "Artifact",
+    "noSelection": "Select an artifact."
   },
   "items": {
     "cardTitle": "Item card",
@@ -338,7 +360,9 @@
       "source": "Source"
     },
     "emptyDescription": "No earnings estimates in the dossier yet. Add them through the API or MCP.",
-    "forYouTitle": "What fits your play style"
+    "forYouTitle": "What fits your play style",
+    "showDetails": "Show details for {activity}",
+    "hideDetails": "Hide details for {activity}"
   },
   "notes": {
     "pageTitle": "Notes",
@@ -352,6 +376,11 @@
     "pageTitle": "Settings",
     "title": "Settings",
     "subtitle": "Source status, export and database maintenance",
+    "appearanceTitle": "Appearance",
+    "appearanceText": "The accent changes selection, active sections, focus and primary buttons. Positive, negative and warning colours do not change.",
+    "accent": "Accent colour",
+    "accentDefault": "Default",
+    "accentReset": "Reset to game default",
     "dataSources": "Data sources",
     "columns": {
       "source": "Source",

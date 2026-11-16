@@ -5,6 +5,7 @@ useHead(() => ({ title: `${t('settings.pageTitle')} — ${t('common.appName')}` 
 
 const { payload, meta, refresh } = useDossier();
 const { formatAge, formatDate } = useFormat();
+const { accent, presets, setAccent, resetAccent } = useAccent();
 const toast = useToast();
 
 interface SyncResult {
@@ -38,11 +39,11 @@ const sourceColumns = computed(() => [
   { accessorKey: 'lastError', header: t('settings.columns.error') },
 ]);
 
-const statusColor: Record<string, 'success' | 'warning' | 'error' | 'neutral'> = {
-  ok: 'success',
-  stale: 'warning',
-  error: 'error',
-  idle: 'neutral',
+const statusClass: Record<string, string> = {
+  ok: 'border-[var(--sz-success)] text-[var(--sz-success-text)]',
+  stale: 'border-[var(--sz-warning)] text-[var(--sz-warning-text)]',
+  error: 'border-[var(--sz-danger)] text-[var(--sz-danger-text)]',
+  idle: 'border-[var(--sz-border)] text-[var(--sz-text-muted)]',
 };
 
 function sourceLabel(id: string): string {
@@ -102,59 +103,106 @@ async function syncSource(id: string): Promise<void> {
   <section class="space-y-4">
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-semibold">{{ t('settings.title') }}</h1>
-        <p class="text-sm text-muted">{{ t('settings.subtitle') }}</p>
+        <h1>{{ t('settings.title') }}</h1>
+        <p class="text-[12.5px] text-[var(--sz-text-muted)]">{{ t('settings.subtitle') }}</p>
       </div>
-      <FreshnessBadge
-        :data-updated="payload?.freshness.dataUpdated"
-        :prices-age-min="payload?.freshness.pricesAgeMin"
-      />
     </div>
 
-    <UCard :ui="{ body: 'p-0 sm:p-0' }">
-      <template #header>
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-cloud-download" class="size-5 text-primary" />
-            <h2 class="font-medium">{{ t('settings.dataSources') }}</h2>
-          </div>
-          <div class="flex flex-wrap gap-1">
-            <UButton
-              v-for="source in syncableSources"
-              :key="source.id"
-              :label="sourceLabel(source.id)"
-              icon="i-lucide-refresh-cw"
-              color="neutral"
-              variant="outline"
-              size="xs"
-              :loading="syncing === source.id"
-              :disabled="syncing !== null && syncing !== source.id"
-              @click="syncSource(source.id)"
-            />
-          </div>
+    <DossierPane :title="t('settings.appearanceTitle')">
+      <p class="text-[12.5px] leading-relaxed text-[var(--sz-text-muted)]">
+        {{ t('settings.appearanceText') }}
+      </p>
+
+      <div
+        role="radiogroup"
+        :aria-label="t('settings.accent')"
+        class="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-5"
+      >
+        <label
+          v-for="preset in presets"
+          :key="preset.id"
+          class="flex cursor-pointer items-center gap-2 border px-3 py-2 transition-colors focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[var(--sz-accent)]"
+          :class="
+            accent === preset.id
+              ? 'border-[var(--sz-accent)] bg-[var(--sz-surface-alt)] ring-2 ring-[var(--sz-accent)] ring-inset'
+              : 'border-[var(--sz-border)] hover:bg-[var(--sz-surface-alt)]'
+          "
+        >
+          <input
+            type="radio"
+            name="accent"
+            class="sr-only"
+            :value="preset.id"
+            :checked="accent === preset.id"
+            @change="setAccent(preset.id)"
+          >
+          <span
+            class="size-5 shrink-0 border border-[var(--sz-border-strong)]"
+            :style="{ backgroundColor: preset.hex }"
+            aria-hidden="true"
+          />
+          <span class="flex-1 text-[12.5px] font-medium">{{ t(preset.labelKey) }}</span>
+          <span v-if="preset.id === DEFAULT_ACCENT" class="sz-caps text-[10px] text-[var(--sz-text-dim)]">
+            {{ t('settings.accentDefault') }}
+          </span>
+          <UIcon v-if="accent === preset.id" name="i-lucide-check" class="size-4 text-[var(--sz-accent)]" />
+        </label>
+      </div>
+
+      <div class="mt-3">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          :label="t('settings.accentReset')"
+          @click="resetAccent"
+        />
+      </div>
+    </DossierPane>
+
+    <DossierPane :title="t('settings.dataSources')" flush>
+      <template #actions>
+        <div class="grid w-full grid-cols-2 gap-1 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
+          <UButton
+            v-for="source in syncableSources"
+            :key="source.id"
+            :label="sourceLabel(source.id)"
+            icon="i-lucide-refresh-cw"
+            color="neutral"
+            variant="outline"
+            size="xs"
+            :loading="syncing === source.id"
+            :disabled="syncing !== null && syncing !== source.id"
+            @click="syncSource(source.id)"
+          />
         </div>
       </template>
 
-      <UTable v-if="sources.length" :data="sources" :columns="sourceColumns">
-        <template #id-cell="{ row }">
-          <span class="font-medium">{{ sourceLabel(row.original.id) }}</span>
-          <span class="block text-xs text-muted">{{ row.original.id }}</span>
-        </template>
-        <template #status-cell="{ row }">
-          <UBadge :color="statusColor[row.original.status] ?? 'neutral'" variant="subtle">
-            {{ statusLabel(row.original.status) }}
-          </UBadge>
-        </template>
-        <template #lastOkAt-cell="{ row }">
-          {{ formatDate(row.original.lastOkAt) }}
-        </template>
-        <template #lastTryAt-cell="{ row }">
-          {{ formatDate(row.original.lastTryAt) }}
-        </template>
-        <template #lastError-cell="{ row }">
-          <span class="text-xs text-error">{{ row.original.lastError ?? '—' }}</span>
-        </template>
-      </UTable>
+      <div v-if="sources.length" class="max-h-[420px] overflow-auto">
+        <UTable :data="sources" :columns="sourceColumns">
+          <template #id-cell="{ row }">
+            <span class="font-medium">{{ sourceLabel(row.original.id) }}</span>
+            <span class="block font-mono text-[11px] text-[var(--sz-text-dim)]">{{ row.original.id }}</span>
+          </template>
+          <template #status-cell="{ row }">
+            <span
+              class="inline-flex border px-1.5 py-0.5 text-[11px] uppercase leading-none tracking-[0.12em]"
+              :class="statusClass[row.original.status] ?? statusClass.idle"
+            >
+              {{ statusLabel(row.original.status) }}
+            </span>
+          </template>
+          <template #lastOkAt-cell="{ row }">
+            {{ formatDate(row.original.lastOkAt) }}
+          </template>
+          <template #lastTryAt-cell="{ row }">
+            {{ formatDate(row.original.lastTryAt) }}
+          </template>
+          <template #lastError-cell="{ row }">
+            <span class="text-[11px] text-[var(--sz-danger-text)]">{{ row.original.lastError ?? '—' }}</span>
+          </template>
+        </UTable>
+      </div>
       <div v-else class="p-4">
         <UEmpty
           icon="i-lucide-cloud-off"
@@ -162,19 +210,13 @@ async function syncSource(id: string): Promise<void> {
           :description="t('settings.emptyDescription')"
         />
       </div>
-    </UCard>
+    </DossierPane>
 
     <EventLog />
 
     <div class="grid gap-4 lg:grid-cols-2">
-      <UCard>
-        <template #header>
-          <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-file-down" class="size-5 text-primary" />
-            <h2 class="font-medium">{{ t('settings.exportTitle') }}</h2>
-          </div>
-        </template>
-        <p class="text-sm text-muted">
+      <DossierPane :title="t('settings.exportTitle')" dense>
+        <p class="text-[12.5px] text-[var(--sz-text-muted)]">
           {{ t('settings.exportText') }}
         </p>
         <div class="mt-3">
@@ -184,65 +226,33 @@ async function syncSource(id: string): Promise<void> {
             icon="i-lucide-download"
             color="neutral"
             variant="outline"
+            size="sm"
             :label="t('settings.downloadJson')"
           />
         </div>
-      </UCard>
+      </DossierPane>
 
-      <UCard>
-        <template #header>
-          <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-database-backup" class="size-5 text-primary" />
-            <h2 class="font-medium">{{ t('settings.backupsTitle') }}</h2>
-          </div>
-        </template>
-        <p class="text-sm text-muted">
-          {{ t('settings.backupsBefore') }}<code>npm run backup</code>{{ t('settings.backupsAfter') }}
+      <DossierPane :title="t('settings.backupsTitle')" dense>
+        <p class="text-[12.5px] leading-relaxed text-[var(--sz-text-muted)]">
+          {{ t('settings.backupsBefore') }}<code class="border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] px-1 font-mono text-[11px]">npm run backup</code>{{ t('settings.backupsAfter') }}
         </p>
-      </UCard>
+      </DossierPane>
 
-      <UCard>
-        <template #header>
-          <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-info" class="size-5 text-primary" />
-            <h2 class="font-medium">{{ t('settings.dataTitle') }}</h2>
-          </div>
-        </template>
-        <dl class="space-y-2 text-sm">
-          <div class="flex justify-between gap-4">
-            <dt class="text-muted">{{ t('settings.dossierUpdated') }}</dt>
-            <dd>{{ formatDate(payload?.freshness.dataUpdated) }}</dd>
-          </div>
-          <div class="flex justify-between gap-4">
-            <dt class="text-muted">{{ t('settings.prices') }}</dt>
-            <dd>{{ formatAge(payload?.freshness.pricesAgeMin) }}</dd>
-          </div>
-          <div class="flex justify-between gap-4">
-            <dt class="text-muted">{{ t('settings.catalogUpdated') }}</dt>
-            <dd>{{ formatDate(catalogUpdated) }}</dd>
-          </div>
-          <div class="flex justify-between gap-4">
-            <dt class="text-muted">{{ t('settings.catalogSource') }}</dt>
-            <dd class="text-right">{{ catalogSource ?? '—' }}</dd>
-          </div>
-          <div class="flex justify-between gap-4">
-            <dt class="text-muted">{{ t('settings.profileSnapshot') }}</dt>
-            <dd>{{ formatDate(profileFetched) }}</dd>
-          </div>
-        </dl>
-      </UCard>
+      <DossierPane :title="t('settings.dataTitle')" dense>
+        <div class="divide-y divide-[var(--sz-border)]">
+          <StatRow :label="t('settings.dossierUpdated')" :value="formatDate(payload?.freshness.dataUpdated)" />
+          <StatRow :label="t('settings.prices')" :value="formatAge(payload?.freshness.pricesAgeMin)" />
+          <StatRow :label="t('settings.catalogUpdated')" :value="formatDate(catalogUpdated)" />
+          <StatRow :label="t('settings.catalogSource')" :value="catalogSource" />
+          <StatRow :label="t('settings.profileSnapshot')" :value="formatDate(profileFetched)" />
+        </div>
+      </DossierPane>
 
-      <UCard>
-        <template #header>
-          <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-lock" class="size-5 text-primary" />
-            <h2 class="font-medium">{{ t('settings.accessTitle') }}</h2>
-          </div>
-        </template>
-        <p class="text-sm text-muted">
-          {{ t('settings.accessBefore') }}<code>NUXT_PASSWORD_HASH</code>{{ t('settings.accessBetween') }}<code>NUXT_PASSWORD</code>{{ t('settings.accessAfter') }}
+      <DossierPane :title="t('settings.accessTitle')" dense>
+        <p class="text-[12.5px] leading-relaxed text-[var(--sz-text-muted)]">
+          {{ t('settings.accessBefore') }}<code class="border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] px-1 font-mono text-[11px]">NUXT_PASSWORD_HASH</code>{{ t('settings.accessBetween') }}<code class="border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] px-1 font-mono text-[11px]">NUXT_PASSWORD</code>{{ t('settings.accessAfter') }}
         </p>
-      </UCard>
+      </DossierPane>
     </div>
   </section>
 </template>

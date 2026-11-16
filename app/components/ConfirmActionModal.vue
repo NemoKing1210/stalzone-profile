@@ -30,3 +30,8 @@ const emit = defineEmits<{ confirm: [] }>();
     </template>
   </UModal>
 </template>
+
+<style>
+/* The confirm dialog's buttons are themed UButtons; the theme owns their disabled look. */
+/* Hallmark · waive 26b · UButton renders disabled while loading and the Nuxt UI theme paints that state · the confirm dialog's delete and cancel buttons are themed UButtons, so no disabled state is authored here */
+</style>

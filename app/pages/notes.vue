@@ -50,41 +50,35 @@ const filtered = computed(() => {
   <section class="space-y-4">
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-semibold">{{ t('notes.title') }}</h1>
-        <p class="text-sm text-muted">{{ t('notes.summary', { shown: filtered.length, total: notes.length }) }}</p>
+        <h1>{{ t('notes.title') }}</h1>
+        <p class="text-[12.5px] text-[var(--sz-text-muted)]">
+          {{ t('notes.summary', { shown: filtered.length, total: notes.length }) }}
+        </p>
       </div>
-      <FreshnessBadge
-        :data-updated="payload?.freshness.dataUpdated"
-        :prices-age-min="payload?.freshness.pricesAgeMin"
-      />
     </div>
 
     <UInput
       v-model="filters.q"
       icon="i-lucide-search"
+      size="xs"
       :placeholder="t('notes.search')"
       class="w-full sm:w-80"
     />
 
-    <div v-if="filtered.length" class="grid gap-4 lg:grid-cols-2">
-      <UCard v-for="note in filtered" :key="note.title">
-        <template #header>
-          <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-notebook-pen" class="size-5 text-primary" />
-            <h2 class="font-medium">{{ note.title }}</h2>
-            <UButton
-              icon="i-lucide-pencil"
-              color="neutral"
-              variant="ghost"
-              size="xs"
-              class="ml-auto"
-              :aria-label="t('notes.editAria', { title: note.title ?? '' })"
-              @click="startEdit(note)"
-            />
-          </div>
+    <div v-if="filtered.length" class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      <DossierPane v-for="note in filtered" :key="note.title" :title="note.title ?? ''" dense>
+        <template #actions>
+          <UButton
+            icon="i-lucide-pencil"
+            color="neutral"
+            variant="ghost"
+            size="xs"
+            :aria-label="t('notes.editAria', { title: note.title ?? '' })"
+            @click="startEdit(note)"
+          />
         </template>
-        <p class="whitespace-pre-line text-sm text-muted">{{ note.text }}</p>
-      </UCard>
+        <p class="whitespace-pre-line text-[12.5px] leading-relaxed text-[var(--sz-text-muted)]">{{ note.text }}</p>
+      </DossierPane>
     </div>
     <UEmpty
       v-else

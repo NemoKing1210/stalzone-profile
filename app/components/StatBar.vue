@@ -18,10 +18,12 @@ const pct = computed(() => {
 
 <template>
   <div class="space-y-1">
-    <div v-if="props.label" class="flex items-center justify-between text-xs text-muted">
+    <div v-if="props.label" class="flex items-center justify-between text-[11px] text-[var(--sz-text-muted)]">
       <span>{{ props.label }}</span>
       <span class="tabular-nums">{{ props.value == null ? '—' : `${props.value}${props.suffix}` }}</span>
     </div>
-    <UProgress :model-value="pct" size="xs" />
+    <div class="h-[3px] w-full bg-ink-950">
+      <div class="h-full bg-[var(--sz-accent)]" :style="{ width: `${pct}%` }" />
+    </div>
   </div>
 </template>

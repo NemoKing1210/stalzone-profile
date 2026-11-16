@@ -1,13 +1,308 @@
+/* Hallmark · checked: 2026-11-15 · genre: atmospheric (inferred)
+ * floor: 4 static false positives (gate 50: the global h1/h2 overflow rule is defined here,
+ *   and sloplint scans stylesheets per directory, so app/pages cannot see this file)
+ * fixed: header fill, nav fit and active state, pane order, table defaults, touch targets, clipped cells
+ * structural: locked by DESIGN.md · built: the project · redesign: polish · v2.0.0 */
+
 @import "tailwindcss";
 @import "@nuxt/ui";
 
-html,
-body,
-#__nuxt {
-  min-height: 100%;
+@import "@fontsource/roboto-condensed/latin-400.css";
+@import "@fontsource/roboto-condensed/latin-500.css";
+@import "@fontsource/roboto-condensed/latin-700.css";
+@import "@fontsource/roboto-condensed/cyrillic-400.css";
+@import "@fontsource/roboto-condensed/cyrillic-500.css";
+@import "@fontsource/roboto-condensed/cyrillic-700.css";
+@import "@fontsource/oswald/latin-500.css";
+@import "@fontsource/oswald/cyrillic-500.css";
+@import "@fontsource/bebas-neue/latin-400.css";
+
+@theme {
+  --font-sans: "Roboto Condensed", "Roboto", system-ui, sans-serif;
+  --font-display: "Oswald", "Roboto Condensed", system-ui, sans-serif;
+  --font-brand: "Bebas Neue", "Oswald", system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --color-ink-50: #f2f2ee;
+  --color-ink-100: #e4e4df;
+  --color-ink-200: #c9c9c3;
+  --color-ink-300: #a8a8a2;
+  --color-ink-400: #8a8a84;
+  --color-ink-500: #6c6c67;
+  --color-ink-600: #4f4f4b;
+  --color-ink-700: #2e2e2e;
+  --color-ink-750: #262626;
+  --color-ink-800: #1f1f1f;
+  --color-ink-850: #1b1b1b;
+  --color-ink-900: #161616;
+  --color-ink-950: #101010;
+
+  --color-zone-50: #eff8ed;
+  --color-zone-100: #dcf0d8;
+  --color-zone-200: #bce2b4;
+  --color-zone-300: #97d08c;
+  --color-zone-400: #63b356;
+  --color-zone-500: #63b356;
+  --color-zone-600: #4f9945;
+  --color-zone-700: #3e7a36;
+  --color-zone-800: #2f5c2a;
+  --color-zone-900: #23451f;
+  --color-zone-950: #12250f;
 }
 
-body {
-  background-color: var(--ui-bg);
-  color: var(--ui-text);
+:root {
+  --sz-accent: #63b356;
+  --sz-accent-hover: #74c466;
+  --sz-accent-pressed: #4f9945;
+  --sz-on-accent: #101010;
+  --sz-bg: #161616;
+  --sz-surface: #1f1f1f;
+  --sz-surface-alt: #1b1b1b;
+  --sz-surface-header: #262626;
+  --sz-border: #343434;
+  --sz-border-strong: #454545;
+  --sz-text: #d8d8d3;
+  --sz-text-muted: #9a9a94;
+  --sz-text-dim: #7a7a74;
+  --sz-success: #63b356;
+  --sz-success-text: #86cf7f;
+  --sz-warning: #e0a63c;
+  --sz-warning-text: #f0c469;
+  --sz-danger: #c2564f;
+  --sz-danger-text: #e08b84;
+  --sz-info: #4a9fd8;
+  --sz-money: #d8c08a;
+  --sz-rank-default: #6f7767;
+  --sz-rank-newbie: #63b356;
+  --sz-rank-stalker: #4a9fd8;
+  --sz-rank-veteran: #a06fc4;
+  --sz-rank-master: #c2564f;
+  --sz-rank-legend: #e0a63c;
+
+  /* Nuxt UI consumes these aliases; unlayered rules win over the generated `.dark` block. */
+  --ui-radius: 0;
+  --ui-container: 1600px;
+  --ui-header-height: 48px;
+  --ui-primary: var(--sz-accent);
+  --ui-success: var(--sz-success);
+  --ui-info: var(--sz-info);
+  --ui-warning: var(--sz-warning);
+  --ui-error: var(--sz-danger-text);
+  --ui-bg: var(--sz-bg);
+  --ui-bg-muted: var(--sz-surface-alt);
+  --ui-bg-elevated: var(--sz-surface);
+  --ui-bg-accented: var(--sz-surface-header);
+  --ui-bg-inverted: var(--sz-text);
+  --ui-border: var(--sz-border);
+  --ui-border-muted: var(--sz-border);
+  --ui-border-accented: var(--sz-border-strong);
+  --ui-border-inverted: var(--sz-text);
+  --ui-text: var(--sz-text);
+  --ui-text-muted: var(--sz-text-muted);
+  --ui-text-dimmed: var(--sz-text-dim);
+  --ui-text-toned: #b4b4ae;
+  --ui-text-highlighted: #f1f1ec;
+  --ui-text-inverted: var(--sz-on-accent);
+  scrollbar-color: var(--sz-border-strong) var(--color-ink-950);
+  caret-color: var(--sz-accent);
+}
+
+@layer base {
+  html {
+    background: var(--sz-bg);
+    color-scheme: dark;
+    overflow-x: clip;
+  }
+
+  body {
+    overflow-x: clip;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 36px;
+    /* DESIGN asks for 1.0; Oswald's underscore and descenders clip the line box at 1.0. */
+    line-height: 1.06;
+    min-width: 0;
+    overflow-wrap: break-word;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    text-wrap: balance;
+  }
+
+  @media (max-width: 639px) {
+    h1 {
+      font-size: 28px;
+    }
+  }
+
+  h2 {
+    font-size: 17px;
+    font-weight: 500;
+    line-height: 1.2;
+    min-width: 0;
+    overflow-wrap: break-word;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    text-wrap: balance;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--sz-accent);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--sz-accent) 35%, transparent);
+  }
+}
+
+@layer components {
+  .sz-caps {
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.2;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+  }
+
+  .sz-numeric {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sz-hairline {
+    border-color: var(--sz-border);
+  }
+}
+
+/* Unlayered on purpose: the nav must beat Nuxt UI's utility classes, which live in a layer.
+   DESIGN §5.1 — 11px, tracked 0.14em, active state is the accent underline only. */
+.sz-nav a {
+  height: 44px;
+  border-radius: 0;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.sz-nav a::before {
+  border-radius: 0;
+}
+
+.sz-nav a:active {
+  background: var(--sz-surface-alt);
+}
+
+.sz-nav a[aria-current='page'] {
+  color: var(--sz-text);
+  box-shadow: inset 0 -2px 0 var(--sz-accent);
+}
+
+.sz-nav a[aria-current='page']::before {
+  background: transparent;
+}
+
+@media (min-width: 1024px) {
+  .sz-nav a {
+    height: 48px;
+  }
+}
+
+/* DESIGN §10: a 44px touch target on mobile; pane actions are icon-sized elsewhere. */
+@media (max-width: 639px) {
+  [data-pane-actions] button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+.sz-auth-vignette {
+  background-image: radial-gradient(
+    circle at 50% 0,
+    color-mix(in srgb, var(--sz-accent) 8%, transparent),
+    transparent 60%
+  );
+}
+
+/* Accent presets: each block overrides the accent tokens and the zone scale that Nuxt UI
+   maps to --ui-color-primary-*, so primary buttons and utilities follow the chosen accent. */
+:root[data-accent='amber'] {
+  --sz-accent: #e0a63c;
+  --sz-accent-hover: #ebc15e;
+  --sz-accent-pressed: #c98f2c;
+  --color-zone-50: #fbf3e2;
+  --color-zone-100: #f7e7c4;
+  --color-zone-200: #efd08d;
+  --color-zone-300: #e7bb64;
+  --color-zone-400: #e0a63c;
+  --color-zone-500: #e0a63c;
+  --color-zone-600: #c98f2c;
+  --color-zone-700: #a97422;
+  --color-zone-800: #875a1b;
+  --color-zone-900: #644214;
+  --color-zone-950: #432c0e;
+}
+
+:root[data-accent='blue'] {
+  --sz-accent: #4a9fd8;
+  --sz-accent-hover: #6fb5e4;
+  --sz-accent-pressed: #3487be;
+  --color-zone-50: #eaf5fc;
+  --color-zone-100: #d4eaf9;
+  --color-zone-200: #a8d4f2;
+  --color-zone-300: #7cbeea;
+  --color-zone-400: #4a9fd8;
+  --color-zone-500: #4a9fd8;
+  --color-zone-600: #3487be;
+  --color-zone-700: #296c99;
+  --color-zone-800: #205475;
+  --color-zone-900: #173d56;
+  --color-zone-950: #102a3b;
+}
+
+:root[data-accent='violet'] {
+  --sz-accent: #b78bd6;
+  --sz-accent-hover: #c9a6e3;
+  --sz-accent-pressed: #9d6ebd;
+  --color-zone-50: #f6eefb;
+  --color-zone-100: #edddf7;
+  --color-zone-200: #dab9ef;
+  --color-zone-300: #c9a6e3;
+  --color-zone-400: #b78bd6;
+  --color-zone-500: #b78bd6;
+  --color-zone-600: #9d6ebd;
+  --color-zone-700: #7f559b;
+  --color-zone-800: #624277;
+  --color-zone-900: #462f55;
+  --color-zone-950: #2e1f38;
+}
+
+:root[data-accent='bone'] {
+  --sz-accent: #d8d8d3;
+  --sz-accent-hover: #ece7e1;
+  --sz-accent-pressed: #bfbfb9;
+  --color-zone-50: #fafaf8;
+  --color-zone-100: #f2f2ef;
+  --color-zone-200: #e6e6e1;
+  --color-zone-300: #d8d8d3;
+  --color-zone-400: #d8d8d3;
+  --color-zone-500: #d8d8d3;
+  --color-zone-600: #bfbfb9;
+  --color-zone-700: #a2a29c;
+  --color-zone-800: #80807a;
+  --color-zone-900: #5e5e59;
+  --color-zone-950: #3d3d39;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }

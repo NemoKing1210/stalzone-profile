@@ -25,10 +25,20 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
+      htmlAttrs: { 'data-accent': 'green' },
       title: 'Stalzone Profile',
       meta: [
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
         { name: 'robots', content: 'noindex, nofollow' },
+      ],
+      script: [
+        {
+          // The only pre-hydration write: picks the stored accent before the first paint so
+          // the page does not flash green. It reads one cosmetic key and no personal data.
+          innerHTML:
+            "try{var a=localStorage.getItem('dossier.accent');document.documentElement.dataset.accent=['green','amber','blue','violet','bone'].indexOf(a)>-1?a:'green'}catch(e){}",
+          tagPosition: 'head',
+        },
       ],
     },
   },

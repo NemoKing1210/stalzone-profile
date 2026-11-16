@@ -44,27 +44,147 @@ test('every section renders seeded content', async ({ page }) => {
   }
 });
 
-test('clicking a weapon opens its exact legacy card', async ({ page }) => {
+test('the overview is a three-pane dashboard with the stash as text', async ({ page }) => {
+  await login(page);
+  for (const name of ['Character', 'Career', 'Sections']) {
+    await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
+  }
+  const character = page.getByRole('region', { name: 'Character' });
+  await expect(character.getByText(/Stash:/)).toBeVisible();
+  await expect(character.getByRole('progressbar')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Data state', exact: true })).toBeVisible();
+});
+
+test('selecting a weapon fills the detail pane', async ({ page }) => {
   await login(page);
   await page.goto('/weapons');
   await hydrated(page);
 
   await page.getByPlaceholder('Search: name, type, caliber').fill('KS-1');
-  const cell = page.getByRole('cell', { name: 'KS-1', exact: true });
-  await expect(cell).toBeVisible();
-  await expect(cell).toHaveCount(1);
-  await cell.click();
+  const card = page.getByTestId('weapon-grid').getByRole('button').filter({ hasText: /KS-1(?!\d)/ });
+  await expect(card).toBeVisible();
+  await card.click();
 
-  const dialog = page.getByRole('dialog');
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByText('Item card', { exact: true }).first()).toBeVisible();
-  await expect(dialog.getByText('Tactical reload', { exact: true })).toBeVisible();
-  await expect(dialog.getByText('2.5', { exact: true }).first()).toBeVisible();
-  await expect(dialog.getByText('Current curve', { exact: true })).toBeVisible();
-  await expect(dialog.getByText('Raw card data')).toBeVisible();
+  const detail = page.getByRole('region', { name: 'Item' });
+  await expect(detail.getByText('Item card', { exact: true }).first()).toBeVisible();
+  await expect(detail.getByText('Tactical reload', { exact: true })).toBeVisible();
+  await expect(detail.getByText('2.5', { exact: true }).first()).toBeVisible();
+  await expect(detail.getByText('Current curve', { exact: true })).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+});
 
-  await page.keyboard.press('Escape');
-  await expect(dialog).toBeHidden();
+test.describe('mobile item selection', () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test('selecting a weapon opens the card dialog', async ({ page }) => {
+    await login(page);
+    await page.goto('/weapons');
+    await hydrated(page);
+    await page.getByPlaceholder('Search: name, type, caliber').fill('KS-1');
+    const card = page.getByTestId('weapon-grid').getByRole('button').filter({ hasText: /KS-1(?!\d)/ });
+    await expect(card).toBeVisible();
+    await card.click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText('Tactical reload', { exact: true })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+  });
+
+  test('the mobile card dialog can open the editor', async ({ page }) => {
+    await login(page);
+    await page.goto('/weapons');
+    await hydrated(page);
+    await page.getByPlaceholder('Search: name, type, caliber').fill('KS-1');
+    const card = page.getByTestId('weapon-grid').getByRole('button').filter({ hasText: /KS-1(?!\d)/ });
+    await card.click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Edit', exact: true }).click();
+    await expect(page.getByText('Edit item', { exact: true })).toBeVisible();
+  });
+});
+
+test('selecting armor fills the detail pane with protection', async ({ page }) => {
+  await login(page);
+  await page.goto('/armor');
+  await hydrated(page);
+
+  await page.getByPlaceholder('Search: name or class').fill('SBA TANK');
+  await page.getByRole('button', { name: /SBA TANK/ }).first().click();
+
+  const detail = page.getByRole('region', { name: 'Armor item' });
+  await expect(detail.getByText('SBA TANK', { exact: true }).first()).toBeVisible();
+  await expect(detail.getByText('Bullet protection', { exact: true })).toBeVisible();
+  await expect(detail.getByText('+15', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+test('a container opens in the detail pane with its numeric fill', async ({ page }) => {
+  await login(page);
+  await page.goto('/containers');
+  await page.getByRole('button', { name: /Контейнер «Бочонок»/ }).first().click();
+
+  const detail = page.getByRole('region', { name: /Контейнер «Бочонок»/ });
+  await expect(detail.getByText('Slots', { exact: true })).toBeVisible();
+  await expect(detail.getByText('Efficiency', { exact: true })).toBeVisible();
+  await expect(detail.getByText('Equivalent', { exact: true })).toBeVisible();
+  await expect(detail.getByRole('button', { name: 'Fill' })).toBeVisible();
+});
+
+test('an empty container fill says so instead of showing an empty box', async ({ page }) => {
+  await login(page);
+  await page.goto('/containers');
+  const list = page.getByRole('region', { name: 'Containers' });
+  await expect(list.getByRole('button')).not.toHaveCount(0);
+});
+
+test('an artifact card opens the full effect card', async ({ page }) => {
+  await login(page);
+  await page.goto('/artifacts');
+
+  await page.getByPlaceholder('Search: name, type, effect').fill('Атом');
+  await page.getByRole('button', { name: /Атом/ }).first().click();
+
+  const detail = page.getByRole('region', { name: 'Artifact' });
+  await expect(detail.getByText('Атом', { exact: true }).first()).toBeVisible();
+  await expect(detail.getByText('Artifact card', { exact: true })).toBeVisible();
+});
+
+test('builds and recommendations are named panes', async ({ page }) => {
+  await login(page);
+  await page.goto('/builds');
+  await expect(page.getByRole('region', { name: /Максимум скорости/ })).toBeVisible();
+
+  await page.goto('/recommendations');
+  await expect(page.getByRole('region', { name: 'Фарм артефактов и хабар' })).toBeVisible();
+});
+
+test('an earnings row expands inline for its note and source', async ({ page }) => {
+  await login(page);
+  await page.goto('/earnings');
+
+  const toggle = page.getByRole('button', { name: /details/i }).first();
+  await toggle.click();
+  await expect(page.getByTestId('earnings-detail').first()).toBeVisible();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await toggle.click();
+  await expect(page.getByTestId('earnings-detail')).toHaveCount(0);
+});
+
+test('notes render as prose panes', async ({ page }) => {
+  await login(page);
+  await page.goto('/notes');
+  await expect(page.getByRole('region', { name: /Два слота оружия/ })).toBeVisible();
+});
+
+test('settings sections are named panes', async ({ page }) => {
+  await login(page);
+  await page.goto('/settings');
+  for (const name of ['Data sources', 'Dossier export', 'Backups', 'Data', 'Access']) {
+    await expect(page.getByRole('region', { name, exact: true })).toBeVisible();
+  }
+  await expect(page.getByRole('region', { name: 'Change log', exact: true })).toBeVisible();
 });
 
 test('sorting and filters survive a reload', async ({ page }) => {
@@ -72,26 +192,25 @@ test('sorting and filters survive a reload', async ({ page }) => {
   await page.goto('/weapons');
   await hydrated(page);
 
-  const search = page.getByPlaceholder('Search: name, type, caliber');
-  await search.fill('АК');
-  await page.getByRole('button', { name: 'Damage', exact: true }).click();
+  await page.getByPlaceholder('Search: name, type, caliber').fill('АК');
+  await page.getByRole('combobox', { name: 'Sort' }).click();
+  await page.getByRole('option', { name: 'Damage', exact: true }).click();
 
   await page.waitForFunction(() => {
     const raw = localStorage.getItem('dossier:filters:weapons');
     if (!raw) return false;
-    const stored = JSON.parse(raw) as { q?: string; sort?: string; mode?: string };
-    return stored.q === 'АК' && stored.sort === 'dmg' && stored.mode === 'owned';
+    const stored = JSON.parse(raw) as { q?: string; sort?: string; mode?: string; view?: string };
+    return stored.q === 'АК' && stored.sort === 'dmg' && stored.mode === 'owned' && stored.view === 'grid';
   });
 
-  const firstRow = page.locator('tbody tr').first();
-  await expect(firstRow).toBeVisible();
-  const before = (await firstRow.locator('td').first().innerText()).trim();
+  const first = page.getByTestId('weapon-grid').getByRole('button').first();
+  await expect(first).toBeVisible();
+  const before = (await first.innerText()).trim();
 
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Weapons', exact: true })).toBeVisible();
-  await expect(search).toHaveValue('АК');
-  await expect(page.locator('tbody tr').first()).toBeVisible();
-  const after = (await page.locator('tbody tr').first().locator('td').first().innerText()).trim();
+  await expect(page.getByPlaceholder('Search: name, type, caliber')).toHaveValue('АК');
+  const after = (await page.getByTestId('weapon-grid').getByRole('button').first().innerText()).trim();
   expect(after).toBe(before);
 });
 
@@ -179,3 +298,32 @@ async function waitForHealth(url: string): Promise<void> {
   }
   throw new Error(`empty dossier server did not start at ${url}`);
 }
+
+test('list panes have accessible names', async ({ page }) => {
+  await login(page);
+  await page.goto('/weapons');
+  await expect(page.getByRole('region', { name: 'Weapons', exact: true })).toBeVisible();
+  await page.goto('/armor');
+  await expect(page.getByRole('region', { name: 'Armor', exact: true })).toBeVisible();
+  await page.goto('/earnings');
+  await expect(page.getByRole('region', { name: 'Earnings', exact: true })).toBeVisible();
+});
+
+test.describe('mobile earnings', () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test('the mobile list follows the sort direction and shows needs and risk', async ({ page }) => {
+    await login(page);
+    await page.goto('/earnings');
+    await hydrated(page);
+
+    const cards = page.getByTestId('earnings-card-list').getByRole('button');
+    const firstActivity = () => cards.first().getAttribute('data-activity');
+    const before = await firstActivity();
+    await page.getByRole('button', { name: 'Sort', exact: true }).click();
+    await expect.poll(firstActivity).not.toBe(before);
+
+    await expect(cards.first().getByText(/Needs:/)).toBeVisible();
+    await expect(cards.first().getByText(/Risk:/)).toBeVisible();
+  });
+});

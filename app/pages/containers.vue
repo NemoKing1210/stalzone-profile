@@ -5,21 +5,17 @@ import type { OwnedEditTarget } from '~/types/dossier';
 const { t } = useI18n();
 useHead(() => ({ title: `${t('containers.pageTitle')} — ${t('common.appName')}` }));
 
-interface Selection {
-  kind: 'container' | 'artifact';
-  name: string;
-  data: unknown;
-  level: number | null;
-}
-
 const { payload } = useDossier();
-const { g1, g2, num, formatDate } = useFormat();
+const { g2 } = useFormat();
 const containers = computed(() => payload.value?.containers ?? []);
 const details = computed(() => payload.value?.details ?? {});
 
-const selected = ref<Selection | null>(null);
+const selected = ref<ContainerPayload | null>(null);
+const slideOpen = ref(false);
 const editTarget = ref<OwnedEditTarget | null>(null);
 const fillTarget = ref<ContainerPayload | null>(null);
+const artifactTarget = ref<{ name: string; level: number } | null>(null);
+
 const editOpen = computed({
   get: () => editTarget.value !== null,
   set: (value: boolean) => {
@@ -32,29 +28,23 @@ const fillOpen = computed({
     if (!value) fillTarget.value = null;
   },
 });
-const modalOpen = computed({
-  get: () => selected.value !== null,
+const artifactOpen = computed({
+  get: () => artifactTarget.value !== null,
   set: (value: boolean) => {
-    if (!value) selected.value = null;
+    if (!value) artifactTarget.value = null;
   },
 });
-const selectedCard = computed(() =>
-  selected.value
-    ? findDetailsCard(details.value, selected.value.kind === 'container' ? 'c' : 'art', selected.value.name)
-    : null,
+const artifactCard = computed(() =>
+  artifactTarget.value ? findDetailsCard(details.value, 'art', artifactTarget.value.name) : null,
 );
 
-function openContainer(container: ContainerPayload): void {
-  selected.value = { kind: 'container', name: container.name, data: container, level: null };
+function selectContainer(container: ContainerPayload): void {
+  selected.value = container;
+  if (import.meta.client && window.matchMedia('(max-width: 1023px)').matches) slideOpen.value = true;
 }
 
 function openArtifact(name: string, level: number): void {
-  selected.value = { kind: 'artifact', name, data: { name, lvl: level }, level };
-}
-
-function slotEquivalent(container: ContainerPayload): string {
-  if (container.slots == null || container.eff == null) return '—';
-  return g2((container.slots * container.eff) / 100);
+  artifactTarget.value = { name, level };
 }
 
 function startEdit(container: ContainerPayload): void {
@@ -83,121 +73,73 @@ function startFill(container: ContainerPayload): void {
   <section class="space-y-4">
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-semibold">{{ t('containers.title') }}</h1>
-        <p class="text-sm text-muted">{{ t('containers.summary', { count: containers.length }) }}</p>
+        <h1 class="min-w-0 break-words">{{ t('containers.title') }}</h1>
+        <p class="text-[12.5px] text-[var(--sz-text-muted)]">
+          {{ t('containers.summary', { count: containers.length }) }}
+        </p>
       </div>
-      <FreshnessBadge
-        :data-updated="payload?.freshness.dataUpdated"
-        :prices-age-min="payload?.freshness.pricesAgeMin"
-      />
     </div>
 
-    <div v-if="containers.length" class="grid gap-4 lg:grid-cols-2">
-      <UCard v-for="container in containers" :key="container.name">
+    <div v-if="containers.length" class="grid grid-cols-1 gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+      <DossierPane :label="t('containers.listTitle')" dense flush>
         <template #header>
-          <div class="flex items-start gap-3">
-            <img
-              v-if="container.icon"
-              :src="container.icon"
-              :alt="container.name"
-              class="size-12 rounded-md bg-elevated object-contain p-1"
-              loading="lazy"
-            >
-            <div v-else class="flex size-12 items-center justify-center rounded-md bg-elevated">
-              <UIcon name="i-lucide-backpack" class="size-6 text-muted" />
-            </div>
-            <div class="min-w-0 flex-1">
-              <p class="font-medium">{{ container.name }}</p>
-              <p class="text-xs text-muted">{{ container.type ?? t('containers.typeFallback') }}</p>
-              <div class="mt-1 flex flex-wrap gap-1">
-                <RankBadge :rank="container.rank" />
-                <UBadge v-if="container.bonus" color="neutral" variant="subtle">{{ container.bonus }}</UBadge>
-              </div>
-            </div>
-            <UButton
-              icon="i-lucide-panel-right-open"
-              color="neutral"
-              variant="ghost"
-              :label="t('containers.card')"
-              @click="openContainer(container)"
+          <span class="sz-caps truncate text-[var(--sz-text-muted)]">{{ t('containers.listTitle') }}</span>
+        </template>
+        <nav class="divide-y divide-[var(--sz-border)]">
+          <button
+            v-for="container in containers"
+            :key="container.name"
+            type="button"
+            class="relative flex w-full flex-col gap-1 px-2.5 py-2 text-left transition-colors hover:bg-[var(--sz-surface-alt)] active:bg-[var(--sz-surface-alt)]"
+            :class="selected?.name === container.name ? 'bg-[color-mix(in_srgb,var(--sz-accent)_7%,transparent)]' : ''"
+            :aria-pressed="selected?.name === container.name"
+            @click="selectContainer(container)"
+          >
+            <span
+              v-if="selected?.name === container.name"
+              class="absolute inset-y-0 left-0 w-0.5 bg-[var(--sz-accent)]"
             />
-          </div>
-          <div v-if="container.ownedId" class="mt-2 flex flex-wrap gap-1">
-            <UButton
-              icon="i-lucide-pencil"
-              color="neutral"
-              variant="outline"
-              size="xs"
-              :label="t('common.edit')"
-              @click="startEdit(container)"
-            />
-            <UButton
-              icon="i-lucide-gem"
-              color="neutral"
-              variant="outline"
-              size="xs"
-              :label="t('containers.fill')"
-              @click="startFill(container)"
-            />
-          </div>
+            <span class="flex items-center gap-2">
+              <RarityName :name="container.name" :rank="container.rank" class="flex-1" />
+              <RankBadge :rank="container.rank" />
+            </span>
+            <span class="flex flex-wrap items-baseline gap-x-2 text-[11px] text-[var(--sz-text-muted)]">
+              <span>{{ container.type ?? t('containers.typeFallback') }}</span>
+              <span v-if="container.weight != null" class="tabular-nums">
+                {{ t('containers.weightValue', { value: g2(container.weight) }) }}
+              </span>
+              <span class="ml-auto tabular-nums">
+                {{ container.artifacts.length }} / {{ container.slots ?? '—' }}
+              </span>
+            </span>
+          </button>
+        </nav>
+      </DossierPane>
+
+      <DossierPane :title="selected?.name ?? t('containers.detailTitle')" dense>
+        <template v-if="selected?.ownedId" #actions>
+          <UButton
+            icon="i-lucide-pencil"
+            color="neutral"
+            variant="ghost"
+            size="xs"
+            :label="t('common.edit')"
+            @click="startEdit(selected)"
+          />
+          <UButton
+            icon="i-lucide-gem"
+            color="neutral"
+            variant="ghost"
+            size="xs"
+            :label="t('containers.fill')"
+            @click="startFill(selected)"
+          />
         </template>
 
-        <div class="space-y-4">
-          <dl class="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-            <div class="rounded-md bg-elevated/60 p-2">
-              <dt class="text-xs text-muted">{{ t('containers.slots') }}</dt>
-              <dd class="font-medium tabular-nums">{{ container.slots ?? '—' }}</dd>
-            </div>
-            <div class="rounded-md bg-elevated/60 p-2">
-              <dt class="text-xs text-muted">{{ t('containers.efficiency') }}</dt>
-              <dd class="font-medium tabular-nums">{{ container.eff == null ? '—' : `${g1(container.eff)}%` }}</dd>
-            </div>
-            <div class="rounded-md bg-elevated/60 p-2">
-              <dt class="text-xs text-muted">{{ t('containers.equivalent') }}</dt>
-              <dd class="font-medium tabular-nums">{{ slotEquivalent(container) }}</dd>
-            </div>
-            <div class="rounded-md bg-elevated/60 p-2">
-              <dt class="text-xs text-muted">{{ t('containers.weight') }}</dt>
-              <dd class="font-medium tabular-nums">
-                {{ container.weight == null ? '—' : t('containers.weightValue', { value: g2(container.weight) }) }}
-              </dd>
-            </div>
-          </dl>
-
-          <div class="flex flex-wrap gap-x-6 gap-y-1 text-sm">
-            <span><span class="text-muted">{{ t('containers.protection') }}</span> {{ container.prot ?? '—' }}</span>
-            <span><span class="text-muted">{{ t('containers.shield') }}</span> {{ container.shield ?? '—' }}</span>
-          </div>
-
-          <div>
-            <p class="mb-2 text-sm font-medium">{{ t('containers.fillTitle') }}</p>
-            <ul v-if="container.artifacts.length" class="flex flex-wrap gap-1">
-              <li v-for="(artifact, index) in container.artifacts" :key="`${artifact.name}-${index}`">
-                <button type="button" @click="openArtifact(artifact.name, artifact.lvl)">
-                  <UBadge color="neutral" variant="subtle" class="cursor-pointer hover:text-primary">
-                    {{ artifact.name }} · +{{ artifact.lvl }}
-                  </UBadge>
-                </button>
-              </li>
-            </ul>
-            <p v-else class="text-sm text-muted">{{ t('containers.fillEmpty') }}</p>
-            <p v-if="container.artifactsAsOf" class="mt-2 text-xs text-muted">
-              {{ t('containers.fillAsOf', { date: formatDate(container.artifactsAsOf) }) }}
-            </p>
-          </div>
-
-          <p v-if="container.slots != null && container.eff != null" class="text-xs text-muted">
-            {{
-              t('containers.formula', {
-                slots: num(container.slots),
-                eff: g1(container.eff),
-                value: slotEquivalent(container),
-              })
-            }}
-          </p>
-        </div>
-      </UCard>
+        <ContainerDetail :container="selected" @artifact="openArtifact" />
+      </DossierPane>
     </div>
+
     <UEmpty
       v-else
       icon="i-lucide-backpack"
@@ -205,16 +147,53 @@ function startFill(container: ContainerPayload): void {
       :description="t('containers.emptyDescription')"
     />
 
-    <UModal v-model:open="modalOpen" :title="t('items.cardTitle')" :description="selected?.name" scrollable>
+    <USlideover v-model:open="slideOpen" :title="selected?.name ?? t('containers.detailTitle')">
+      <template #body>
+        <div class="space-y-3">
+          <ContainerDetail :container="selected" @artifact="openArtifact" />
+          <div v-if="selected?.ownedId" class="flex flex-wrap gap-2 border-t border-[var(--sz-border)] pt-3">
+            <UButton
+              icon="i-lucide-pencil"
+              color="neutral"
+              variant="outline"
+              size="xs"
+              :label="t('common.edit')"
+              @click="startEdit(selected)"
+            />
+            <UButton
+              icon="i-lucide-gem"
+              color="neutral"
+              variant="outline"
+              size="xs"
+              :label="t('containers.fill')"
+              @click="startFill(selected)"
+            />
+          </div>
+        </div>
+      </template>
+      <template #footer>
+        <KeyHint :keys="['Esc']" :label="t('common.close')" />
+      </template>
+    </USlideover>
+
+    <UModal
+      v-model:open="artifactOpen"
+      :title="t('items.artifactCardTitle')"
+      :description="artifactTarget?.name"
+      scrollable
+    >
       <template #body>
         <ItemCard
-          v-if="selected"
-          :name="selected.name"
-          :kind="selected.kind"
-          :data="selected.data"
-          :card="selectedCard"
-          :level="selected.level"
+          v-if="artifactTarget"
+          :name="artifactTarget.name"
+          kind="artifact"
+          :data="{ name: artifactTarget.name, lvl: artifactTarget.level }"
+          :card="artifactCard"
+          :level="artifactTarget.level"
         />
+      </template>
+      <template #footer>
+        <KeyHint :keys="['Esc']" :label="t('common.close')" />
       </template>
     </UModal>
 

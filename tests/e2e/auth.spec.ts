@@ -14,7 +14,7 @@ test('anonymous visitors are redirected to the login page', async ({ page }) => 
   await page.goto('/');
   await expect(page).toHaveURL(/\/login\?next=/);
   expect(new URL(page.url()).searchParams.get('next')).toBe('/');
-  await expect(page.getByRole('heading', { name: 'Stalzone Profile' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /STALZONE/ })).toBeVisible();
   await expect(page.locator('input[type="password"]')).toBeVisible();
 });
 
