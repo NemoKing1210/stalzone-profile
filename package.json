@@ -34,7 +34,8 @@
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "check": "npm run typecheck && npm run lint && npm run test",
+    "check": "npm run typecheck && npm run lint && npm run boundaries && npm run test",
+    "boundaries": "depcruise packages server scripts tests app --config dependency-cruiser.cjs",
     "hash-password": "tsx scripts/cli.ts hash-password"
   },
   "dependencies": {
@@ -55,7 +56,10 @@
     "@nuxt/eslint": "^1.17.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^24.0.0",
+    "dependency-cruiser": "^18.8.0",
     "eslint": "^9.22.0",
+    "eslint-import-resolver-typescript": "^4.4.4",
+    "eslint-plugin-boundaries": "^7.4.4",
     "prettier": "^3.5.3",
     "tsup": "^8.4.0",
     "tsx": "^4.19.3",

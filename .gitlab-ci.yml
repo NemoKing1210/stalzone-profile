@@ -25,6 +25,11 @@ typecheck:
   script:
     - npm run typecheck
 
+boundaries:
+  stage: verify
+  script:
+    - npm run boundaries
+
 unit:
   stage: test
   variables:
