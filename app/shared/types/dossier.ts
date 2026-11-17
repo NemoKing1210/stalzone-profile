@@ -1,3 +1,6 @@
+/** The freshness block is the API contract's shape, not a second copy. */
+import type { Freshness } from '@dossier/shared/contracts';
+
 export type OwnedKind = 'weapon' | 'armor' | 'artifact' | 'container';
 
 /** Manual override of a container's display values; a null field falls back to the item data. */
@@ -47,17 +50,10 @@ export interface EventRow {
 
 /* ------------------------------ dossier payload ------------------------------ */
 
-export interface DossierFreshness {
-  dataUpdated: string | null;
-  pricesUpdatedAt: string | null;
-  pricesAgeMin: number | null;
-  sources: { id: string; status: string; lastOkAt: string | null; lastTryAt: string | null; lastError: string | null }[];
-}
-
 export interface DossierMetaResponse {
   meta: Record<string, unknown>;
   catalogMeta: Record<string, unknown>;
-  freshness: DossierFreshness;
+  freshness: Freshness;
 }
 
 export interface DossierCharacter {
@@ -217,5 +213,5 @@ export interface DossierPayload {
   details: Record<string, unknown>;
   builds: { items: BuildPayload[] };
   icons: Record<string, string>;
-  freshness: DossierFreshness;
+  freshness: Freshness;
 }

@@ -2,17 +2,8 @@ import type { Db } from '../db/index.js';
 
 /* ------------------------------ write contract ------------------------------ */
 
-export interface WriteDiff {
-  before: unknown;
-  after: unknown;
-  human: string;
-}
-
-export interface WriteResult {
-  dryRun: boolean;
-  diff: WriteDiff;
-  eventId?: number;
-}
+/** The API contract owns the shape; core produces it, so the two cannot drift. */
+export type { WriteDiff, WriteResult } from '@dossier/shared/contracts';
 
 export class WriteError extends Error {
   constructor(

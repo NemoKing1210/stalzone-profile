@@ -1,0 +1,24 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+/** `@dossier/shared/contracts` owns the shapes the app, core and API exchange. */
+const read = (file: string): string => fs.readFileSync(path.join(process.cwd(), file), 'utf8');
+
+describe('contract single source', () => {
+  it.each(['packages/core/src/platform/journal/index.ts', 'app/shared/composables/useWrite.ts'])(
+    '%s takes WriteResult from the contracts instead of redeclaring it',
+    (file) => {
+      const source = read(file);
+      expect(source).toContain("from '@dossier/shared/contracts'");
+      expect(source).not.toMatch(/interface WriteResult\b/);
+      expect(source).not.toMatch(/interface WriteDiff\b/);
+    },
+  );
+
+  it('takes the freshness block from the contracts instead of redeclaring it', () => {
+    const source = read('app/shared/types/dossier.ts');
+    expect(source).toContain("from '@dossier/shared/contracts'");
+    expect(source).not.toMatch(/interface DossierFreshness\b/);
+  });
+});

@@ -1,14 +1,6 @@
-export interface WriteDiff {
-  before: unknown;
-  after: unknown;
-  human: string;
-}
+import type { WriteDiff, WriteResult } from '@dossier/shared/contracts';
 
-export interface WriteResult {
-  dryRun: boolean;
-  diff: WriteDiff;
-  eventId?: number;
-}
+export type { WriteDiff, WriteResult };
 
 interface WriteOptions {
   method: 'POST' | 'PATCH' | 'PUT' | 'DELETE';
