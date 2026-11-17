@@ -350,6 +350,11 @@
     "accent": "Accent colour",
     "accentDefault": "Default",
     "accentReset": "Reset to game default",
+    "soundsTitle": "Interface sounds",
+    "soundsText": "Short mechanical clicks on buttons, links, tabs and switches. They are generated in the browser, nothing is downloaded.",
+    "soundsEnabled": "Interface sounds",
+    "soundsVolume": "Volume",
+    "soundsPreview": "Test sound",
     "dataSources": "Data sources",
     "sources": {
       "intro": "These sources fill the catalog, prices, icons and profile statistics. Auto-update runs only while the server process is on.",

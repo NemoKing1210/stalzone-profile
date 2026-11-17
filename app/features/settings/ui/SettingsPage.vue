@@ -7,6 +7,14 @@ const { t } = useI18n();
 useHead(() => ({ title: `${t('settings.pageTitle')} // ${t('common.appName')}` }));
 
 const { accent, presets, setAccent, resetAccent } = useAccent();
+const { settings: soundSettings, play: playSound, setEnabled: setSoundEnabled, setVolume: setSoundVolume } = useUiSounds();
+
+const soundVolume = computed(() => Math.round(soundSettings.value.volume * 100));
+
+function setSoundVolumePercent(value: number | undefined): void {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return;
+  setSoundVolume(value / 100);
+}
 
 /** The page owns the tab in the URL and its validation; the screen only renders it. */
 const activeTab = defineModel<string>('tab', { default: 'appearance' });
@@ -91,6 +99,47 @@ const tabItems = computed(() => [
                 :label="t('settings.accentReset')"
                 @click="resetAccent"
               />
+            </div>
+
+            <div class="mt-4 border-t border-[var(--sz-border)] pt-3">
+              <h3 class="sz-caps text-[var(--sz-text-muted)]">{{ t('settings.soundsTitle') }}</h3>
+              <p class="mt-1 text-[12.5px] leading-relaxed text-[var(--sz-text-muted)]">
+                {{ t('settings.soundsText') }}
+              </p>
+
+              <div class="mt-3 flex flex-wrap items-center gap-x-5 gap-y-3">
+                <USwitch
+                  :model-value="soundSettings.enabled"
+                  :label="t('settings.soundsEnabled')"
+                  @update:model-value="(value) => setSoundEnabled(Boolean(value))"
+                />
+
+                <div class="flex items-center gap-2">
+                  <span class="text-[12px] text-[var(--sz-text-muted)]">{{ t('settings.soundsVolume') }}</span>
+                  <USlider
+                    :model-value="soundVolume"
+                    class="w-32"
+                    :aria-label="t('settings.soundsVolume')"
+                    :aria-valuetext="`${soundVolume}%`"
+                    :disabled="!soundSettings.enabled"
+                    @update:model-value="setSoundVolumePercent"
+                  />
+                  <span class="w-9 font-mono text-[11px] tabular-nums text-[var(--sz-text-muted)]">
+                    {{ soundVolume }}%
+                  </span>
+                </div>
+
+                <UButton
+                  :label="t('settings.soundsPreview')"
+                  icon="i-lucide-volume-2"
+                  color="neutral"
+                  variant="outline"
+                  size="sm"
+                  :disabled="!soundSettings.enabled"
+                  data-no-ui-sounds
+                  @click="playSound('tap')"
+                />
+              </div>
             </div>
           </ProfilePane>
         </div>
