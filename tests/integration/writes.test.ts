@@ -219,6 +219,27 @@ describe('updateOwned', () => {
     updateOwned(db, container.id, OwnedPatchSchema.parse({ container: null, dryRun: false }));
     expect(repo.getOwnedContainer(db, container.id)).toBeNull();
   });
+
+  it('clears one override field without touching the others', () => {
+    const [container] = listOwned(db, characterId, 'container');
+    updateOwned(db, container.id, OwnedPatchSchema.parse({ container: { shield: 30, slots: 5 }, dryRun: false }));
+    updateOwned(db, container.id, OwnedPatchSchema.parse({ container: { shield: null }, dryRun: false }));
+    expect(repo.getOwnedContainer(db, container.id)).toMatchObject({ shield: null, slots: 5 });
+  });
+
+  it('rolls back an update that added the container override', () => {
+    const [container] = listOwned(db, characterId, 'container');
+    expect(repo.getOwnedContainer(db, container.id)).toBeNull();
+    const written = updateOwned(
+      db,
+      container.id,
+      OwnedPatchSchema.parse({ container: { shield: 30 }, dryRun: false }),
+    );
+    expect(repo.getOwnedContainer(db, container.id)?.shield).toBe(30);
+
+    rollbackEvent(db, written.eventId!, false);
+    expect(repo.getOwnedContainer(db, container.id)).toBeNull();
+  });
 });
 
 describe('deleteOwned with copies', () => {
@@ -413,6 +434,22 @@ describe('character', () => {
     expect(
       repo.listCharacterStats(db, repo.getCharacter(db)!.id).find((row) => row.stat_id === 'kil' && row.origin === 'manual'),
     ).toBeUndefined();
+  });
+
+  it('does not turn API stats into manual overrides when the save leaves them unchanged', () => {
+    const result = patchCharacter(
+      db,
+      CharacterPatchSchema.parse({
+        nick: 'tester',
+        stats: { kil: 250, dea: 100, 'pla-tim': 'PT123H' },
+        dryRun: false,
+      }),
+    );
+    expect(result.diff.human).toBe('No changes');
+    const rows = repo.listCharacterStats(db, characterId);
+    expect(rows.filter((row) => row.origin === 'manual')).toHaveLength(0);
+    expect(repo.characterStatMap(db, characterId).kil.origin).toBe('api');
+    expect(JSON.parse(listEvents(db)[0].after!).manualStats).toEqual([]);
   });
 
   it('does not accept derived character fields', () => {

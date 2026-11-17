@@ -104,12 +104,13 @@ export function findOwned(
   );
 }
 
+/** Writes the complete six-column row: a null field is an explicit clear, not "keep current". */
 export function upsertOwnedContainer(db: Db, ownedId: number, input: ContainerInput): void {
   db.prepare(
     `INSERT INTO owned_container (owned_id, ${CONTAINER_COLUMNS.join(', ')})
      VALUES (@owned_id, ${CONTAINER_COLUMNS.map((column) => '@' + column).join(', ')})
      ON CONFLICT(owned_id) DO UPDATE SET
-       ${CONTAINER_COLUMNS.map((column) => `${column} = COALESCE(excluded.${column}, ${column})`).join(', ')}`,
+       ${CONTAINER_COLUMNS.map((column) => `${column} = excluded.${column}`).join(', ')}`,
   ).run({
     owned_id: ownedId,
     container_type: input.containerType ?? null,

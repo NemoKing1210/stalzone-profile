@@ -141,13 +141,16 @@ function containerSnapshot(db: Db, ownedId: number): ContainerSnapshot | null {
 function mergeContainer(current: ContainerSnapshot | null, patch: ContainerPatch | null | undefined): ContainerSnapshot | null {
   if (patch === undefined) return current;
   if (patch === null) return null;
+  // An absent key keeps the current value; an explicit null clears it.
+  const pick = <K extends keyof ContainerSnapshot>(key: K): ContainerSnapshot[K] =>
+    patch[key] !== undefined ? (patch[key] as ContainerSnapshot[K]) : (current?.[key] ?? null);
   return {
-    containerType: patch.containerType ?? current?.containerType ?? null,
-    shield: patch.shield ?? current?.shield ?? null,
-    bonus: patch.bonus ?? current?.bonus ?? null,
-    protection: patch.protection ?? current?.protection ?? null,
-    slots: patch.slots ?? current?.slots ?? null,
-    eff: patch.eff ?? current?.eff ?? null,
+    containerType: pick('containerType'),
+    shield: pick('shield'),
+    bonus: pick('bonus'),
+    protection: pick('protection'),
+    slots: pick('slots'),
+    eff: pick('eff'),
   };
 }
 
@@ -282,13 +285,18 @@ export function patchCharacter(db: Db, patch: CharacterPatch): WriteResult {
     if (!cleared.has(statId)) stats[statId] = value;
   }
   const manual = new Set(before.manualStats);
+  /** Only counters that actually become manual are written; an unchanged API value stays API-owned. */
+  const statWrites: Record<string, number | string | null> = {};
   for (const [statId, value] of Object.entries(patchStats)) {
     if (value === null) {
       manual.delete(statId);
-    } else {
-      stats[statId] = value;
-      manual.add(statId);
+      statWrites[statId] = null;
+      continue;
     }
+    if (!manual.has(statId) && before.stats[statId] === value) continue;
+    stats[statId] = value;
+    manual.add(statId);
+    statWrites[statId] = value;
   }
 
   const after: CharacterSnapshot = {
@@ -310,7 +318,7 @@ export function patchCharacter(db: Db, patch: CharacterPatch): WriteResult {
   let eventId: number | undefined;
   db.transaction(() => {
     if (Object.keys(defined).length) repo.updateCharacterById(db, character.id, characterColumns(defined));
-    for (const [statId, value] of Object.entries(patch.stats ?? {})) {
+    for (const [statId, value] of Object.entries(statWrites)) {
       if (value === null) repo.clearCharacterStat(db, character.id, statId, 'manual');
       else repo.setCharacterStat(db, character.id, statId, value, 'manual');
     }
@@ -379,7 +387,7 @@ export function createOwned(db: Db, input: OwnedCreate): WriteResult {
       slot: after.slot,
       qty,
       displayName: item.name,
-      container: input.container ?? undefined,
+      container: container ?? undefined,
     });
     after.id = id;
     eventId = repo.logEvent(db, {
@@ -458,9 +466,9 @@ export function updateOwned(db: Db, id: number, patch: OwnedPatch): WriteResult 
       container:
         patch.container === undefined
           ? undefined
-          : patch.container === null
+          : merged.container === null
             ? null
-            : (patch.container as repo.ContainerInput),
+            : (merged.container as repo.ContainerInput),
     });
     eventId = repo.logEvent(db, {
       actor: 'owner',
@@ -876,6 +884,7 @@ function restoreOwnedSnapshot(db: Db, snapshot: any): void {
     displayName: snapshot.displayName ?? snapshot.name,
   });
   if (snapshot.container) repo.upsertOwnedContainer(db, restoredId, snapshot.container);
+  else repo.deleteOwnedContainer(db, restoredId);
   const fill = snapshot.fill as { asOf?: string | null; artifacts?: any[] } | null | undefined;
   if (fill) {
     repo.replaceContainerSlots(
