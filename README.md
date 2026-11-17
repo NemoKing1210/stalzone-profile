@@ -23,8 +23,9 @@ npm run dev               # http://stalzone-profile.local
 ```
 
 The database starts empty apart from migrations and sources. The catalog comes from
-`npm run sync`; character identity, raw counters and gear are added through the site, the
-API or MCP. Nothing personal ships in the repository.
+`npm run sync`. Character creation is phase 2 (onboarding): until it lands, a fresh
+database has no character row, so the site renders empty and the API answers
+`NO_CHARACTER`. Do not reset a database you still need until phase 2 ships.
 
 For the local domain add one line to `hosts` (administrator rights required):
 

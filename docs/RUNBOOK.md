@@ -42,8 +42,9 @@ docker compose -f deploy/docker-compose.yml exec app node dist/cli.js sync
 docker compose -f deploy/docker-compose.yml restart app
 ```
 
-Then sign in and fill in the character identity and raw counters in the editor; gear is
-added through the site, the API or MCP.
+Then sign in. Phase 1 has no onboarding: a fresh database has no character, so the site
+stays empty and the API answers `NO_CHARACTER` until phase 2 creates one. The catalog,
+prices and sources sync normally.
 
 Check: `http://<host>:3000/login` serves the form; sign in with the password from `.env`.
 

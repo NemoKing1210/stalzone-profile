@@ -43,7 +43,8 @@ This file holds rules, not a copy of the documentation.
 | Password hash                     | `npm run hash-password -- 'password'`                                        |
 
 `db:reset` deletes the file at `DB_PATH` (and `-wal`/`-shm`). Before running it, make sure
-`DB_PATH` points at a local or test database, not the working one.
+`DB_PATH` points at a local or test database, not the working one. A reset database has no
+character until phase 2 onboarding exists, so the API answers `NO_CHARACTER` until then.
 
 ## Verification tiers
 

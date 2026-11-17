@@ -24,7 +24,8 @@ The old database has to be rebuilt. Export first if the data still matters to yo
    `db/seeds/legacy.json` / `data/my-gear.json`, if you still have them, as the source for
    manual re-entry.
 
-3. Check where `DB_PATH` points, then delete the database and its WAL files:
+3. Only if you accept an empty dossier until phase 2 (step 5): check where `DB_PATH`
+   points, then delete the database and its WAL files:
 
    ```bash
    npm run db:reset
@@ -43,9 +44,10 @@ The old database has to be rebuilt. Export first if the data still matters to yo
    npm run export:json        # optional: inspect the empty typed dossier
    ```
 
-5. Add the dossier data through the site, the API or MCP: character identity and raw
-   counters via `PATCH /api/v1/character`, gear via `POST /api/v1/owned`, container fill via
-   `PUT /api/v1/containers/:id/fill`, builds via `POST /api/v1/builds`.
+5. Phase 1 has no character creation: `PATCH /api/v1/character` requires an existing row
+   and answers `409 NO_CHARACTER` on an empty database, and MCP has no character-write
+   tool. Onboarding arrives in phase 2. Until then a reset database holds only the catalog,
+   prices and sources; postpone the destructive reset if you still need the old dossier.
 
 ## Verification
 

@@ -60,7 +60,8 @@ time (`details[key]`, weapon/armor/artifact/container cards).
 
 - Derived character fields come from stat ids: `reg-tim` (in the Zone since), `pla-tim`
   (hours), `kil`/`dea` (K/D), `sho-hit`/`sho-fir` (accuracy), `sho-hea`/`sho-hit` (headshot
-  share), `ach-gai` (achievement points).
+  share), `ach-gai` (achievements count). Achievement points have no stat id in phase 1 and
+  are `null`.
 - Container display precedence: `owned_container` override > `container.*` item stats >
   `null`. Fill comes from `container_slot`.
 - No lot means `null` ("no lot"), no stat means `null` ("no data"). Zero, a missing value

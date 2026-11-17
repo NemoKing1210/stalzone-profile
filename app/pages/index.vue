@@ -68,9 +68,11 @@ const detailStats = computed(() => [
     value:
       character.value.achievements == null
         ? null
-        : `${num(character.value.achievements)} · ${t('overview.points', {
-            count: num(character.value.achievementPoints ?? 0),
-          })}`,
+        : character.value.achievementPoints == null
+          ? `${num(character.value.achievements)}`
+          : `${num(character.value.achievements)} · ${t('overview.points', {
+              count: num(character.value.achievementPoints),
+            })}`,
     tone: 'neutral' as const,
   },
   {
