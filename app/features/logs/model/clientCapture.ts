@@ -47,6 +47,9 @@ export function dedupeKey(entry: Pick<ClientLogEntry, 'level' | 'message' | 'sta
   return `${entry.level}\n${entry.message}\n${firstFrame(entry.stack)}`;
 }
 
+/** Expired keys are pruned past this size, so long-lived tabs do not leak memory. */
+const SEEN_PRUNE_AT = 64;
+
 /** True when the entry was not seen in the last five seconds; records it when sent. */
 export function shouldSend(
   entry: Pick<ClientLogEntry, 'level' | 'message' | 'stack'>,
@@ -57,5 +60,10 @@ export function shouldSend(
   const last = seen.get(key);
   if (last != null && now - last < DEDUPE_WINDOW_MS) return false;
   seen.set(key, now);
+  if (seen.size > SEEN_PRUNE_AT) {
+    for (const [other, at] of seen) {
+      if (now - at >= DEDUPE_WINDOW_MS) seen.delete(other);
+    }
+  }
   return true;
 }

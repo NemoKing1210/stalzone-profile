@@ -95,7 +95,8 @@ const isContainer = computed(() => props.target?.kind === 'container');
 const layoutPair = computed(() => {
   const width = form.layoutWidth;
   const height = form.layoutHeight;
-  if (width == null && height == null) return { valid: true, value: null };
+  // Width and height are the layout's key: a weight on its own has no row to live in.
+  if (width == null && height == null) return { valid: form.layoutWeight == null, value: null };
   if (width == null || height == null || width < 1 || height < 1) return { valid: false, value: null };
   return { valid: true, value: { width, height } };
 });
@@ -162,9 +163,12 @@ async function submit(): Promise<void> {
       body: {
         ...layout,
         ...(form.layoutWeight == null ? {} : { weight: form.layoutWeight }),
+        dryRun: form.dryRun,
       },
     });
     if (!result) return;
+    lastResult.value = result;
+    if (result.dryRun) return;
     wrote = true;
   }
 
@@ -246,7 +250,7 @@ async function remove(): Promise<void> {
             </UFormField>
           </div>
           <p class="text-[12px] text-[var(--sz-text-dim)]">{{ t('forms.layoutHint') }}</p>
-          <p v-if="!layoutPair.valid" class="text-[11px] text-[var(--sz-error-text)]">
+          <p v-if="!layoutPair.valid" class="text-[11px] text-[var(--sz-danger-text)]">
             {{ t('forms.layoutPairError') }}
           </p>
         </div>

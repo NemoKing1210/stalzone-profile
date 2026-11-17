@@ -57,7 +57,7 @@ function formatDateTime(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
   const intlLocale = locale.value === 'ru' ? 'ru-RU' : 'en-US';
-  return new Intl.DateTimeFormat(intlLocale, { dateStyle: 'short', timeStyle: 'short' }).format(date);
+  return new Intl.DateTimeFormat(intlLocale, { dateStyle: 'short', timeStyle: 'short', timeZone: 'UTC' }).format(date);
 }
 
 function startRollback(row: EventRow): void {

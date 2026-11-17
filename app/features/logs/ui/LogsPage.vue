@@ -105,8 +105,9 @@ function formatBytes(value: number): string {
   return `${(value / 1024 / 1024).toFixed(1)} MB`;
 }
 
+let requestSeq = 0;
 async function load(reset = true): Promise<void> {
-  if (loading.value) return;
+  const seq = ++requestSeq;
   if (reset) {
     loading.value = true;
     error.value = false;
@@ -118,6 +119,8 @@ async function load(reset = true): Promise<void> {
         ...(reset || nextBefore.value == null ? {} : { before: nextBefore.value }),
       },
     });
+    // A newer request (another filter change, a refresh) owns the state now.
+    if (seq !== requestSeq) return;
     if (reset) {
       entries.value = page.entries;
       groups.value = page.groups;
@@ -128,9 +131,9 @@ async function load(reset = true): Promise<void> {
     hasMore.value = page.hasMore;
     nextBefore.value = page.nextBefore;
   } catch {
-    error.value = true;
+    if (seq === requestSeq) error.value = true;
   } finally {
-    loading.value = false;
+    if (seq === requestSeq) loading.value = false;
   }
 }
 
@@ -160,10 +163,23 @@ watch(
   { deep: true },
 );
 
+// Browser Back/Forward changes the query; bring the controls back in line without a refetch loop.
+watch(
+  () => route.query,
+  (query) => {
+    const next = parseLogFilters(query as Record<string, unknown>);
+    const same =
+      JSON.stringify(filtersToRouteQuery(next)) === JSON.stringify(filtersToRouteQuery(filters.value));
+    if (!same) filters.value = next;
+  },
+);
+
 onMounted(() => {
   refreshAll();
   interval = window.setInterval(() => {
     if (!autoRefresh.value || purgeOpen.value || detailOpen.value) return;
+    // A background tab does not need five-second polling.
+    if (document.visibilityState === 'hidden') return;
     refreshAll();
   }, 5_000);
 });
@@ -185,11 +201,16 @@ let purgeRequest = 0;
 
 async function previewPurge(): Promise<void> {
   const token = ++purgeRequest;
-  const preview = await write<WriteResult>('/api/v1/logs', {
-    method: 'DELETE',
-    body: { ...purgeBody.value, dryRun: true },
-  });
-  if (token === purgeRequest) purgePreview.value = preview;
+  try {
+    // The preview is a quiet read of the write diff: no toast and no shared busy flag.
+    const preview = await $fetch<WriteResult>('/api/v1/logs', {
+      method: 'DELETE',
+      body: { ...purgeBody.value, dryRun: true },
+    });
+    if (token === purgeRequest) purgePreview.value = preview;
+  } catch {
+    if (token === purgeRequest) purgePreview.value = null;
+  }
 }
 
 async function openPurge(): Promise<void> {

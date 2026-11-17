@@ -377,6 +377,7 @@
     "looseDropHere": "Drop an item here to take it out of the grid.",
     "dragHint": "Arrows move, R rotates, Enter drops, Esc cancels.",
     "manageStashes": "Manage stashes",
+    "storageManager": "Stash manager",
     "unverifiedTitle": "Compatibility is unknown",
     "unverifiedDesc": "The source has no compatibility record for this attachment and weapon. Install it anyway? The module will be marked unverified.",
     "unverifiedConfirm": "Install anyway"

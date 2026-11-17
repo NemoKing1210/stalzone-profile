@@ -34,7 +34,7 @@ function fill(): void {
   form.note = props.item.note ?? '';
 }
 
-watch(() => props.item, fill, { immediate: true, deep: true });
+watch(() => props.item, fill, { immediate: true });
 
 const changed = computed(() => {
   if (Number(form.level) !== props.item.level) return true;

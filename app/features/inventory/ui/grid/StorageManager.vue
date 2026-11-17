@@ -37,7 +37,7 @@ function fill(): void {
 }
 
 watch(() => props.selectedId, fill, { immediate: true });
-watch(() => props.stashes, fill, { deep: true });
+watch(() => props.stashes, fill);
 
 const changed = computed(() => {
   const stash = selected.value;

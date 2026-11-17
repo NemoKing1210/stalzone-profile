@@ -91,9 +91,9 @@ function sourceStatusText(source: CatalogSource): string {
 
 function sourceStatusTone(source: CatalogSource): string {
   const result = results[source.id];
-  if (result?.status === 'ok' || (!result && storedStatus(source.id) === 'ok')) return 'text-[var(--sz-positive)]';
+  if (result?.status === 'ok' || (!result && storedStatus(source.id) === 'ok')) return 'text-[var(--sz-success)]';
   if (result?.status === 'stale' || (!result && storedStatus(source.id) === 'stale')) {
-    return 'text-[var(--sz-negative)]';
+    return 'text-[var(--sz-danger)]';
   }
   return 'text-[var(--sz-text-dim)]';
 }
@@ -108,7 +108,7 @@ async function createCharacter(): Promise<void> {
   if (creating.value || !form.nick.trim()) return;
   creating.value = true;
   try {
-    await write('/api/v1/character', {
+    const result = await write('/api/v1/character', {
       method: 'POST',
       body: {
         nick: form.nick.trim(),
@@ -117,6 +117,7 @@ async function createCharacter(): Promise<void> {
         dryRun: false,
       },
     });
+    if (!result) return;
     createdHere = true;
     await refreshSetup();
     step.value = 2;

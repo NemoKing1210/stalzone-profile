@@ -42,4 +42,12 @@ describe('client capture helpers', () => {
     expect(shouldSend(entry, seen, 4000)).toBe(false);
     expect(shouldSend(entry, seen, 6000)).toBe(true);
   });
+
+  it('forgets expired dedupe keys so the map cannot grow without bound', () => {
+    const seen = new Map<string, number>();
+    for (let index = 0; index < 100; index += 1) seen.set(`old-${index}`, 0);
+    shouldSend({ level: 'error', message: 'new', stack: null }, seen, 10_000);
+    expect(seen.size).toBe(1);
+    expect(seen.has('old-0')).toBe(false);
+  });
 });
