@@ -200,6 +200,14 @@ function startEdit(container: ContainerPayload): void {
     note: container.note ?? null,
     role: null,
     slot: null,
+    container: {
+      containerType: container.type ?? null,
+      shield: container.shield ?? null,
+      bonus: container.bonus ?? null,
+      protection: container.prot ?? null,
+      slots: container.slots ?? null,
+      eff: container.eff ?? null,
+    },
   };
 }
 

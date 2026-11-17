@@ -18,6 +18,14 @@ const form = reactive({
   note: null as string | null | undefined,
   role: null as string | null | undefined,
   slot: null as string | null | undefined,
+  container: {
+    containerType: null as string | null | undefined,
+    shield: null as number | null,
+    bonus: null as string | null | undefined,
+    protection: null as number | null,
+    slots: null as number | null,
+    eff: null as number | null,
+  },
   dryRun: false,
 });
 
@@ -51,6 +59,14 @@ function reset(): void {
   form.note = target.note;
   form.role = target.role;
   form.slot = target.slot;
+  form.container = {
+    containerType: target.container?.containerType ?? null,
+    shield: target.container?.shield ?? null,
+    bonus: target.container?.bonus ?? null,
+    protection: target.container?.protection ?? null,
+    slots: target.container?.slots ?? null,
+    eff: target.container?.eff ?? null,
+  };
   form.dryRun = false;
   lastResult.value = null;
 }
@@ -69,6 +85,7 @@ async function submit(): Promise<void> {
       note: form.note ?? null,
       role: form.role ?? null,
       slot: form.slot ?? null,
+      ...(target.kind === 'container' ? { container: { ...form.container } } : {}),
       dryRun: form.dryRun,
     },
   });
@@ -132,6 +149,30 @@ async function remove(): Promise<void> {
         <UFormField :label="t('forms.note')" name="note">
           <UTextarea v-model.nullable="form.note" :rows="2" class="w-full" />
         </UFormField>
+
+        <div v-if="props.target?.kind === 'container'" class="space-y-3 border-t border-[var(--sz-border)] pt-3">
+          <p class="sz-caps text-[var(--sz-text-muted)]">{{ t('forms.containerOverride') }}</p>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <UFormField :label="t('forms.containerType')" name="container.containerType">
+              <UInput v-model.nullable="form.container.containerType" class="w-full" />
+            </UFormField>
+            <UFormField :label="t('table.slots')" name="container.slots">
+              <UInputNumber v-model="form.container.slots" :min="0" class="w-full" />
+            </UFormField>
+            <UFormField :label="t('table.efficiency')" name="container.eff">
+              <UInputNumber v-model="form.container.eff" :min="0" class="w-full" />
+            </UFormField>
+            <UFormField :label="t('forms.protection')" name="container.protection">
+              <UInputNumber v-model="form.container.protection" :min="0" class="w-full" />
+            </UFormField>
+            <UFormField :label="t('forms.shield')" name="container.shield">
+              <UInputNumber v-model="form.container.shield" :min="0" class="w-full" />
+            </UFormField>
+            <UFormField :label="t('forms.bonus')" name="container.bonus">
+              <UInput v-model.nullable="form.container.bonus" class="w-full" />
+            </UFormField>
+          </div>
+        </div>
 
         <UFormField name="dryRun">
           <USwitch v-model="form.dryRun" :label="t('common.dryRun')" />

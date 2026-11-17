@@ -109,21 +109,6 @@ const dataState = computed(() => [
   { label: t('settings.catalogUpdated'), value: formatDate(catalogUpdated.value), tone: 'neutral' as const },
   { label: t('settings.catalogSource'), value: catalogSource.value, tone: 'neutral' as const },
 ]);
-
-const career = computed(() => {
-  const list = payload.value?.career ?? [];
-  return list
-    .filter((entry): entry is [string, number] => Array.isArray(entry) && entry.length >= 2)
-    .map(([label, value]) => ({ label, value }));
-});
-
-/** Two balanced columns on wide screens; one list on narrow ones. */
-const careerColumns = computed(() => {
-  const rows = career.value;
-  if (rows.length < 8) return [rows];
-  const half = Math.ceil(rows.length / 2);
-  return [rows.slice(0, half), rows.slice(half)];
-});
 </script>
 
 <template>
@@ -133,14 +118,15 @@ const careerColumns = computed(() => {
         <h1>{{ character.nick ?? 'STALZONE' }}</h1>
         <p class="text-[12.5px] text-[var(--sz-text-muted)]">
           {{ character.faction ?? t('overview.factionMissing') }}
-          <span v-if="character.clan"> · {{ character.clan }}</span>
-          <span v-if="character.realm"> · {{ character.realm }}</span>
+          <span v-if="character.clanName"> · {{ character.clanName }}</span>
+          <span v-if="character.clanRank"> · {{ character.clanRank }}</span>
+          <span v-if="character.region"> · {{ character.region }}</span>
         </p>
       </div>
     </div>
 
     <template v-if="hasCharacter">
-      <div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-[300px_minmax(0,1fr)_320px]">
+      <div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
         <DossierPane class="order-1 min-w-0" :title="t('overview.character')" dense>
           <div class="min-w-0 space-y-1.5">
             <p class="font-display text-[15px] uppercase tracking-[0.06em]">{{ character.nick ?? 'STALZONE' }}</p>
@@ -193,7 +179,7 @@ const careerColumns = computed(() => {
           </p>
         </DossierPane>
 
-        <div class="order-2 min-w-0 space-y-4 lg:order-3">
+        <div class="order-2 min-w-0 space-y-4">
           <DossierPane :title="t('overview.sections')" dense flush>
             <div class="grid grid-cols-2 gap-px bg-[var(--sz-border)]">
               <NuxtLink
@@ -236,27 +222,6 @@ const careerColumns = computed(() => {
             </p>
           </DossierPane>
         </div>
-
-        <DossierPane class="order-3 min-w-0 lg:order-2" :title="t('overview.career')" dense>
-          <div v-if="career.length" class="grid grid-cols-1 gap-x-4 xl:grid-cols-2">
-            <div
-              v-for="(column, index) in careerColumns"
-              :key="index"
-              class="divide-y divide-[var(--sz-border)]"
-              :class="index > 0 ? 'xl:border-l xl:border-[var(--sz-border)] xl:pl-4' : ''"
-            >
-              <div
-                v-for="entry in column"
-                :key="entry.label"
-                class="flex items-baseline justify-between gap-3 py-2 text-[12.5px]"
-              >
-                <span class="min-w-0 break-words text-[var(--sz-text-muted)]">{{ entry.label }}</span>
-                <span class="shrink-0 font-display text-[15px] leading-none tabular-nums">{{ num(entry.value) }}</span>
-              </div>
-            </div>
-          </div>
-          <p v-else class="text-[12.5px] text-[var(--sz-text-muted)]">{{ t('overview.careerEmpty') }}</p>
-        </DossierPane>
       </div>
     </template>
 

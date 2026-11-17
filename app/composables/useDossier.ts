@@ -13,10 +13,11 @@ export interface DossierMetaResponse {
 
 export interface DossierCharacter {
   nick?: string;
-  realm?: string;
+  region?: string;
   faction?: string | null;
   alliance?: string | null;
-  clan?: string | null;
+  clanName?: string | null;
+  clanRank?: string | null;
   arrived?: string | null;
   hours?: number | null;
   kd?: number | null;
@@ -28,6 +29,7 @@ export interface DossierCharacter {
   maxMoney?: number | null;
   stash?: string | null;
   playstyle?: string | null;
+  stats?: Record<string, number | string>;
 }
 
 export interface WeaponPayload {
@@ -158,29 +160,13 @@ export interface BuildPayload {
 export interface DossierPayload {
   meta: Record<string, unknown>;
   character: DossierCharacter;
-  career: unknown[];
   weapons: WeaponPayload[];
   armor: ArmorPayload[];
   containers: ContainerPayload[];
   artifacts: ArtifactPayload[];
   catalog: { weapons: CatalogEntry[]; armor: CatalogEntry[]; meta: Record<string, unknown> };
-  recommendations: {
-    id?: string;
-    title?: string;
-    lead?: string;
-    slug?: string | null;
-    position?: number;
-    [key: string]: unknown;
-  }[];
   details: Record<string, unknown>;
-  earnings: { updated?: string; note?: string; rows?: Record<string, unknown>[]; [key: string]: unknown } | null;
-  builds: {
-    updated: string | null;
-    priceNote: string | null;
-    items: BuildPayload[];
-    avoid: { name: string; why: string }[];
-    current: { title?: string; note?: string; rows?: { name: string; lvl: number }[] } | null;
-  };
+  builds: { items: BuildPayload[] };
   icons: Record<string, string>;
   freshness: DossierFreshness;
 }
