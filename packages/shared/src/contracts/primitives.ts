@@ -19,6 +19,7 @@ export const ItemKindSchema = z.enum([
 
 /** Only these kinds can belong to the dossier; the rest stay catalog-only. */
 export const OwnedKindSchema = z.enum(['weapon', 'armor', 'container', 'artifact']);
+export type OwnedKind = z.infer<typeof OwnedKindSchema>;
 
 export const CleanupScopeSchema = z.enum(['owned', 'builds', 'all']);
 export type CleanupScope = z.infer<typeof CleanupScopeSchema>;

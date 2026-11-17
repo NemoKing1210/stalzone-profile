@@ -1,7 +1,7 @@
-/** The freshness block is the API contract's shape, not a second copy. */
-import type { Freshness } from '@dossier/shared/contracts';
+/** These are the API contract's shapes, not a second copy. */
+import type { EventRead, Freshness, OwnedKind } from '@dossier/shared/contracts';
 
-export type OwnedKind = 'weapon' | 'armor' | 'artifact' | 'container';
+export type { OwnedKind };
 
 /** Manual override of a container's display values; a null field falls back to the item data. */
 export interface ContainerOverride {
@@ -36,17 +36,8 @@ export interface FillTarget {
   artifactsAsOf: string | null;
 }
 
-export interface EventRow {
-  id: number;
-  at: string;
-  actor: string;
-  action: string;
-  entity: string;
-  entityId: string;
-  before: unknown;
-  after: unknown;
-  note: string | null;
-}
+/** `/api/v1/events` returns contract event reads; entity ids are nullable by contract. */
+export type EventRow = EventRead;
 
 /* ------------------------------ dossier payload ------------------------------ */
 

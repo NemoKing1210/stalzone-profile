@@ -21,4 +21,10 @@ describe('contract single source', () => {
     expect(source).toContain("from '@dossier/shared/contracts'");
     expect(source).not.toMatch(/interface DossierFreshness\b/);
   });
+
+  it('takes the owned kind and event row from the contracts instead of redeclaring them', () => {
+    const source = read('app/shared/types/dossier.ts');
+    expect(source).not.toMatch(/export type OwnedKind =/);
+    expect(source).not.toMatch(/export interface EventRow\b/);
+  });
 });
