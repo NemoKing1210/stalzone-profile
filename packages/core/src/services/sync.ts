@@ -3,21 +3,26 @@ import path from 'node:path';
 import { norm, sha1 } from '@dossier/shared';
 import {
   exboAdapter,
+  fetchStalzoneProfile,
   motifsAdapter,
   scpmodelAdapter,
   wikiAdapter,
   type FetchLike,
   type MotifRow,
   type PriceRow,
+  type StalzoneApiOptions,
 } from '@dossier/sources';
 import type { Db } from '../db/index.js';
 import * as repo from '../repo/index.js';
 import { ensureDir } from '../config.js';
 import { exboStats, localExboId, remoteIcon, ttkStats, wikiEffects, wikiStats } from './normalize.js';
+import { mapProfileStats } from './profile.js';
 
 type Json = Record<string, any>;
 
-export const SYNC_SOURCES = ['exbo_base', 'wiki', 'motifs', 'scpmodel', 'icons'] as const;
+/** Sources `all` runs: public catalog data. `profile` is opt-in and never implicit. */
+export const CATALOG_SOURCES = ['exbo_base', 'wiki', 'motifs', 'scpmodel', 'icons'] as const;
+export const SYNC_SOURCES = [...CATALOG_SOURCES, 'profile'] as const;
 export type SyncSource = (typeof SYNC_SOURCES)[number];
 
 export type SyncStatus = 'ok' | 'stale';
@@ -44,6 +49,7 @@ export interface SyncOptions {
   realm?: string;
   now?: number;
   iconsDir?: string;
+  profileApi?: StalzoneApiOptions;
 }
 
 /** Aliases used by MCP clients and the CLI. */
@@ -64,7 +70,7 @@ export function pricesAgeMin(db: Db, now = Date.now()): number {
 }
 
 export function runSyncAll(db: Db, options: SyncOptions = {}): Promise<SyncResult[]> {
-  return SYNC_SOURCES.reduce<Promise<SyncResult[]>>(async (previous, source) => {
+  return CATALOG_SOURCES.reduce<Promise<SyncResult[]>>(async (previous, source) => {
     const results = await previous;
     results.push(await runSync(db, source, options));
     return results;
@@ -326,6 +332,53 @@ async function syncIcons(db: Db, options: SyncOptions): Promise<SyncResult> {
   return { source: 'icons', status: 'ok', items: icons, icons, failed, fetchedAt: new Date().toISOString() };
 }
 
+/**
+ * Replaces only the API-owned statistics and keeps manual overrides. A stat
+ * present in the previous pull but missing now disappears instead of going stale.
+ */
+async function syncProfile(db: Db, options: SyncOptions): Promise<SyncResult> {
+  const api = options.profileApi;
+  if (!api?.clientId || !api.clientSecret) throw new Error('STALZONE_API_NOT_CONFIGURED');
+
+  const character = repo.getCharacter(db);
+  if (!character) throw new Error('no character to sync a profile for');
+  if (character.region === 'global') throw new Error('the profile API does not serve the global region');
+
+  const profile = await fetchStalzoneProfile({
+    ...api,
+    nick: character.nick,
+    region: character.region,
+    fetchImpl: options.fetchImpl ?? ((url, init) => fetch(url, init)),
+  });
+  const { numeric, text } = mapProfileStats(profile.stats);
+  const fetchedAt = new Date().toISOString();
+
+  db.transaction(() => {
+    for (const stat of repo.listCharacterStats(db, character.id)) {
+      if (stat.origin === 'api') repo.clearCharacterStat(db, character.id, stat.stat_id, 'api');
+    }
+    for (const [statId, value] of Object.entries(numeric)) {
+      repo.setCharacterStat(db, character.id, statId, value, 'api', fetchedAt);
+    }
+    for (const [statId, value] of Object.entries(text)) {
+      repo.setCharacterStat(db, character.id, statId, value, 'api', fetchedAt);
+    }
+    repo.updateCharacterById(db, character.id, {
+      alliance: profile.alliance,
+      clan_name: profile.clan?.name ?? null,
+      clan_rank: profile.clan?.rank ?? null,
+      profile_fetched_at: fetchedAt,
+    });
+  })();
+
+  return {
+    source: 'profile',
+    status: 'ok',
+    items: Object.keys(numeric).length + Object.keys(text).length,
+    fetchedAt,
+  };
+}
+
 function priceInput(db: Db, row: PriceRow): repo.PriceQuoteInput {
   const item = row.exboId ? repo.getItemByExternalId(db, row.exboId) : null;
   return {
@@ -395,6 +448,9 @@ export async function runSync(db: Db, source: string, options: SyncOptions = {})
         break;
       case 'icons':
         result = await syncIcons(db, options);
+        break;
+      case 'profile':
+        result = await syncProfile(db, options);
         break;
     }
     if (result.fetchedAt) repo.markSourceOk(db, normalized, { at: result.fetchedAt });

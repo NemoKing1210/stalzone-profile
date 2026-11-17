@@ -12,6 +12,11 @@ export interface AppConfig {
   port: number;
   adminToken: string | null;
   mcpToken: string | null;
+  /** Optional official STALZONE API credentials; both must be set to sync a profile. */
+  stalzoneClientId: string | null;
+  stalzoneClientSecret: string | null;
+  stalzoneApiUrl: string;
+  stalzoneTokenUrl: string;
 }
 
 export function isTruthy(v: unknown): boolean {
@@ -54,6 +59,10 @@ export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     port: overrides.port ?? Number(process.env.PORT ?? 3000),
     adminToken: overrides.adminToken ?? process.env.ADMIN_TOKEN ?? null,
     mcpToken: overrides.mcpToken ?? process.env.MCP_TOKEN ?? null,
+    stalzoneClientId: overrides.stalzoneClientId ?? process.env.STALZONE_CLIENT_ID ?? null,
+    stalzoneClientSecret: overrides.stalzoneClientSecret ?? process.env.STALZONE_CLIENT_SECRET ?? null,
+    stalzoneApiUrl: overrides.stalzoneApiUrl ?? process.env.STALZONE_API_URL ?? 'https://eapi.stalzone.com',
+    stalzoneTokenUrl: overrides.stalzoneTokenUrl ?? process.env.STALZONE_TOKEN_URL ?? 'https://exbo.net/oauth/token',
   };
 }
 

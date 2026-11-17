@@ -55,7 +55,16 @@ async function main(): Promise<void> {
         process.exitCode = 2;
         return;
       }
-      const options = { force: flags.has('--force'), iconsDir: cfg.iconsDir };
+      const profileApi =
+        cfg.stalzoneClientId && cfg.stalzoneClientSecret
+          ? {
+              clientId: cfg.stalzoneClientId,
+              clientSecret: cfg.stalzoneClientSecret,
+              apiUrl: cfg.stalzoneApiUrl,
+              tokenUrl: cfg.stalzoneTokenUrl,
+            }
+          : undefined;
+      const options = { force: flags.has('--force'), iconsDir: cfg.iconsDir, profileApi };
       const results =
         requested === 'all' ? await runSyncAll(db, options) : [await runSync(db, requested, options)];
       console.log(JSON.stringify({ results }, null, 2));

@@ -365,9 +365,9 @@ describe('scpmodel sync', () => {
   });
 });
 
-describe('removed source', () => {
-  it('rejects the removed profile source', async () => {
-    await expect(runSync(db, 'profile')).rejects.toThrow(/unknown source/);
+describe('unknown source', () => {
+  it('rejects a source that no adapter serves', async () => {
+    await expect(runSync(db, 'seeds')).rejects.toThrow(/unknown source/);
   });
 });
 
@@ -423,5 +423,87 @@ describe('icons sync', () => {
     });
     expect(result).toMatchObject({ source: 'icons', status: 'ok', icons: 0, failed: 1 });
     expect(repo.getIcon(db, repo.findItemByKindName(db, 'weapon', 'АК-12')!.id)).toBeNull();
+  });
+});
+
+describe('profile sync', () => {
+  const profileApi = {
+    clientId: 'id',
+    clientSecret: 'secret',
+    apiUrl: 'https://api.test',
+    tokenUrl: 'https://auth.test/oauth/token',
+  };
+
+  function profileFetch(profiles: unknown[]): { fetchImpl: (url: string) => Promise<Response>; calls: { token: number; profile: number } } {
+    const calls = { token: 0, profile: 0 };
+    return {
+      calls,
+      fetchImpl: async (url: string) => {
+        if (url === profileApi.tokenUrl) {
+          calls.token += 1;
+          return jsonResponse({ access_token: 'token', expires_in: 3600 });
+        }
+        if (url.includes('/character/by-name/')) {
+          calls.profile += 1;
+          return jsonResponse(profiles[Math.min(calls.profile - 1, profiles.length - 1)]);
+        }
+        throw new Error(`unexpected url ${url}`);
+      },
+    };
+  }
+
+  it('writes API stats, keeps manual overrides and drops removed stats', async () => {
+    const characterId = repo.upsertCharacter(db, { nick: 'Nemo_King', region: 'ru' });
+    repo.setCharacterStat(db, characterId, 'kil', 99, 'manual');
+
+    const full = {
+      username: 'Nemo_King',
+      alliance: 'Duty',
+      clan: { info: { name: 'Clan' }, member: { rank: 'Officer' } },
+      stats: [
+        { id: 'kil', type: 'INTEGER', value: 10 },
+        { id: 'dea', type: 'INTEGER', value: 4 },
+        { id: 'pla-tim', type: 'DURATION', value: 'PT100H' },
+        { id: 'reg-tim', type: 'DATE', value: '2024-01-02' },
+      ],
+    };
+    const withoutDea = { ...full, stats: full.stats.filter((stat) => stat.id !== 'dea') };
+    const { fetchImpl, calls } = profileFetch([full, withoutDea]);
+
+    const first = await runSync(db, 'profile', { fetchImpl, profileApi });
+    expect(first).toMatchObject({ source: 'profile', status: 'ok' });
+
+    const stats = repo.characterStatMap(db, characterId);
+    expect(stats.kil).toMatchObject({ value_num: 99, origin: 'manual' });
+    expect(stats.dea).toMatchObject({ value_num: 4, origin: 'api' });
+    expect(stats['pla-tim']).toMatchObject({ value_num: 100, origin: 'api' });
+    expect(stats['reg-tim']).toMatchObject({ value_text: '2024-01-02', origin: 'api' });
+    expect(repo.getCharacter(db)).toMatchObject({
+      clan_name: 'Clan',
+      clan_rank: 'Officer',
+      alliance: 'Duty',
+    });
+    expect(repo.getCharacter(db)?.profile_fetched_at).toBeTruthy();
+
+    await runSync(db, 'profile', { fetchImpl, profileApi });
+    expect(calls.token).toBe(2);
+    expect(calls.profile).toBe(2);
+    const after = repo.characterStatMap(db, characterId);
+    expect(after.dea).toBeUndefined();
+    expect(after.kil).toMatchObject({ value_num: 99, origin: 'manual' });
+  });
+
+  it('reports stale without credentials or a character', async () => {
+    repo.upsertCharacter(db, { nick: 'Nemo_King', region: 'ru' });
+    const noCreds = await runSync(db, 'profile', { fetchImpl: async () => jsonResponse({}) });
+    expect(noCreds).toMatchObject({ status: 'stale', error: 'STALZONE_API_NOT_CONFIGURED' });
+
+    db.prepare(`DELETE FROM character`).run();
+    const noCharacter = await runSync(db, 'profile', {
+      fetchImpl: async () => jsonResponse({}),
+      profileApi,
+    });
+    expect(noCharacter.status).toBe('stale');
+    expect(repo.getCharacter(db)).toBeNull();
   });
 });
