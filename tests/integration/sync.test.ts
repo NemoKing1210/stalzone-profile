@@ -370,3 +370,58 @@ describe('removed source', () => {
     await expect(runSync(db, 'profile')).rejects.toThrow(/unknown source/);
   });
 });
+
+describe('icons sync', () => {
+  const cacheDir = () => path.join(dir, 'cache');
+
+  function exboFetch(icon: () => Promise<Response>): (url: string) => Promise<Response> {
+    return async (url: string) => {
+      if (url.endsWith('/commits/main')) {
+        return jsonResponse({ sha: 'abc123', commit: { committer: { date: '2026-11-14T10:00:00Z' } } });
+      }
+      if (url.includes('/git/trees/main')) {
+        return jsonResponse({ tree: [{ path: 'ru/items/weapon/wg53.json' }] });
+      }
+      if (url.endsWith('/ru/stats.json')) return jsonResponse([]);
+      if (url.includes('/icons/')) return icon();
+      if (url.includes('raw.githubusercontent.com')) return jsonResponse(EXBO_ITEM);
+      throw new Error(`unexpected url ${url}`);
+    };
+  }
+
+  it('downloads icons once and skips existing files on the next run', async () => {
+    const iconsDir = path.join(dir, 'icons');
+    const calls = { icon: 0 };
+    const fetchImpl = exboFetch(async () => {
+      calls.icon += 1;
+      return new Response(new Uint8Array([137, 80, 78, 71]), { status: 200 });
+    });
+    await runSync(db, 'exbo_base', { fetchImpl, cacheDir: cacheDir() });
+
+    const first = await runSync(db, 'icons', { fetchImpl, cacheDir: cacheDir(), iconsDir });
+    expect(first).toMatchObject({ source: 'icons', status: 'ok', icons: 1 });
+
+    const item = repo.findItemByKindName(db, 'weapon', 'АК-12')!;
+    const icon = repo.getIcon(db, item.id)!;
+    expect(icon.mime).toBe('image/png');
+    expect(icon.path).toMatch(/^\/icons\/[a-f0-9]{40}\.png$/);
+    expect(fs.existsSync(path.join(iconsDir, path.basename(icon.path)))).toBe(true);
+
+    const second = await runSync(db, 'icons', { fetchImpl, cacheDir: cacheDir(), iconsDir });
+    expect(second).toMatchObject({ status: 'ok', icons: 0 });
+    expect(calls.icon).toBe(1);
+  });
+
+  it('counts a failed icon without failing the source', async () => {
+    const fetchImpl = exboFetch(async () => new Response('no', { status: 404 }));
+    await runSync(db, 'exbo_base', { fetchImpl, cacheDir: cacheDir() });
+
+    const result = await runSync(db, 'icons', {
+      fetchImpl,
+      cacheDir: cacheDir(),
+      iconsDir: path.join(dir, 'icons'),
+    });
+    expect(result).toMatchObject({ source: 'icons', status: 'ok', icons: 0, failed: 1 });
+    expect(repo.getIcon(db, repo.findItemByKindName(db, 'weapon', 'АК-12')!.id)).toBeNull();
+  });
+});

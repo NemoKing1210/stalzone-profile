@@ -48,14 +48,14 @@ async function main(): Promise<void> {
       return;
     }
     case 'sync': {
-      const { db } = open();
+      const { cfg, db } = open();
       const requested = positional[0] ?? 'all';
       if (requested !== 'all' && !(SYNC_SOURCES as readonly string[]).includes(requested) && requested !== 'exbo') {
         console.error(`unknown source: ${requested}. Known: ${SYNC_SOURCES.join(', ')}, all, exbo`);
         process.exitCode = 2;
         return;
       }
-      const options = { force: flags.has('--force') };
+      const options = { force: flags.has('--force'), iconsDir: cfg.iconsDir };
       const results =
         requested === 'all' ? await runSyncAll(db, options) : [await runSync(db, requested, options)];
       console.log(JSON.stringify({ results }, null, 2));

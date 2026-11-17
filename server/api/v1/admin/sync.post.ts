@@ -13,6 +13,7 @@ export default defineEventHandler(async (event) => {
 
   const db = useDb();
   const { source, force } = parsed.data;
-  if (source === 'all') return { results: await runSyncAll(db, { force }) };
-  return { results: [await runSync(db, source, { force })] };
+  const options = { force, iconsDir: process.env.ICONS_DIR || undefined };
+  if (source === 'all') return { results: await runSyncAll(db, options) };
+  return { results: [await runSync(db, source, options)] };
 });

@@ -68,9 +68,9 @@ export const PROT_TO_KEY: Record<string, string> = {
   bleed: 'bleeding_dmg_factor',
 };
 
-export function remoteIcon(rec: Json): string | null {
+export function remoteIcon(rec: Json, realm = 'ru'): string | null {
   if (!rec?.id || !rec?.cat) return null;
-  return `https://raw.githubusercontent.com/EXBO-Studio/stalzone-database/main/ru/icons/${rec.cat}/${String(
+  return `https://raw.githubusercontent.com/EXBO-Studio/stalzone-database/main/${realm}/icons/${rec.cat}/${String(
     rec.id,
   ).toLowerCase()}.png`;
 }

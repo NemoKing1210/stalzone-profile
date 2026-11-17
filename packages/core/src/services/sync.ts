@@ -1,5 +1,6 @@
+import fs from 'node:fs';
 import path from 'node:path';
-import { norm } from '@dossier/shared';
+import { norm, sha1 } from '@dossier/shared';
 import {
   exboAdapter,
   motifsAdapter,
@@ -11,11 +12,12 @@ import {
 } from '@dossier/sources';
 import type { Db } from '../db/index.js';
 import * as repo from '../repo/index.js';
-import { exboStats, localExboId, ttkStats, wikiEffects, wikiStats } from './normalize.js';
+import { ensureDir } from '../config.js';
+import { exboStats, localExboId, remoteIcon, ttkStats, wikiEffects, wikiStats } from './normalize.js';
 
 type Json = Record<string, any>;
 
-export const SYNC_SOURCES = ['exbo_base', 'wiki', 'motifs', 'scpmodel'] as const;
+export const SYNC_SOURCES = ['exbo_base', 'wiki', 'motifs', 'scpmodel', 'icons'] as const;
 export type SyncSource = (typeof SYNC_SOURCES)[number];
 
 export type SyncStatus = 'ok' | 'stale';
@@ -29,6 +31,10 @@ export interface SyncResult {
   error?: string;
   ageMin?: number;
   cached?: boolean;
+  /** Icons written by the `icons` source. */
+  icons?: number;
+  /** Per-file icon failures; they do not fail the source. */
+  failed?: number;
 }
 
 export interface SyncOptions {
@@ -37,6 +43,7 @@ export interface SyncOptions {
   fetchImpl?: FetchLike;
   realm?: string;
   now?: number;
+  iconsDir?: string;
 }
 
 /** Aliases used by MCP clients and the CLI. */
@@ -259,6 +266,66 @@ async function syncMotifs(db: Db, options: SyncOptions): Promise<SyncResult> {
   };
 }
 
+/** Runs `worker` over `items` with at most `limit` in flight. */
+async function mapLimit<T>(items: T[], limit: number, worker: (item: T) => Promise<void>): Promise<void> {
+  let next = 0;
+  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const item = items[next++]!;
+      await worker(item);
+    }
+  });
+  await Promise.all(runners);
+}
+
+const ICON_KINDS = new Set(['weapon', 'armor', 'artifact', 'container']);
+
+/**
+ * Downloads item icons from the EXBO repository snapshot. Existing files and
+ * icon rows are skipped; a single failed file is counted, never fatal.
+ */
+async function syncIcons(db: Db, options: SyncOptions): Promise<SyncResult> {
+  const realm = options.realm ?? 'ru';
+  const snapshot = await exboAdapter.fetch({
+    cacheDir: cacheDir(options),
+    force: options.force,
+    realm: options.realm,
+    fetchImpl: options.fetchImpl,
+  });
+  const dir = ensureDir(options.iconsDir ?? path.resolve(process.cwd(), 'public', 'icons'));
+  const fetchImpl = options.fetchImpl ?? ((url: string, init?: RequestInit) => fetch(url, init));
+
+  const targets: { itemId: number; url: string }[] = [];
+  for (const record of snapshot.items) {
+    const item = repo.getItemByExternalId(db, record.id, realm);
+    if (!item || !ICON_KINDS.has(item.kind)) continue;
+    if (repo.getIcon(db, item.id)) continue;
+    const url = remoteIcon(record, realm);
+    if (url) targets.push({ itemId: item.id, url });
+  }
+
+  let icons = 0;
+  let failed = 0;
+  await mapLimit(targets, 8, async ({ itemId, url }) => {
+    const digest = sha1(url);
+    const file = `${digest}.png`;
+    try {
+      const full = path.join(dir, file);
+      if (!fs.existsSync(full)) {
+        const response = await fetchImpl(url);
+        if (response.status !== 200) throw new Error(`HTTP ${response.status}`);
+        fs.writeFileSync(full, Buffer.from(await response.arrayBuffer()));
+      }
+      repo.upsertIcon(db, { itemId, path: `/icons/${file}`, mime: 'image/png', sha1: digest, sourceId: 'icons' });
+      icons += 1;
+    } catch {
+      failed += 1;
+    }
+  });
+
+  return { source: 'icons', status: 'ok', items: icons, icons, failed, fetchedAt: new Date().toISOString() };
+}
+
 function priceInput(db: Db, row: PriceRow): repo.PriceQuoteInput {
   const item = row.exboId ? repo.getItemByExternalId(db, row.exboId) : null;
   return {
@@ -325,6 +392,9 @@ export async function runSync(db: Db, source: string, options: SyncOptions = {})
         break;
       case 'scpmodel':
         result = await syncPrices(db, options);
+        break;
+      case 'icons':
+        result = await syncIcons(db, options);
         break;
     }
     if (result.fetchedAt) repo.markSourceOk(db, normalized, { at: result.fetchedAt });

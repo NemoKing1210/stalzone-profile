@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { wikiEffects, wikiStats } from '@dossier/core/services/normalize';
+import { remoteIcon, wikiEffects, wikiStats } from '@dossier/core/services/normalize';
 
 describe('normalize', () => {
   it('keeps a wiki range as min/max and a variant as per-level numbers', () => {
@@ -43,5 +43,20 @@ describe('normalize', () => {
       { position: 0, label: 'Скорость', isPositive: true },
       { position: 1, label: 'Радиация', isPositive: false },
     ]);
+  });
+});
+
+describe('remoteIcon', () => {
+  it('derives the EXBO icon URL from a record and a realm', () => {
+    const rec = { id: 'WG53', cat: 'weapon/assault_rifle' };
+    expect(remoteIcon(rec)).toBe(
+      'https://raw.githubusercontent.com/EXBO-Studio/stalzone-database/main/ru/icons/weapon/assault_rifle/wg53.png',
+    );
+    expect(remoteIcon(rec, 'eu')).toContain('/eu/icons/');
+  });
+
+  it('returns null when the record has no id or category', () => {
+    expect(remoteIcon({ id: 'WG53' })).toBeNull();
+    expect(remoteIcon({})).toBeNull();
   });
 });
