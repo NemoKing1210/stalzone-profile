@@ -1,0 +1,10 @@
+export { default as InventoryScreen } from './ui/InventoryScreen.vue';
+export { artifactsKind } from './model/kinds/artifacts';
+export { armorKind } from './model/kinds/armor';
+export { containersKind } from './model/kinds/containers';
+export { weaponsKind } from './model/kinds/weapons';
+export type { ArtifactRow } from './model/kinds/artifacts';
+export type { ArmorRow } from './model/kinds/armor';
+export type { ContainerRow } from './model/kinds/containers';
+export type { WeaponRow } from './model/kinds/weapons';
+export type { InventoryColumn, InventoryKind, InventoryLabels } from './model/types';

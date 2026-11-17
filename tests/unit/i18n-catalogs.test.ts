@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { API_ERROR_CODES } from '../../app/utils/apiErrorMessage';
+import { API_ERROR_CODES } from '../../app/shared/lib/apiErrorMessage';
 
 type Catalog = Record<string, unknown>;
 

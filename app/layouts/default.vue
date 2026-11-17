@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { FreshnessBadge } from '~/entities/source';
+
 const { t } = useI18n();
 
 const sections = computed(() => [

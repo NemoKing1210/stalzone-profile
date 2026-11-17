@@ -1,0 +1,221 @@
+export type OwnedKind = 'weapon' | 'armor' | 'artifact' | 'container';
+
+/** Manual override of a container's display values; a null field falls back to the item data. */
+export interface ContainerOverride {
+  containerType: string | null;
+  shield: number | null;
+  bonus: string | null;
+  protection: number | null;
+  slots: number | null;
+  eff: number | null;
+}
+
+export interface OwnedEditTarget {
+  ownedId: number;
+  name: string;
+  kind: OwnedKind;
+  level: number;
+  qty: number;
+  quality: string | null;
+  skin: string | null;
+  note: string | null;
+  role: string | null;
+  slot: string | null;
+  /** Present only for container rows; ignored by the editor for other kinds. */
+  container?: ContainerOverride | null;
+}
+
+/** The subset ContainerFillEditor needs; a full ContainerPayload satisfies it. */
+export interface FillTarget {
+  ownedId: number;
+  name: string;
+  artifacts: { name: string; lvl: number }[];
+  artifactsAsOf: string | null;
+}
+
+export interface EventRow {
+  id: number;
+  at: string;
+  actor: string;
+  action: string;
+  entity: string;
+  entityId: string;
+  before: unknown;
+  after: unknown;
+  note: string | null;
+}
+
+/* ------------------------------ dossier payload ------------------------------ */
+
+export interface DossierFreshness {
+  dataUpdated: string | null;
+  pricesUpdatedAt: string | null;
+  pricesAgeMin: number | null;
+  sources: { id: string; status: string; lastOkAt: string | null; lastTryAt: string | null; lastError: string | null }[];
+}
+
+export interface DossierMetaResponse {
+  meta: Record<string, unknown>;
+  catalogMeta: Record<string, unknown>;
+  freshness: DossierFreshness;
+}
+
+export interface DossierCharacter {
+  nick?: string;
+  region?: string;
+  faction?: string | null;
+  alliance?: string | null;
+  clanName?: string | null;
+  clanRank?: string | null;
+  arrived?: string | null;
+  hours?: number | null;
+  kd?: number | null;
+  accuracy?: number | null;
+  headshot?: number | null;
+  achievements?: number | null;
+  achievementPoints?: number | null;
+  money?: number | null;
+  maxMoney?: number | null;
+  stash?: string | null;
+  playstyle?: string | null;
+  stats?: Record<string, number | string>;
+}
+
+export interface WeaponPayload {
+  name: string;
+  ownedId?: number;
+  qty?: number;
+  note?: string | null;
+  quality?: string | null;
+  skin?: string | null;
+  lvl: number;
+  dmg: number | null;
+  rof: number | null;
+  dps: number | null;
+  ttk: number | null;
+  dmg15: number | null;
+  dps15: number | null;
+  ttk15: number | null;
+  mag: number | null;
+  caliber: string | null;
+  type: string | null;
+  rank: string | null;
+  slot: string | null;
+  role: string | null;
+  weight: number | null;
+  icon: string | null;
+  [key: string]: unknown;
+}
+
+export interface ArmorPayload {
+  name: string;
+  ownedId?: number;
+  qty?: number;
+  note?: string | null;
+  quality?: string | null;
+  skin?: string | null;
+  lvl: number;
+  cls: string | null;
+  armor: number | null;
+  armor15: number | null;
+  rank: string | null;
+  weight: number | null;
+  icon: string | null;
+  prot?: Record<string, number | null>;
+  [key: string]: unknown;
+}
+
+export interface ArtifactPayload {
+  name: string;
+  ownedId?: number;
+  qty?: number;
+  note?: string | null;
+  quality?: string | null;
+  skin?: string | null;
+  type: string | null;
+  q: string | null;
+  lvl: number;
+  effects: string | null;
+  rank: string | null;
+  icon: string | null;
+  [key: string]: unknown;
+}
+
+export interface ContainerPayload {
+  name: string;
+  ownedId?: number;
+  qty?: number;
+  note?: string | null;
+  quality?: string | null;
+  skin?: string | null;
+  type: string | null;
+  weight: number | null;
+  slots: number | null;
+  eff: number | null;
+  prot: number | null;
+  shield: number | null;
+  bonus: string | null;
+  rank: string | null;
+  artifacts: { name: string; lvl: number }[];
+  artifactsAsOf: string | null;
+  icon: string | null;
+  [key: string]: unknown;
+}
+
+export interface CatalogEntry {
+  name: string;
+  rank?: string | null;
+  type?: string | null;
+  cls?: string | null;
+  icon?: string | null;
+  slot?: string | null;
+  caliber?: string | null;
+  mag?: number | null;
+  weight?: number | null;
+  dmg15?: number | null;
+  rof?: number | null;
+  dps15?: number | null;
+  ttk15?: number | null;
+  armor15?: number | null;
+  [key: string]: unknown;
+}
+
+export interface BuildPayload {
+  id: string;
+  title: string;
+  short: string | null;
+  tag: string | null;
+  goal: string | null;
+  container: string | null;
+  slots: number | null;
+  eff: number | null;
+  budget: number | null;
+  total: number | null;
+  metrics: { l: string; v: string; s?: string | null }[];
+  rows: {
+    name: string;
+    q: string | null;
+    price: number | null;
+    lots: number | null;
+    eff: string | null;
+    bonus: string | null;
+    minus: string | null;
+    why: string | null;
+    rank: string | null;
+  }[];
+  verdict: string | null;
+}
+
+export interface DossierPayload {
+  meta: Record<string, unknown>;
+  character: DossierCharacter;
+  weapons: WeaponPayload[];
+  armor: ArmorPayload[];
+  containers: ContainerPayload[];
+  artifacts: ArtifactPayload[];
+  catalog: { weapons: CatalogEntry[]; armor: CatalogEntry[]; meta: Record<string, unknown> };
+  details: Record<string, unknown>;
+  builds: { items: BuildPayload[] };
+  icons: Record<string, string>;
+  freshness: DossierFreshness;
+}

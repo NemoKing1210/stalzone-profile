@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RANK_ORDER } from '@dossier/shared/ranks';
-import { RANK_TEXT_COLOR, rankTextColor } from '../../app/utils/rankText';
+import { RANK_TEXT_COLOR, rankTextColor } from '../../app/shared/lib/rankText';
 import { contrast } from './helpers/contrast';
 
 describe('rank text colours', () => {

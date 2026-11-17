@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clampPercent } from '../../app/utils/clampPercent';
+import { clampPercent } from '../../app/shared/lib/clampPercent';
 
 describe('clampPercent', () => {
   it('maps a ratio to 0–100', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ACCENT_PRESETS, DEFAULT_ACCENT, normalizeAccent } from '../../app/utils/accents';
+import { ACCENT_PRESETS, DEFAULT_ACCENT, normalizeAccent } from '../../app/shared/lib/accents';
 import { contrast } from './helpers/contrast';
 
 describe('accent presets', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDateValue } from '../../app/utils/formatDateValue';
+import { formatDateValue } from '../../app/shared/lib/formatDateValue';
 
 describe('formatDateValue', () => {
   it('returns a dash for a missing value', () => {

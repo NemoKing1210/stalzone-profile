@@ -15,6 +15,7 @@ export default defineConfig({
       ...workspace('core', 'core'),
       ...workspace('sources', 'sources'),
       ...workspace('mcp', 'mcp'),
+      { find: /^~\/(.*)$/, replacement: r('app/$1') },
     ],
   },
   test: {

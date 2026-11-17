@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { apiErrorMessage } from '../../app/utils/apiErrorMessage';
+import { apiErrorMessage } from '../../app/shared/lib/apiErrorMessage';
 
 // Codes from design D6: each one must resolve to its localized message.
 const KNOWN_CODES = [

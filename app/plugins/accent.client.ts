@@ -1,4 +1,4 @@
-import { DEFAULT_ACCENT, normalizeAccent, type AccentId } from '../utils/accents';
+import { DEFAULT_ACCENT, normalizeAccent, type AccentId } from '../shared/lib/accents';
 
 /**
  * Applies the stored accent before the app mounts. The inline head script already

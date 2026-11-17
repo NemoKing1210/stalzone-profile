@@ -23,6 +23,9 @@ export default defineNuxtConfig({
     detectBrowserLanguage: false,
   },
   css: ['~/assets/css/main.css'],
+  // The app tree is organised by slices; shared pieces are auto-imported from their slice.
+  components: [{ path: '~/shared/ui', pathPrefix: false }],
+  imports: { dirs: ['shared/composables'] },
   colorMode: {
     preference: 'dark',
     fallback: 'dark',
