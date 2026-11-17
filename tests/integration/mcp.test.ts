@@ -83,6 +83,12 @@ describe('MCP registry', () => {
     expect(resources.resources.map((resource) => resource.uri)).toContain('dossier://schema');
   });
 
+  it('accepts the icon and profile sources in sync_source', async () => {
+    const tool = (await client.listTools()).tools.find((entry) => entry.name === 'sync_source');
+    const source = (tool?.inputSchema.properties as Record<string, { enum?: string[] }> | undefined)?.source;
+    expect(source?.enum).toEqual(expect.arrayContaining(['icons', 'profile']));
+  });
+
   it('returns every read tool result matching its zod schema', async () => {
     for (const tool of READ_TOOLS) {
       const result = await callTool(tool.name, tool.args);
@@ -161,9 +167,25 @@ describe('MCP write safety', () => {
     expect(await nervyakQty()).toBe(before);
   });
 
-  it('rejects the removed profile source before any sync runs', async () => {
-    const result = await callTool('sync_source', { source: 'profile', confirm: true });
+  it('requires confirm before a sync reaches the source', async () => {
+    const result = await callTool('sync_source', { source: 'profile' });
     expect(result.isError).toBe(true);
+    expect(JSON.parse((result.content as { text: string }[])[0].text)).toMatchObject({
+      error: { code: 'CONFIRM_REQUIRED' },
+    });
+  });
+
+  it('reports the unconfigured profile API instead of syncing', async () => {
+    const result = await callTool('sync_source', { source: 'profile', confirm: true });
+    expect(result.isError).not.toBe(true);
+    const body = JSON.parse((result.content as { text: string }[])[0].text) as {
+      result: { source: string; status: string; error?: string };
+    };
+    expect(body.result).toMatchObject({
+      source: 'profile',
+      status: 'stale',
+      error: 'STALZONE_API_NOT_CONFIGURED',
+    });
   });
 
   it('stops writes at the shared rate limit', async () => {
