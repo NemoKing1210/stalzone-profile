@@ -48,6 +48,21 @@ export function getContainerData(db: Db, itemId: number): ContainerDataRow | nul
   return (db.prepare(`SELECT * FROM container_data WHERE item_id = ?`).get(itemId) as ContainerDataRow | undefined) ?? null;
 }
 
+function placeholders(count: number): string {
+  return new Array(count).fill('?').join(', ');
+}
+
+/** Container overrides for many instances in one statement. */
+export function containerDataByItemIds(db: Db, itemIds: number[]): Map<number, ContainerDataRow> {
+  const out = new Map<number, ContainerDataRow>();
+  if (!itemIds.length) return out;
+  const rows = db
+    .prepare(`SELECT * FROM container_data WHERE item_id IN (${placeholders(itemIds.length)})`)
+    .all(...itemIds) as ContainerDataRow[];
+  for (const row of rows) out.set(row.item_id, row);
+  return out;
+}
+
 export function deleteContainerData(db: Db, itemId: number): void {
   db.prepare(`DELETE FROM container_data WHERE item_id = ?`).run(itemId);
 }

@@ -111,7 +111,30 @@ function effectsText(db: Db, itemId: number): string {
     .join(', ');
 }
 
-function armorCurve(rows: ItemStatRow[]): number[] | null {
+/** Card inputs for many items at once; one map lookup per item instead of three queries. */
+export interface ItemCardContext {
+  stats: Map<number, ItemStatRow[]>;
+  icons: Map<number, string>;
+  effects: Map<number, string>;
+}
+
+/** Loads stats, icons and effect labels in three statements for any number of items. */
+export function loadItemCardContext(db: Db, itemIds: number[]): ItemCardContext {
+  const effects = new Map<number, string>();
+  for (const [itemId, rows] of Object.entries(repo.allItemEffects(db))) {
+    effects.set(
+      Number(itemId),
+      rows.map((effect) => effect.label).join(', '),
+    );
+  }
+  return {
+    stats: repo.statsByItemIds(db, itemIds),
+    icons: repo.iconsByItemIds(db, itemIds),
+    effects,
+  };
+}
+
+export function armorCurve(rows: ItemStatRow[]): number[] | null {
   const curve = rows
     .filter((row) => row.stat_id === 'bullet_dmg_factor' && row.value_num != null)
     .sort((a, b) => a.level - b.level)
@@ -133,9 +156,7 @@ function armorMods(rows: ItemStatRow[]): { name: string; value: number; pct: boo
     .map((row) => ({ name: row.label ?? row.stat_id, value: row.value_num!, pct: row.pct === 1 }));
 }
 
-export function buildItemCard(db: Db, item: ItemRow): ItemCard {
-  const rows = repo.itemStats(db, item.id);
-  const icon = repo.getIcon(db, item.id)?.path ?? null;
+function buildCard(item: ItemRow, rows: ItemStatRow[], icon: string | null, effects: string): ItemCard {
   const base: ItemCard = {
     kind: item.kind,
     name: item.name,
@@ -144,7 +165,7 @@ export function buildItemCard(db: Db, item: ItemRow): ItemCard {
     rank: rankKey(item.rank) ?? null,
     slot: item.slot,
     weight: item.weight,
-    effects: effectsText(db, item.id),
+    effects,
   };
 
   if (item.kind === 'weapon') {
@@ -219,24 +240,75 @@ export function buildItemCard(db: Db, item: ItemRow): ItemCard {
   return base;
 }
 
+/** Builds a card from a preloaded context; the per-item loaders are not touched. */
+export function buildItemCardFrom(ctx: ItemCardContext, item: ItemRow): ItemCard {
+  return buildCard(
+    item,
+    ctx.stats.get(item.id) ?? [],
+    ctx.icons.get(item.id) ?? null,
+    ctx.effects.get(item.id) ?? '',
+  );
+}
+
+/** Single-item convenience wrapper; use `buildItemCardFrom` when building many cards. */
+export function buildItemCard(db: Db, item: ItemRow): ItemCard {
+  return buildCard(item, repo.itemStats(db, item.id), repo.getIcon(db, item.id)?.path ?? null, effectsText(db, item.id));
+}
+
 export function cardKey(kind: string, name: string): string {
   const prefix = kind === 'weapon' ? 'w' : kind === 'armor' ? 'a' : kind === 'artifact' ? 'art' : 'c';
   return `${prefix}:${name}`;
 }
 
 export function buildDetails(db: Db): Record<string, ItemCard> {
+  const byKind = (['weapon', 'armor', 'artifact', 'container'] as const).map(
+    (kind) => [kind, repo.listItems(db, kind)] as const,
+  );
+  const ctx = loadItemCardContext(
+    db,
+    byKind.flatMap(([, items]) => items.map((item) => item.id)),
+  );
   const out: Record<string, ItemCard> = {};
-  for (const kind of ['weapon', 'armor', 'artifact', 'container']) {
-    for (const item of repo.listItems(db, kind)) out[cardKey(kind, item.name)] = buildItemCard(db, item);
+  for (const [kind, items] of byKind) {
+    for (const item of items) out[cardKey(kind, item.name)] = buildItemCardFrom(ctx, item);
   }
   return out;
+}
+
+const DETAIL_KINDS: Record<string, string> = { w: 'weapon', a: 'armor', art: 'artifact', c: 'container' };
+
+export interface DetailEntry {
+  item: ItemRow;
+  card: ItemCard;
+}
+
+/**
+ * Resolves one `<prefix>:<name>` card with the same selection rule `buildDetails`
+ * uses (the last item of that kind carrying the name), without building the rest.
+ */
+export function buildDetailEntry(db: Db, key: string): DetailEntry | null {
+  const separator = key.indexOf(':');
+  if (separator <= 0) return null;
+  const kind = DETAIL_KINDS[key.slice(0, separator)];
+  if (!kind) return null;
+  const name = key.slice(separator + 1);
+  let item: ItemRow | null = null;
+  for (const row of repo.listItems(db, kind)) {
+    if (row.name === name) item = row;
+  }
+  return item ? { item, card: buildItemCard(db, item) } : null;
 }
 
 const RANK_INDEX = new Map<string, number>(RANK_ORDER.map((rank, index) => [rank, index]));
 
 export function buildCatalog(db: Db, kind: 'weapon' | 'armor'): Record<string, unknown>[] {
-  const entries = repo.listItems(db, kind).map((item) => {
-    const card = buildItemCard(db, item);
+  const items = repo.listItems(db, kind);
+  const ctx = loadItemCardContext(
+    db,
+    items.map((item) => item.id),
+  );
+  const entries = items.map((item) => {
+    const card = buildItemCardFrom(ctx, item);
     const row: Record<string, unknown> =
       kind === 'weapon'
         ? (() => {
@@ -318,11 +390,15 @@ export function compareWeapons(
 
 export function artifactSources(db: Db): ArtifactSource[] {
   const definitions = new Map(repo.listStatDefinitions(db).map((definition) => [definition.id, definition]));
-  return repo
-    .listItems(db, 'artifact')
+  const items = repo.listItems(db, 'artifact');
+  const statsById = repo.statsByItemIds(
+    db,
+    items.map((item) => item.id),
+  );
+  return items
     .map((item) => {
       const grouped = new Map<string, ItemStatRow[]>();
-      for (const row of repo.itemStats(db, item.id)) {
+      for (const row of statsById.get(item.id) ?? []) {
         if (row.value_num == null && row.value_min == null && row.value_max == null) continue;
         const list = grouped.get(row.stat_id) ?? [];
         list.push(row);

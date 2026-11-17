@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { norm, sha1 } from '@profile/shared';
 import {
+  defaultFetch,
   exboAdapter,
   fetchStalzoneProfile,
   motifsAdapter,
@@ -125,13 +126,29 @@ function alnum(value: string): string {
   return norm(value).replace(/[^a-zа-я0-9]/g, '');
 }
 
+interface MotifCandidate {
+  id: number;
+  ru: string;
+  en: string;
+}
+
+/** Normalised names of one kind, loaded once per sync instead of once per motif. */
+function motifCandidates(db: Db, kind: string): MotifCandidate[] {
+  return (
+    db.prepare(`SELECT id, name_norm, name_en_norm FROM item WHERE kind = ? ORDER BY id`).all(kind) as {
+      id: number;
+      name_norm: string;
+      name_en_norm: string;
+    }[]
+  ).map((item) => ({ id: item.id, ru: alnum(item.name_norm), en: alnum(item.name_en_norm) }));
+}
+
 /**
  * The cosmetic token (`ks1_ssop`, `fal_summer25`) is the only source of the
  * base item. Try the full token, the seasonal suffix stripped and the first
  * segment; match exact, prefix and finally substring. Unknown stays null.
  */
-function resolveMotifBase(db: Db, row: MotifRow): number | null {
-  if (!row.kind) return null;
+function resolveMotifBase(row: MotifRow, items: MotifCandidate[]): number | null {
   const candidates = [
     row.token,
     row.token.replace(/_(?:summer|winter|autumn|spring|halloween|newyear)\d*$/i, ''),
@@ -141,28 +158,16 @@ function resolveMotifBase(db: Db, row: MotifRow): number | null {
     .filter((candidate, index, list) => candidate.length >= 3 && list.indexOf(candidate) === index);
   if (!candidates.length) return null;
 
-  const items = db
-    .prepare(`SELECT id, name_norm, name_en_norm FROM item WHERE kind = ? ORDER BY id`)
-    .all(row.kind) as { id: number; name_norm: string; name_en_norm: string }[];
-
   for (const candidate of candidates) {
-    const exact = items.find(
-      (item) => alnum(item.name_norm) === candidate || alnum(item.name_en_norm) === candidate,
-    );
+    const exact = items.find((item) => item.ru === candidate || item.en === candidate);
     if (exact) return exact.id;
   }
   for (const candidate of candidates) {
-    const prefix = items.find(
-      (item) =>
-        alnum(item.name_norm).startsWith(candidate) || alnum(item.name_en_norm).startsWith(candidate),
-    );
+    const prefix = items.find((item) => item.ru.startsWith(candidate) || item.en.startsWith(candidate));
     if (prefix) return prefix.id;
   }
   for (const candidate of candidates) {
-    const partial = items.find(
-      (item) =>
-        alnum(item.name_norm).includes(candidate) || alnum(item.name_en_norm).includes(candidate),
-    );
+    const partial = items.find((item) => item.ru.includes(candidate) || item.en.includes(candidate));
     if (partial) return partial.id;
   }
   return null;
@@ -314,9 +319,19 @@ async function syncMotifs(db: Db, options: SyncOptions): Promise<SyncResult> {
   const rows = await motifsAdapter.fetch({ fetchImpl: options.fetchImpl });
   const now = new Date().toISOString();
   const findMotif = db.prepare(`SELECT id FROM item WHERE kind = 'motif' AND name_norm = ? LIMIT 1`);
+  const updateBase = db.prepare(`UPDATE item SET base_item_id = ?, updated_at = ? WHERE id = ?`);
+  const candidates = new Map<string, MotifCandidate[]>();
+  const candidatesFor = (kind: string): MotifCandidate[] => {
+    let list = candidates.get(kind);
+    if (!list) {
+      list = motifCandidates(db, kind);
+      candidates.set(kind, list);
+    }
+    return list;
+  };
   db.transaction(() => {
     for (const row of rows) {
-      const baseItemId = resolveMotifBase(db, row);
+      const baseItemId = row.kind ? resolveMotifBase(row, candidatesFor(row.kind)) : null;
       const existing = findMotif.get(norm(row.skin)) as { id: number } | undefined;
       if (!existing) {
         repo.upsertItem(db, {
@@ -331,7 +346,7 @@ async function syncMotifs(db: Db, options: SyncOptions): Promise<SyncResult> {
         continue;
       }
       if (baseItemId == null) continue;
-      db.prepare(`UPDATE item SET base_item_id = ?, updated_at = ? WHERE id = ?`).run(baseItemId, now, existing.id);
+      updateBase.run(baseItemId, now, existing.id);
     }
   })();
   return {
@@ -369,7 +384,7 @@ async function syncIcons(db: Db, options: SyncOptions): Promise<SyncResult> {
     fetchImpl: options.fetchImpl,
   });
   const dir = ensureDir(options.iconsDir ?? path.resolve(process.cwd(), 'public', 'icons'));
-  const fetchImpl = options.fetchImpl ?? ((url: string, init?: RequestInit) => fetch(url, init));
+  const fetchImpl = options.fetchImpl ?? defaultFetch;
 
   const targets: { itemId: number; url: string }[] = [];
   let known = 0;
@@ -445,7 +460,7 @@ async function syncProfile(db: Db, options: SyncOptions): Promise<SyncResult> {
     ...api,
     nick: character.nick,
     region: character.region,
-    fetchImpl: options.fetchImpl ?? ((url, init) => fetch(url, init)),
+    fetchImpl: options.fetchImpl ?? defaultFetch,
   });
   const { numeric, text } = mapProfileStats(profile.stats);
   const fetchedAt = new Date().toISOString();

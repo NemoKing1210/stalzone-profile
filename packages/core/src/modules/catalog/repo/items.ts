@@ -1,5 +1,6 @@
 import { norm } from '@profile/shared';
 import type { Db } from '../../../platform/db/index.js';
+import { cachedStatement } from '../../../platform/db/index.js';
 import { sourcePriority } from '../source-priority.js';
 import { ensureStatDefinition } from './stats.js';
 
@@ -88,20 +89,13 @@ export function isCosmeticCategory(category: string | null | undefined, nameKey?
   return cat === 'other' && /(motif|style)/i.test(key);
 }
 
-/**
- * Temporary compatibility shim: the legacy payload still calls `rawOf` until
- * Task 6 rewrites it. It always returns an empty object because `item.raw` is gone.
- */
-export function rawOf(_row: { raw?: string }): Record<string, unknown> {
-  return {};
-}
-
 export function upsertItem(db: Db, input: ItemInput): number {
   const realm = input.realm ?? 'ru';
   const sourceId = input.sourceId ?? 'local';
-  const existing = db.prepare(`SELECT id FROM item WHERE realm = ? AND external_id = ?`).get(realm, input.externalId) as
-    | { id: number }
-    | undefined;
+  const existing = cachedStatement(db, `SELECT id FROM item WHERE realm = ? AND external_id = ?`).get(
+    realm,
+    input.externalId,
+  ) as { id: number } | undefined;
 
   const kind = input.kind ?? (input.category ? kindFromCategory(input.category) : null);
   const now = new Date().toISOString();
@@ -124,7 +118,8 @@ export function upsertItem(db: Db, input: ItemInput): number {
   };
 
   if (existing) {
-    db.prepare(
+    cachedStatement(
+      db,
       `UPDATE item SET
         source_id = @source_id,
         name = @name, name_norm = @name_norm,
@@ -160,16 +155,15 @@ export function upsertItem(db: Db, input: ItemInput): number {
     return existing.id;
   }
 
-  const info = db
-    .prepare(
-      `INSERT INTO item
+  const info = cachedStatement(
+    db,
+    `INSERT INTO item
         (source_id, realm, external_id, name, name_norm, name_en, name_en_norm, name_key, kind, category, rank, slot,
          weight, is_cosmetic, base_item_id, created_at, updated_at)
        VALUES
         (@source_id, @realm, @external_id, @name, @name_norm, @name_en, @name_en_norm, @name_key, @kind, @category,
          @rank, @slot, @weight, @is_cosmetic, @base_item_id, @created_at, @updated_at)`,
-    )
-    .run({
+  ).run({
       ...values,
       kind: kind ?? 'other',
       is_cosmetic: values.is_cosmetic ?? 0,
@@ -184,7 +178,7 @@ function insertStat(db: Db, itemId: number, stat: StatInput, mode: 'replace' | '
   const sql = `INSERT OR ${mode === 'ignore' ? 'IGNORE' : 'REPLACE'} INTO item_stat
     (item_id, stat_id, label, level, value_num, value_min, value_max, value_text, pct, is_positive, is_additional, source_id)
     VALUES (@item_id, @stat_id, @label, @level, @value_num, @value_min, @value_max, @value_text, @pct, @is_positive, @is_additional, @source_id)`;
-  db.prepare(sql).run({
+  cachedStatement(db, sql).run({
     item_id: itemId,
     stat_id: stat.key,
     label: stat.label ?? null,
@@ -206,12 +200,13 @@ function insertStat(db: Db, itemId: number, stat: StatInput, mode: 'replace' | '
  * applies the same precedence the reader does.
  */
 export function replaceItemStats(db: Db, itemId: number, stats: StatInput[], sourceId: string): void {
-  const run = db.transaction(() => {
-    db.prepare(`DELETE FROM item_stat WHERE item_id = ? AND source_id IS ?`).run(itemId, sourceId);
+  const run = () => {
+    cachedStatement(db, `DELETE FROM item_stat WHERE item_id = ? AND source_id IS ?`).run(itemId, sourceId);
     const owners = new Map<string, string | null>();
-    const rows = db
-      .prepare(`SELECT stat_id, level, is_additional, source_id FROM item_stat WHERE item_id = ?`)
-      .all(itemId) as { stat_id: string; level: number; is_additional: number; source_id: string | null }[];
+    const rows = cachedStatement(
+      db,
+      `SELECT stat_id, level, is_additional, source_id FROM item_stat WHERE item_id = ?`,
+    ).all(itemId) as { stat_id: string; level: number; is_additional: number; source_id: string | null }[];
     for (const row of rows) owners.set(`${row.stat_id}\u0000${row.level}\u0000${row.is_additional}`, row.source_id);
     for (const stat of stats) {
       const key = `${stat.key}\u0000${stat.level ?? 0}\u0000${stat.isAdditional ? 1 : 0}`;
@@ -219,25 +214,30 @@ export function replaceItemStats(db: Db, itemId: number, stats: StatInput[], sou
       if (owner != null && sourcePriority(owner) < sourcePriority(sourceId)) continue;
       insertStat(db, itemId, { ...stat, sourceId }, 'replace');
     }
-  });
-  run();
+  };
+  // Inside a sync transaction the outer transaction already guarantees atomicity.
+  if (db.inTransaction) run();
+  else db.transaction(run)();
 }
 
 /** Adds stats only where the (item, stat, level, additional) slot is still empty. */
 export function addItemStats(db: Db, itemId: number, stats: StatInput[], sourceId: string): void {
-  const run = db.transaction(() => {
+  const run = () => {
     for (const stat of stats) insertStat(db, itemId, { ...stat, sourceId }, 'ignore');
-  });
-  run();
+  };
+  if (db.inTransaction) run();
+  else db.transaction(run)();
 }
 
 export function getItemById(db: Db, id: number): ItemRow | null {
-  return (db.prepare(`SELECT * FROM item WHERE id = ?`).get(id) as ItemRow | undefined) ?? null;
+  return (
+    (cachedStatement(db, `SELECT * FROM item WHERE id = ?`).get(id) as ItemRow | undefined) ?? null
+  );
 }
 
 export function getItemByExternalId(db: Db, externalId: string, realm = 'ru'): ItemRow | null {
   return (
-    (db.prepare(`SELECT * FROM item WHERE realm = ? AND external_id = ?`).get(realm, externalId) as
+    (cachedStatement(db, `SELECT * FROM item WHERE realm = ? AND external_id = ?`).get(realm, externalId) as
       | ItemRow
       | undefined) ?? null
   );
@@ -247,27 +247,29 @@ export function getItemByExternalId(db: Db, externalId: string, realm = 'ru'): I
 export function findItemByNameKey(db: Db, nameKey: string, realm = 'ru', kind?: string): ItemRow | null {
   if (kind) {
     return (
-      (db
-        .prepare(`SELECT * FROM item WHERE realm = ? AND name_key = ? AND kind = ? ORDER BY id LIMIT 1`)
-        .get(realm, nameKey, kind) as ItemRow | undefined) ?? null
+      (cachedStatement(db, `SELECT * FROM item WHERE realm = ? AND name_key = ? AND kind = ? ORDER BY id LIMIT 1`).get(
+        realm,
+        nameKey,
+        kind,
+      ) as ItemRow | undefined) ?? null
     );
   }
   return (
-    (db.prepare(`SELECT * FROM item WHERE realm = ? AND name_key = ? ORDER BY id LIMIT 1`).get(realm, nameKey) as
-      | ItemRow
-      | undefined) ?? null
+    (cachedStatement(db, `SELECT * FROM item WHERE realm = ? AND name_key = ? ORDER BY id LIMIT 1`).get(
+      realm,
+      nameKey,
+    ) as ItemRow | undefined) ?? null
   );
 }
 
 export function findItemByKindName(db: Db, kind: string, name: string, realm = 'ru'): ItemRow | null {
   const n = norm(name);
   return (
-    (db
-      .prepare(
-        `SELECT * FROM item WHERE realm = ? AND kind = ? AND name_norm = ?
+    (cachedStatement(
+      db,
+      `SELECT * FROM item WHERE realm = ? AND kind = ? AND name_norm = ?
          ORDER BY (base_item_id IS NOT NULL) ASC, id ASC LIMIT 1`,
-      )
-      .get(realm, kind, n) as ItemRow | undefined) ?? null
+    ).get(realm, kind, n) as ItemRow | undefined) ?? null
   );
 }
 
@@ -319,19 +321,21 @@ export function listItems(db: Db, kind?: string, realm = 'ru'): ItemRow[] {
 export function itemStats(db: Db, itemId: number, level?: number): ItemStatRow[] {
   const rows =
     level == null
-      ? db
-          .prepare(`SELECT * FROM item_stat WHERE item_id = ? ORDER BY stat_id, level, is_additional`)
-          .all(itemId)
-      : db
-          .prepare(`SELECT * FROM item_stat WHERE item_id = ? AND level = ? ORDER BY stat_id, is_additional`)
-          .all(itemId, level);
+      ? cachedStatement(db, `SELECT * FROM item_stat WHERE item_id = ? ORDER BY stat_id, level, is_additional`).all(
+          itemId,
+        )
+      : cachedStatement(
+          db,
+          `SELECT * FROM item_stat WHERE item_id = ? AND level = ? ORDER BY stat_id, is_additional`,
+        ).all(itemId, level);
   return rows as ItemStatRow[];
 }
 
 export function statValue(db: Db, itemId: number, key: string, level = 0): number | null {
-  const row = db
-    .prepare(`SELECT value_num FROM item_stat WHERE item_id = ? AND stat_id = ? AND level = ? ORDER BY is_additional LIMIT 1`)
-    .get(itemId, key, level) as { value_num: number | null } | undefined;
+  const row = cachedStatement(
+    db,
+    `SELECT value_num FROM item_stat WHERE item_id = ? AND stat_id = ? AND level = ? ORDER BY is_additional LIMIT 1`,
+  ).get(itemId, key, level) as { value_num: number | null } | undefined;
   return row?.value_num ?? null;
 }
 
@@ -341,6 +345,13 @@ export function statValue(db: Db, itemId: number, key: string, level = 0): numbe
  */
 export function statValueBase(db: Db, itemId: number, key: string, level: number): number | null {
   return statValue(db, itemId, key, level) ?? statValue(db, itemId, key, 0);
+}
+
+/** Batch-friendly `statValueBase` over rows already loaded for the item. */
+export function statValueBaseFrom(rows: ItemStatRow[], key: string, level: number): number | null {
+  const exact = rows.find((row) => row.stat_id === key && row.level === level);
+  if (exact) return exact.value_num ?? null;
+  return rows.find((row) => row.stat_id === key && row.level === 0)?.value_num ?? null;
 }
 
 export function countItems(db: Db, kind?: string): number {

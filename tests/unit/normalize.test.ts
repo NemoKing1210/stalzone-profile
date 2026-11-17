@@ -31,8 +31,17 @@ describe('normalize', () => {
     expect(stats.filter((s) => s.key === 'damage.start').map((s) => s.level)).toEqual([0, 1, 2]);
   });
 
-  it('maps wiki container fields onto the keys the cards read', () => {
-    const stats = wikiStats({ stats: [], additionalStats: [], capacity: 4, effectiveness: 80, protection: 62.5 }, {});
+  it('clamps variant levels to the schema range', () => {
+    const variants = Array.from({ length: 18 }, (_, level) => level + 1);
+    const stats = wikiStats(
+      { stats: [{ key: 'damage.start', numericVariants: variants }], additionalStats: [] },
+      {},
+    );
+
+    expect(stats.map((stat) => stat.level)).toEqual(Array.from({ length: 16 }, (_, level) => level));
+  });
+
+  it('maps wiki container fields onto the keys the cards read', () => {    const stats = wikiStats({ stats: [], additionalStats: [], capacity: 4, effectiveness: 80, protection: 62.5 }, {});
 
     expect(stats).toHaveLength(3);
     expect(stats).toContainEqual(expect.objectContaining({ key: 'container.slots', valueNum: 4 }));

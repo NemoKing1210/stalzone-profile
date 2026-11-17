@@ -1,4 +1,5 @@
 import type { Db } from '../../../platform/db/index.js';
+import { cachedStatement } from '../../../platform/db/index.js';
 
 export type StatValueType = 'INTEGER' | 'DECIMAL' | 'DATE' | 'DURATION' | 'TEXT';
 
@@ -20,7 +21,8 @@ export interface StatDefinitionInput {
 }
 
 export function upsertStatDefinition(db: Db, input: StatDefinitionInput): void {
-  db.prepare(
+  cachedStatement(
+    db,
     `INSERT INTO stat_definition (id, category, value_type, label_ru, label_en, updated_at)
      VALUES (@id, @category, @value_type, @label_ru, @label_en, @updated_at)
      ON CONFLICT(id) DO UPDATE SET
@@ -39,12 +41,24 @@ export function upsertStatDefinition(db: Db, input: StatDefinitionInput): void {
   });
 }
 
+const ensured = new WeakMap<Db, Set<string>>();
+
 export function ensureStatDefinition(db: Db, id: string): void {
+  let ids = ensured.get(db);
+  if (!ids) {
+    ids = new Set();
+    ensured.set(db, ids);
+  }
+  if (ids.has(id)) return;
   upsertStatDefinition(db, { id });
+  ids.add(id);
 }
 
 export function getStatDefinition(db: Db, id: string): StatDefinitionRow | null {
-  return (db.prepare(`SELECT * FROM stat_definition WHERE id = ?`).get(id) as StatDefinitionRow | undefined) ?? null;
+  return (
+    (cachedStatement(db, `SELECT * FROM stat_definition WHERE id = ?`).get(id) as StatDefinitionRow | undefined) ??
+    null
+  );
 }
 
 export function listStatDefinitions(db: Db): StatDefinitionRow[] {

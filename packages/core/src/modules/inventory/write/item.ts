@@ -19,15 +19,7 @@ function parseRarityPct(quality: string | null): number | null {
 }
 
 function findLooseStack(db: Db, characterId: number, itemId: number): { id: number; qty: number } | null {
-  const rows = repo.listInventoryItems(db, characterId, { kind: 'ammo' }).concat(
-    repo.listInventoryItems(db, characterId, { kind: 'other' }),
-  );
-  for (const row of rows) {
-    if (row.item_id !== itemId) continue;
-    const placement = repo.getPlacement(db, row.id);
-    if (placement?.location === 'loose') return { id: row.id, qty: row.qty };
-  }
-  return null;
+  return repo.findLooseStackRow(db, characterId, itemId);
 }
 
 function assertQuantity(input: { kind: string; qty?: number }): void {

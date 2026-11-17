@@ -5,7 +5,7 @@ import {
   armorAtLevel,
   buildCatalog,
   buildDetails,
-  buildItemCard,
+  buildItemCardFrom,
   countItems,
   displayDmg,
   displayDps,
@@ -18,19 +18,21 @@ import {
   itemValueExact,
   itemsByIds,
   latestPriceFetchedAt,
-  listItemEffects,
+  loadItemCardContext,
   protKeyFor,
   statsByItemIds,
+  type ItemCardContext,
   type ItemRow,
   type ItemStatRow,
 } from '../catalog/index.js';
 import { getCharacter, getCharacterRead, listCharacterStats } from '../identity/index.js';
 import {
-  getContainerData,
+  containerDataByItemIds,
   inventoryRead,
   listInventoryItems,
   listPlacements,
   placementRead,
+  type ContainerDataRow,
   type InventoryItemJoined,
   type PlacementRow,
 } from '../inventory/index.js';
@@ -159,15 +161,15 @@ function armorProtection(rows: ItemStatRow[], curve: number[] | null, level: num
 }
 
 function armorPayload(
-  db: Db,
   ctx: CatalogContext,
+  cards: ItemCardContext,
   owned: InventoryItemJoined,
   placements: Map<number, PlacementRow>,
 ): Json {
   const item = ctx.items.get(owned.item_id) ?? null;
   if (!item) return { name: owned.item_name, lvl: owned.level, missing: true };
   const rows = ctx.stats.get(item.id) ?? [];
-  const card = buildItemCard(db, item);
+  const card = buildItemCardFrom(cards, item);
   const curve = (card.curve as number[] | null) ?? null;
 
   return {
@@ -190,15 +192,15 @@ function armorPayload(
 }
 
 function containerPayload(
-  db: Db,
   ctx: CatalogContext,
   owned: InventoryItemJoined,
+  overrides: Map<number, ContainerDataRow>,
   fills: Map<number, { name: string; lvl: number }[]>,
   placements: Map<number, PlacementRow>,
 ): Json {
   const item = ctx.items.get(owned.item_id) ?? null;
   const rows = item ? (ctx.stats.get(item.id) ?? []) : [];
-  const override = getContainerData(db, owned.id);
+  const override = overrides.get(owned.id) ?? null;
   const fill = fills.get(owned.id) ?? [];
 
   return {
@@ -223,15 +225,13 @@ function containerPayload(
 }
 
 function artifactPayload(
-  db: Db,
   ctx: CatalogContext,
+  effectLabels: Map<number, string>,
   owned: InventoryItemJoined,
   placements: Map<number, PlacementRow>,
 ): Json {
   const item = ctx.items.get(owned.item_id) ?? null;
-  const effects = listItemEffects(db, owned.item_id)
-    .map((effect) => effect.label)
-    .join(', ');
+  const effects = effectLabels.get(owned.item_id) ?? '';
   return {
     ...instanceFields(owned, placements),
     name: owned.display_name ?? owned.item_name,
@@ -332,6 +332,11 @@ export function buildPayload(db: Db, characterId?: number): Payload {
     stats: statsByItemIds(db, itemIds),
     icons: iconsByItemIds(db, itemIds),
   };
+  const cards = loadItemCardContext(db, itemIds);
+  const containerOverrides = containerDataByItemIds(
+    db,
+    instances.filter((row) => row.kind === 'container').map((row) => row.id),
+  );
   const catalogWeapons = buildCatalog(db, 'weapon');
   const catalogArmor = buildCatalog(db, 'armor');
   const stats = listCharacterStats(db, character.id);
@@ -345,13 +350,13 @@ export function buildPayload(db: Db, characterId?: number): Payload {
     },
     character: characterPayload(db, character.id),
     weapons: instances.filter((row) => row.kind === 'weapon').map((row) => weaponPayload(ctx, row, placements)),
-    armor: instances.filter((row) => row.kind === 'armor').map((row) => armorPayload(db, ctx, row, placements)),
+    armor: instances.filter((row) => row.kind === 'armor').map((row) => armorPayload(ctx, cards, row, placements)),
     containers: instances
       .filter((row) => row.kind === 'container')
-      .map((row) => containerPayload(db, ctx, row, fills, placements)),
+      .map((row) => containerPayload(ctx, row, containerOverrides, fills, placements)),
     artifacts: instances
       .filter((row) => row.kind === 'artifact')
-      .map((row) => artifactPayload(db, ctx, row, placements)),
+      .map((row) => artifactPayload(ctx, cards.effects, row, placements)),
     catalog: {
       weapons: catalogWeapons,
       armor: catalogArmor,

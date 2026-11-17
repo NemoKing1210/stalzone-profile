@@ -1,12 +1,14 @@
-import type { ArtifactStat, ContainerLoadoutInput, LoadoutInput } from '../../catalog/index.js';
 import {
   armorAtLevel,
+  armorCurve,
   artifactSources,
-  buildItemCard,
-  getItemById,
-  itemStats,
   protKeyFor,
-  statValueBase,
+  statValueBaseFrom,
+  statsByItemIds,
+  type ArtifactStat,
+  type ContainerLoadoutInput,
+  type ItemStatRow,
+  type LoadoutInput,
 } from '../../catalog/index.js';
 import type { Db } from '../../../platform/db/index.js';
 import { resolveWeight } from '../layout/index.js';
@@ -14,27 +16,24 @@ import * as repo from '../repo/index.js';
 
 type PlacementMap = Map<number, repo.PlacementRow | null>;
 
-function unitWeight(db: Db, row: repo.InventoryItemJoined): number | null {
-  const layout = repo.getItemLayout(db, row.item_id);
+function unitWeight(row: repo.InventoryItemJoined, layouts: Map<number, repo.ItemLayoutRow>): number | null {
+  const layout = layouts.get(row.item_id) ?? null;
   return resolveWeight(row.item_weight, layout?.weight ?? null);
 }
 
-function weightOf(db: Db, row: repo.InventoryItemJoined): number | null {
-  const unit = unitWeight(db, row);
+function weightOf(row: repo.InventoryItemJoined, layouts: Map<number, repo.ItemLayoutRow>): number | null {
+  const unit = unitWeight(row, layouts);
   return unit == null ? null : unit * row.qty;
 }
 
-function maxWeightBonus(db: Db, row: repo.InventoryItemJoined): number | null {
-  return statValueBase(db, row.item_id, 'max_weight_bonus', row.level);
+function maxWeightBonus(row: repo.InventoryItemJoined, stats: ItemStatRow[]): number | null {
+  return statValueBaseFrom(stats, 'max_weight_bonus', row.level);
 }
 
-function armorProtection(db: Db, row: repo.InventoryItemJoined): Record<string, number | null> {
-  const item = getItemById(db, row.item_id);
-  if (!item) return {};
-  const card = buildItemCard(db, item);
-  const curve = (card.curve as number[] | null) ?? null;
+function armorProtection(row: repo.InventoryItemJoined, stats: ItemStatRow[]): Record<string, number | null> {
+  const curve = armorCurve(stats);
   const prot: Record<string, number | null> = { bullet: armorAtLevel(curve, row.level) };
-  for (const stat of itemStats(db, row.item_id)) {
+  for (const stat of stats) {
     if (stat.level !== 0) continue;
     const key = protKeyFor(stat.stat_id);
     if (!key || key === 'bullet') continue;
@@ -73,7 +72,16 @@ function artifactInput(
 export function gatherLoadout(db: Db, characterId: number): LoadoutInput {
   const rows = repo.listInventoryItems(db, characterId);
   const storages = new Map(repo.listStorages(db, characterId).map((storage) => [storage.id, storage]));
-  const placements: PlacementMap = new Map(rows.map((row) => [row.id, repo.getPlacement(db, row.id)]));
+  const placements: PlacementMap = new Map(
+    repo.listPlacements(db, characterId).map((row) => [row.item_id, row]),
+  );
+  const itemIds = [...new Set(rows.map((row) => row.item_id))];
+  const layouts = repo.itemLayoutsByItemIds(db, itemIds);
+  const statsById = statsByItemIds(db, itemIds);
+  const overrides = repo.containerDataByItemIds(
+    db,
+    rows.filter((row) => row.kind === 'container').map((row) => row.id),
+  );
 
   const stashMemo = new Map<number, boolean>();
   const inStash = (itemId: number, visiting = new Set<number>()): boolean => {
@@ -114,7 +122,7 @@ export function gatherLoadout(db: Db, characterId: number): LoadoutInput {
     const contained = rows.filter((row) => inStorage(row.id, storage.id));
     return {
       storageId: storage.id,
-      weights: contained.map((row) => weightOf(db, row)),
+      weights: contained.map((row) => weightOf(row, layouts)),
       ids: contained.map((row) => row.id),
     };
   });
@@ -130,15 +138,16 @@ export function gatherLoadout(db: Db, characterId: number): LoadoutInput {
     const isArmor = row.kind === 'armor' || slot === 'backpack';
     const isContainer = row.kind === 'container' && (slot === 'backpack' || slot === 'container');
     if (isArmor || isContainer) {
+      const itemStats = statsById.get(row.item_id) ?? [];
       armorSources.push({
         itemId: row.id,
-        maxWeightBonus: maxWeightBonus(db, row),
-        protection: isArmor ? armorProtection(db, row) : {},
+        maxWeightBonus: maxWeightBonus(row, itemStats),
+        protection: isArmor ? armorProtection(row, itemStats) : {},
       });
     }
     if (!isContainer) continue;
 
-    const data = repo.getContainerData(db, row.id);
+    const data = overrides.get(row.id) ?? null;
     const artifacts = rows
       .filter((candidate) => {
         const childPlacement = placements.get(candidate.id);
@@ -152,11 +161,12 @@ export function gatherLoadout(db: Db, characterId: number): LoadoutInput {
         return slotA - slotB;
       });
 
+    const containerStats = statsById.get(row.item_id) ?? [];
     containers.push({
       itemId: row.id,
-      effectiveness: data?.eff ?? statValueBase(db, row.item_id, 'container.effectiveness', row.level),
-      protection: data?.protection ?? statValueBase(db, row.item_id, 'container.protection', row.level),
-      slots: data?.slots ?? statValueBase(db, row.item_id, 'container.slots', row.level),
+      effectiveness: data?.eff ?? statValueBaseFrom(containerStats, 'container.effectiveness', row.level),
+      protection: data?.protection ?? statValueBaseFrom(containerStats, 'container.protection', row.level),
+      slots: data?.slots ?? statValueBaseFrom(containerStats, 'container.slots', row.level),
       artifacts: artifacts.map((artifact) => artifactInput(artifact, stats)),
     });
   }
@@ -164,7 +174,7 @@ export function gatherLoadout(db: Db, characterId: number): LoadoutInput {
   return {
     armor: armorSources,
     containers,
-    carriedWeights: carried.map((row) => weightOf(db, row)),
+    carriedWeights: carried.map((row) => weightOf(row, layouts)),
     storageWeights,
     allItemIds: carried.map((row) => String(row.id)),
   };

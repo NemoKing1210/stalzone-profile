@@ -95,7 +95,8 @@ export function wikiStats(rec: Json, labels: Record<string, string>): StatInput[
     const label = stat?.name?.lines?.ru ?? statLabel(labels, keyRaw) ?? null;
     const variants = stat?.numericVariants;
     if (Array.isArray(variants) && variants.length) {
-      variants.forEach((value: number, level: number) => {
+      // The schema allows levels 0..15; a longer source array must not abort the sync.
+      variants.slice(0, 16).forEach((value: number, level: number) => {
         out.push({
           key,
           label,

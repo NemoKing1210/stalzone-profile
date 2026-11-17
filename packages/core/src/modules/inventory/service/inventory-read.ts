@@ -9,7 +9,7 @@ import type {
   StorageRead,
 } from '@profile/shared/contracts';
 import type { Db } from '../../../platform/db/index.js';
-import { computeLoadout, statValueBase, type LoadoutStats as ComputedLoadout } from '../../catalog/index.js';
+import { computeLoadout, statValueBaseFrom, statsByItemIds, type ItemStatRow, type LoadoutStats as ComputedLoadout } from '../../catalog/index.js';
 import { getCharacter } from '../../identity/index.js';
 import { resolveSize, resolveWeight } from '../layout/index.js';
 import * as repo from '../repo/index.js';
@@ -68,15 +68,18 @@ export function placementRead(placement: repo.PlacementRow | null): PlacementRea
  * Container values resolve field by field: an instance override wins, otherwise the
  * catalog stat applies (exact level, else level 0). No value at all stays null.
  */
-function containerDataRead(db: Db, row: repo.InventoryItemJoined): ContainerDataRead | null {
-  const data = repo.getContainerData(db, row.id);
+function containerDataRead(
+  row: repo.InventoryItemJoined,
+  data: repo.ContainerDataRow | null,
+  stats: ItemStatRow[],
+): ContainerDataRead | null {
   const read: ContainerDataRead = {
     type: data?.type ?? null,
     shield: data?.shield ?? null,
     bonus: data?.bonus ?? null,
-    protection: data?.protection ?? statValueBase(db, row.item_id, 'container.protection', row.level),
-    slots: data?.slots ?? statValueBase(db, row.item_id, 'container.slots', row.level),
-    eff: data?.eff ?? statValueBase(db, row.item_id, 'container.effectiveness', row.level),
+    protection: data?.protection ?? statValueBaseFrom(stats, 'container.protection', row.level),
+    slots: data?.slots ?? statValueBaseFrom(stats, 'container.slots', row.level),
+    eff: data?.eff ?? statValueBaseFrom(stats, 'container.effectiveness', row.level),
   };
   return Object.values(read).some((value) => value != null) ? read : null;
 }
@@ -108,11 +111,18 @@ interface NodeSet {
 
 function buildNodes(db: Db, characterId: number): NodeSet {
   const rows = repo.listInventoryItems(db, characterId);
-  const placements = new Map(rows.map((row) => [row.id, repo.getPlacement(db, row.id)]));
+  const placements = new Map(repo.listPlacements(db, characterId).map((row) => [row.item_id, row]));
+  const itemIds = [...new Set(rows.map((row) => row.item_id))];
+  const layouts = repo.itemLayoutsByItemIds(db, itemIds);
+  const itemStats = statsByItemIds(db, itemIds);
+  const containerOverrides = repo.containerDataByItemIds(
+    db,
+    rows.filter((row) => row.kind === 'container').map((row) => row.id),
+  );
   const nodes = new Map<number, InventoryItemRead>();
 
   for (const row of rows) {
-    const layout = repo.getItemLayout(db, row.item_id);
+    const layout = layouts.get(row.item_id) ?? null;
     const node: InventoryItemRead = {
       id: row.id,
       itemId: row.item_id,
@@ -134,7 +144,10 @@ function buildNodes(db: Db, characterId: number): NodeSet {
       weight: resolveWeight(row.item_weight, layout?.weight ?? null),
       size: resolveSize(row.kind, row.category, layout ? { width: layout.width, height: layout.height } : null),
       placement: placementRead(placements.get(row.id) ?? null),
-      container: row.kind === 'container' ? containerDataRead(db, row) : null,
+      container:
+        row.kind === 'container'
+          ? containerDataRead(row, containerOverrides.get(row.id) ?? null, itemStats.get(row.item_id) ?? [])
+          : null,
       artifacts: row.kind === 'container' ? [] : undefined,
       modules: row.kind === 'weapon' ? [] : undefined,
     };

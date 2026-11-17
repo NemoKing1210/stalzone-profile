@@ -12,6 +12,21 @@ export function getItemLayout(db: Db, itemId: number): ItemLayoutRow | null {
   return (db.prepare(`SELECT * FROM item_layout WHERE item_id = ?`).get(itemId) as ItemLayoutRow | undefined) ?? null;
 }
 
+function placeholders(count: number): string {
+  return new Array(count).fill('?').join(', ');
+}
+
+/** Layout overrides for many items in one statement. */
+export function itemLayoutsByItemIds(db: Db, itemIds: number[]): Map<number, ItemLayoutRow> {
+  const out = new Map<number, ItemLayoutRow>();
+  if (!itemIds.length) return out;
+  const rows = db
+    .prepare(`SELECT * FROM item_layout WHERE item_id IN (${placeholders(itemIds.length)})`)
+    .all(...itemIds) as ItemLayoutRow[];
+  for (const row of rows) out.set(row.item_id, row);
+  return out;
+}
+
 export function upsertItemLayout(
   db: Db,
   itemId: number,

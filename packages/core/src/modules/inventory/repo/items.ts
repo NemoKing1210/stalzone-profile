@@ -120,6 +120,26 @@ export function listInventoryItems(
     }) as InventoryItemJoined[];
 }
 
+/** First loose ammo/other stack of an item, used when a create should merge quantities. */
+export function findLooseStackRow(
+  db: Db,
+  characterId: number,
+  itemId: number,
+): { id: number; qty: number } | null {
+  return (
+    (db
+      .prepare(
+        `SELECT o.id, o.qty
+         FROM inventory_item o
+         JOIN item_placement p ON p.item_id = o.id
+         WHERE o.character_id = ? AND o.item_id = ? AND o.kind IN ('ammo', 'other') AND p.location = 'loose'
+         ORDER BY CASE o.kind WHEN 'ammo' THEN 0 ELSE 1 END, o.id
+         LIMIT 1`,
+      )
+      .get(characterId, itemId) as { id: number; qty: number } | undefined) ?? null
+  );
+}
+
 export function updateInventoryItemRow(
   db: Db,
   id: number,

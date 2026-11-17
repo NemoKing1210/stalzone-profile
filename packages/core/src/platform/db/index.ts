@@ -6,6 +6,24 @@ export type Db = Database.Database;
 
 const cache = new Map<string, Db>();
 
+/** Prepared statements are reusable for the life of the handle; sync loops prepare once. */
+const statementCache = new WeakMap<Db, Map<string, Database.Statement<unknown[]>>>();
+
+/** Returns a cached prepared statement for a fixed SQL string. Never use for dynamic SQL. */
+export function cachedStatement(db: Db, sql: string): Database.Statement<unknown[]> {
+  let statements = statementCache.get(db);
+  if (!statements) {
+    statements = new Map();
+    statementCache.set(db, statements);
+  }
+  let statement = statements.get(sql);
+  if (!statement) {
+    statement = db.prepare(sql);
+    statements.set(sql, statement);
+  }
+  return statement;
+}
+
 export interface OpenDbOptions {
   readonly?: boolean;
   verbose?: boolean;
