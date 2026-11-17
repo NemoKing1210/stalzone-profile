@@ -19,6 +19,13 @@ the document for the area you touch:
 
 This file holds rules, not a copy of the documentation.
 
+Two kinds of rules live here. **Hard invariants** are owner-level boundaries: breaking one
+is a bug even when the tests are green, and changing one needs an explicit owner decision.
+**Engineering defaults** are the repository's normal way of working: follow them unless the
+task gives a reason not to, and say what you chose. Commands, paths, module lists and tool
+counts drift; when this file disagrees with `package.json`, the code or the tests, the code
+is the truth until the file is fixed in the same change.
+
 ## Commands
 
 | Task                              | Command                                                                      |
@@ -31,7 +38,8 @@ This file holds rules, not a copy of the documentation.
 | Unit tests only                   | `npm run test:unit`                                                          |
 | Focused tests                     | `npm test -- tests/integration/writes.test.ts` (list one or more paths)      |
 | Tests related to changed files    | `npm run test:related -- <changed files>`                                    |
-| Typecheck packages/server only    | `npm run typecheck:node`                                                     |
+| Typecheck packages, scripts, tests | `npm run typecheck:node`                                                    |
+| Full typecheck (server + app)     | `npm run typecheck` — `typecheck:node` plus the slow Nuxt typecheck          |
 | Lint changed files                | `npx eslint <changed files>`                                                 |
 | Architecture boundaries           | `npm run boundaries` — dependency-cruiser over packages, server, app         |
 | Full check                        | `npm run check` — typecheck + lint + boundaries + tests                      |
@@ -53,7 +61,9 @@ until the wizard (or `POST /api/v1/character`) creates one.
 
 Testing is tiered by stage and risk. Running the full gate after every edit wastes time;
 running one focused test alone proves nothing. Move up a tier only when the previous one is
-green.
+green. The tiers are the default cadence, not a ritual: a throwaway spike, a read-only
+investigation or a docs-only change may skip them — say what you skipped and why.
+Correctness and the hard invariants are never optional.
 
 | Tier                               | When                                    | What to run                                                     |
 | ---------------------------------- | --------------------------------------- | --------------------------------------------------------------- |
@@ -67,8 +77,8 @@ Keep the cheap suites in the loop; defer the expensive ones to Tier 3.
 
 Tier 2 in practice:
 
-- `npm run typecheck:node` when `packages/`, `server/`, `scripts/` or configs changed;
-  `npm run typecheck` when `app/` changed (this is the slow Nuxt typecheck).
+- `npm run typecheck:node` when `packages/`, `scripts/` or configs changed;
+  `npm run typecheck` when `server/` or `app/` changed (this is the slow Nuxt typecheck).
 - `npx eslint <changed files>`, or `npm run lint` when the scope is unclear.
 - The affected suites from the table. `npm run test:related -- <changed files>` is a fast
   first pass that runs the test files importing the changed modules. It does not see Vue
@@ -114,8 +124,9 @@ Rules that keep the tiers honest:
 - A previous green result counts for the rest of the session while its inputs are unchanged.
   Re-run after a pull/rebase, a dependency or config change, or any edit in the suite's
   dependency closure.
-- A red test stops the line: fix it before widening the scope. Never claim "check is green"
-  when only focused tests ran — name the tier, the command and what it covered.
+- A red test stops the line: fix it before widening the scope. Do not claim more than you
+  ran — name the tier, the command and what it covered. A skipped tier is a stated
+  exception, never a silent one.
 - UI changes are checked by typecheck, lint and a manual pass over the affected pages;
   there is no browser test layer.
 
@@ -125,8 +136,8 @@ Rules that keep the tiers honest:
 | ---------------------------- | ------------------------------------------------------------------------ |
 | `packages/shared`            | contracts (zod), `norm`, formatting, ranks, hashes                       |
 | `packages/core/src/platform` | config, opening SQLite, migrations, journal, security                    |
-| `packages/core/src/modules`  | bounded contexts: catalog, identity, inventory, builds, sync, setup,     |
-|                              | maintenance, read-model — each with its own `index.ts` public API        |
+| `packages/core/src/modules`  | bounded contexts: catalog, identity, inventory, maintenance, read-model, |
+|                              | setup, sync — each with its own `index.ts` public API                    |
 | `packages/core/src/modules/catalog/calc` | DPS/TTK and artifact formulas — the only source of numbers  |
 | `packages/sources`           | pure source adapters: fetch + parse, **no DB writes**                    |
 | `packages/mcp`               | tool registry, local client, stdio and HTTP                              |
@@ -145,7 +156,10 @@ Lower layers do not import upper layers.
 
 ## Hard invariants
 
-Breaking any item is a bug, even when the tests are green.
+These are owner-level boundaries. Breaking one is a bug even when the tests are green;
+changing one requires an explicit owner decision recorded in the change — a plan, a
+migration note or a `docs/` update — not a silent reinterpretation. The rest of this file
+is engineering default, not law.
 
 1. **Data changes only through services.** Do not edit `profile.db`, `payload.json` or the
    export by hand. Writes go only through the API, MCP or CLI, and always through the owning
@@ -176,9 +190,18 @@ Breaking any item is a bug, even when the tests are green.
 
 ## How to change code
 
-**Bug or feature.** First a test that fails for the expected reason, then the minimal fix,
-then a green run. A test written after the code is not a check — it does not prove it would
-have caught the defect.
+**Bug or feature.** Default: first a test that fails for the expected reason, then the
+minimal fix, then a green run. A test written after the code is not a check — it does not
+prove it would have caught the defect. A throwaway spike or an exploratory prototype may
+skip the test; if it becomes production code, add the regression test before calling it done.
+
+**Multi-file, behavior, schema or contract change.** Write a short plan first and get the
+owner's agreement before the first code edit. The plan names the migration, the contracts and
+the suites that will prove it. Small fixes, docs and spikes do not need a plan.
+
+**Owner decisions.** Changing displayed numbers, resetting the schema baseline, weakening a
+hard invariant or deleting data needs an explicit owner decision. Record it in the change
+(commit message, migration comment or `docs/`), not as an unstated assumption.
 
 **New route.** Request/response schema in `packages/shared/src/contracts/**`; the route in
 `server/api/v1/**` only calls `requireSession`/`requireOrigin`, `zod.parse`, the module's
@@ -221,12 +244,14 @@ are a reference, not marketing copy.
 | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | DB schema         | new `NNNN_name.sql` migration, `docs/DATA-MODEL.md`, repo, import tests                                                                                                |
 | API field/route   | `packages/shared/src/contracts/**`, `docs/API.md`, the affected `tests/integration` suite                                                                              |
-| MCP tool          | `packages/mcp/src/registry.ts`, `docs/MCP.md`, the `ALL_TOOLS` list in `tests/integration/mcp.test.ts`; for a read tool also `READ_OUTPUT_SCHEMAS` and `npm run smoke:mcp` |
+| MCP tool          | `packages/mcp/src/registry.ts`, `docs/MCP.md`, the expected read/write lists in `tests/integration/mcp.test.ts`; for a read tool also `READ_OUTPUT_SCHEMAS` and `npm run smoke:mcp` |
 | Data source       | `docs/ARCHITECTURE.md` (source table), `core/src/modules/sync`, `tests/integration/sync.test.ts`                                                                       |
 | Formula/numbers   | only `core/src/modules/catalog/calc`, then `npm run golden`, and `docs/DATA-MODEL.md` when needed                                                                      |
 | UI text           | `i18n/locales/en.json` and `i18n/locales/ru.json` (both), `docs/I18N.md`                                                                                               |
 | New page, route, tool or source | `app/features/guide/model/guide.ts` and both locale catalogs; `npm test -- tests/unit/app/guide/guide.test.ts`                                                    |
 | env/deploy        | `README.md`, `.env.example`, `docs/CONFIGURATION.md`, `deploy/docker-compose.yml`, `docs/RUNBOOK.md`, `CHANGELOG.md`                                                   |
+| Commands, scripts, module or tool counts | this file (`Commands`, `Code map`), the matching `docs/*`; link to `package.json` or the registry instead of copying a count |
+| Hard invariant or boundary | an explicit owner decision recorded in the change; never a silent reinterpretation                                                                          |
 
 ## Style
 
@@ -246,7 +271,10 @@ are a reference, not marketing copy.
 
 ## Tests
 
-- **TDD is mandatory** for features, bugs and behavior changes. RED first, then GREEN.
+- **TDD is the default** for features, bugs and behavior changes: RED first, then GREEN.
+  A spike may skip it; shipping behavior needs a regression test.
+- Docs-only changes need no runtime test — run `git diff --check` and check that the
+  commands, paths and links you touched still exist.
 - `tests/unit` — pure functions without a DB or network. `tests/integration` — a temporary
   DB in `mkdtemp` plus migrations and `seedCatalog` from `tests/fixtures`; close and delete
   it in `afterEach`.
@@ -268,28 +296,44 @@ are a reference, not marketing copy.
   runtime; `DB_PATH` and `ICONS_DIR` are read directly from `process.env`
   (`server/utils/db.ts`, `server/routes/icons/[file].get.ts`) because compose sets exactly
   those. Do not hardcode paths in code.
-- **Icons:** import writes `.webp` into `ICONS_DIR` and sets
-  `item.icon_path = /icons/<sha1>.webp`; `server/routes/icons/[file].get.ts` serves it.
-  `public/icons/` is not committed.
+- **Icons live in `ICONS_DIR` (default `public/icons`, ignored by git).** The `icons` sync
+  downloads `.png` from EXBO; an admin import writes `.webp`. `icon.path` is
+  `/icons/<sha1>.<ext>` and `server/routes/icons/[file].get.ts` serves it.
 - **SQLite WAL and one process.** Do not open the working database with third-party editors;
   copy the file for inspection.
-- **Port:** dev `80` (`stalzone-profile.local`).
+- **Port:** dev `80` (`stalzone-profile.local`); `DEV_HOST` and `DEV_PORT` override the bind.
 - **Sign-in rate limit** counts by socket address; `X-Forwarded-For` is honored only with
   `NUXT_TRUST_PROXY=1` (behind Caddy).
 - **Moves and contract changes need a typecheck.** After renaming/deleting files or changing
-  shared signatures, run `npm run typecheck:node` (or `npm run typecheck` for `app/`);
-  focused tests can pass while stale imports remain.
+  shared signatures, run `npm run typecheck:node` for `packages/`/`scripts/`/tests and
+  `npm run typecheck` for `server/`/`app/`; focused tests can pass while stale imports remain.
 - **Golden** after number/calculator changes: differences are allowed only when documented,
   and they must be explained, not "fixed" by editing the expectation.
 
+## Keeping this document true
+
+- This file is an index, not a second source of truth. When it disagrees with
+  `package.json`, the code, the migrations or the tests, the code wins; fix the file in the
+  same change.
+- Prefer links and commands over copied counts and lists: `package.json` for scripts,
+  `packages/mcp/src/registry.ts` for tools, `db/migrations/` for schema history.
+- A change that adds or removes a command, module, route, MCP tool or sync source updates
+  the matching table here and in `docs/`.
+- Historical notes stay historical: label them with a date and do not let them read as
+  current rules.
+
 ## Definition of Done
 
-1. There is a test that failed before the change and passes after it.
+1. For a behavior change, there is a test that failed before the change and passes after it.
+   Docs-only changes are exempt.
 2. Tier 2 is green before the commit, and Tier 3 before push/PR/merge: `npm run check`;
-   `npm run golden` when numbers changed; `npm run build` for Docker/deploy/env.
+   `npm run golden` when numbers changed; `npm run build` for Docker/deploy/env. A skipped
+   tier is stated, not silent.
 3. New migrations, fields, routes, tools, scripts and sources are described in `docs/` and
    in the `/guide` page; `tests/unit/app/guide/guide.test.ts` is green.
 4. Secrets and personal data did not enter the diff.
 5. The commit follows Conventional Commits (`feat(scope): …`, `fix: …`, `docs: …`), one
    logical step per commit. Merge/push/deploy only with the repository owner's explicit
    consent.
+6. A schema, API/MCP or displayed-number change has its plan and owner approval, and the
+   matching `docs/` and `/guide` entries are updated.

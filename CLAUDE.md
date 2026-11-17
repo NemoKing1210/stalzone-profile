@@ -2,13 +2,16 @@
 
 @AGENTS.md
 
-The rules in `AGENTS.md` are mandatory. This file only adds what is specific to
-Claude working in this repository.
+The rules in `AGENTS.md` are mandatory. It separates **hard invariants** (owner-level
+boundaries) from **engineering defaults** (the normal way of working): follow the defaults
+unless the task gives a reason not to, and say which tier or exception you used. This file
+only adds what is specific to Claude working in this repository.
 
 ## Working protocol
 
-- Before any code change, follow TDD: a failing test → the minimal implementation →
-  a green run. If the `test-driven-development` skill is available, use it.
+- Before shipping a behavior change, use TDD: a failing test → the minimal implementation →
+  a green run. A throwaway spike may skip the test; add it before the code ships. If the
+  `test-driven-development` skill is available, use it.
 - Do not say "done", "fixed" or "passes" until you have run the command and read its
   output. Verification is tiered in `AGENTS.md` (**Verification tiers**): Tier 1 focuses the
   test you are changing, Tier 2 runs the affected suites before a commit, Tier 3 runs the
