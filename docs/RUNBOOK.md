@@ -21,8 +21,8 @@ npm run dev
 ```
 
 The dev server opens at `http://stalzone-profile.local`; add
-`127.0.0.1 stalzone-profile.local` to `hosts`. The port and domain are in `devServer`
-in `nuxt.config.ts`.
+`127.0.0.1 stalzone-profile.local` to `hosts`. The address comes from `DEV_HOST` and
+`DEV_PORT` — see [Configuration](CONFIGURATION.md#dev-server-address).
 
 Then, in the browser:
 
@@ -54,11 +54,20 @@ docker compose -f deploy/docker-compose.yml exec app node dist/cli.js sync
 docker compose -f deploy/docker-compose.yml restart app
 ```
 
-Then sign in. Phase 1 has no onboarding: a fresh database has no character, so the site
-stays empty and the API answers `NO_CHARACTER` until phase 2 creates one. The catalog,
-prices and sources sync normally.
+Then sign in. A fresh database has no character, so the site sends you to `/setup` and the
+API answers `NO_CHARACTER` until the wizard (or `POST /api/v1/character`) creates one.
 
 Check: `http://<host>:3000/login` serves the form; sign in with the password from `.env`.
+
+### Build without Docker
+
+```bash
+npm run build             # .output/
+npm run build:cli         # dist/cli.js and dist/mcp-stdio.js
+DB_PATH=/data/dossier.db NUXT_SESSION_SECRET=... node .output/server/index.mjs
+```
+
+The schema is applied when the server starts; a separate migration step is optional.
 
 ### TLS
 
@@ -173,3 +182,4 @@ docker compose -f deploy/docker-compose.yml logs -f caddy
   and rotate it after a leak.
 - The auction is read-only; the project holds no game credentials.
 - Public access to `/api/v1/healthz` is harmless (only `ok`/`db`).
+- To report a vulnerability privately, see [SECURITY.md](../SECURITY.md).

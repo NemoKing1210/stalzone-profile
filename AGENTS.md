@@ -14,7 +14,8 @@ the document for the area you touch:
 | Routes, payloads, errors     | `docs/API.md`                  |
 | MCP tools and clients        | `docs/MCP.md`                  |
 | Interface text and locales   | `docs/I18N.md`                 |
-| Deploy, env, troubleshooting | `README.md`, `docs/RUNBOOK.md` |
+| Deploy, env, troubleshooting | `README.md`, `docs/CONFIGURATION.md`, `docs/RUNBOOK.md` |
+| Security policy              | `SECURITY.md`                  |
 
 This file holds rules, not a copy of the documentation.
 
@@ -215,7 +216,7 @@ The app imports no `@dossier/core`; ESLint enforces both rules together with the
 | Data source       | `docs/ARCHITECTURE.md` (source table), `core/src/modules/sync`, `tests/integration/sync.test.ts`                                                                       |
 | Formula/numbers   | only `core/src/modules/catalog/calc`, then `npm run golden`, and `docs/DATA-MODEL.md` when needed                                                                      |
 | UI text           | `i18n/locales/en.json` and `i18n/locales/ru.json` (both), `docs/I18N.md`                                                                                               |
-| env/deploy        | `README.md`, `.env.example`, `deploy/docker-compose.yml`, `docs/RUNBOOK.md`, `docs/CHANGELOG.md`                                                                       |
+| env/deploy        | `README.md`, `.env.example`, `docs/CONFIGURATION.md`, `deploy/docker-compose.yml`, `docs/RUNBOOK.md`, `CHANGELOG.md`                                                   |
 
 ## Style
 

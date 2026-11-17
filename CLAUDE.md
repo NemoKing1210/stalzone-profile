@@ -39,8 +39,9 @@ Claude working in this repository.
 
 ## Context
 
-- The source of truth for running the project and its variables is `README.md`; for flows
-  it is `docs/ARCHITECTURE.md`; for invariants it is `docs/DATA-MODEL.md`.
+- The source of truth for running the project is `README.md`, and for its variables
+  `docs/CONFIGURATION.md`; for flows it is `docs/ARCHITECTURE.md`; for invariants it is
+  `docs/DATA-MODEL.md`.
 - Do not duplicate existing components, composables, schemas and repositories: find the
   closest existing equivalent and reuse it.
 - Write comments and documentation in English; keep identifiers in English. The only
