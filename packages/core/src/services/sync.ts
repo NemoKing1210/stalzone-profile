@@ -3,27 +3,19 @@ import { norm } from '@dossier/shared';
 import {
   exboAdapter,
   motifsAdapter,
-  profileAdapter,
   scpmodelAdapter,
   wikiAdapter,
   type FetchLike,
   type MotifRow,
   type PriceRow,
-  type ProfileSnapshot,
 } from '@dossier/sources';
 import type { Db } from '../db/index.js';
 import * as repo from '../repo/index.js';
-import {
-  exboStats,
-  localExboId,
-  remoteIcon,
-  ttkStats,
-  wikiStats,
-} from './import.js';
+import { exboStats, localExboId, ttkStats, wikiEffects, wikiStats } from './normalize.js';
 
 type Json = Record<string, any>;
 
-export const SYNC_SOURCES = ['exbo_base', 'wiki', 'motifs', 'profile', 'scpmodel'] as const;
+export const SYNC_SOURCES = ['exbo_base', 'wiki', 'motifs', 'scpmodel'] as const;
 export type SyncSource = (typeof SYNC_SOURCES)[number];
 
 export type SyncStatus = 'ok' | 'stale';
@@ -43,7 +35,6 @@ export interface SyncOptions {
   force?: boolean;
   cacheDir?: string;
   fetchImpl?: FetchLike;
-  profileFile?: string;
   realm?: string;
   now?: number;
 }
@@ -56,9 +47,9 @@ export function normalizeSource(source: string): SyncSource | 'all' {
   throw new Error(`unknown source: ${source}`);
 }
 
-/** Age of the newest price snapshot in minutes; Infinity when there is none. */
+/** Age of the newest price quote in minutes; Infinity when there is none. */
 export function pricesAgeMin(db: Db, now = Date.now()): number {
-  const at = repo.latestPriceSnapshotAt(db);
+  const at = repo.latestPriceFetchedAt(db);
   if (!at) return Infinity;
   const time = new Date(at).getTime();
   if (!Number.isFinite(time)) return Infinity;
@@ -135,21 +126,20 @@ function upsertWikiRecord(
   record: Json,
   kind: string,
   stats: ReturnType<typeof wikiStats>,
-  rawKey: 'wiki' | 'ttk',
 ): boolean {
   const name = record?.name?.lines?.ru;
   if (!name) return false;
   const itemId = repo.upsertItem(db, {
     sourceId: 'wiki',
-    exboId: record.exbo_id ?? localExboId(kind, name),
+    externalId: record.exbo_id ?? localExboId(kind, name),
     name,
     nameEn: record?.name?.lines?.en ?? null,
     kind,
     category: record.category ?? null,
     rank: record.color ?? null,
-    raw: { [rawKey]: record },
   });
   repo.replaceItemStats(db, itemId, stats, 'wiki');
+  repo.replaceItemEffects(db, itemId, wikiEffects(record));
   return true;
 }
 
@@ -166,11 +156,20 @@ function syncExbo(db: Db, options: SyncOptions): Promise<SyncResult> {
     .then((snapshot) => {
       const labels = snapshot.labels;
       db.transaction(() => {
+        for (const stat of snapshot.stats) {
+          repo.upsertStatDefinition(db, {
+            id: stat.id,
+            category: stat.category,
+            valueType: stat.type,
+            labelRu: stat.labelRu,
+            labelEn: stat.labelEn,
+          });
+        }
         for (const record of snapshot.items) {
           const kind = repo.kindFromCategory(record.cat);
           const itemId = repo.upsertItem(db, {
             sourceId: 'exbo_base',
-            exboId: record.id,
+            externalId: record.id,
             name: record.ru ?? record.id,
             nameEn: record.en,
             kind,
@@ -184,19 +183,15 @@ function syncExbo(db: Db, options: SyncOptions): Promise<SyncResult> {
               typeof record.st['core.tooltip.info.weight'] === 'number'
                 ? (record.st['core.tooltip.info.weight'] as number)
                 : null,
-            raw: { exbo: record, icon: remoteIcon(record) },
           });
           repo.replaceItemStats(db, itemId, exboStats(record, labels), 'exbo_base');
         }
-        repo.setMeta(db, 'exbo_labels', labels);
-        repo.setMeta(db, 'exbo_meta', {
-          commit: snapshot.commit,
-          commitDate: snapshot.commitDate,
-          fetchedAt: snapshot.fetchedAt,
-          realm: options.realm ?? 'ru',
-          items: snapshot.items.length,
-        });
       })();
+      repo.markSourceOk(db, 'exbo_base', {
+        at: snapshot.fetchedAt,
+        commit: snapshot.commit,
+        commitDate: snapshot.commitDate,
+      });
       return {
         source: 'exbo_base' as const,
         status: 'ok' as const,
@@ -222,11 +217,11 @@ async function syncWiki(db: Db, options: SyncOptions): Promise<SyncResult> {
     ];
     for (const [kind, list] of groups) {
       for (const record of list) {
-        if (upsertWikiRecord(db, record, kind, wikiStats(record, {}), 'wiki')) items++;
+        if (upsertWikiRecord(db, record, kind, wikiStats(record, {}))) items++;
       }
     }
     for (const record of snapshot.ttkWeapon) {
-      if (upsertWikiRecord(db, record, 'weapon', ttkStats(record), 'ttk')) items++;
+      if (upsertWikiRecord(db, record, 'weapon', ttkStats(record))) items++;
     }
   })();
   return { source: 'wiki', status: 'ok', items, fetchedAt: snapshot.fetchedAt };
@@ -235,18 +230,14 @@ async function syncWiki(db: Db, options: SyncOptions): Promise<SyncResult> {
 async function syncMotifs(db: Db, options: SyncOptions): Promise<SyncResult> {
   const rows = await motifsAdapter.fetch({ fetchImpl: options.fetchImpl });
   const now = new Date().toISOString();
-  const findMotif = db.prepare(
-    `SELECT id FROM item WHERE kind = 'motif' AND name_norm = ? LIMIT 1`,
-  );
+  const findMotif = db.prepare(`SELECT id FROM item WHERE kind = 'motif' AND name_norm = ? LIMIT 1`);
   db.transaction(() => {
     for (const row of rows) {
       const motif = findMotif.get(norm(row.skin)) as { id: number } | undefined;
       if (!motif) continue;
       const baseItemId = resolveMotifBase(db, row);
       if (baseItemId == null) continue;
-      db.prepare(
-        `UPDATE item SET base_item_id = ?, updated_at = ? WHERE id = ?`,
-      ).run(baseItemId, now, motif.id);
+      db.prepare(`UPDATE item SET base_item_id = ?, updated_at = ? WHERE id = ?`).run(baseItemId, now, motif.id);
     }
   })();
   return {
@@ -257,56 +248,8 @@ async function syncMotifs(db: Db, options: SyncOptions): Promise<SyncResult> {
   };
 }
 
-async function syncProfile(db: Db, options: SyncOptions): Promise<SyncResult> {
-  const profile: ProfileSnapshot = await profileAdapter.fetch({ file: options.profileFile });
-  const character = repo.getCharacter(db);
-  const profileMeta = {
-    fetched: profile.fetched ?? null,
-    source: profile.source ?? null,
-    lastOnline: profile.lastOnline ?? null,
-    clanHistory: profile.clanHistory ?? null,
-    region: profile.region ?? null,
-  };
-
-  if (character) {
-    repo.updateCharacterById(db, character.id, {
-      faction: profile.faction ?? undefined,
-      arrived: profile.arrivedInZone ?? undefined,
-      hours: profile.playtimeHours ?? undefined,
-      kd: profile.kd ?? undefined,
-      accuracy: profile.accuracy ?? undefined,
-      headshot: profile.headshotShare ?? undefined,
-      achievementPoints: profile.achievementPoints ?? undefined,
-    } as Record<string, unknown>);
-    repo.mergeCharacterStats(db, character.id, {
-      profile: profile.stats ? { ...profile.stats, username: profile.username } : { username: profile.username },
-      profileMeta,
-    });
-  } else {
-    repo.upsertCharacter(db, {
-      nick: profile.username ?? 'unknown',
-      realm: options.realm ?? 'ru',
-      faction: profile.faction ?? null,
-      arrived: profile.arrivedInZone ?? null,
-      hours: profile.playtimeHours ?? null,
-      kd: profile.kd ?? null,
-      accuracy: profile.accuracy ?? null,
-      headshot: profile.headshotShare ?? null,
-      achievementPoints: profile.achievementPoints ?? null,
-      stats: { profile: { ...profile.stats, username: profile.username }, profileMeta },
-    });
-  }
-  repo.setMeta(db, 'profile', profile);
-  return {
-    source: 'profile',
-    status: 'ok',
-    items: 1,
-    fetchedAt: new Date().toISOString(),
-  };
-}
-
-function priceInput(db: Db, row: PriceRow): Parameters<typeof repo.insertPriceSnapshot>[1] {
-  const item = row.exboId ? repo.getItemByExboId(db, row.exboId) : null;
+function priceInput(db: Db, row: PriceRow): repo.PriceQuoteInput {
+  const item = row.exboId ? repo.getItemByExternalId(db, row.exboId) : null;
   return {
     itemId: item?.id ?? null,
     exboId: row.exboId,
@@ -323,7 +266,7 @@ function priceInput(db: Db, row: PriceRow): Parameters<typeof repo.insertPriceSn
 }
 
 async function syncPrices(db: Db, options: SyncOptions): Promise<SyncResult> {
-  const lastAt = repo.latestPriceSnapshotAt(db);
+  const lastAt = repo.latestPriceFetchedAt(db);
   const ageMin = pricesAgeMin(db, options.now);
   if (!options.force && lastAt && ageMin < 15) {
     return { source: 'scpmodel', status: 'ok', items: 0, fetchedAt: lastAt, ageMin };
@@ -334,7 +277,7 @@ async function syncPrices(db: Db, options: SyncOptions): Promise<SyncResult> {
     fetchImpl: options.fetchImpl,
   });
   const inputs = snapshot.rows.map((row) => priceInput(db, row));
-  repo.insertPriceSnapshots(db, inputs);
+  repo.insertPriceQuotes(db, inputs);
   return {
     source: 'scpmodel',
     status: 'ok',
@@ -369,14 +312,11 @@ export async function runSync(db: Db, source: string, options: SyncOptions = {})
       case 'motifs':
         result = await syncMotifs(db, options);
         break;
-      case 'profile':
-        result = await syncProfile(db, options);
-        break;
       case 'scpmodel':
         result = await syncPrices(db, options);
         break;
     }
-    if (result.fetchedAt) repo.markSourceOk(db, normalized, null, result.fetchedAt);
+    if (result.fetchedAt) repo.markSourceOk(db, normalized, { at: result.fetchedAt });
     return result;
   } catch (error) {
     const message = sourceError(error);
