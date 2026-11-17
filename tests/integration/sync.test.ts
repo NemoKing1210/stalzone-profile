@@ -2,11 +2,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { closeDb, ensureDefaultSources, loadConfig, migrate, openDb, type Db } from '@dossier/core';
-import { itemStats, listItems, upsertItem } from '@dossier/core/repo';
-import { getCharacter } from '@dossier/core/repo/characters';
+import { closeDb, ensureDefaultSources, migrate, openDb, type Db } from '@dossier/core';
+import * as repo from '@dossier/core';
+import { exboAdapter, motifsAdapter, parseExboItem, wikiAdapter } from '@dossier/sources';
 import { runSync } from '@dossier/core/services/sync';
-import { parseExboItem, exboAdapter, motifsAdapter, wikiAdapter } from '@dossier/sources';
 
 const EXBO_ITEM = {
   id: 'wg53',
@@ -19,27 +18,18 @@ const EXBO_ITEM = {
       elements: [
         {
           type: 'numeric',
-          name: {
-            key: 'core.tooltip.stat_name.damage_type.direct',
-            lines: { ru: 'Урон' },
-          },
+          name: { key: 'core.tooltip.stat_name.damage_type.direct', lines: { ru: 'Урон' } },
           value: 40,
         },
         {
           type: 'range',
-          name: {
-            key: 'weapon.tooltip.weapon.info.distance',
-            lines: { ru: 'Дистанция' },
-          },
+          name: { key: 'weapon.tooltip.weapon.info.distance', lines: { ru: 'Дистанция' } },
           min: 100,
           max: 400,
         },
         {
           type: 'key-value',
-          key: {
-            key: 'weapon.tooltip.weapon.info.ammo_type',
-            lines: { ru: 'Калибр' },
-          },
+          key: { key: 'weapon.tooltip.weapon.info.ammo_type', lines: { ru: 'Калибр' } },
           value: { lines: { ru: '5.56' } },
         },
         { type: 'text', text: { lines: { ru: 'Описание' } } },
@@ -57,58 +47,20 @@ const EXBO_ITEM = {
 };
 
 const WIKI_ARTIFACT = {
-  exbo_id: 'wg901',
-  category: 'artefact/thermal',
-  color: 'DEFAULT',
-  name: { key: 'item.art.test.name', lines: { ru: 'Тест-артефакт', en: 'Test artifact' } },
+  exbo_id: 'art-1',
+  category: 'artefact/gravity',
+  color: 'RANK_MASTER',
+  name: { key: 'item.art.ner.name', lines: { ru: 'Нервяк', en: 'Nervyak' } },
   stats: [
     {
-      key: 'stalker.artefact_properties.factor.stamina_bonus',
-      type: 'range',
-      value: { min: 8.22, max: 9.67, calculated: 0 },
+      key: 'stalker.artefact_properties.factor.speed_modifier',
+      name: { lines: { ru: 'Скорость' } },
+      value: { min: 0.5, max: 1 },
       is_positive: true,
       is_percentage: true,
-      name: { lines: { ru: 'Выносливость' } },
     },
   ],
-  additionalStats: [
-    {
-      key: 'stalker.artefact_properties.factor.health_bonus',
-      value: { calculated: 5 },
-      is_positive: true,
-      name: { lines: { ru: 'Здоровье' } },
-    },
-  ],
-};
-
-const WIKI_WEAPON = {
-  exbo_id: 'wg902',
-  category: 'weapon/assault_rifle',
-  color: 'DEFAULT',
-  name: { key: 'item.wpn.test.name', lines: { ru: 'Тест-винтовка', en: 'Test rifle' } },
-  stats: [
-    {
-      key: 'weapon.tooltip.weapon.info.rate_of_fire',
-      value: { calculated: 600 },
-      name: { lines: { ru: 'Скорострельность' } },
-    },
-  ],
-};
-
-const TTK_WEAPON = {
-  exbo_id: 'wg902',
-  category: 'weapon/assault_rifle',
-  color: 'DEFAULT',
-  name: { key: 'item.wpn.test.name', lines: { ru: 'Тест-винтовка', en: 'Test rifle' } },
-  damageVariants: {
-    startDamageVariants: Array.from({ length: 16 }, (_, level) => 40 + level),
-    endDamageVariants: Array.from({ length: 16 }, (_, level) => 20 + level),
-    damageDecreaseStartVariants: Array.from({ length: 16 }, () => 50),
-    damageDecreaseEndVariants: Array.from({ length: 16 }, () => 300),
-    maxDistanceVariants: Array.from({ length: 16 }, () => 500),
-  },
-  clipSize: 30,
-  stats: [],
+  additionalStats: [],
 };
 
 let dir: string;
@@ -116,12 +68,8 @@ let db: Db;
 
 beforeEach(() => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dossier-sync-'));
-  const cfg = loadConfig({
-    dbPath: path.join(dir, 'test.db'),
-    seedsDir: path.join(process.cwd(), 'db', 'seeds'),
-  });
-  db = openDb(cfg.dbPath);
-  migrate(db, cfg.migrationsDir);
+  db = openDb(path.join(dir, 'test.db'));
+  migrate(db, path.join(process.cwd(), 'db', 'migrations'));
   ensureDefaultSources(db);
 });
 
@@ -135,6 +83,15 @@ function jsonResponse(body: unknown, status = 200): Response {
     status,
     headers: { 'content-type': 'application/json' },
   });
+}
+
+function fakeFetch(routes: Record<string, unknown>): (url: string) => Promise<Response> {
+  return async (url: string) => {
+    for (const [key, body] of Object.entries(routes)) {
+      if (url.includes(key)) return jsonResponse(body);
+    }
+    throw new Error(`unexpected url ${url}`);
+  };
 }
 
 describe('EXBO adapter', () => {
@@ -159,7 +116,7 @@ describe('EXBO adapter', () => {
 
   it('skips the download when the repository commit is unchanged', async () => {
     const cacheDir = path.join(dir, 'cache');
-    const calls = { commit: 0, tree: 0, raw: 0 };
+    const calls = { commit: 0, tree: 0, raw: 0, stats: 0 };
     const fetchImpl = async (url: string) => {
       if (url.endsWith('/commits/main')) {
         calls.commit += 1;
@@ -174,6 +131,10 @@ describe('EXBO adapter', () => {
           ],
         });
       }
+      if (url.endsWith('/ru/stats.json')) {
+        calls.stats += 1;
+        return jsonResponse([{ id: 'kil', category: 'SURVIVAL', type: 'INTEGER', name: { lines: { ru: 'Убийства' } } }]);
+      }
       if (url.includes('raw.githubusercontent.com')) {
         calls.raw += 1;
         return jsonResponse(EXBO_ITEM);
@@ -185,6 +146,9 @@ describe('EXBO adapter', () => {
     expect(first.items).toHaveLength(1);
     expect(first.commit).toBe('abc123');
     expect(first.cached).toBe(false);
+    expect(first.stats).toEqual([
+      { id: 'kil', category: 'SURVIVAL', type: 'INTEGER', labelRu: 'Убийства', labelEn: null },
+    ]);
     expect(calls.raw).toBe(1);
 
     const second = await exboAdapter.fetch({ cacheDir, fetchImpl });
@@ -193,160 +157,216 @@ describe('EXBO adapter', () => {
     expect(calls.commit).toBe(2);
     expect(calls.tree).toBe(1);
     expect(calls.raw).toBe(1);
+    expect(calls.stats).toBe(1);
   });
 });
 
-describe('wiki adapter', () => {
-  it('keeps ranges, additional stats and every TTK level', async () => {
+describe('exbo_base sync', () => {
+  it('writes typed items, stat definitions and commit metadata for exbo_base', async () => {
+    const fetchImpl = fakeFetch({
+      'commits/main': { sha: 'abc', commit: { committer: { date: '2026-01-01T00:00:00.000Z' } } },
+      'git/trees/main?recursive=1': { tree: [{ path: 'ru/items/assault_rifle/ak-12.json' }] },
+      'ru/items/assault_rifle/ak-12.json': EXBO_ITEM,
+      'ru/stats.json': [
+        { id: 'kil', category: 'SURVIVAL', type: 'INTEGER', name: { lines: { ru: 'Убийства', en: 'Kills' } } },
+      ],
+    });
+    const result = await runSync(db, 'exbo_base', { fetchImpl, cacheDir: path.join(dir, 'cache') });
+    expect(result).toMatchObject({ source: 'exbo_base', status: 'ok', items: 1, commit: 'abc' });
+    const item = repo.findItemByKindName(db, 'weapon', 'АК-12')!;
+    expect(repo.statValue(db, item.id, 'core.tooltip.stat_name.damage_type.direct')).toBe(40);
+    expect(repo.getStatDefinition(db, 'kil')).toMatchObject({
+      value_type: 'INTEGER',
+      label_ru: 'Убийства',
+      label_en: 'Kills',
+    });
+    expect(repo.getSource(db, 'exbo_base')).toMatchObject({ commit_sha: 'abc', status: 'ok' });
+  });
+});
+
+describe('wiki sync', () => {
+  it('writes wiki items with stat definitions and artifact effect lines', async () => {
     const fetchImpl = async (url: string) => {
-      if (url.includes('builds-calculator/items') && url.includes('category=artefact')) {
-        return jsonResponse([WIKI_ARTIFACT]);
-      }
-      if (url.includes('builds-calculator/items') && url.includes('category=weapon')) {
-        return jsonResponse([WIKI_WEAPON]);
-      }
-      if (url.includes('ttk-calculator/items') && url.includes('category=weapon')) {
-        return jsonResponse([TTK_WEAPON]);
-      }
-      if (url.includes('builds-calculator/items')) return jsonResponse([]);
+      if (url.includes('category=artefact')) return jsonResponse([WIKI_ARTIFACT]);
+      if (url.includes('stalzone.wiki')) return jsonResponse([]);
       throw new Error(`unexpected url ${url}`);
     };
-
     const snapshot = await wikiAdapter.fetch({ fetchImpl });
     expect(snapshot.artefact).toHaveLength(1);
-    expect(snapshot.ttkWeapon).toHaveLength(1);
 
-    const result = await runSync(db, 'wiki', { fetchImpl });
-    expect(result.status).toBe('ok');
-    expect(result.items).toBeGreaterThanOrEqual(3);
-
-    const artifact = listItems(db, 'artifact').find((item) => item.name === 'Тест-артефакт');
-    expect(artifact).toBeTruthy();
-    const artifactStats = itemStats(db, artifact!.id);
-    expect(artifactStats.find((stat) => stat.key === 'stamina_bonus')).toMatchObject({
-      value_min: 8.22,
-      value_max: 9.67,
-      value_num: null,
-      pct: 1,
-      positive: 1,
+    await runSync(db, 'wiki', { fetchImpl });
+    const item = repo.findItemByKindName(db, 'artifact', 'Нервяк')!;
+    expect(repo.itemStats(db, item.id)[0]).toMatchObject({
+      stat_id: 'speed_modifier',
+      value_min: 0.5,
+      value_max: 1,
     });
-    expect(artifactStats.find((stat) => stat.key === 'health_bonus')).toMatchObject({
-      value_num: 5,
-      is_additional: 1,
-    });
-
-    const weapon = listItems(db, 'weapon').find((item) => item.name === 'Тест-винтовка');
-    expect(weapon).toBeTruthy();
-    const levels = itemStats(db, weapon!.id)
-      .filter((stat) => stat.key === 'damage.start')
-      .map((stat) => stat.level)
-      .sort((a, b) => Number(a) - Number(b));
-    expect(levels).toEqual(Array.from({ length: 16 }, (_, level) => level));
+    expect(repo.listItemEffects(db, item.id)).toEqual([
+      { item_id: item.id, position: 0, label: 'Скорость', is_positive: 1 },
+    ]);
   });
 });
 
-describe('motifs adapter', () => {
-  it('refreshes base_item_id for all 219 motifs', async () => {
-    const map = JSON.parse(
-      fs.readFileSync(path.join(process.cwd(), 'db', 'seeds', 'wiki', 'motifs-map.json'), 'utf8'),
-    ) as { rows: { skin: string; key: string; token: string }[] };
-    expect(map.rows).toHaveLength(219);
-
-    const baseId = upsertItem(db, {
+describe('motifs sync', () => {
+  it('refreshes base_item_id from the cosmetic token', async () => {
+    const baseId = repo.upsertItem(db, {
       sourceId: 'local',
-      exboId: 'local:weapon:fn-fal',
+      externalId: 'local:weapon:fn-fal',
       name: 'FN FAL',
       nameEn: 'FN FAL',
       kind: 'weapon',
       category: 'weapon/assault_rifle',
-      raw: {},
     });
-    for (const row of map.rows) {
-      upsertItem(db, {
-        sourceId: 'local',
-        exboId: `motif:${row.token}`,
-        name: row.skin,
-        kind: 'motif',
-        category: 'other',
-        isCosmetic: true,
-        raw: { motif: row },
-      });
-    }
+    repo.upsertItem(db, {
+      sourceId: 'local',
+      externalId: 'motif:1',
+      name: 'Родной двор',
+      kind: 'motif',
+      category: 'other',
+      isCosmetic: true,
+    });
 
     const fetchImpl = async (url: string) => {
       if (!url.includes('category=other')) throw new Error(`unexpected url ${url}`);
-      return jsonResponse(
-        map.rows.map((row) => ({
-          category: 'other',
-          name: { key: row.key, lines: { ru: row.skin } },
-        })),
-      );
+      return jsonResponse([
+        { category: 'other', name: { key: 'item.motif.wpn.fn-fal.name', lines: { ru: 'Родной двор' } } },
+      ]);
     };
 
     const rows = await motifsAdapter.fetch({ fetchImpl });
-    expect(rows).toHaveLength(219);
+    expect(rows).toHaveLength(1);
 
     const result = await runSync(db, 'motifs', { fetchImpl });
     expect(result.status).toBe('ok');
-    expect(result.items).toBe(219);
-
-    const falMotif = db
-      .prepare(`SELECT id, base_item_id FROM item WHERE kind = 'motif' AND name_norm = ?`)
-      .get('родной двор') as { id: number; base_item_id: number | null } | undefined;
-    expect(falMotif?.base_item_id).toBe(baseId);
-  });
-});
-
-describe('profile adapter', () => {
-  it('updates the character snapshot from the manual profile file', async () => {
-    const file = path.join(dir, 'profile.json');
-    fs.writeFileSync(
-      file,
-      JSON.stringify({
-        username: 'Nemo_King',
-        fetched: '2026-11-15',
-        source: 'https://sctools.tech/en/players/Nemo_King',
-        region: 'RU',
-        faction: 'Duty',
-        playtimeHours: 1000,
-        kd: 0.31,
-        accuracy: 56,
-        headshotShare: 85,
-        achievementPoints: 1301,
-        stats: { survival: { Kills: 1 } },
-      }),
-    );
-    db.prepare(
-      `INSERT INTO character (nick, realm, updated_at) VALUES ('Nemo_King', 'ru', '2026-11-01T00:00:00Z')`,
-    ).run();
-
-    const result = await runSync(db, 'profile', { profileFile: file });
-    expect(result.status).toBe('ok');
     expect(result.items).toBe(1);
 
-    const character = getCharacter(db);
-    expect(character?.hours).toBe(1000);
-    const stats = JSON.parse(character?.stats ?? '{}') as {
-      profile?: { username?: string };
-      profileMeta?: { fetched?: string };
+    const motif = db
+      .prepare(`SELECT id, base_item_id FROM item WHERE kind = 'motif' AND name_norm = ?`)
+      .get('родной двор') as { id: number; base_item_id: number | null } | undefined;
+    expect(motif?.base_item_id).toBe(baseId);
+  });
+
+  it('creates a motif row when the database has none', async () => {
+    const baseId = repo.upsertItem(db, {
+      sourceId: 'local',
+      externalId: 'local:weapon:ks-1',
+      name: 'KS-1',
+      nameEn: 'KS-1',
+      kind: 'weapon',
+      category: 'weapon/shotgun_rifle',
+    });
+    expect(repo.findItemByKindName(db, 'motif', 'Родной двор')).toBeNull();
+
+    const fetchImpl = async (url: string) => {
+      if (!url.includes('category=other')) throw new Error(`unexpected url ${url}`);
+      return jsonResponse([
+        { category: 'other', name: { key: 'item.motif.wpn.ks1_ssop.name', lines: { ru: 'Родной двор' } } },
+      ]);
     };
-    expect(stats.profile?.username).toBe('Nemo_King');
-    expect(stats.profileMeta?.fetched).toBe('2026-11-15');
+
+    const result = await runSync(db, 'motifs', { fetchImpl });
+    expect(result).toMatchObject({ status: 'ok', items: 1 });
+
+    const motif = repo.findItemByKindName(db, 'motif', 'Родной двор');
+    expect(motif).not.toBeNull();
+    expect(motif?.base_item_id).toBe(baseId);
+    expect(
+      db.prepare(`SELECT COUNT(*) AS c FROM item WHERE kind = 'motif'`).get() as { c: number },
+    ).toEqual({ c: 1 });
   });
 });
 
-describe('sync failure', () => {
-  it('marks a failed source stale and keeps the previous data', async () => {
-    await runSync(db, 'exbo_base', {
-      cacheDir: path.join(dir, 'cache-fail'),
-      fetchImpl: async () => jsonResponse({ message: 'boom' }, 500),
+describe('scpmodel sync', () => {
+  it('keeps the previous price and reports age when the source returns 500', async () => {
+    const previous = new Date(Date.now() - 30 * 60_000).toISOString();
+    repo.insertPriceQuote(db, {
+      name: 'Нервяк',
+      quality: 'Редкий',
+      lotPrice: 123,
+      sourceId: 'scpmodel',
+      fetchedAt: previous,
     });
 
-    const source = db.prepare(`SELECT status, last_error FROM source WHERE id = 'exbo_base'`).get() as {
+    const result = await runSync(db, 'scpmodel', {
+      fetchImpl: async () => jsonResponse({ detail: 'down' }, 500),
+    });
+
+    expect(result.status).toBe('stale');
+    expect(result.error).toContain('500');
+    expect(repo.bestPrice(db, 'Нервяк', 'Редкий')?.lot_price).toBe(123);
+    expect(result.ageMin).toBeGreaterThanOrEqual(29);
+
+    const source = db.prepare(`SELECT status, last_error FROM source WHERE id = 'scpmodel'`).get() as {
       status: string;
       last_error: string | null;
     };
     expect(source.status).toBe('stale');
     expect(source.last_error).toContain('500');
+  });
+
+  it('does not call the source inside the 15 minute TTL', async () => {
+    repo.insertPriceQuote(db, {
+      name: 'Нервяк',
+      quality: 'Редкий',
+      lotPrice: 123,
+      sourceId: 'scpmodel',
+      fetchedAt: new Date().toISOString(),
+    });
+
+    let calls = 0;
+    const result = await runSync(db, 'scpmodel', {
+      fetchImpl: async () => {
+        calls += 1;
+        return jsonResponse([]);
+      },
+    });
+
+    expect(calls).toBe(0);
+    expect(result.status).toBe('ok');
+    expect(result.items).toBe(0);
+    expect(result.ageMin).toBeLessThanOrEqual(1);
+  });
+
+  it('stores fresh rows and links them to known items', async () => {
+    repo.upsertItem(db, {
+      sourceId: 'local',
+      externalId: 'wg1',
+      name: 'Нервяк',
+      kind: 'artifact',
+      category: 'artefact/gravity',
+    });
+
+    const result = await runSync(db, 'scpmodel', {
+      fetchImpl: async () =>
+        jsonResponse([
+          {
+            item_key: 'wg1',
+            item_id: 'wg1',
+            name: 'Нервяк',
+            qlt_label: 'Редкий',
+            _qlt: 'rare',
+            _bonus: 1,
+            is_artifact: true,
+            current_price: 110,
+            min_lot: 100,
+            lot_count: 3,
+            last_trade_price: 105,
+            lot_updated_at: '2026-11-15T10:00:00Z',
+          },
+        ]),
+    });
+
+    expect(result.status).toBe('ok');
+    expect(result.items).toBe(1);
+    const row = repo.bestPrice(db, 'Нервяк', 'Редкий');
+    expect(row?.lot_price).toBe(100);
+    expect(row?.item_id).toBeTruthy();
+    expect(row?.lot_count).toBe(3);
+  });
+});
+
+describe('removed source', () => {
+  it('rejects the removed profile source', async () => {
+    await expect(runSync(db, 'profile')).rejects.toThrow(/unknown source/);
   });
 });

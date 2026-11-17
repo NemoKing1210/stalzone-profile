@@ -4,10 +4,12 @@ import {
   CharacterPatchSchema,
   CleanupRequestSchema,
   ContainerFillSchema,
-  ContentBlockInputSchema,
   LoginSchema,
   OwnedCreateSchema,
+  OwnedItemInputSchema,
   OwnedPatchSchema,
+  RemoveOwnedInputSchema,
+  SyncSourceSchema,
   dec,
   fmtMoney,
   g1,
@@ -127,17 +129,39 @@ describe('owned schemas', () => {
     expect(OwnedCreateSchema.safeParse({ name: '' }).success).toBe(false);
   });
 
+  it('accepts only the four ownable kinds', () => {
+    for (const kind of ['attachment', 'ammo', 'motif', 'other']) {
+      expect(OwnedCreateSchema.safeParse({ name: 'АК-12', kind }).success).toBe(false);
+      expect(OwnedItemInputSchema.safeParse({ name: 'АК-12', kind }).success).toBe(false);
+      expect(RemoveOwnedInputSchema.safeParse({ name: 'АК-12', kind }).success).toBe(false);
+    }
+    for (const kind of ['weapon', 'armor', 'container', 'artifact']) {
+      expect(OwnedCreateSchema.safeParse({ name: 'АК-12', kind }).success).toBe(true);
+    }
+  });
+
   it('requires a real change in a patch', () => {
     expect(OwnedPatchSchema.parse({ level: 5 })).toMatchObject({ level: 5 });
     expect(OwnedPatchSchema.safeParse({}).success).toBe(false);
     expect(OwnedPatchSchema.safeParse({ dryRun: true }).success).toBe(false);
   });
+
+  it('accepts a container override on create and patch', () => {
+    expect(
+      OwnedCreateSchema.parse({ name: 'Рюкзак', kind: 'container', container: { slots: 4, eff: 80 } }).container,
+    ).toMatchObject({ slots: 4, eff: 80 });
+    expect(OwnedPatchSchema.parse({ container: { slots: 6 } }).container).toMatchObject({ slots: 6 });
+    expect(OwnedPatchSchema.parse({ container: null }).container).toBeNull();
+  });
 });
 
 describe('character patch', () => {
-  it('accepts editable stats and rejects negative hours', () => {
-    expect(CharacterPatchSchema.parse({ hours: 120, kd: 1.5 })).toMatchObject({ hours: 120, kd: 1.5 });
-    expect(CharacterPatchSchema.safeParse({ hours: -1 }).success).toBe(false);
+  it('accepts raw stats and rejects derived fields', () => {
+    expect(
+      CharacterPatchSchema.parse({ stats: { kil: 300, 'reg-tim': '2024-06-01', dea: null } }).stats,
+    ).toEqual({ kil: 300, 'reg-tim': '2024-06-01', dea: null });
+    expect(CharacterPatchSchema.safeParse({ kd: 9 }).success).toBe(false);
+    expect(CharacterPatchSchema.safeParse({ hours: 120 }).success).toBe(false);
     expect(CharacterPatchSchema.safeParse({}).success).toBe(false);
   });
 });
@@ -164,11 +188,16 @@ describe('cleanup request', () => {
   });
 });
 
-describe('content block and login', () => {
-  it('validates content kinds and non-empty passwords', () => {
-    expect(ContentBlockInputSchema.parse({ kind: 'recs', payload: [] }).position).toBe(0);
-    expect(ContentBlockInputSchema.safeParse({ kind: 'notes', payload: [] }).success).toBe(false);
-    expect(ContentBlockInputSchema.safeParse({ kind: 'unknown', payload: [] }).success).toBe(false);
+describe('sync source', () => {
+  it('accepts known sources and rejects the removed profile source', () => {
+    expect(SyncSourceSchema.safeParse('all').success).toBe(true);
+    expect(SyncSourceSchema.safeParse('scpmodel').success).toBe(true);
+    expect(SyncSourceSchema.safeParse('profile').success).toBe(false);
+  });
+});
+
+describe('login', () => {
+  it('validates non-empty passwords', () => {
     expect(LoginSchema.safeParse({ password: 'secret' }).success).toBe(true);
     expect(LoginSchema.safeParse({ password: '' }).success).toBe(false);
   });

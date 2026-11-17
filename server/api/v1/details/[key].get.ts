@@ -1,21 +1,34 @@
-import { getDetailsCard } from '@dossier/core';
+import { buildDetails, findItemByKindName } from '@dossier/core';
 import { useDb } from '../../../utils/db';
 import { apiError } from '../../../utils/errors';
-import { parseJson } from '../../../utils/serialize';
+
+const PREFIX_KINDS: Record<string, string> = {
+  w: 'weapon',
+  a: 'armor',
+  art: 'artifact',
+  c: 'container',
+};
 
 export default defineEventHandler((event) => {
   const key = getRouterParam(event, 'key') ?? '';
   if (!key || key.length > 300) return apiError(event, 400, 'VALIDATION', 'Invalid card key');
 
-  const card = getDetailsCard(useDb(), key);
-  if (!card) return apiError(event, 404, 'DETAIL_NOT_FOUND', 'Card not found');
+  const db = useDb();
+  const data = buildDetails(db)[key];
+  if (!data) return apiError(event, 404, 'DETAIL_NOT_FOUND', 'Card not found');
+
+  const separator = key.indexOf(':');
+  const kind = PREFIX_KINDS[key.slice(0, separator)] ?? null;
+  const name = key.slice(separator + 1);
+  const item = kind ? findItemByKindName(db, kind, name) : null;
+  if (!item) return apiError(event, 404, 'DETAIL_NOT_FOUND', 'Card not found');
 
   return {
-    key: card.key,
-    itemId: card.item_id,
-    kind: card.kind,
-    name: card.name,
-    data: parseJson(card.data),
-    updatedAt: card.updated_at,
+    key,
+    itemId: item.id,
+    kind: item.kind,
+    name: item.name,
+    data,
+    updatedAt: item.updated_at,
   };
 });

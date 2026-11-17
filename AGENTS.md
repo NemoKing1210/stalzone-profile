@@ -25,8 +25,7 @@ This file holds rules, not a copy of the documentation.
 | Install                           | `npm ci`                                                                     |
 | Develop                           | `npm run dev` → http://stalzone-profile.local                                 |
 | Migrations                        | `npm run db:migrate`                                                         |
-| Rebuild the local DB from seeds   | `npm run db:reset && npm run import:legacy`                                  |
-| Import seeds (idempotent)         | `npm run import:legacy`                                                      |
+| Rebuild the local DB from scratch | `npm run db:reset && npm run db:migrate && npm run sync`                     |
 | Unit + integration                | `npm test` (`npm run test:integration` — integration only)                   |
 | Unit tests only                   | `npm run test:unit`                                                          |
 | Focused tests                     | `npm test -- tests/integration/writes.test.ts` (list one or more paths)      |
@@ -34,17 +33,18 @@ This file holds rules, not a copy of the documentation.
 | Typecheck packages/server only    | `npm run typecheck:node`                                                     |
 | Lint changed files                | `npx eslint <changed files>`                                                 |
 | Full check                        | `npm run check` — typecheck + lint + tests                                   |
-| Number parity with legacy         | `npm run golden` — expect `0 mismatches`, `legacyDeltas: []`                 |
+| Formula regression (public fixture) | `npm run golden` — expect `0 mismatches`, `legacyDeltas: []`               |
 | Site build                        | `npm run build` → `.output/`                                                 |
 | CLI/MCP build                     | `npm run build:cli` → `dist/cli.js`, `dist/mcp-stdio.js`                     |
 | MCP stdio                         | `npm run mcp` (local DB) or `DOSSIER_API_URL=… MCP_TOKEN=… npm run mcp`      |
 | MCP smoke                         | `npm run smoke:mcp`                                                          |
-| Source sync                       | `npm run sync [exbo_base\|wiki\|motifs\|profile\|scpmodel] [-- --force]`     |
+| Source sync                       | `npm run sync [exbo_base\|wiki\|motifs\|scpmodel] [-- --force]`              |
 | Backup                            | `npm run backup`                                                             |
 | Password hash                     | `npm run hash-password -- 'password'`                                        |
 
 `db:reset` deletes the file at `DB_PATH` (and `-wal`/`-shm`). Before running it, make sure
-`DB_PATH` points at a local or test database, not the working one.
+`DB_PATH` points at a local or test database, not the working one. A reset database has no
+character until phase 2 onboarding exists, so the API answers `NO_CHARACTER` until then.
 
 ## Verification tiers
 
@@ -90,8 +90,8 @@ When unsure, widen: a missed test is a correctness bug; an extra suite only cost
 | `server/api/**`, `server/utils/**`                       | matching `tests/unit/*.test.ts` (`session`, `login-limit`)                                                                               |
 | `app/**`                                                 | `npm run typecheck`; `tests/unit/use-api-error.test.ts` when errors are touched                                                          |
 | `i18n/locales/*.json`                                    | `npm test -- tests/unit/i18n-catalogs.test.ts`                                                                                          |
-| `db/migrations/**`                                       | `npm test -- tests/integration`                                                                                                         |
-| `db/seeds/**`                                            | `npm test -- tests/integration`; `npm run golden` if numbers move                                                                       |
+| `db/migrations/**`                                      | `npm test -- tests/integration`                                                                                                         |
+| `tests/fixtures/**`                                      | `npm test -- tests/integration`; `npm run golden` if numbers move                                                                       |
 | `docs/**`, comments only                                 | no runtime tests; `git diff --check`                                                                                                    |
 | `package.json`, lockfile, build config                   | full `npm run check`                                                                                                                    |
 
@@ -122,14 +122,14 @@ Rules that keep the tiers honest:
 | `packages/core/src/db`       | opening SQLite, migrations                                               |
 | `packages/core/src/repo`     | SQL repositories; services reach tables through them                     |
 | `packages/core/src/calc`     | DPS/TTK and artifact formulas — the only source of numbers               |
-| `packages/core/src/services` | import, export, writes, rollback, sync, payload                          |
+| `packages/core/src/services` | export, writes, rollback, sync, payload, catalog view                     |
 | `packages/sources`           | pure source adapters: fetch + parse, **no DB writes**                    |
 | `packages/mcp`               | tool registry, local client, stdio and HTTP                              |
 | `server/api/v1`              | thin Nitro routes: auth → zod → service → JSON                           |
 | `server/utils`               | shared `Db`, session, errors, serialization                              |
 | `app`                        | Nuxt UI: pages, tables, modal forms, composables                         |
 | `db/migrations`              | new `NNNN_name.sql` files only                                           |
-| `db/seeds`                   | dossier, icons, wiki slice, prices (no raw EXBO database)                |
+| `tests/fixtures`             | public/synthetic catalog for tests and the golden                        |
 | `tests`                      | `unit` — pure functions, `integration` — temporary DB                    |
 
 Dependencies point one way: `app/server → mcp → core → sources/shared`.
@@ -151,7 +151,9 @@ Breaking any item is a bug, even when the tests are green.
    run `npm run golden` and explain any difference. Changing displayed numbers is a separate
    owner decision, not a side effect of refactoring.
 5. **Schema changes only through new migrations.** Do not edit applied
-   `db/migrations/0001`, `0002`. After a schema change update `docs/DATA-MODEL.md` and tests.
+   `db/migrations/0001`. After a schema change update `docs/DATA-MODEL.md` and tests.
+   The baseline `0001_init.sql` was replaced once on 2026-11-17 as an owner-approved reset.
+   This exception is closed; from now on schema changes only add new `NNNN_*.sql` migrations.
 6. **Copies collapse into `qty`.** Do not expand identical copies into separate DB rows;
    the payload expands them for display only.
 7. **Authorization is never weakened.** Public paths are only `/login`, `/api/auth/login`,
@@ -208,7 +210,7 @@ strings come from `t(...)`; see `docs/I18N.md`.
   packages use `@dossier/*`.
 - English is the project language: interface defaults, error messages, comments, docs and
   commits. Russian exists only as a translation catalog (`i18n/locales/ru.json`) and as
-  game data (item names, stat labels, category names coming from the seeds/legacy dossier).
+  game data (item names, stat labels, category names coming from the sources).
 - API and site use `camelCase`; MCP tools and their arguments use `snake_case`.
 - Site: `dryRun` defaults to `false`. MCP: `dry_run` defaults to `true`, and a real write
   requires `confirm: true`.
@@ -222,10 +224,11 @@ strings come from `t(...)`; see `docs/I18N.md`.
 
 - **TDD is mandatory** for features, bugs and behavior changes. RED first, then GREEN.
 - `tests/unit` — pure functions without a DB or network. `tests/integration` — a temporary
-  DB in `mkdtemp` plus migrations and seeds; close and delete it in `afterEach`.
-- Tests **never touch the network**: pass a fake `fetchImpl` to adapters or use `db/seeds`.
-  No live EXBO/wiki/scpmodel in tests.
-- Test every rollback: state before/after, restoration of `extra` and container fill, and
+  DB in `mkdtemp` plus migrations and `seedCatalog` from `tests/fixtures`; close and delete
+  it in `afterEach`.
+- Tests **never touch the network**: pass a fake `fetchImpl` to adapters or use the
+  `tests/fixtures` catalog. No live EXBO/wiki/scpmodel in tests.
+- Test every rollback: state before/after, restoration of container overrides and fill, and
   rejection when the entity is missing.
 - Before saying "done" for a change, Tier 2 (the affected suites) must be green. Before
   push/PR/merge, run Tier 3 (the full gate) — see **Verification tiers**. Say which tier you

@@ -110,6 +110,14 @@ export function parseExboItem(json: Json, labels: Record<string, string> = {}): 
   return record;
 }
 
+export interface ExboStatDefinition {
+  id: string;
+  category: string | null;
+  type: 'INTEGER' | 'DECIMAL' | 'DATE' | 'DURATION' | 'TEXT' | null;
+  labelRu: string | null;
+  labelEn: string | null;
+}
+
 export interface ExboFetchOptions {
   cacheDir: string;
   realm?: string;
@@ -124,6 +132,7 @@ export interface ExboFetchResult {
   fetchedAt: string;
   items: ExboItem[];
   labels: Record<string, string>;
+  stats: ExboStatDefinition[];
   cached: boolean;
 }
 
@@ -136,6 +145,38 @@ function readCache(file: string): ExboCache | null {
     return JSON.parse(fs.readFileSync(file, 'utf8')) as ExboCache;
   } catch {
     return null;
+  }
+}
+
+const STAT_TYPES = new Set(['INTEGER', 'DECIMAL', 'DATE', 'DURATION', 'TEXT']);
+
+/** The public stat catalog is an array of `{ id, category, type, name.lines }`. */
+export function parseExboStats(body: unknown): ExboStatDefinition[] {
+  if (!Array.isArray(body)) return [];
+  const out: ExboStatDefinition[] = [];
+  for (const entry of body as Json[]) {
+    if (typeof entry?.id !== 'string' || !entry.id) continue;
+    const type = typeof entry.type === 'string' && STAT_TYPES.has(entry.type) ? (entry.type as ExboStatDefinition['type']) : null;
+    out.push({
+      id: entry.id,
+      category: entry.category ?? null,
+      type,
+      labelRu: entry?.name?.lines?.ru ?? null,
+      labelEn: entry?.name?.lines?.en ?? null,
+    });
+  }
+  return out;
+}
+
+async function fetchExboStats(realm: string, fetchImpl: FetchLike): Promise<ExboStatDefinition[]> {
+  const response = await fetchImpl(`${EXBO_RAW}${realm}/stats.json`, {
+    headers: { 'user-agent': 'stalzone-profile' },
+  });
+  if (response.status !== 200) return [];
+  try {
+    return parseExboStats(await response.json());
+  } catch {
+    return [];
   }
 }
 
@@ -191,7 +232,7 @@ export const exboAdapter = {
     const commit: string | null = head?.sha ?? null;
     const commitDate: string | null = head?.commit?.committer?.date ?? null;
 
-    if (!options.force && cached && cached.commit === commit) {
+    if (!options.force && cached && cached.commit === commit && Array.isArray(cached.stats)) {
       return { ...cached, cached: true };
     }
 
@@ -215,6 +256,8 @@ export const exboAdapter = {
       return parseExboItem((await response.json()) as Json, labels);
     });
 
+    const stats = await fetchExboStats(realm, fetchImpl);
+
     const result: ExboCache = {
       realm,
       commit,
@@ -222,6 +265,7 @@ export const exboAdapter = {
       fetchedAt: new Date().toISOString(),
       items,
       labels,
+      stats,
       cached: false,
     };
     writeCache(cacheFile, result);

@@ -1,4 +1,4 @@
-import { getItemById, itemStats } from '@dossier/core';
+import { getItemById, getIcon, itemStats, listItemEffects } from '@dossier/core';
 import { useDb } from '../../../utils/db';
 import { apiError } from '../../../utils/errors';
 import { itemJson } from '../../../utils/serialize';
@@ -13,5 +13,9 @@ export default defineEventHandler((event) => {
   const item = getItemById(db, id);
   if (!item) return apiError(event, 404, 'ITEM_NOT_FOUND', 'Item not found');
 
-  return itemJson(item, { raw: true, stats: itemStats(db, id) });
+  return itemJson(item, {
+    icon: getIcon(db, id)?.path ?? null,
+    stats: itemStats(db, id),
+    effects: listItemEffects(db, id),
+  });
 });

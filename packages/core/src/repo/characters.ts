@@ -1,101 +1,113 @@
 import type { Db } from '../db/index.js';
+import { upsertStatDefinition } from './stats.js';
+
+export type CharacterRegion = 'ru' | 'eu' | 'na' | 'sea' | 'global';
+export type CharacterStatOrigin = 'api' | 'manual';
 
 export interface CharacterRow {
   id: number;
   nick: string;
-  realm: string;
+  region: string;
   faction: string | null;
   alliance: string | null;
-  clan: string | null;
-  arrived: string | null;
-  hours: number | null;
-  kd: number | null;
-  accuracy: number | null;
-  headshot: number | null;
-  achievements: number | null;
-  achievement_points: number | null;
+  clan_name: string | null;
+  clan_rank: string | null;
   money: number | null;
   max_money: number | null;
   stash: string | null;
   playstyle: string | null;
-  stats: string | null;
+  profile_fetched_at: string | null;
+  created_at: string;
   updated_at: string;
 }
 
 export interface CharacterInput {
   nick: string;
-  realm: string;
+  region: string;
   faction?: string | null;
   alliance?: string | null;
-  clan?: string | null;
-  arrived?: string | null;
-  hours?: number | null;
-  kd?: number | null;
-  accuracy?: number | null;
-  headshot?: number | null;
-  achievements?: number | null;
-  achievementPoints?: number | null;
+  clanName?: string | null;
+  clanRank?: string | null;
   money?: number | null;
   maxMoney?: number | null;
   stash?: string | null;
   playstyle?: string | null;
-  stats?: unknown;
+  profileFetchedAt?: string | null;
 }
 
-const FIELDS = [
+export interface CharacterStat {
+  stat_id: string;
+  value_num: number | null;
+  value_text: string | null;
+  origin: CharacterStatOrigin;
+  fetched_at: string;
+}
+
+export type CharacterStatRow = CharacterStat;
+
+export type CharacterColumnPatch = Partial<
+  Pick<
+    CharacterRow,
+    | 'nick'
+    | 'region'
+    | 'faction'
+    | 'alliance'
+    | 'clan_name'
+    | 'clan_rank'
+    | 'money'
+    | 'max_money'
+    | 'stash'
+    | 'playstyle'
+    | 'profile_fetched_at'
+  >
+>;
+
+const IDENTITY_COLUMNS = [
   'faction',
   'alliance',
-  'clan',
-  'arrived',
-  'hours',
-  'kd',
-  'accuracy',
-  'headshot',
-  'achievements',
-  'achievement_points',
+  'clan_name',
+  'clan_rank',
   'money',
   'max_money',
   'stash',
   'playstyle',
+  'profile_fetched_at',
 ] as const;
 
 export function upsertCharacter(db: Db, input: CharacterInput): number {
   const existing = db
-    .prepare(`SELECT id FROM character WHERE nick = ? AND realm = ?`)
-    .get(input.nick, input.realm) as { id: number } | undefined;
+    .prepare(`SELECT id FROM character WHERE nick = ? AND region = ?`)
+    .get(input.nick, input.region) as { id: number } | undefined;
 
-  const values: Record<string, unknown> = {
+  const values = {
     faction: input.faction ?? null,
     alliance: input.alliance ?? null,
-    clan: input.clan ?? null,
-    arrived: input.arrived ?? null,
-    hours: input.hours ?? null,
-    kd: input.kd ?? null,
-    accuracy: input.accuracy ?? null,
-    headshot: input.headshot ?? null,
-    achievements: input.achievements ?? null,
-    achievement_points: input.achievementPoints ?? null,
+    clan_name: input.clanName ?? null,
+    clan_rank: input.clanRank ?? null,
     money: input.money ?? null,
     max_money: input.maxMoney ?? null,
     stash: input.stash ?? null,
     playstyle: input.playstyle ?? null,
+    profile_fetched_at: input.profileFetchedAt ?? null,
   };
-  const stats = input.stats === undefined ? null : JSON.stringify(input.stats);
   const now = new Date().toISOString();
 
   if (existing) {
-    const sets = FIELDS.map((f) => `${f} = @${f}`).join(', ');
-    db.prepare(
-      `UPDATE character SET ${sets}, stats = COALESCE(@stats, stats), updated_at = @updated_at WHERE id = @id`,
-    ).run({ ...values, stats, updated_at: now, id: existing.id });
+    const sets = IDENTITY_COLUMNS.map((column) => `${column} = COALESCE(@${column}, ${column})`).join(', ');
+    db.prepare(`UPDATE character SET ${sets}, updated_at = @updated_at WHERE id = @id`).run({
+      ...values,
+      updated_at: now,
+      id: existing.id,
+    });
     return existing.id;
   }
 
-  const cols = ['nick', 'realm', ...FIELDS, 'stats', 'updated_at'];
-  const placeholders = cols.map((c) => `@${c}`).join(', ');
   const info = db
-    .prepare(`INSERT INTO character (${cols.join(', ')}) VALUES (${placeholders})`)
-    .run({ nick: input.nick, realm: input.realm, ...values, stats, updated_at: now });
+    .prepare(
+      `INSERT INTO character (nick, region, ${IDENTITY_COLUMNS.join(', ')}, created_at, updated_at)
+       VALUES (@nick, @region, ${IDENTITY_COLUMNS.map((column) => '@' + column).join(', ')}, @created_at, @updated_at)`,
+    )
+    .run({ nick: input.nick, region: input.region, ...values, created_at: now, updated_at: now });
   return Number(info.lastInsertRowid);
 }
 
@@ -110,60 +122,97 @@ export function listCharacters(db: Db): CharacterRow[] {
   return db.prepare(`SELECT * FROM character ORDER BY id`).all() as CharacterRow[];
 }
 
-export function characterStats(db: Db, id: number): Record<string, unknown> {
-  const row = getCharacter(db, id);
-  if (!row?.stats) return {};
-  try {
-    return JSON.parse(row.stats) as Record<string, unknown>;
-  } catch {
-    return {};
-  }
-}
-
-export function mergeCharacterStats(db: Db, id: number, patch: Record<string, unknown>): void {
-  const current = characterStats(db, id);
-  const merged = { ...current, ...patch };
-  db.prepare(`UPDATE character SET stats = ?, updated_at = ? WHERE id = ?`).run(
-    JSON.stringify(merged),
-    new Date().toISOString(),
-    id,
-  );
-}
-
-export function findCharacterByName(db: Db, nick: string, realm = 'ru'): CharacterRow | null {
+export function findCharacterByName(db: Db, nick: string, region = 'ru'): CharacterRow | null {
   return (
-    (db.prepare(`SELECT * FROM character WHERE nick = ? AND realm = ?`).get(nick, realm) as
+    (db.prepare(`SELECT * FROM character WHERE nick = ? AND region = ?`).get(nick, region) as
       | CharacterRow
       | undefined) ?? null
   );
 }
 
-const PATCH_COLUMNS: Record<string, string> = {
-  nick: 'nick',
-  faction: 'faction',
-  alliance: 'alliance',
-  clan: 'clan',
-  arrived: 'arrived',
-  hours: 'hours',
-  kd: 'kd',
-  accuracy: 'accuracy',
-  headshot: 'headshot',
-  achievements: 'achievements',
-  achievementPoints: 'achievement_points',
-  money: 'money',
-  maxMoney: 'max_money',
-  stash: 'stash',
-  playstyle: 'playstyle',
-};
-
-export function updateCharacterById(db: Db, id: number, patch: Record<string, unknown>): void {
+export function updateCharacterById(db: Db, id: number, patch: CharacterColumnPatch): void {
   const sets: string[] = [];
   const params: Record<string, unknown> = { id, updated_at: new Date().toISOString() };
-  for (const [key, column] of Object.entries(PATCH_COLUMNS)) {
-    if (patch[key] === undefined) continue;
+  for (const column of ['nick', 'region', ...IDENTITY_COLUMNS] as const) {
+    if (patch[column] === undefined) continue;
     sets.push(`${column} = @${column}`);
-    params[column] = patch[key];
+    params[column] = patch[column];
   }
   if (!sets.length) return;
   db.prepare(`UPDATE character SET ${sets.join(', ')}, updated_at = @updated_at WHERE id = @id`).run(params);
+}
+
+export function listCharacterStats(db: Db, characterId: number): CharacterStat[] {
+  return db
+    .prepare(
+      `SELECT stat_id, value_num, value_text, origin, fetched_at
+       FROM character_stat WHERE character_id = ? ORDER BY stat_id, origin`,
+    )
+    .all(characterId) as CharacterStat[];
+}
+
+/** Effective stats: a manual row wins over the API row for the same stat. */
+export function characterStatMap(db: Db, characterId: number): Record<string, CharacterStat> {
+  const out: Record<string, CharacterStat> = {};
+  for (const row of listCharacterStats(db, characterId)) {
+    if (out[row.stat_id]?.origin === 'manual') continue;
+    out[row.stat_id] = row;
+  }
+  return out;
+}
+
+export function setCharacterStat(
+  db: Db,
+  characterId: number,
+  statId: string,
+  value: number | string,
+  origin: CharacterStatOrigin,
+  fetchedAt = new Date().toISOString(),
+): void {
+  let valueNum: number | null = null;
+  let valueText: string | null = null;
+  let valueType: 'INTEGER' | 'DECIMAL' | 'TEXT';
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw new Error('value must be a finite number or a non-empty string');
+    valueNum = value;
+    valueType = Number.isInteger(value) ? 'INTEGER' : 'DECIMAL';
+  } else if (typeof value === 'string' && value.trim() !== '') {
+    valueText = value;
+    valueType = 'TEXT';
+  } else {
+    throw new Error('value must be a finite number or a non-empty string');
+  }
+
+  const run = db.transaction(() => {
+    upsertStatDefinition(db, { id: statId, valueType });
+    db.prepare(
+      `INSERT INTO character_stat (character_id, stat_id, value_num, value_text, origin, fetched_at)
+       VALUES (@character_id, @stat_id, @value_num, @value_text, @origin, @fetched_at)
+       ON CONFLICT(character_id, stat_id, origin) DO UPDATE SET
+         value_num = excluded.value_num, value_text = excluded.value_text, fetched_at = excluded.fetched_at`,
+    ).run({
+      character_id: characterId,
+      stat_id: statId,
+      value_num: valueNum,
+      value_text: valueText,
+      origin,
+      fetched_at: fetchedAt,
+    });
+    db.prepare(`UPDATE character SET updated_at = ? WHERE id = ?`).run(fetchedAt, characterId);
+  });
+  run();
+}
+
+export function clearCharacterStat(
+  db: Db,
+  characterId: number,
+  statId: string,
+  origin: CharacterStatOrigin,
+): void {
+  db.prepare(`DELETE FROM character_stat WHERE character_id = ? AND stat_id = ? AND origin = ?`).run(
+    characterId,
+    statId,
+    origin,
+  );
+  db.prepare(`UPDATE character SET updated_at = ? WHERE id = ?`).run(new Date().toISOString(), characterId);
 }

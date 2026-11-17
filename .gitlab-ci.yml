@@ -31,7 +31,7 @@ unit:
     DB_PATH: ./data/ci.db
   script:
     - npm run db:reset
-    - npm run import:legacy
+    - npm run db:migrate
     - npm test
     - npm run golden
 

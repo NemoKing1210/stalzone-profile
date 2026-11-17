@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { exportLegacyJson, hashPassword, importLegacy, loadConfig, migrate, openDb } from '@dossier/core';
+import { exportDossierJson, hashPassword, loadConfig, migrate, openDb } from '@dossier/core';
 import { runSync, runSyncAll, SYNC_SOURCES } from '@dossier/core/services/sync';
 
 const [command, ...rest] = process.argv.slice(2);
@@ -12,9 +12,8 @@ function usage(): never {
 
 Commands:
   migrate                 apply pending migrations
-  import                  import the legacy dossier seeds
-  export [file]           write the legacy-compatible JSON export
-  sync [source|all]       sync exbo_base | wiki | motifs | profile | scpmodel (default: all)
+  export [file]           write the typed dossier JSON export
+  sync [source|all]       sync exbo_base | wiki | motifs | scpmodel (default: all)
   backup [dir]            make a SQLite backup (default: snapshots/)
   hash-password [value]   print a scrypt hash (reads stdin when value is omitted)`);
   process.exit(2);
@@ -36,15 +35,9 @@ async function main(): Promise<void> {
       console.log(JSON.stringify({ db: cfg.dbPath, applied: result.applied, skipped: result.skipped.length }));
       return;
     }
-    case 'import': {
-      const { cfg, db } = open();
-      const report = importLegacy(db, cfg);
-      console.log(JSON.stringify({ ...report, db: cfg.dbPath }, null, 2));
-      return;
-    }
     case 'export': {
       const { db } = open();
-      const json = JSON.stringify(exportLegacyJson(db), null, 2);
+      const json = JSON.stringify(exportDossierJson(db), null, 2);
       const file = positional[0];
       if (file) {
         fs.writeFileSync(file, json);

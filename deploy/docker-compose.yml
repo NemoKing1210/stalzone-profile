@@ -19,7 +19,6 @@ services:
       NUXT_MCP_TOKEN: ${NUXT_MCP_TOKEN:-}
       NUXT_LOGIN_RATE_MAX: ${NUXT_LOGIN_RATE_MAX:-5}
       NUXT_TRUST_PROXY: ${NUXT_TRUST_PROXY:-}
-      PROFILE_FILE: /app/db/seeds/profile.json
     volumes:
       - dossier-data:/data
     ports:

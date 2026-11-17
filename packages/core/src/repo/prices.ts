@@ -1,7 +1,7 @@
 import { norm } from '@dossier/shared';
 import type { Db } from '../db/index.js';
 
-export interface PriceSnapshotInput {
+export interface PriceQuoteInput {
   itemId?: number | null;
   exboId?: string | null;
   name: string;
@@ -19,7 +19,7 @@ export interface PriceSnapshotInput {
 export interface PriceRow {
   id: number;
   item_id: number | null;
-  exbo_id: string | null;
+  external_id: string | null;
   name: string;
   name_norm: string;
   quality: string | null;
@@ -34,18 +34,18 @@ export interface PriceRow {
   fetched_at: string;
 }
 
-export function insertPriceSnapshot(db: Db, row: PriceSnapshotInput): number {
+export function insertPriceQuote(db: Db, row: PriceQuoteInput): number {
   const info = db
     .prepare(
-      `INSERT INTO price_snapshot
-        (item_id, exbo_id, name, name_norm, quality, quality_norm, bonus,
+      `INSERT INTO price_quote
+        (item_id, external_id, name, name_norm, quality, quality_norm, bonus,
          lot_price, lot_count, current_price, last_trade, lot_updated_at, source_id, fetched_at)
-       VALUES (@item_id, @exbo_id, @name, @name_norm, @quality, @quality_norm, @bonus,
+       VALUES (@item_id, @external_id, @name, @name_norm, @quality, @quality_norm, @bonus,
          @lot_price, @lot_count, @current_price, @last_trade, @lot_updated_at, @source_id, @fetched_at)`,
     )
     .run({
       item_id: row.itemId ?? null,
-      exbo_id: row.exboId ?? null,
+      external_id: row.exboId ?? null,
       name: row.name,
       name_norm: norm(row.name),
       quality: row.quality ?? null,
@@ -62,9 +62,9 @@ export function insertPriceSnapshot(db: Db, row: PriceSnapshotInput): number {
   return Number(info.lastInsertRowid);
 }
 
-export function insertPriceSnapshots(db: Db, rows: PriceSnapshotInput[]): number {
+export function insertPriceQuotes(db: Db, rows: PriceQuoteInput[]): number {
   const run = db.transaction(() => {
-    for (const row of rows) insertPriceSnapshot(db, row);
+    for (const row of rows) insertPriceQuote(db, row);
   });
   run();
   return rows.length;
@@ -97,10 +97,10 @@ export function latestPricesForNames(db: Db, names: string[]): Record<string, Pr
 }
 
 export function countPrices(db: Db): number {
-  return (db.prepare(`SELECT COUNT(*) AS c FROM price_snapshot`).get() as { c: number }).c;
+  return (db.prepare(`SELECT COUNT(*) AS c FROM price_quote`).get() as { c: number }).c;
 }
 
-export function latestPriceSnapshotAt(db: Db): string | null {
-  const row = db.prepare(`SELECT MAX(fetched_at) AS at FROM price_snapshot`).get() as { at: string | null };
+export function latestPriceFetchedAt(db: Db): string | null {
+  const row = db.prepare(`SELECT MAX(fetched_at) AS at FROM price_quote`).get() as { at: string | null };
   return row.at;
 }

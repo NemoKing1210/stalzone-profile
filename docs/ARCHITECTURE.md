@@ -21,7 +21,7 @@
                     ┌──────────────┴───────────────┐
                     │ packages/sources adapters    │
                     │ EXBO · wiki · motifs ·       │
-                    │ profile · scpmodel           │
+                    │ scpmodel                     │
                     └──────────────────────────────┘
 ```
 
@@ -33,9 +33,9 @@ no second database.
 | Package | Responsibility |
 |---|---|
 | `packages/shared` | zod schemas for API/MCP, `norm`, formatting, ranks |
-| `packages/core` | opening/migrating SQLite, repositories, formulas, import, writes, sync, export |
+| `packages/core` | opening/migrating SQLite, repositories, formulas, writes, sync, payload, export |
 | `packages/sources` | pure source adapters: fetch + parse, no DB writes |
-| `packages/mcp` | registry of 21 tools, local client, stdio and HTTP transports |
+| `packages/mcp` | registry of 20 tools (12 read, 8 write), local client, stdio and HTTP transports |
 | `app` | Nuxt UI: sections, tables, modal forms, event log, i18n catalogs |
 | `server` | Nitro routes, session, origin check, `/mcp`, `/api/v1/admin/*` |
 
@@ -46,20 +46,25 @@ nothing about the DB; `core/services/sync.ts` connects them to the repositories.
 
 1. A page calls `useDossier()` → `GET /api/v1/payload` or `/api/v1/meta`.
 2. The route gets the shared `Db` from `server/utils/db.ts` (WAL, one migration per process).
-3. `buildPayload` assembles gear, catalog, cards, builds and content blocks.
+3. `buildPayload` assembles typed rows: character with derived fields, gear, catalog,
+   derived `details[key]` cards, builds, icons and freshness.
 4. DPS/TTK numbers come from one formula (`packages/core/src/calc/weapons.ts`) using raw
-   damage and rate of fire; stored legacy values are never substituted.
+   damage and rate of fire; no stored display value is substituted.
+5. Container values follow the precedence override > item stats > `null`; missing data is
+   `null`, never zero or an estimate.
 
 ## Write flow
 
 ```
-form → useWrite → POST/PATCH/PUT/DELETE /api/v1/...
+form → useWrite → POST/PATCH/DELETE /api/v1/...
      → requireOrigin → zod → core write → event_log(before/after) → response
 ```
 
 - `WriteResult { dryRun, diff:{before,after,human}, eventId? }`.
 - `dryRun: true` returns the diff without changing anything; a real write closes the form
   and refreshes the payload.
+- `PATCH /api/v1/character` edits identity columns and raw counters through the `stats`
+  object (`manual` origin); clearing a value writes `null` and reveals the API value.
 - Rollback restores the entity from the snapshot in `event_log` and writes a new `rollback`
   event; rolling back the rollback itself is not offered.
 - Errors use one envelope `{ error: { code, message, details? } }` with English messages;
@@ -93,22 +98,23 @@ minute. The `dossier://schema` resource describes the tools and the write rules.
 | `exbo_base` | GitHub EXBO-Studio/stalzone-database | items and stats |
 | `wiki` | stalzone.wiki API | artifacts, armor, weapons, containers, TTK |
 | `motifs` | stalzone.wiki `category=other` | skins' `item.base_item_id` |
-| `profile` | a manual snapshot of the public profile | `character.stats` |
-| `scpmodel` | scpmodel.ru/api/predictions | `price_snapshot` (TTL 15 min) |
+| `scpmodel` | scpmodel.ru/api/predictions | `price_quote` (TTL 15 min) |
 
-`source.status`: `idle | ok | stale | error`; `last_ok_at`, `last_try_at`, `last_error`.
-On failure data is not erased — the UI shows the age of the last successful snapshot.
+The public profile snapshot is not part of phase 1: an official profile source is optional
+and comes with seedless onboarding (phase 2). `source.status`: `idle | ok | stale | error`;
+`last_ok_at`, `last_try_at`, `last_error`. On failure data is not erased — the UI shows the
+age of the last successful snapshot.
 
 ## Interface languages
 
 The site is an English-default Nuxt app with a Russian translation, powered by
 `@nuxtjs/i18n` in `no_prefix` mode. Catalogs are lazy-loaded from `i18n/locales/*.json`;
 `app/plugins/i18n-locale.ts` persists the choice in the `dossier_lang` cookie.
-Game data (item names, stat labels, categories from seeds/legacy) is not translated.
+Game data (item names, stat labels, categories from the sources) is not translated.
 Server and MCP messages are English; the UI localizes error codes. Details: `docs/I18N.md`.
 
 ## Deployment
 
 One image: the Nuxt + CLI build, a runtime with `.output`, `node_modules`, `dist`,
-`db/migrations`, `db/seeds`. The `/data` volume holds `dossier.db` and backups. Caddy is an
-optional profile for TLS. See `docs/RUNBOOK.md`.
+`db/migrations` and an empty database created on first run. The `/data` volume holds
+`dossier.db` and backups. Caddy is an optional profile for TLS. See `docs/RUNBOOK.md`.

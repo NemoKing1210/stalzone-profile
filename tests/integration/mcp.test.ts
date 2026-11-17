@@ -4,8 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { closeDb, loadConfig, migrate, openDb, type Db } from '@dossier/core';
-import { importLegacy } from '@dossier/core/services/import';
+import { closeDb, migrate, openDb, type Db } from '@dossier/core';
 import {
   READ_OUTPUT_SCHEMAS,
   READ_TOOLS,
@@ -16,46 +15,43 @@ import {
   localClient,
   writeLimiter,
 } from '@dossier/mcp';
+import { seedCatalog } from '../fixtures/seed';
 
 let dir: string;
 let db: Db;
 let server: ReturnType<typeof createDossierServer>;
 let client: Client;
 
-const ALL_TOOLS = [
-  'compare_items',
-  'delete_build',
-  'export_legacy_json',
-  'find_items',
-  'get_build',
-  'get_character',
-  'get_item',
-  'get_prices',
-  'list_builds',
-  'list_containers',
-  'list_owned',
-  'plan_artifact_build',
-  'rebuild_site',
-  'remove_owned_item',
-  'rollback_event',
-  'save_build',
-  'set_container_artifacts',
-  'sources_status',
-  'sync_source',
-  'upsert_content_block',
+const EXPECTED_WRITE_TOOLS = [
   'upsert_owned_item',
+  'remove_owned_item',
+  'set_container_artifacts',
+  'save_build',
+  'delete_build',
+  'sync_source',
+  'rebuild_site',
+  'rollback_event',
+];
+const EXPECTED_READ_TOOLS = [
+  'get_character',
+  'find_items',
+  'get_item',
+  'compare_items',
+  'list_owned',
+  'list_containers',
+  'list_builds',
+  'get_build',
+  'plan_artifact_build',
+  'get_prices',
+  'sources_status',
+  'export_dossier_json',
 ];
 
 beforeAll(async () => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dossier-mcp-'));
-  const cfg = loadConfig({
-    dbPath: path.join(dir, 'test.db'),
-    seedsDir: path.join(process.cwd(), 'db', 'seeds'),
-    iconsDir: path.join(dir, 'icons'),
-  });
-  db = openDb(cfg.dbPath);
-  migrate(db, cfg.migrationsDir);
-  importLegacy(db, cfg);
+  db = openDb(path.join(dir, 'test.db'));
+  migrate(db, path.join(process.cwd(), 'db', 'migrations'));
+  seedCatalog(db);
   server = createDossierServer(localClient(db));
   client = await connectInMemory(server);
 });
@@ -77,9 +73,11 @@ async function nervyakQty(): Promise<number> {
 }
 
 describe('MCP registry', () => {
-  it('publishes all dossier tools and the schema resource', async () => {
-    const tools = await client.listTools();
-    expect(tools.tools.map((tool) => tool.name).sort()).toEqual(ALL_TOOLS);
+  it('registers the new tool list and no content writer', async () => {
+    const tools = (await client.listTools()).tools.map((tool) => tool.name);
+    expect(tools.sort()).toEqual([...EXPECTED_READ_TOOLS, ...EXPECTED_WRITE_TOOLS].sort());
+    expect(tools).not.toContain('upsert_content_block');
+    expect(tools).not.toContain('export_legacy_json');
 
     const resources = await client.listResources();
     expect(resources.resources.map((resource) => resource.uri)).toContain('dossier://schema');
@@ -95,16 +93,22 @@ describe('MCP registry', () => {
     }
   });
 
-  it('finds item stats and compares DPS/TTK', async () => {
-    const item = await callTool('get_item', { name: 'KS-1' });
-    const detail = item.structuredContent as {
-      item: { name: string; icon: string | null; stats: unknown[] };
-    };
-    expect(detail.item.name).toBe('KS-1');
-    expect(detail.item.stats.length).toBeGreaterThan(0);
-    expect(detail.item.icon).toBeTruthy();
+  it('exports the typed dossier', async () => {
+    const result = await callTool('export_dossier_json', {});
+    const dossier = (result.structuredContent as { dossier: Record<string, any> }).dossier;
+    expect(dossier).not.toHaveProperty('career');
+    expect(dossier.weapons[0]).not.toHaveProperty('raw');
+  });
 
-    const compared = await callTool('compare_items', { a: 'АК-12', b: 'HK416', level: 15 });
+  it('returns a derived item card', async () => {
+    const result = await callTool('get_item', { name: 'АК-12' });
+    const item = (result.structuredContent as { item: { card: { p15: { d0: number } }; stats: any[] } }).item;
+    expect(item.card.p15.d0).toBe(55);
+    expect(item.stats[0]).toHaveProperty('stat_id');
+  });
+
+  it('compares DPS/TTK from typed stats', async () => {
+    const compared = await callTool('compare_items', { a: 'АК-12', b: 'KS-1', level: 15 });
     const items = (compared.structuredContent as { items: { found: boolean; dps: number; ttk: number }[] })
       .items;
     expect(items.map((row) => row.found)).toEqual([true, true]);
@@ -118,7 +122,6 @@ describe('MCP registry', () => {
 describe('MCP write safety', () => {
   it('defaults to dry_run and requires confirm for a real write', async () => {
     const before = await nervyakQty();
-    const clientApi = localClient(db);
 
     const dry = await callTool('upsert_owned_item', { name: 'Нервяк', kind: 'artifact', level: 15 });
     expect(dry.isError).not.toBe(true);
@@ -132,9 +135,7 @@ describe('MCP write safety', () => {
       dry_run: false,
     });
     expect(unconfirmed.isError).toBe(true);
-    expect(
-      JSON.parse((unconfirmed.content as { text: string }[])[0].text),
-    ).toMatchObject({
+    expect(JSON.parse((unconfirmed.content as { text: string }[])[0].text)).toMatchObject({
       error: { code: 'CONFIRM_REQUIRED' },
     });
     expect(await nervyakQty()).toBe(before);
@@ -158,22 +159,11 @@ describe('MCP write safety', () => {
     });
     expect(restored.isError).not.toBe(true);
     expect(await nervyakQty()).toBe(before);
-
-    const owned = await clientApi.listOwned('artifact');
-    const copies = owned.reduce((sum, row) => sum + Number(row.qty ?? 1), 0);
-    expect(copies).toBe(22);
   });
 
-  it('runs a source sync through the MCP tool', async () => {
-    const result = await callTool('sync_source', {
-      source: 'profile',
-      force: false,
-      confirm: true,
-    });
-    expect(result.isError).not.toBe(true);
-    expect(result.structuredContent).toMatchObject({
-      result: { source: 'profile', status: 'ok', items: 1 },
-    });
+  it('rejects the removed profile source before any sync runs', async () => {
+    const result = await callTool('sync_source', { source: 'profile', confirm: true });
+    expect(result.isError).toBe(true);
   });
 
   it('stops writes at the shared rate limit', async () => {
@@ -185,9 +175,7 @@ describe('MCP write safety', () => {
         arguments: { name: 'Нервяк', kind: 'artifact', level: 15, dry_run: false, confirm: true },
       });
       expect(result.isError).toBe(true);
-      expect(
-        JSON.parse((result.content as { text: string }[])[0].text),
-      ).toMatchObject({
+      expect(JSON.parse((result.content as { text: string }[])[0].text)).toMatchObject({
         error: { code: 'RATE_LIMITED' },
       });
     } finally {
@@ -205,10 +193,9 @@ describe('MCP HTTP transport', () => {
   let httpServer: http.Server;
   let baseUrl: string;
   let remote: ReturnType<typeof httpClient>;
-  let handler: ReturnType<typeof createMcpHttpHandler>;
 
   beforeAll(async () => {
-    handler = createMcpHttpHandler({
+    const handler = createMcpHttpHandler({
       client: localClient(db),
       token: 'test-mcp-token',
       writesPerMinute: 30,
@@ -229,8 +216,8 @@ describe('MCP HTTP transport', () => {
   });
 
   it('returns the same result over HTTP as in-process stdio', async () => {
-    const overHttp = await remote.getItem({ name: 'KS-1' });
-    const inProcess = await localClient(db).getItem({ name: 'KS-1' });
+    const overHttp = await remote.getItem({ name: 'АК-12' });
+    const inProcess = await localClient(db).getItem({ name: 'АК-12' });
     expect(overHttp).toEqual(inProcess);
 
     const buildsOverHttp = await remote.listBuilds();

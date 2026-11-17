@@ -80,7 +80,7 @@
     "NOT_ROLLBACKABLE": "This event cannot be rolled back",
     "NOTHING_TO_CLEAR": "Nothing to clear",
     "DB_UNAVAILABLE": "The database is unavailable",
-    "NO_CHARACTER": "No character in the database — import the dossier first"
+    "NO_CHARACTER": "No character in the database — create it through the editor or the API"
   },
   "auth": {
     "subtitle": "Personal dossier. Password sign-in.",
@@ -111,8 +111,6 @@
     "sectionAria": "{label}: {count} items",
     "stash": "Stash: {value}.",
     "playstyle": "Play style: {value}.",
-    "career": "Career",
-    "careerEmpty": "no career data",
     "sections": "Sections",
     "dataState": "Data state",
     "about": "About the data",
@@ -120,13 +118,12 @@
     "aboutSources": "Sources: {sources}.",
     "aboutNote": "Prices are updated separately; a missing lot is shown as “no lot”, a missing stat as “no data”. All numbers are recomputed with one formula from the database.",
     "emptyTitle": "Dossier is empty",
-    "emptyDescription": "Import the source data with npm run import:legacy or add gear through the API or MCP."
+    "emptyDescription": "Load the catalog with npm run sync, then add gear through the site, the API or MCP."
   },
   "sources": {
     "exbo_base": "EXBO base",
     "wiki": "stalzone.wiki",
     "scpmodel": "Auction (scpmodel)",
-    "profile": "Player profile",
     "motifs": "Skins",
     "local": "Local data",
     "status": {
@@ -335,7 +332,7 @@
       "error": "Error"
     },
     "emptyTitle": "No sources registered",
-    "emptyDescription": "Run migrations and the import to create source records.",
+    "emptyDescription": "Run migrations to create source records.",
     "exportTitle": "Dossier export",
     "exportText": "JSON in the source dossier format: character, gear, catalog, cards, builds and recommendations.",
     "downloadJson": "Download JSON",
@@ -444,15 +441,35 @@
     "characterTitle": "Character",
     "characterDescription": "Edit profile and statistics",
     "nick": "Nickname",
+    "region": "Region",
+    "regions": {
+      "ru": "Russia",
+      "eu": "Europe",
+      "na": "North America",
+      "sea": "South-East Asia",
+      "global": "Global"
+    },
     "faction": "Faction",
     "alliance": "Alliance",
-    "clan": "Clan",
-    "arrived": "In the Zone since",
-    "hours": "Hours in game",
-    "accuracyPercent": "Accuracy, %",
-    "headshotPercent": "Headshots, %",
-    "achievements": "Achievements",
-    "achievementPoints": "Achievement points",
+    "clanName": "Clan",
+    "clanRank": "Clan rank",
+    "stats": "Raw counters",
+    "derived": "Derived values (read-only)",
+    "stat": {
+      "kil": "Kills",
+      "dea": "Deaths",
+      "sho-fir": "Shots fired",
+      "sho-hit": "Shots hit",
+      "sho-hea": "Headshots hit",
+      "pla-tim": "Playtime (PT123H or hours)",
+      "ach-gai": "Achievement points",
+      "reg-tim": "Registered (YYYY-MM-DD)"
+    },
+    "containerOverride": "Container override",
+    "containerType": "Type",
+    "shield": "Shield",
+    "bonus": "Bonus",
+    "protection": "Protection",
     "money": "Money",
     "maxMoney": "Maximum money",
     "stash": "Stash",

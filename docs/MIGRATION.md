@@ -1,71 +1,67 @@
-# Migration from the legacy project
+# Migrating a database from the legacy schema
 
-Source: a static page backed by a single JSON payload. The data lived in
-`data/my-gear.json` (~795 KB); the page loaded the whole payload (~1.2 MB of JS) and there
-was no change history.
+The 2026-11-17 refactor replaced the baseline (`db/migrations/0001_init.sql`) with typed
+tables. There is **no automatic data migration**: the old JSON-bearing schema
+(`owned`, `container_fill`, `content_block`, `catalog_entry`, `details_card`, `app_meta`)
+no longer exists, and reusing the same file name means the runner skips `0001` on an
+existing database.
 
-The repository seeds (`db/seeds/`) contain the dossier, icons, the wiki slice, prices and
-the profile. The raw EXBO database (~25 MB, 9,996 items) is not committed: `sync exbo_base`
-restores it from the official repository.
+The old database has to be rebuilt. Export first if the data still matters to you.
 
-## What was migrated
+## Reset procedure
 
-| Artifact | Count |
-|---|---|
-| items (`item`) | **903** |
-| gear rows / copies (`owned`) | **69 / 72** |
-| builds (`build`) | **5** |
-| detail cards (`details_card`) | **601** |
-| catalog positions (`catalog_entry`) | **495** (356 weapons + 139 armor) |
-| icons (`icon`) | **99** |
-| content blocks (`content_block`) | **7** |
-| price rows (`price_snapshot`) | **1,589** (snapshot of 2026-11-14) |
+1. Stop the server so nothing writes to the database.
 
-## Number parity
+2. Back up and export:
 
-- Every displayed DPS/TTK is recomputed with one formula from damage and rate of fire;
-  stored legacy numbers are never substituted.
-- `npm run golden` compares 35 weapons, 12 armor pieces, 3 containers, 22 artifacts,
-  5 builds, 601 cards and 495 catalog positions.
-- Result: **0 mismatches, 0 legacy deltas** — no differences from the original dossier.
-  The early "anomalous QBU-191 DPS" turned out to be a row-matching bug by name without
-  level; after switching to a `name+level` key and display rounding the delta disappeared.
+   ```bash
+   npm run backup            # snapshot into snapshots/
+   npm run export:json       # typed JSON export of the current database
+   ```
 
-## Preserved legacy quirks
+   On a legacy database the export command may fail because the old schema does not have
+   the typed tables. In that case keep the SQLite backup and the previous
+   `db/seeds/legacy.json` / `data/my-gear.json`, if you still have them, as the source for
+   manual re-entry.
 
-1. **Duplicate armor entries in the catalog.** The original catalog has two pairs of
-   identical names: `Куртка с бронежилетом` and `Бандитский кожак`. Both positions are kept
-   in `catalog_entry` with different `position` — order and count match the old page.
-   Deduplicating them would change the displayed data.
-2. **Three local items.** The gear contains items absent from the sources; they were
-   created with `source_id = local` and exact legacy values:
-   - `Обрез Chiappa Triple` (weapon)
-   - `КИМ-Х «Аппа… Шлено…»` (armor)
-   - `Экзоскелет «Морга»` (armor)
-3. **Cards and catalog are separate tables.** `item.raw` could not hold exact legacy keys
-   (`w:`, `a:`, `art:`, `c:`), duplicates and catalog positions. That is why
-   `details_card` and `catalog_entry` exist; the payload reads them first, and the old
-   item-derived cards remain a fallback.
-4. **Gear copies.** The legacy array expanded every unit; in `owned` identical rows
-   collapse into `qty` (35 weapons and 22 artifacts in the dossier produce fewer rows but
-   the same copy count).
+3. Only if you accept an empty dossier until phase 2 (step 5): check where `DB_PATH`
+   points, then delete the database and its WAL files:
 
-## Commands
+   ```bash
+   npm run db:reset
+   ```
+
+   `db:reset` deletes the file at `DB_PATH` plus `-wal`/`-shm`. Never run it without
+   checking `DB_PATH` first.
+
+4. Create the schema and load the public catalog:
+
+   ```bash
+   npm run db:migrate
+   npm run sync exbo_base
+   npm run sync wiki
+   npm run sync motifs
+   npm run export:json        # optional: inspect the empty typed dossier
+   ```
+
+5. Phase 1 has no character creation: `PATCH /api/v1/character` requires an existing row
+   and answers `409 NO_CHARACTER` on an empty database, and MCP has no character-write
+   tool. Onboarding arrives in phase 2. Until then a reset database holds only the catalog,
+   prices and sources; postpone the destructive reset if you still need the old dossier.
+
+## Verification
 
 ```bash
-npm ci
-npm run db:migrate
-npm run import:legacy
-npm run golden
+npm run golden   # mismatches: 0, legacyDeltas: []
+npm run check
 ```
 
-The import is idempotent: a repeated run does not create rows (aggregation before upsert,
-absolute `qty`, prices skipped by `fetched_at`).
+`npm run golden` no longer reads a personal dossier: it migrates a temporary database,
+seeds the public fixture from `tests/fixtures/`, and recomputes every number with the
+single formula in `packages/core/src/calc/weapons.ts`.
 
-## Rollback and verification
+## Rollback
 
-- Export in the old format: `npm run export:json > dossier.json` (or
-  `GET /api/v1/admin/export`).
-- Every change through the API/MCP writes `event_log` and can be rolled back from the UI
-  (`/settings`) or with `rollback_event`.
-- Full reset: `npm run db:reset && npm run db:migrate && npm run import:legacy`.
+- Every API/MCP write stores its `before`/`after` in `event_log` and can be rolled back
+  from `/settings` or with the `rollback_event` tool.
+- Full reset: `npm run db:reset && npm run db:migrate && npm run sync` (sync all sources).
