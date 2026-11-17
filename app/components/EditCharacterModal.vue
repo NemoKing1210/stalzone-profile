@@ -18,7 +18,16 @@ const { dec, num } = useFormat();
  * factions. Anything else (legacy or event factions) can still be typed and saved.
  */
 const FACTIONS = ['Сталкеры', 'Бандиты', 'Заря', 'Рубеж', 'Завет', 'Наёмники', 'Шёпот'];
-const REGIONS = ['ru', 'eu', 'na', 'sea', 'global'];
+const REGIONS = ['ru', 'eu', 'na', 'sea', 'global'] as const;
+type Region = (typeof REGIONS)[number];
+
+function isRegion(value: string | undefined): value is Region {
+  return value != null && (REGIONS as readonly string[]).includes(value);
+}
+
+function setStat(field: StatField, value: string | number | null | undefined): void {
+  form.stats[field] = value === '' || value == null ? null : value;
+}
 
 function emptyStats(): Record<StatField, string | number | null> {
   return Object.fromEntries(STAT_FIELDS.map((field) => [field, null])) as Record<StatField, string | number | null>;
@@ -26,7 +35,7 @@ function emptyStats(): Record<StatField, string | number | null> {
 
 const form = reactive({
   nick: '',
-  region: 'ru',
+  region: 'ru' as Region,
   /** `undefined` is what USelectMenu produces when its value is cleared. */
   faction: undefined as string | undefined,
   alliance: null as string | null | undefined,
@@ -70,7 +79,7 @@ watch(
 function reset(): void {
   const character = props.character;
   form.nick = character.nick ?? '';
-  form.region = character.region ?? 'ru';
+  form.region = isRegion(character.region) ? character.region : 'ru';
   form.faction = character.faction ?? undefined;
   form.alliance = character.alliance ?? null;
   form.clanName = character.clanName ?? null;
@@ -162,7 +171,11 @@ async function submit(): Promise<void> {
           <p class="sz-caps text-[var(--sz-text-muted)]">{{ t('forms.stats') }}</p>
           <div class="grid gap-3 sm:grid-cols-2">
             <UFormField v-for="field in STAT_FIELDS" :key="field" :label="t(`forms.stat.${field}`)" :name="`stats.${field}`">
-              <UInput v-model="form.stats[field]" class="w-full" />
+              <UInput
+                :model-value="form.stats[field] == null ? '' : String(form.stats[field])"
+                class="w-full"
+                @update:model-value="(value) => setStat(field, value)"
+              />
             </UFormField>
           </div>
         </div>

@@ -21,7 +21,8 @@ export interface OwnedEditTarget {
   note: string | null;
   role: string | null;
   slot: string | null;
-  container: ContainerOverride | null;
+  /** Present only for container rows; ignored by the editor for other kinds. */
+  container?: ContainerOverride | null;
 }
 
 export interface EventRow {
