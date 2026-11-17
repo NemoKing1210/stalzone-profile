@@ -125,7 +125,22 @@ export function wikiStats(rec: Json, labels: Record<string, string>): StatInput[
   };
   for (const stat of rec?.stats ?? []) push(stat, false);
   for (const stat of rec?.additionalStats ?? []) push(stat, true);
-  return out;
+  // Containers expose these at the top level, not as `stats` entries; the cards
+  // read them as `container.*`.
+  const containerFields: [string, string][] = [
+    ['capacity', 'container.slots'],
+    ['effectiveness', 'container.effectiveness'],
+    ['protection', 'container.protection'],
+  ];
+  for (const [field, key] of containerFields) {
+    const value = asNumber(rec?.[field]);
+    if (value != null) out.push({ key, label: null, valueNum: value });
+  }
+  // A stat entry with no value at any level is not data: writing it would create a
+  // row the card reads as "no data" and make a wiki-only item look populated.
+  return out.filter(
+    (stat) => stat.valueNum != null || stat.valueMin != null || stat.valueMax != null || stat.valueText != null,
+  );
 }
 
 /** Display effect lines: one per named wiki stat, positives first by position. */

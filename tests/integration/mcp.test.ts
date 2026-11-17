@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { closeDb, migrate, openDb, type Db } from '@dossier/core';
+import { closeDb, migrate, openDb, runExclusive, type Db } from '@dossier/core';
 import {
   READ_OUTPUT_SCHEMAS,
   READ_TOOLS,
@@ -182,6 +182,22 @@ describe('MCP write safety', () => {
       status: 'stale',
       error: 'STALZONE_API_NOT_CONFIGURED',
     });
+  });
+
+  it('refuses sync_source while another sync holds the process lock', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const held = runExclusive(async () => gate);
+    try {
+      const result = await callTool('sync_source', { source: 'profile', confirm: true });
+      expect(result.isError).toBe(true);
+      expect(JSON.parse((result.content as { text: string }[])[0].text)).toMatchObject({
+        error: { code: 'SYNC_IN_PROGRESS' },
+      });
+    } finally {
+      release();
+      await held;
+    }
   });
 
   it('stops writes at the shared rate limit', async () => {

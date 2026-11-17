@@ -132,6 +132,51 @@ A source failure does not fail the request: `status: "stale"`, an `error` with t
 and the previous data stays. Inside the 15-minute TTL `scpmodel` does not go to the network
 (`items: 0`, `ageMin`).
 
+The route shares a process-wide single-flight lock with the auto-sync scheduler and the
+in-process MCP `sync_source` tool: while a sync is running it answers
+`409 SYNC_IN_PROGRESS`.
+
+### Auto-sync schedule
+
+`GET /api/v1/admin/sync` (session) returns source diagnostics and the schedule:
+
+```json
+{
+  "schedule": {
+    "enabled": false, "catalogEveryMin": 360, "pricesEveryMin": 60,
+    "profileEveryMin": 0, "updatedAt": "2026-11-17T12:00:00.000Z"
+  },
+  "bundles": [
+    { "id": "catalog", "intervalMin": 360, "lastRunAt": null,
+      "nextRunAt": "2026-11-17T12:00:00.000Z", "ready": true, "reason": null }
+  ],
+  "sources": [
+    { "id": "exbo_base", "kind": "reference", "url": "https://github.com/EXBO-Studio/stalzone-database",
+      "status": "ok", "lastOkAt": "…", "lastTryAt": "…", "lastError": null,
+      "commit": "…", "commitDate": "…", "records": null }
+  ],
+  "catalogItems": 1234,
+  "profileApiConfigured": false
+}
+```
+
+Bundles are `catalog` (`exbo_base`, `wiki`, `motifs`, `icons`), `prices` (`scpmodel`) and
+`profile`. `nextRunAt` is `max(last_try_at) + interval` across the bundle, or now when no
+source has ever been tried. It is `null` when the bundle is not ready, and `reason` explains
+why: `disabled`, `off`, `profile_credentials`, `profile_character` or `profile_region`.
+`records` is `null` where a per-source count would describe attribution rather than
+contribution; `0` is a real empty count.
+
+`PUT /api/v1/admin/sync` (session + Origin):
+
+```json
+{ "enabled": true, "catalogEveryMin": 360, "pricesEveryMin": 60, "profileEveryMin": 0, "dryRun": false }
+```
+
+`0` turns a bundle off; any other interval is `15..10080` minutes. The response is a
+`WriteResult`. A real change writes one `sync.schedule.update` event with `before`/`after`
+and is rollbackable; a no-op writes no event and returns no `eventId`.
+
 ## MCP
 
 `POST /mcp` — stateless Streamable HTTP, `Authorization: Bearer <NUXT_MCP_TOKEN>`.

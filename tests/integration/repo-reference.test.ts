@@ -56,6 +56,31 @@ describe('reference repositories', () => {
     expect(rows).toEqual(['damage.start@0=42', 'weapon.tooltip.weapon.info.rate_of_fire@0=600']);
   });
 
+  it('does not let a lower-priority source overwrite a higher-priority stat', () => {
+    const id = seed.upsertItem(db, { sourceId: 'exbo_base', externalId: 'ak-12', name: 'АК-12', kind: 'weapon' });
+    seed.replaceItemStats(db, id, [{ key: 'weapon.tooltip.weapon.info.distance', valueNum: 500 }], 'wiki');
+    seed.replaceItemStats(
+      db,
+      id,
+      [{ key: 'weapon.tooltip.weapon.info.distance', valueText: '["500"]' }],
+      'exbo_base',
+    );
+
+    expect(repo.itemStats(db, id)).toMatchObject([
+      { stat_id: 'weapon.tooltip.weapon.info.distance', value_num: 500, value_text: null, source_id: 'wiki' },
+    ]);
+  });
+
+  it('lets a higher-priority source replace a lower-priority stat', () => {
+    const id = seed.upsertItem(db, { sourceId: 'exbo_base', externalId: 'ak-12', name: 'АК-12', kind: 'weapon' });
+    seed.replaceItemStats(db, id, [{ key: 'weapon.tooltip.weapon.info.distance', valueNum: 400 }], 'exbo_base');
+    seed.replaceItemStats(db, id, [{ key: 'weapon.tooltip.weapon.info.distance', valueNum: 500 }], 'wiki');
+
+    expect(repo.itemStats(db, id)).toMatchObject([
+      { stat_id: 'weapon.tooltip.weapon.info.distance', value_num: 500, source_id: 'wiki' },
+    ]);
+  });
+
   it('requires stat definitions at the database boundary', () => {
     const id = seed.upsertItem(db, { sourceId: 'local', externalId: 'local:weapon:x', name: 'Тест', kind: 'weapon' });
     expect(() =>

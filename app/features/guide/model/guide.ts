@@ -257,6 +257,13 @@ export const GUIDE_API: GuideApiEndpoint[] = [
   { method: 'GET', path: '/api/v1/admin/cleanup', group: 'admin', descriptionKey: 'guide.api.admin.cleanupRead' },
   { method: 'POST', path: '/api/v1/admin/cleanup', group: 'admin', descriptionKey: 'guide.api.admin.cleanup' },
   { method: 'POST', path: '/api/v1/admin/sync', group: 'admin', descriptionKey: 'guide.api.admin.sync' },
+  { method: 'GET', path: '/api/v1/admin/sync', group: 'admin', descriptionKey: 'guide.api.admin.syncRead' },
+  {
+    method: 'PUT',
+    path: '/api/v1/admin/sync',
+    group: 'admin',
+    descriptionKey: 'guide.api.admin.syncSchedule',
+  },
 ];
 
 export const GUIDE_MCP: GuideMcpTool[] = [

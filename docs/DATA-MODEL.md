@@ -11,6 +11,7 @@ only through new migrations in `db/migrations/`.
 | Table | Purpose |
 |---|---|
 | `source` | source status and freshness (`exbo_base`, `wiki`, `motifs`, `scpmodel`, `icons`, `profile`, `local`) |
+| `sync_schedule` | exactly one row: auto-sync master switch and intervals for `catalog`, `prices`, `profile` (`0` = off, otherwise `15..10080` minutes) |
 | `stat_definition` | stat ids with category, value type and labels |
 | `item` | normalized catalog: one row per external item, `kind` in weapon/armor/container/artifact/attachment/ammo/motif/other |
 | `item_stat` | numeric/text stats by `stat_id` and refinement level 0…15, with optional ranges |
@@ -37,6 +38,33 @@ free-text values to `NULL` and drops `playstyle`. `0003_drop_builds.sql` drops t
 `build`, `build_metric` and `build_slot` tables: the dossier now stores only item-centred
 entities. Historical `event_log` rows that mention builds remain readable but can no
 longer be restored.
+
+## Source authority
+
+| Layer | Authority |
+|---|---|
+| Item existence, realm, external id, ru/en name, kind, category, rank, slot, weight | `exbo_base` |
+| Weapon damage per level, armor factor curve, artifact ranges, effect labels | `wiki` |
+| Container slots, effectiveness, protection (`container.*` stats) | `wiki` top-level `capacity`, `effectiveness`, `protection` |
+| Cosmetics and skin → base item | `motifs` |
+| Market prices and lots | `scpmodel` |
+| Icon files | `icons` |
+| Character statistics | `profile` |
+| Manual values | `local` |
+
+A wiki sync binds only `source_id = 'wiki'` stats and the item's effect labels; it never
+rewrites an item's name, kind, category, rank, slot, weight or `source_id`. A record that
+exists only in wiki is created with `source_id = 'wiki'` when it carries stats, effects or
+container fields; a record that carries none is skipped. Rows created by older versions
+from the identity-only wiki lists are left in place — a normal `exbo_base → wiki` re-sync
+restores EXBO identity for every overlapping row. Wiki numbers are Russian-only; they bind
+to the realm passed to the sync (`ru` by default).
+
+The same precedence applies to writes. `item_stat` is keyed without `source_id`, so
+`replaceItemStats` refuses to replace a stat slot already owned by a higher-priority source
+(`wiki` → `exbo_base` → `scpmodel` → `local`, lower wins). A displayed value therefore no
+longer depends on which source synced last, and a source can still replace every slot it
+owns itself.
 
 ## Key invariants
 
@@ -103,5 +131,12 @@ ttk          = round((ceil(600 / displayedDmg) - 1) * 60 / rof, 2)
 - A sync failure does not delete old data: status `stale`, the error in `last_error`.
 - Prices: a 15-minute TTL; on 5xx the previous `price_quote` keeps being served through
   `price_latest`, and the UI shows its age.
+- `sync_schedule` changes only through `setSyncSchedule`: one `sync.schedule.update` event
+  carries the four values in `before`/`after`, and rollback restores `before` (including a
+  disabled state). A no-op writes nothing.
+- Boot backfills `source.url` with each source's public origin (`COALESCE` keeps an existing
+  value); `local` has no URL.
+- The portable JSON export describes dossier content and does not include settings; the
+  SQLite backup includes `sync_schedule` like every other table.
 - On first run the database is empty apart from migrations and sources: the catalog comes
   from `npm run sync`, gear through the API, MCP or the site.

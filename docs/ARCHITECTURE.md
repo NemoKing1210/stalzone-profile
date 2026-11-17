@@ -79,6 +79,29 @@ HTTP: it imports no `@dossier/core`, and `@dossier/shared` only through `/contra
 5. Container values follow the precedence override > item stats > `null`; missing data is
    `null`, never zero or an estimate.
 
+## Auto-sync scheduler
+
+`server/plugins/sync-scheduler.ts` arms one pair of timers per process (10 s after boot,
+then every 60 s) and stores them on `globalThis`, so a dev hot reload replaces the previous
+timers instead of duplicating them. Each tick calls `runDueBundles` in core:
+
+- reads `sync_schedule`; a disabled schedule performs no work;
+- derives each bundle's last try from `max(source.last_try_at)` and
+  `next = last + interval` (now when the bundle never ran);
+- checks runtime readiness — `profile` needs credentials, a character and a non-global
+  region; otherwise it is skipped without touching source rows;
+- runs only due bundles, in `catalog → prices → profile` order, through the same adapters
+  as a manual sync.
+
+Three in-process callers — the scheduler, `POST /api/v1/admin/sync` and the local MCP
+`sync_source` tool — share one single-flight lock (`modules/sync/service/lock.ts`). A manual
+call while a sync runs answers `409 SYNC_IN_PROGRESS`; a tick skips while busy; a source
+failure becomes `stale`; a tick failure is caught and logged, never fatal.
+
+The lock is process-local: an external `npm run sync`/cron is a separate process. Use the
+in-process scheduler **or** cron, not both. The scheduler is single-instance by design; the
+app runs as one container.
+
 ## Write flow
 
 ```
@@ -121,12 +144,15 @@ minute. The `dossier://schema` resource describes the tools and the write rules.
 
 | id | Source | What it updates |
 |---|---|---|
-| `exbo_base` | GitHub EXBO-Studio/stalzone-database | items and stats |
-| `wiki` | stalzone.wiki API | artifacts, armor, weapons, containers, TTK |
+| `exbo_base` | GitHub EXBO-Studio/stalzone-database | item identity (name, kind, category, rank, slot, weight), stat definitions and base stats |
+| `wiki` | stalzone.wiki calculator APIs | per-level weapon damage, armor and artifact numbers, effect labels, container capacity/effectiveness/protection |
 | `motifs` | stalzone.wiki `category=other` | skins' `item.base_item_id` |
 | `scpmodel` | scpmodel.ru/api/predictions | `price_quote` (TTL 15 min) |
 | `icons` | EXBO repository (same commit snapshot) | `icon` rows and `.png` files in `ICONS_DIR` |
 | `profile` | official STALZONE API (OAuth client credentials) | `character_stat` with origin `api`, clan/alliance, `profile_fetched_at` |
+
+`exbo_base` owns item identity; `wiki` never rewrites it and only binds its numeric layers
+and effect labels. See [Data model](DATA-MODEL.md#source-authority) for the full matrix.
 
 `all` means the catalog sources (`exbo_base`, `wiki`, `motifs`, `scpmodel`, `icons`).
 `profile` is opt-in: it needs both client credentials and is never run implicitly.

@@ -8,11 +8,8 @@ export const WIKI_TTK = `${WIKI_BASE}/api/ttk-calculator/items/`;
 
 export interface WikiSnapshot {
   artefact: Json[];
-  weapon: Json[];
   armor: Json[];
   containers: Json[];
-  attachment: Json[];
-  consumable: Json[];
   ttkWeapon: Json[];
   fetchedAt: string;
 }
@@ -39,22 +36,16 @@ function withCategories(base: string, categories: string[]): string {
 export const wikiAdapter = {
   async fetch(options: WikiFetchOptions = {}): Promise<WikiSnapshot> {
     const fetchImpl = options.fetchImpl ?? ((url, init) => fetch(url, init));
-    const [artefact, weapon, armor, containers, attachment, consumable, ttkWeapon] = await Promise.all([
+    const [artefact, armor, containers, ttkWeapon] = await Promise.all([
       getItems(withCategories(WIKI_ITEMS, ['artefact']), fetchImpl),
-      getItems(withCategories(WIKI_ITEMS, ['weapon']), fetchImpl),
       getItems(withCategories(WIKI_ITEMS, ['armor']), fetchImpl),
       getItems(withCategories(WIKI_ITEMS, ['containers', 'backpacks']), fetchImpl),
-      getItems(withCategories(WIKI_ITEMS, ['attachment']), fetchImpl),
-      getItems(withCategories(WIKI_ITEMS, ['consumable']), fetchImpl),
       getItems(withCategories(WIKI_TTK, ['weapon']), fetchImpl),
     ]);
     return {
       artefact,
-      weapon,
       armor,
       containers,
-      attachment,
-      consumable,
       ttkWeapon,
       fetchedAt: new Date().toISOString(),
     };

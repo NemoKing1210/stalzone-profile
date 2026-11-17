@@ -41,8 +41,18 @@ export function ensureSource(db: Db, id: string, url?: string | null): SourceRow
   return getSource(db, id)!;
 }
 
+/** Public origins for the reference UI; local data has no external source. */
+export const SOURCE_URLS: Partial<Record<string, string>> = {
+  exbo_base: 'https://github.com/EXBO-Studio/stalzone-database',
+  icons: 'https://github.com/EXBO-Studio/stalzone-database',
+  wiki: 'https://stalzone.wiki',
+  motifs: 'https://stalzone.wiki',
+  scpmodel: 'https://scpmodel.ru',
+  profile: 'https://stalzone.com',
+};
+
 export function ensureDefaultSources(db: Db): void {
-  for (const id of SOURCE_IDS) ensureSource(db, id);
+  for (const id of SOURCE_IDS) ensureSource(db, id, SOURCE_URLS[id] ?? null);
 }
 
 export function getSource(db: Db, id: string): SourceRow | null {

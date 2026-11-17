@@ -1,5 +1,6 @@
 import { norm } from '@dossier/shared';
 import type { Db } from '../../../platform/db/index.js';
+import { sourcePriority } from '../source-priority.js';
 import { ensureStatDefinition } from './stats.js';
 
 export interface ItemRow {
@@ -194,11 +195,25 @@ function insertStat(db: Db, itemId: number, stat: StatInput, mode: 'replace' | '
   });
 }
 
-/** Replaces every stat this source previously wrote for the item. */
+/**
+ * Replaces every stat this source previously wrote for the item. A stat slot the
+ * item already carries from a higher-priority source is left alone, so the writer
+ * applies the same precedence the reader does.
+ */
 export function replaceItemStats(db: Db, itemId: number, stats: StatInput[], sourceId: string): void {
   const run = db.transaction(() => {
     db.prepare(`DELETE FROM item_stat WHERE item_id = ? AND source_id IS ?`).run(itemId, sourceId);
-    for (const stat of stats) insertStat(db, itemId, { ...stat, sourceId }, 'replace');
+    const owners = new Map<string, string | null>();
+    const rows = db
+      .prepare(`SELECT stat_id, level, is_additional, source_id FROM item_stat WHERE item_id = ?`)
+      .all(itemId) as { stat_id: string; level: number; is_additional: number; source_id: string | null }[];
+    for (const row of rows) owners.set(`${row.stat_id}\u0000${row.level}\u0000${row.is_additional}`, row.source_id);
+    for (const stat of stats) {
+      const key = `${stat.key}\u0000${stat.level ?? 0}\u0000${stat.isAdditional ? 1 : 0}`;
+      const owner = owners.get(key);
+      if (owner != null && sourcePriority(owner) < sourcePriority(sourceId)) continue;
+      insertStat(db, itemId, { ...stat, sourceId }, 'replace');
+    }
   });
   run();
 }

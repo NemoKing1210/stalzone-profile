@@ -1,34 +1,12 @@
 <script setup lang="ts">
-import { DossierPane, StatRow } from '~/shared/ui';
+import { DossierPane } from '~/shared/ui';
 import { DEFAULT_ACCENT } from '~/shared/lib/accents';
+import SourcesSection from './SourcesSection.vue';
 
 const { t } = useI18n();
-const { message: apiMessage } = useApiError();
 useHead(() => ({ title: `${t('settings.pageTitle')} // ${t('common.appName')}` }));
 
-const { payload, meta, refresh } = useDossier();
-const { formatAge, formatDate } = useFormat();
 const { accent, presets, setAccent, resetAccent } = useAccent();
-const toast = useToast();
-
-interface SyncResult {
-  source: string;
-  status: 'ok' | 'stale';
-  items: number;
-  error?: string;
-}
-
-const syncing = ref<string | null>(null);
-
-const sources = computed(() => payload.value?.freshness.sources ?? []);
-const syncableSources = computed(() => sources.value.filter((source) => source.id !== 'local'));
-const catalogMeta = computed(() => meta.value?.catalogMeta ?? null);
-const metaInfo = computed(() => payload.value?.meta ?? {});
-const catalogUpdated = computed(() => catalogMeta.value?.updated ?? null);
-const catalogSource = computed(() => catalogMeta.value?.source ?? null);
-const profileFetched = computed(() =>
-  typeof metaInfo.value.statsFetched === 'string' ? metaInfo.value.statsFetched : null,
-);
 
 /** The page owns the tab in the URL and its validation; the screen only renders it. */
 const activeTab = defineModel<string>('tab', { default: 'appearance' });
@@ -40,73 +18,6 @@ const tabItems = computed(() => [
   { label: t('settings.tabs.journal'), icon: 'i-lucide-history', value: 'journal' },
   { label: t('settings.tabs.cleanup'), icon: 'i-lucide-trash-2', value: 'cleanup' },
 ]);
-
-const sourceColumns = computed(() => [
-  { accessorKey: 'id', header: t('settings.columns.source') },
-  { accessorKey: 'status', header: t('settings.columns.status') },
-  { accessorKey: 'lastOkAt', header: t('settings.columns.lastOkAt') },
-  { accessorKey: 'lastTryAt', header: t('settings.columns.lastTryAt') },
-  { accessorKey: 'lastError', header: t('settings.columns.error') },
-]);
-
-const statusClass: Record<string, string> = {
-  ok: 'border-[var(--sz-success)] text-[var(--sz-success-text)]',
-  stale: 'border-[var(--sz-warning)] text-[var(--sz-warning-text)]',
-  error: 'border-[var(--sz-danger)] text-[var(--sz-danger-text)]',
-  idle: 'border-[var(--sz-border)] text-[var(--sz-text-muted)]',
-};
-
-function sourceLabel(id: string): string {
-  const key = `sources.${id}`;
-  const label = t(key);
-  return label === key ? id : label;
-}
-
-function statusLabel(status: string): string {
-  const key = `sources.status.${status}`;
-  const label = t(key);
-  return label === key ? status : label;
-}
-
-async function syncSource(id: string): Promise<void> {
-  syncing.value = id;
-  try {
-    const response = await $fetch<{ results: SyncResult[] }>('/api/v1/admin/sync', {
-      method: 'POST',
-      body: { source: id },
-    });
-    const result = response.results[0];
-    if (result?.status === 'ok') {
-      toast.add({
-        title: t('settings.toast.sourceUpdated'),
-        description: t('settings.toast.sourceUpdatedDescription', {
-          source: sourceLabel(id),
-          count: result.items,
-        }),
-        color: 'success',
-        icon: 'i-lucide-check',
-      });
-    } else {
-      toast.add({
-        title: t('settings.toast.sourceUnavailable'),
-        description: apiMessage(result?.error, result?.error || t('settings.toast.sourceUnavailableDescription')),
-        color: 'warning',
-        icon: 'i-lucide-cloud-off',
-      });
-    }
-    await refresh();
-  } catch (error) {
-    const data = (error as { data?: { error?: { code?: string; message?: string } } }).data?.error;
-    toast.add({
-      title: t('settings.toast.syncFailed'),
-      description: apiMessage(data?.code, data?.message || t('settings.toast.syncFailedDescription')),
-      color: 'error',
-      icon: 'i-lucide-triangle-alert',
-    });
-  } finally {
-    syncing.value = null;
-  }
-}
 </script>
 
 <template>
@@ -184,69 +95,7 @@ async function syncSource(id: string): Promise<void> {
           </DossierPane>
         </div>
 
-        <div v-else-if="item.value === 'sources'" class="space-y-4">
-          <DossierPane :title="t('settings.dataSources')" flush>
-            <template #actions>
-              <div class="grid w-full grid-cols-2 gap-1 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
-                <UButton
-                  v-for="source in syncableSources"
-                  :key="source.id"
-                  :label="sourceLabel(source.id)"
-                  icon="i-lucide-refresh-cw"
-                  color="neutral"
-                  variant="outline"
-                  size="xs"
-                  :loading="syncing === source.id"
-                  :disabled="syncing !== null && syncing !== source.id"
-                  @click="syncSource(source.id)"
-                />
-              </div>
-            </template>
-
-            <div v-if="sources.length" class="max-h-[420px] overflow-auto">
-              <UTable :data="sources" :columns="sourceColumns">
-                <template #id-cell="{ row }">
-                  <span class="font-medium">{{ sourceLabel(row.original.id) }}</span>
-                  <span class="block font-mono text-[11px] text-[var(--sz-text-dim)]">{{ row.original.id }}</span>
-                </template>
-                <template #status-cell="{ row }">
-                  <span
-                    class="inline-flex border px-1.5 py-0.5 text-[11px] uppercase leading-none tracking-[0.12em]"
-                    :class="statusClass[row.original.status] ?? statusClass.idle"
-                  >
-                    {{ statusLabel(row.original.status) }}
-                  </span>
-                </template>
-                <template #lastOkAt-cell="{ row }">
-                  {{ formatDate(row.original.lastOkAt) }}
-                </template>
-                <template #lastTryAt-cell="{ row }">
-                  {{ formatDate(row.original.lastTryAt) }}
-                </template>
-                <template #lastError-cell="{ row }">
-                  <span class="text-[11px] text-[var(--sz-danger-text)]">{{ row.original.lastError ?? '—' }}</span>
-                </template>
-              </UTable>
-            </div>
-            <div v-else class="p-4">
-              <UEmpty
-                icon="i-lucide-cloud-off"
-                :title="t('settings.emptyTitle')"
-                :description="t('settings.emptyDescription')"
-              />
-            </div>
-          </DossierPane>
-
-          <DossierPane :title="t('settings.dataTitle')" dense>
-            <div class="divide-y divide-[var(--sz-border)]">
-              <StatRow :label="t('settings.dossierUpdated')" :value="formatDate(payload?.freshness.dataUpdated)" />
-              <StatRow :label="t('settings.prices')" :value="formatAge(payload?.freshness.pricesAgeMin)" />
-              <StatRow :label="t('settings.catalogUpdated')" :value="formatDate(catalogUpdated)" />
-              <StatRow :label="t('settings.catalogSource')" :value="catalogSource" />
-              <StatRow :label="t('settings.profileSnapshot')" :value="formatDate(profileFetched)" />
-            </div>
-          </DossierPane>
-        </div>
+        <SourcesSection v-else-if="item.value === 'sources'" />
 
         <div v-else-if="item.value === 'data'" class="grid gap-4 lg:grid-cols-2">
           <DossierPane :title="t('settings.exportTitle')" dense>

@@ -42,6 +42,7 @@ describe('baseline schema', () => {
       'price_quote',
       'source',
       'stat_definition',
+      'sync_schedule',
     ]);
   });
 

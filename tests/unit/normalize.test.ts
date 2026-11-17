@@ -31,6 +31,33 @@ describe('normalize', () => {
     expect(stats.filter((s) => s.key === 'damage.start').map((s) => s.level)).toEqual([0, 1, 2]);
   });
 
+  it('maps wiki container fields onto the keys the cards read', () => {
+    const stats = wikiStats({ stats: [], additionalStats: [], capacity: 4, effectiveness: 80, protection: 62.5 }, {});
+
+    expect(stats).toHaveLength(3);
+    expect(stats).toContainEqual(expect.objectContaining({ key: 'container.slots', valueNum: 4 }));
+    expect(stats).toContainEqual(expect.objectContaining({ key: 'container.effectiveness', valueNum: 80 }));
+    expect(stats).toContainEqual(expect.objectContaining({ key: 'container.protection', valueNum: 62.5 }));
+  });
+
+  it('keeps a real zero and omits an absent or non-numeric container field', () => {
+    const zero = wikiStats({ stats: [], additionalStats: [], capacity: 0 }, {});
+    expect(zero).toContainEqual(expect.objectContaining({ key: 'container.slots', valueNum: 0 }));
+    expect(zero.some((stat) => stat.key === 'container.effectiveness')).toBe(false);
+
+    const text = wikiStats({ stats: [], additionalStats: [], capacity: 'many' }, {});
+    expect(text.some((stat) => stat.key === 'container.slots')).toBe(false);
+  });
+
+  it('ignores stat entries that carry no value', () => {
+    const stats = wikiStats(
+      { stats: [{ key: 'some.key', value: {} }], additionalStats: [{ key: 'other.key' }] },
+      {},
+    );
+
+    expect(stats).toEqual([]);
+  });
+
   it('turns positive wiki stats into display effect lines', () => {
     expect(
       wikiEffects({

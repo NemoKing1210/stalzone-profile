@@ -14,6 +14,21 @@ export function handleWrite<T>(event: H3Event, write: () => T): T | ApiErrorBody
   }
 }
 
+/** Same envelope as `handleWrite`, for writes that await a lock or a source. */
+export async function handleWriteAsync<T>(
+  event: H3Event,
+  write: () => Promise<T>,
+): Promise<T | ApiErrorBody> {
+  try {
+    return await write();
+  } catch (error) {
+    if (error instanceof WriteError) {
+      return apiError(event, error.status, error.code, error.message, error.details);
+    }
+    throw error;
+  }
+}
+
 export function parseId(event: H3Event): number | null {
   const id = Number(getRouterParam(event, 'id'));
   return Number.isSafeInteger(id) && id > 0 ? id : null;

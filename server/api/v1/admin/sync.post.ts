@@ -1,9 +1,10 @@
+import { runExclusive, runSync, runSyncAll } from '@dossier/core';
 import { SyncRequestSchema } from '@dossier/shared/contracts';
-import { runSync, runSyncAll } from '@dossier/core';
+import { requireOrigin } from '../../../utils/auth';
 import { useDb } from '../../../utils/db';
 import { validationError } from '../../../utils/errors';
-import { requireOrigin } from '../../../utils/auth';
 import { serverSyncOptions } from '../../../utils/sync-options';
+import { handleWriteAsync } from '../../../utils/write';
 
 export default defineEventHandler(async (event) => {
   const originError = requireOrigin(event);
@@ -15,6 +16,9 @@ export default defineEventHandler(async (event) => {
   const db = useDb();
   const { source, force } = parsed.data;
   const options = { ...serverSyncOptions(), force };
-  if (source === 'all') return { results: await runSyncAll(db, options) };
-  return { results: [await runSync(db, source, options)] };
+  return handleWriteAsync(event, async () => ({
+    results: await runExclusive(() =>
+      source === 'all' ? runSyncAll(db, options) : runSync(db, source, options).then((result) => [result]),
+    ),
+  }));
 });

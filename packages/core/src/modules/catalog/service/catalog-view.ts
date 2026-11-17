@@ -11,6 +11,7 @@ import {
 import type { Db } from '../../../platform/db/index.js';
 import * as repo from '../repo/index.js';
 import type { ItemRow, ItemStatRow } from '../repo/items.js';
+import { sourcePriority } from '../source-priority.js';
 
 export interface ItemCard {
   kind: string;
@@ -57,13 +58,6 @@ export interface DamagePoint {
   distMax: number | null;
 }
 
-const SOURCE_PRIORITY: Record<string, number> = {
-  wiki: 0,
-  exbo_base: 1,
-  scpmodel: 2,
-  local: 3,
-};
-
 export function preferredStat(rows: ItemStatRow[], statId: string, level?: number): ItemStatRow | null {
   let pool = rows.filter((row) => row.stat_id === statId);
   if (!pool.length) return null;
@@ -77,10 +71,7 @@ export function preferredStat(rows: ItemStatRow[], statId: string, level?: numbe
       else pool = [pool.sort((a, b) => a.level - b.level)[0]!];
     }
   }
-  return (
-    pool.sort((a, b) => (SOURCE_PRIORITY[a.source_id ?? ''] ?? 9) - (SOURCE_PRIORITY[b.source_id ?? ''] ?? 9))[0] ??
-    null
-  );
+  return pool.sort((a, b) => sourcePriority(a.source_id) - sourcePriority(b.source_id))[0] ?? null;
 }
 
 export function itemValue(rows: ItemStatRow[], statId: string, level?: number): number | null {
@@ -91,7 +82,7 @@ export function itemValue(rows: ItemStatRow[], statId: string, level?: number): 
 export function itemValueExact(rows: ItemStatRow[], statId: string, level: number): number | null {
   const row = rows
     .filter((r) => r.stat_id === statId && r.level === level && r.value_num != null)
-    .sort((a, b) => (SOURCE_PRIORITY[a.source_id ?? ''] ?? 9) - (SOURCE_PRIORITY[b.source_id ?? ''] ?? 9))[0];
+    .sort((a, b) => sourcePriority(a.source_id) - sourcePriority(b.source_id))[0];
   return row?.value_num ?? null;
 }
 
@@ -99,8 +90,7 @@ export function itemText(rows: ItemStatRow[], statId: string): string | null {
   return (
     rows
       .filter((row) => row.stat_id === statId && row.value_text != null)
-      .sort((a, b) => (SOURCE_PRIORITY[a.source_id ?? ''] ?? 9) - (SOURCE_PRIORITY[b.source_id ?? ''] ?? 9))[0]
-      ?.value_text ?? null
+      .sort((a, b) => sourcePriority(a.source_id) - sourcePriority(b.source_id))[0]?.value_text ?? null
   );
 }
 

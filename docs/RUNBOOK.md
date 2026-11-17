@@ -137,6 +137,31 @@ If a source fails it stays `stale`: old data remains visible, `/settings` shows
 `last_error`, and the freshness badge shows the age. Do not delete the database because of
 `stale`; repeat the sync.
 
+Wiki numbers bind to the item `exbo_base` created and never replace its name, kind,
+category or rank; a record that exists only in wiki is created only when it carries stats,
+effects or container fields. Rows that older versions created from the identity-only wiki
+lists are not removed — run `npm run sync` (`exbo_base` then `wiki`) once after upgrading
+to restore EXBO identity on every overlapping item. Wiki data is Russian-only and binds to
+the realm passed to the sync, which is `ru` for the CLI, the admin route and MCP.
+
+### Auto-sync from the UI
+
+`/settings?tab=sources` has an Auto-update pane: a master switch and an interval per bundle.
+The schedule lives in `sync_schedule`; `0` means off, any other value is 15 minutes to
+7 days. The Nitro process evaluates due bundles every 60 seconds while it is on, including
+the first tick 10 seconds after boot, so a restart catches up.
+
+- Disabled is the default; enabling it turns on background network activity.
+- Manual buttons, the MCP `sync_source` tool and the scheduler share one process-local lock.
+  While a sync runs, a manual call answers `409 SYNC_IN_PROGRESS`; wait for the run.
+- Do not run external cron (`npm run sync`) alongside the scheduler: the lock cannot see
+  another process. Pick one.
+- A tick that does nothing usually means the schedule is disabled, the interval is `0`, the
+  bundle is not due yet, or `profile` is not ready (credentials, character, non-global
+  region). `GET /api/v1/admin/sync` shows `ready` and `reason` per bundle.
+- A schedule change writes `sync.schedule.update` to the journal; roll it back from
+  `/settings?tab=journal` to restore the previous values.
+
 ## 5. Upgrading
 
 1. `npm run backup` (or `deploy/backup.sh`).

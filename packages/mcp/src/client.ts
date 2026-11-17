@@ -25,6 +25,7 @@ import {
   listSourceReads,
   planArtifactBuild,
   rollbackEvent as restoreEvent,
+  runExclusive,
   runSync,
   searchItemSummaries,
   searchItems,
@@ -316,12 +317,14 @@ export function localClient(db: Db, syncOptions: LocalClientOptions = {}): Dossi
     async syncSource(source, force) {
       try {
         const options = { ...syncOptions, force };
-        return (await runSync(db, source === 'exbo' ? 'exbo_base' : source, options)) as unknown as Json;
+        return (await runExclusive(() =>
+          runSync(db, source === 'exbo' ? 'exbo_base' : source, options),
+        )) as unknown as Json;
       } catch (error) {
         if (error instanceof Error && error.message.startsWith('unknown source')) {
           throw new McpClientError('UNKNOWN_SOURCE', error.message);
         }
-        throw error;
+        return writeError(error);
       }
     },
 

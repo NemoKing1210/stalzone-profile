@@ -24,6 +24,7 @@ import {
   restoreOwnedTx,
   updateOwnedTx,
 } from '../inventory/index.js';
+import { writeSyncScheduleRow } from '../sync/index.js';
 
 export interface CleanupCounts {
   owned: { records: number; copies: number };
@@ -126,6 +127,17 @@ function restoreSnapshot(
     }
     case 'container.fill': {
       restoreContainerFillTx(db, target);
+      return;
+    }
+    case 'sync.schedule.update': {
+      if (target) {
+        writeSyncScheduleRow(db, {
+          enabled: Boolean(target.enabled),
+          catalogEveryMin: Number(target.catalogEveryMin),
+          pricesEveryMin: Number(target.pricesEveryMin),
+          profileEveryMin: Number(target.profileEveryMin),
+        });
+      }
       return;
     }
     case 'character.create': {

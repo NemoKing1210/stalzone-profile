@@ -90,7 +90,8 @@
     "NO_CHARACTER": "No character in the database — create it through the editor or the API",
     "CHARACTER_EXISTS": "A character already exists",
     "CHARACTER_NOT_EMPTY": "The character has gear; remove it before rolling back",
-    "STALZONE_API_NOT_CONFIGURED": "The STALZONE profile API is not configured"
+    "STALZONE_API_NOT_CONFIGURED": "The STALZONE profile API is not configured",
+    "SYNC_IN_PROGRESS": "A sync is already running. Try again when it finishes."
   },
   "auth": {
     "subtitle": "Personal dossier. Password sign-in.",
@@ -350,6 +351,97 @@
     "accentDefault": "Default",
     "accentReset": "Reset to game default",
     "dataSources": "Data sources",
+    "sources": {
+      "intro": "These sources fill the catalog, prices, icons and profile statistics. Auto-update runs only while the server process is on.",
+      "autoTitle": "Auto-update",
+      "autoText": "Choose how often each bundle refreshes. Off skips the bundle; the minimum interval is 15 minutes.",
+      "enabled": "Auto-update",
+      "enabledHint": "Runs in the background while the server is on.",
+      "catalog": "Catalog",
+      "prices": "Prices",
+      "profile": "Profile",
+      "intervalOff": "Off",
+      "intervalMinutes": "{count} min",
+      "intervalHours": "{count} h",
+      "save": "Save schedule",
+      "nextOff": "Off",
+      "nextDue": "Due now",
+      "nextIn": "Next in {count} min",
+      "never": "Never",
+      "updatesLabel": "Updates",
+      "origin": "Origin",
+      "lastOk": "Last success",
+      "lastTry": "Last attempt",
+      "lastError": "Last error",
+      "commit": "Snapshot",
+      "records": "Records",
+      "recordsNone": "—",
+      "syncNow": "Sync now",
+      "syncAll": "Sync all",
+      "force": "Force (ignore cache/TTL)",
+      "forceHint": "Applies to manual runs only.",
+      "running": "A sync is already running.",
+      "unavailable": "Sync unavailable",
+      "notApplicable": "Not applicable",
+      "externalCronBefore": "If the server is not always on, use external cron instead of the built-in scheduler — not both. See the ",
+      "externalCronLink": "guide",
+      "externalCronAfter": ".",
+      "kind": {
+        "reference": "Reference",
+        "market": "Market",
+        "icons": "Icons",
+        "profile": "Profile",
+        "local": "Local"
+      },
+      "status": {
+        "idle": "Idle",
+        "ok": "OK",
+        "stale": "Stale",
+        "error": "Error"
+      },
+      "reason": {
+        "profile_credentials": "Set STALZONE_CLIENT_ID and STALZONE_CLIENT_SECRET to enable profile sync.",
+        "profile_character": "Create a character to enable profile sync.",
+        "profile_region": "The profile API does not serve the global region."
+      },
+      "items": {
+        "exbo_base": {
+          "title": "EXBO database",
+          "description": "The official STALZONE database and the authority for item identity: names, kind, category, rank, slot and weight.",
+          "updates": "Item identity, stat definitions and base stats."
+        },
+        "wiki": {
+          "title": "STALZONE Wiki",
+          "description": "The community wiki for STALZONE: the numeric layers the EXBO database does not carry.",
+          "updates": "Per-level damage, armor and artifact numbers, effect labels and container fields."
+        },
+        "scpmodel": {
+          "title": "scpmodel.ru",
+          "description": "Auction analytics for the selected region: minimum lot, lot count and last trade.",
+          "updates": "Price snapshots for catalog items, refreshed at most once every 15 minutes."
+        },
+        "motifs": {
+          "title": "Skin motifs",
+          "description": "Links between skins and the items they belong to, read from the wiki.",
+          "updates": "The skin-to-item links shown on item cards."
+        },
+        "icons": {
+          "title": "Item icons",
+          "description": "Item images downloaded from the EXBO database and stored locally as PNG.",
+          "updates": "The local icon files referenced by item cards."
+        },
+        "profile": {
+          "title": "STALZONE profile",
+          "description": "Your public character statistics from the official STALZONE API. Requires API credentials.",
+          "updates": "API-owned character stats, alliance, clan and the profile snapshot time; manual overrides are kept."
+        },
+        "local": {
+          "title": "This dossier",
+          "description": "Everything you added yourself: owned gear, container fills and manual stat overrides.",
+          "updates": "Local records only; a source sync never overwrites them."
+        }
+      }
+    },
     "columns": {
       "source": "Source",
       "status": "Status",
@@ -603,7 +695,7 @@
         "summary": "Appearance, sources, data, journal and cleanup.",
         "caps": {
           "appearance": "Five accent presets stored per browser; semantic colours never change.",
-          "sources": "Source status, last success, last attempt, error text and a manual sync per source.",
+          "sources": "A reference for every source with status, freshness, counts and origin, plus a manual sync and an auto-update schedule.",
           "data": "Download the typed JSON export, see freshness and learn how backups work.",
           "journal": "Every write is listed with actor and note; each event can be rolled back.",
           "cleanup": "Clear the inventory in one journalled transaction."
@@ -736,7 +828,9 @@
       "admin": {
         "cleanupRead": "Count owned records and copies before a cleanup.",
         "cleanup": "Clear the inventory; one journal entry keeps the full snapshot.",
-        "sync": "Run a source sync; all covers catalog sources, profile stays opt-in."
+        "sync": "Run a source sync; all covers catalog sources, profile stays opt-in.",
+        "syncRead": "Read source diagnostics and the auto-update schedule.",
+        "syncSchedule": "Update the auto-update schedule; one journal entry makes it rollbackable."
       }
     },
     "mcp": {
@@ -812,8 +906,8 @@
       "optIn": "Opt-in",
       "note": "all runs the five catalog sources. profile requires STALZONE credentials and never runs implicitly. A failure marks the source stale and keeps the previous data; the UI shows the age of the last successful snapshot.",
       "updates": {
-        "exbo_base": "Items and their stats from the EXBO database snapshot.",
-        "wiki": "Artifacts, armor, weapons, containers and TTK values from stalzone.wiki.",
+        "exbo_base": "Item identity and base stats from the EXBO database snapshot.",
+        "wiki": "Per-level damage, armor and artifact numbers, effect labels and container fields from stalzone.wiki.",
         "motifs": "Skins and their base item links.",
         "scpmodel": "Auction price quotes with a 15-minute TTL.",
         "icons": "Icon files in ICONS_DIR and the icon rows that point to them.",

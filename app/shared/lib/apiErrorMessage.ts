@@ -23,6 +23,7 @@ export const API_ERROR_CODES = new Set([
   'CHARACTER_EXISTS',
   'CHARACTER_NOT_EMPTY',
   'STALZONE_API_NOT_CONFIGURED',
+  'SYNC_IN_PROGRESS',
 ]);
 
 type Translate = (key: string) => string;

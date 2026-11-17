@@ -78,7 +78,7 @@ The `dossier://schema` resource provides tool descriptions and the write rules.
 | `upsert_owned_item` | `name`, `kind`, `level`, `skin?`, `quality?`, `note?`, `role?`, `dry_run?` |
 | `remove_owned_item` | `name`, `kind`, `level?`, `dry_run?` |
 | `set_container_artifacts` | `container`, `artifacts[]`, `as_of?`, `dry_run?` |
-| `sync_source` | `source`: `exbo \| exbo_base \| wiki \| motifs \| scpmodel \| icons \| profile`, `force?`, `confirm`. Resolves `ICONS_DIR`, the realm and the STALZONE credentials the same way the CLI does |
+| `sync_source` | `source`: `exbo \| exbo_base \| wiki \| motifs \| scpmodel \| icons \| profile`, `force?`, `confirm`. Resolves `ICONS_DIR` and the STALZONE credentials the same way the CLI does. The realm is not a tool argument: like the CLI and the admin route, a sync binds the default `ru` realm |
 | `rollback_event` | `event_id`, `dry_run?` |
 | `rebuild_site` | — |
 

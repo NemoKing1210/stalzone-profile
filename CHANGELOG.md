@@ -12,6 +12,14 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 - The site has a favicon: the brand radiation trefoil in the game green on the ink tile,
   shipped as a 16/32/48 px `public/favicon.ico` and declared in the document head. It lives
   at the existing public path, so it renders on `/login` and `/setup` too.
+- `/settings?tab=sources` is now a source reference and control surface: every source has a
+  description, what it updates, its public origin, status, freshness, commit snapshot and an
+  honest record count. The tab adds an auto-update schedule (master switch plus catalog,
+  prices and profile intervals) persisted in `sync_schedule`, edited through
+  `PUT /api/v1/admin/sync` and rollbackable through the journal, and a Nitro scheduler that
+  runs only due bundles while the process is on. `GET /api/v1/admin/sync` exposes
+  diagnostics and bundle readiness; manual syncs share a process-wide single-flight lock and
+  answer `409 SYNC_IN_PROGRESS` while a run is active.
 - The first-run catalog step explains each data source: every source is a card with a short
   description, a Required or Recommended badge, a status line, an indeterminate progress bar
   while it downloads and a completed bar afterwards. A summary shows how many sources are
@@ -40,6 +48,16 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
+- Sources have one written authority: `exbo_base` owns item identity, `wiki` owns the
+  numeric layers (per-level weapon damage, armor and artifact numbers, effect labels) and
+  the container capacity, effectiveness and protection fields, which the wiki sync now
+  stores as `container.*` stats. The wiki sync fetches only the artifact, armor, container
+  and TTK endpoints, binds to the row EXBO created instead of overwriting its name, kind,
+  category and rank, is realm-aware, and creates a wiki-only row only when it carries data
+  (`docs/DATA-MODEL.md#source-authority`). Existing numbers do not move; container cards
+  gain the values they previously left empty. A stat slot owned by a higher-priority source
+  is no longer overwritten by a lower-priority one, so a displayed value does not depend on
+  which source synced last.
 - The `/changelog` page is a vertical timeline: entries that share a release date sit under
   one date node, each card reads as a single column of colour-ruled categories, items get a
   category-coloured marker, and the filter bar sticks under the header on wide screens.

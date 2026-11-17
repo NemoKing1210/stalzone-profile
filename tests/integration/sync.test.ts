@@ -63,6 +63,22 @@ const WIKI_ARTIFACT = {
   additionalStats: [],
 };
 
+const WIKI_TTK_WEAPON = {
+  exbo_id: 'w-1',
+  category: 'weapon/assault_rifle',
+  color: 'RANK_LEGEND',
+  name: { lines: { ru: 'AK-12 (wiki)', en: 'AK-12' } },
+  stats: [],
+  damageVariants: {
+    startDamageVariants: [40, 41, 55],
+    endDamageVariants: [25],
+    damageDecreaseStartVariants: [50],
+    damageDecreaseEndVariants: [300],
+    maxDistanceVariants: [500],
+  },
+  clipSize: 30,
+};
+
 let dir: string;
 let db: Db;
 
@@ -203,6 +219,212 @@ describe('wiki sync', () => {
     expect(repo.listItemEffects(db, item.id)).toEqual([
       { item_id: item.id, position: 0, label: 'Скорость', is_positive: 1 },
     ]);
+  });
+
+  it('fetches only the wiki categories that carry data', async () => {
+    const urls: string[] = [];
+    const fetchImpl = async (url: string) => {
+      urls.push(url);
+      return jsonResponse([]);
+    };
+    const snapshot = await wikiAdapter.fetch({ fetchImpl });
+
+    expect(Object.keys(snapshot).sort()).toEqual(['armor', 'artefact', 'containers', 'fetchedAt', 'ttkWeapon']);
+    expect(urls).toHaveLength(4);
+    const builds = urls.filter((url) => url.includes('builds-calculator'));
+    expect(builds).toHaveLength(3);
+    expect(builds.some((url) => url.includes('category=weapon'))).toBe(false);
+    expect(builds.some((url) => url.includes('category=attachment'))).toBe(false);
+    expect(builds.some((url) => url.includes('category=consumable'))).toBe(false);
+    expect(urls.filter((url) => url.includes('ttk-calculator'))).toHaveLength(1);
+  });
+
+  it('still binds TTK damage levels after dropping the weapon list', async () => {
+    const fetchImpl = async (url: string) => {
+      if (url.includes('ttk-calculator')) return jsonResponse([WIKI_TTK_WEAPON]);
+      if (url.includes('stalzone.wiki')) return jsonResponse([]);
+      throw new Error(`unexpected url ${url}`);
+    };
+
+    await runSync(db, 'wiki', { fetchImpl });
+
+    const item = repo.findItemByKindName(db, 'weapon', 'AK-12 (wiki)')!;
+    expect(repo.statValue(db, item.id, 'damage.start', 0)).toBe(40);
+    expect(repo.statValue(db, item.id, 'damage.start', 2)).toBe(55);
+    expect(repo.statValue(db, item.id, 'weapon.tooltip.weapon.info.clip_size')).toBe(30);
+  });
+});
+
+describe('wiki binding', () => {
+  function wikiFetch(extra: Record<string, unknown> = {}) {
+    return async (url: string) => {
+      for (const [key, body] of Object.entries(extra)) if (url.includes(key)) return jsonResponse(body);
+      if (url.includes('ttk-calculator')) return jsonResponse([WIKI_TTK_WEAPON]);
+      if (url.includes('stalzone.wiki')) return jsonResponse([]);
+      throw new Error(`unexpected url ${url}`);
+    };
+  }
+
+  it('keeps the EXBO identity and binds only wiki numbers and effects', async () => {
+    const id = seed.upsertItem(db, {
+      sourceId: 'exbo_base',
+      externalId: 'w-1',
+      name: 'АК-12',
+      nameEn: 'AK-12',
+      kind: 'weapon',
+      category: 'weapon/assault_rifle',
+      rank: 'RANK_MASTER',
+    });
+
+    await runSync(db, 'wiki', { fetchImpl: wikiFetch() });
+
+    expect(repo.getItemById(db, id)).toMatchObject({
+      name: 'АК-12',
+      kind: 'weapon',
+      category: 'weapon/assault_rifle',
+      rank: 'RANK_MASTER',
+      source_id: 'exbo_base',
+    });
+    expect(repo.statValue(db, id, 'damage.start', 0)).toBe(40);
+  });
+
+  it('creates a row only when a wiki-only record carries data', async () => {
+    const emptyArmor = {
+      exbo_id: 'a-1',
+      category: 'armor/combat',
+      name: { lines: { ru: 'Пустая броня' } },
+      stats: [],
+    };
+    const fetchImpl = async (url: string) => {
+      if (url.includes('category=armor')) return jsonResponse([emptyArmor]);
+      if (url.includes('ttk-calculator')) return jsonResponse([WIKI_TTK_WEAPON]);
+      if (url.includes('stalzone.wiki')) return jsonResponse([]);
+      throw new Error(`unexpected url ${url}`);
+    };
+
+    await runSync(db, 'wiki', { fetchImpl });
+
+    expect(repo.findItemByKindName(db, 'weapon', 'AK-12 (wiki)')).toMatchObject({
+      source_id: 'wiki',
+      external_id: 'w-1',
+    });
+    expect(repo.findItemByKindName(db, 'armor', 'Пустая броня')).toBeNull();
+  });
+
+  it('does not bind wiki numbers to a row of another kind', async () => {
+    const id = seed.upsertItem(db, {
+      sourceId: 'exbo_base',
+      externalId: 'w-1',
+      name: 'Странный предмет',
+      kind: 'other',
+      category: 'misc',
+    });
+
+    await runSync(db, 'wiki', { fetchImpl: wikiFetch() });
+
+    expect(repo.getItemById(db, id)!.kind).toBe('other');
+    expect(repo.itemStats(db, id)).toEqual([]);
+  });
+
+  it('keeps a record without exbo_id idempotent across syncs', async () => {
+    const armor = {
+      category: 'armor/combat',
+      name: { lines: { ru: 'Броня без id' } },
+      stats: [{ key: 'stalker.artefact_properties.factor.bullet_dmg_factor', numericVariants: [10, 11] }],
+    };
+    const fetchImpl = async (url: string) => {
+      if (url.includes('category=armor')) return jsonResponse([armor]);
+      if (url.includes('stalzone.wiki')) return jsonResponse([]);
+      throw new Error(`unexpected url ${url}`);
+    };
+
+    await runSync(db, 'wiki', { fetchImpl });
+    await runSync(db, 'wiki', { fetchImpl });
+
+    const rows = db.prepare(`SELECT COUNT(*) AS c FROM item WHERE name_norm = ?`).get('броня без id') as { c: number };
+    expect(rows.c).toBe(1);
+  });
+
+  it('keeps the armor card numbers after the binding', async () => {
+    const id = seed.upsertItem(db, {
+      sourceId: 'exbo_base',
+      externalId: 'a-2',
+      name: 'Броня',
+      kind: 'armor',
+      category: 'armor/combat',
+    });
+    const variants = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 30];
+    const armor = {
+      exbo_id: 'a-2',
+      category: 'armor/combat',
+      name: { lines: { ru: 'Броня' } },
+      stats: [{ key: 'stalker.artefact_properties.factor.bullet_dmg_factor', numericVariants: variants }],
+      additionalStats: [],
+    };
+    const fetchImpl = async (url: string) => {
+      if (url.includes('category=armor')) return jsonResponse([armor]);
+      if (url.includes('stalzone.wiki')) return jsonResponse([]);
+      throw new Error(`unexpected url ${url}`);
+    };
+
+    await runSync(db, 'wiki', { fetchImpl });
+
+    const card = repo.buildItemCard(db, repo.getItemById(db, id)!);
+    expect(card.curve).toEqual(variants);
+    expect(card.armor15).toBe(30);
+  });
+
+  it('stores container capacity, effectiveness and protection on the EXBO row', async () => {
+    const id = seed.upsertItem(db, {
+      sourceId: 'exbo_base',
+      externalId: 'c-1',
+      name: 'Рюкзак',
+      kind: 'container',
+      category: 'containers',
+    });
+    const container = {
+      exbo_id: 'c-1',
+      category: 'containers',
+      name: { lines: { ru: 'Рюкзак' } },
+      stats: [],
+      additionalStats: [],
+      capacity: 4,
+      effectiveness: 80,
+      protection: 0,
+    };
+    const fetchImpl = async (url: string) => {
+      if (url.includes('category=containers')) return jsonResponse([container]);
+      if (url.includes('stalzone.wiki')) return jsonResponse([]);
+      throw new Error(`unexpected url ${url}`);
+    };
+
+    await runSync(db, 'wiki', { fetchImpl });
+
+    expect(repo.getItemById(db, id)!.source_id).toBe('exbo_base');
+    expect(repo.statValue(db, id, 'container.slots')).toBe(4);
+    expect(repo.statValue(db, id, 'container.effectiveness')).toBe(80);
+    expect(repo.statValue(db, id, 'container.protection')).toBe(0);
+
+    const card = repo.buildItemCard(db, repo.getItemById(db, id)!);
+    expect(card).toMatchObject({ slots: 4, eff: 80, prot: 0, slotEq: 3.2 });
+  });
+
+  it('binds wiki numbers to the row of the requested realm', async () => {
+    const eu = seed.upsertItem(db, {
+      sourceId: 'exbo_base',
+      realm: 'eu',
+      externalId: 'w-1',
+      name: 'AK-12',
+      nameEn: 'AK-12',
+      kind: 'weapon',
+      category: 'weapon/assault_rifle',
+    });
+
+    await runSync(db, 'wiki', { fetchImpl: wikiFetch(), realm: 'eu' });
+
+    expect(repo.statValue(db, eu, 'damage.start', 0)).toBe(40);
+    expect(repo.getItemById(db, eu)!.source_id).toBe('exbo_base');
+    expect(repo.getItemByExternalId(db, 'w-1', 'ru')).toBeNull();
   });
 });
 
@@ -459,6 +681,17 @@ describe('icons sync', () => {
     });
     expect(result).toMatchObject({ source: 'icons', status: 'stale', icons: 0, failed: 1 });
     expect(repo.getIcon(db, repo.findItemByKindName(db, 'weapon', 'АК-12')!.id)).toBeNull();
+  });
+
+  it('marks the icons source stale when every download fails', async () => {
+    const fetchImpl = exboFetch(async () => new Response('no', { status: 404 }));
+    await runSync(db, 'exbo_base', { fetchImpl, cacheDir: cacheDir() });
+
+    await runSync(db, 'icons', { fetchImpl, cacheDir: cacheDir(), iconsDir: path.join(dir, 'icons') });
+
+    const row = repo.listSources(db).find((source) => source.id === 'icons')!;
+    expect(row.status).toBe('stale');
+    expect(row.last_error).toContain('every icon download failed');
   });
 });
 

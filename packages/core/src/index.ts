@@ -102,6 +102,12 @@ export * from './modules/sync/service/normalize.js';
 export * from './modules/sync/service/profile.js';
 export * from './modules/sync/service/read.js';
 export * from './modules/sync/service/sync.js';
+export * from './modules/sync/service/schedule.js';
+export * from './modules/sync/service/diagnostics.js';
+export * from './modules/sync/service/lock.js';
+export * from './modules/sync/write.js';
+export type { ScheduleRow } from './modules/sync/repo/schedule.js';
+export { DEFAULT_SYNC_VALUES, getScheduleRow, readSyncSchedule } from './modules/sync/repo/schedule.js';
 export type { SourceId, SourceOkMeta, SourceRow, SourceStatus } from './modules/sync/repo/sources.js';
 export { ensureDefaultSources, getSource, listSources, SOURCE_IDS } from './modules/sync/repo/sources.js';
 

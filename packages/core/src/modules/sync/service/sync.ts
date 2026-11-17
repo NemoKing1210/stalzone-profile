@@ -16,9 +16,11 @@ import type { Db } from '../../../platform/db/index.js';
 import * as repo from '../../catalog/index.js';
 import * as identity from '../../identity/index.js';
 import * as sourceRepo from '../repo/sources.js';
+import { readSyncSchedule } from '../repo/schedule.js';
 import { ensureDir } from '../../../platform/config.js';
 import { exboStats, localExboId, remoteIcon, ttkStats, wikiEffects, wikiStats } from './normalize.js';
 import { mapProfileStats } from './profile.js';
+import { SYNC_BUNDLES, dueSyncBundles, syncBundleStates } from './schedule.js';
 
 type Json = Record<string, any>;
 
@@ -71,12 +73,39 @@ export function pricesAgeMin(db: Db, now = Date.now()): number {
   return Math.max(0, Math.round((now - time) / 60_000));
 }
 
+export async function runSyncSequence(
+  db: Db,
+  sources: readonly SyncSource[],
+  options: SyncOptions = {},
+): Promise<SyncResult[]> {
+  const results: SyncResult[] = [];
+  for (const source of sources) results.push(await runSync(db, source, options));
+  return results;
+}
+
 export function runSyncAll(db: Db, options: SyncOptions = {}): Promise<SyncResult[]> {
-  return CATALOG_SOURCES.reduce<Promise<SyncResult[]>>(async (previous, source) => {
-    const results = await previous;
-    results.push(await runSync(db, source, options));
-    return results;
-  }, Promise.resolve([]));
+  return runSyncSequence(db, CATALOG_SOURCES, options);
+}
+
+/**
+ * Runs only due, ready bundles in a stable order. Callers own the single-flight lock;
+ * source failures are already converted to `stale` by `runSync`, so this never throws
+ * for a failed source.
+ */
+export async function runDueBundles(db: Db, options: SyncOptions = {}, now = Date.now()): Promise<SyncResult[]> {
+  const schedule = readSyncSchedule(db);
+  const character = identity.getCharacter(db);
+  const runtime = {
+    profileApiConfigured: Boolean(options.profileApi?.clientId && options.profileApi?.clientSecret),
+    hasCharacter: character !== null,
+    characterRegion: character?.region ?? null,
+  };
+  const states = syncBundleStates(schedule, sourceRepo.listSources(db), runtime, now);
+  const results: SyncResult[] = [];
+  for (const id of dueSyncBundles(states, now)) {
+    results.push(...(await runSyncSequence(db, SYNC_BUNDLES[id], options)));
+  }
+  return results;
 }
 
 /* ------------------------------- helpers ------------------------------- */
@@ -136,25 +165,43 @@ function resolveMotifBase(db: Db, row: MotifRow): number | null {
   return null;
 }
 
-function upsertWikiRecord(
+/**
+ * Binds wiki numbers to the item EXBO created. EXBO owns identity, so an existing
+ * row keeps its name, kind, category, rank and source; wiki only replaces its own
+ * stats and the item's effect labels. A row that exists only in wiki is created
+ * when the record carries data for it, and skipped when it does not.
+ */
+function bindWikiRecord(
   db: Db,
   record: Json,
   kind: string,
   stats: ReturnType<typeof wikiStats>,
+  realm: string,
 ): boolean {
   const name = record?.name?.lines?.ru;
   if (!name) return false;
+  const externalId = record.exbo_id ?? localExboId(kind, name);
+  const effects = wikiEffects(record);
+  const existing = repo.getItemByExternalId(db, externalId, realm);
+  if (existing) {
+    if (existing.kind !== kind) return false;
+    repo.replaceItemStats(db, existing.id, stats, 'wiki');
+    repo.replaceItemEffects(db, existing.id, effects);
+    return true;
+  }
+  if (stats.length === 0 && effects.length === 0) return false;
   const itemId = repo.upsertItem(db, {
     sourceId: 'wiki',
-    externalId: record.exbo_id ?? localExboId(kind, name),
+    realm,
+    externalId,
     name,
     nameEn: record?.name?.lines?.en ?? null,
     kind,
-    category: record.category ?? null,
-    rank: record.color ?? null,
+    category: record?.category ?? null,
+    rank: record?.color ?? null,
   });
   repo.replaceItemStats(db, itemId, stats, 'wiki');
-  repo.replaceItemEffects(db, itemId, wikiEffects(record));
+  repo.replaceItemEffects(db, itemId, effects);
   return true;
 }
 
@@ -222,23 +269,21 @@ function syncExbo(db: Db, options: SyncOptions): Promise<SyncResult> {
 
 async function syncWiki(db: Db, options: SyncOptions): Promise<SyncResult> {
   const snapshot = await wikiAdapter.fetch({ fetchImpl: options.fetchImpl });
+  const realm = options.realm ?? 'ru';
   let items = 0;
   db.transaction(() => {
     const groups: [string, Json[]][] = [
-      ['weapon', snapshot.weapon],
       ['armor', snapshot.armor],
       ['artifact', snapshot.artefact],
       ['container', snapshot.containers],
-      ['attachment', snapshot.attachment],
-      ['other', snapshot.consumable],
     ];
     for (const [kind, list] of groups) {
       for (const record of list) {
-        if (upsertWikiRecord(db, record, kind, wikiStats(record, {}))) items++;
+        if (bindWikiRecord(db, record, kind, wikiStats(record, {}), realm)) items++;
       }
     }
     for (const record of snapshot.ttkWeapon) {
-      if (upsertWikiRecord(db, record, 'weapon', ttkStats(record))) items++;
+      if (bindWikiRecord(db, record, 'weapon', ttkStats(record), realm)) items++;
     }
   })();
   return { source: 'wiki', status: 'ok', items, fetchedAt: snapshot.fetchedAt };
@@ -484,7 +529,10 @@ export async function runSync(db: Db, source: string, options: SyncOptions = {})
         result = await syncProfile(db, options);
         break;
     }
-    if (result.fetchedAt) sourceRepo.markSourceOk(db, normalized, { at: result.fetchedAt });
+    // A source can return `stale` with a timestamp (e.g. icons where every download
+    // failed); freshness must follow the status, not the presence of `fetchedAt`.
+    if (result.status === 'stale') sourceRepo.markSourceStale(db, normalized, result.error ?? null);
+    else if (result.fetchedAt) sourceRepo.markSourceOk(db, normalized, { at: result.fetchedAt });
     return result;
   } catch (error) {
     const message = sourceError(error);

@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import * as core from '@dossier/core';
 import * as inventory from '@dossier/core/modules/inventory';
 
 describe('inventory public API', () => {
@@ -13,5 +14,12 @@ describe('inventory public API', () => {
     const source = fs.readFileSync(path.join(process.cwd(), 'packages/mcp/src/client.ts'), 'utf8');
     expect(source).not.toContain('@dossier/core/repo');
     expect(source).not.toContain('@dossier/core/db');
+  });
+});
+
+describe('sync schedule public API', () => {
+  it('exposes the schedule read but not the raw mutator on the facade', () => {
+    expect(typeof core.readSyncSchedule).toBe('function');
+    expect(Object.keys(core)).not.toContain('writeSyncScheduleRow');
   });
 });
