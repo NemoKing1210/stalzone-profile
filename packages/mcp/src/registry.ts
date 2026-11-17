@@ -87,19 +87,8 @@ const DeleteBuildInputSchema = z.object({
   confirm: z.boolean().default(false),
 });
 
-const ContentBlockInputSchema = z.object({
-  kind: z.enum(['recs', 'earnings', 'builds_meta', 'catalog_meta']),
-  slug: z.string().max(200).nullish(),
-  title: z.string().max(200).nullish(),
-  lead: z.string().max(2000).nullish(),
-  payload: z.unknown(),
-  position: z.number().int().nonnegative().default(0),
-  dry_run: z.boolean().default(true),
-  confirm: z.boolean().default(false),
-});
-
 const SyncSourceInputSchema = z.object({
-  source: z.enum(['exbo', 'wiki', 'motifs', 'profile', 'scpmodel']),
+  source: z.enum(['exbo', 'wiki', 'motifs', 'scpmodel']),
   force: z.boolean().default(false),
   confirm: z.boolean().default(false),
 });
@@ -114,16 +103,16 @@ const RollbackInputSchema = z.object({
 export const READ_TOOLS: { name: string; args: Record<string, unknown> }[] = [
   { name: 'get_character', args: {} },
   { name: 'find_items', args: { q: 'АК', limit: 3 } },
-  { name: 'get_item', args: { name: 'KS-1' } },
-  { name: 'compare_items', args: { a: 'АК-12', b: 'HK416', level: 15 } },
+  { name: 'get_item', args: { name: 'АК-12' } },
+  { name: 'compare_items', args: { a: 'АК-12', b: 'KS-1', level: 15 } },
   { name: 'list_owned', args: {} },
   { name: 'list_containers', args: {} },
   { name: 'list_builds', args: {} },
-  { name: 'get_build', args: { slug: 'max-1m' } },
+  { name: 'get_build', args: { slug: 'speed' } },
   { name: 'plan_artifact_build', args: { preset: 'speed', slots: 3 } },
-  { name: 'get_prices', args: { names: ['KS-1'] } },
+  { name: 'get_prices', args: { names: ['АК-12'] } },
   { name: 'sources_status', args: {} },
-  { name: 'export_legacy_json', args: {} },
+  { name: 'export_dossier_json', args: {} },
 ];
 
 /** Loose zod shape of every read tool result, so the smoke fails loudly on malformed output. */
@@ -131,11 +120,15 @@ export const READ_OUTPUT_SCHEMAS: Record<string, z.ZodTypeAny> = {
   get_character: z.object({ character: z.record(z.string(), z.unknown()).nullable() }),
   find_items: z.object({ items: z.array(z.record(z.string(), z.unknown())) }),
   get_item: z.object({
-    item: z.object({
-      name: z.string(),
-      stats: z.array(z.record(z.string(), z.unknown())),
-      icon: z.string().nullable(),
-    }),
+    item: z
+      .object({
+        name: z.string(),
+        stats: z.array(z.record(z.string(), z.unknown())),
+        effects: z.array(z.record(z.string(), z.unknown())),
+        icon: z.string().nullable(),
+        card: z.record(z.string(), z.unknown()),
+      })
+      .loose(),
   }),
   compare_items: z.object({ items: z.array(z.object({ found: z.boolean() }).loose()) }),
   list_owned: z.object({ items: z.array(z.record(z.string(), z.unknown())) }),
@@ -151,13 +144,13 @@ export const READ_OUTPUT_SCHEMAS: Record<string, z.ZodTypeAny> = {
   sources_status: z.object({
     sources: z.array(z.object({ id: z.string(), status: z.string() }).loose()),
   }),
-  export_legacy_json: z.object({ dossier: z.record(z.string(), z.unknown()) }),
+  export_dossier_json: z.object({ dossier: z.record(z.string(), z.unknown()) }),
 };
 
 const TOOL_DOCS: Record<string, string> = {
     get_character: 'Character profile and stats from the dossier',
     find_items: 'Search catalog items by name, kind, rank and slot',
-    get_item: 'Item card: stats, icon and the raw legacy card',
+    get_item: 'Item card: typed stats, effects, icon and the derived detail card',
     compare_items: 'Compare two weapons by DPS and TTK at a refinement level',
     list_owned: 'Items owned by the character',
     list_containers: 'Containers with their current fill',
@@ -166,13 +159,12 @@ const TOOL_DOCS: Record<string, string> = {
     plan_artifact_build: 'Pick artifacts for an effect preset, slots and budget',
     get_prices: 'Latest auction prices by item name',
     sources_status: 'Data source state and freshness',
-    export_legacy_json: 'Export the dossier in the original legacy JSON format',
+    export_dossier_json: 'Export the dossier as portable JSON',
     upsert_owned_item: 'Add or update a character item (dry_run by default)',
     remove_owned_item: 'Remove one copy of an item (dry_run by default)',
     set_container_artifacts: 'Replace a container fill (dry_run by default)',
     save_build: 'Create or update a build (dry_run by default)',
     delete_build: 'Delete a build (dry_run by default)',
-    upsert_content_block: 'Write a recommendations or earnings block (dry_run by default)',
     sync_source: 'Run a source sync; requires confirm',
     rebuild_site: 'Site rebuild happens on deploy; MCP only reports the command',
     rollback_event: 'Roll back a journal event (dry_run by default)',
@@ -363,11 +355,11 @@ export function createDossierServer(
   );
 
   server.registerTool(
-    'export_legacy_json',
-    { description: TOOL_DOCS.export_legacy_json, inputSchema: z.object({}) },
+    'export_dossier_json',
+    { description: TOOL_DOCS.export_dossier_json, inputSchema: z.object({}) },
     async () => {
       try {
-        return ok({ dossier: await client.exportLegacyJson() });
+        return ok({ dossier: await client.exportDossierJson() });
       } catch (error) {
         return errorResult(error);
       }
@@ -497,32 +489,6 @@ export function createDossierServer(
   );
 
   server.registerTool(
-    'upsert_content_block',
-    { description: TOOL_DOCS.upsert_content_block, inputSchema: ContentBlockInputSchema },
-    async (args) => {
-      const dryRun = args.dry_run ?? true;
-      const gate = confirmation(dryRun, args.confirm ?? false);
-      if (gate) return gate;
-      if (!dryRun && !limiter.take()) return fail('RATE_LIMITED', 'No more than 30 writes per minute');
-      try {
-        return ok(
-          await client.upsertContentBlock({
-            kind: args.kind,
-            slug: args.slug,
-            title: args.title,
-            lead: args.lead,
-            payload: args.payload,
-            position: args.position,
-            dryRun,
-          }),
-        );
-      } catch (error) {
-        return errorResult(error);
-      }
-    },
-  );
-
-  server.registerTool(
     'sync_source',
     { description: TOOL_DOCS.sync_source, inputSchema: SyncSourceInputSchema },
     async (args) => {
@@ -587,7 +553,7 @@ export function createDossierServer(
                 apply: 'dry_run=false + confirm=true',
                 rateLimit: '30 writes per minute',
               },
-              legacyExport: 'export_legacy_json returns the original dossier JSON shape',
+              export: 'export_dossier_json returns the portable dossier JSON shape',
             },
             null,
             2,

@@ -4,12 +4,12 @@ import { norm } from '@dossier/shared';
 import type { Db } from '@dossier/core/db';
 import * as repo from '@dossier/core/repo';
 import { artifactSources, buildPayload, compareWeapons } from '@dossier/core/services/payload';
-import { exportLegacyJson } from '@dossier/core/services/export';
+import { buildItemCard } from '@dossier/core/services/catalog-view';
+import { exportDossierJson } from '@dossier/core/services/export';
 import {
   createOwned,
   deleteBuild as removeBuild,
   deleteOwned,
-  putContentBlock,
   rollbackEvent as restoreEvent,
   saveBuild as persistBuild,
   setContainerFill,
@@ -84,16 +84,6 @@ export interface BuildWriteInput {
   dryRun: boolean;
 }
 
-export interface ContentWriteInput {
-  kind: 'recs' | 'earnings' | 'builds_meta' | 'catalog_meta';
-  slug?: string | null;
-  title?: string | null;
-  lead?: string | null;
-  payload: unknown;
-  position?: number;
-  dryRun: boolean;
-}
-
 /** Everything the MCP tools need from a dossier, whether it lives in this process or behind HTTP. */
 export interface DossierClient {
   getCharacter(): Promise<Json>;
@@ -113,66 +103,26 @@ export interface DossierClient {
   planArtifactBuild(input: PlanInput): Promise<Json>;
   getPrices(names: string[], quality?: string | null): Promise<Json>;
   sourcesStatus(): Promise<Json[]>;
-  exportLegacyJson(): Promise<Json>;
+  exportDossierJson(): Promise<Json>;
   upsertOwnedItem(input: OwnedWriteInput): Promise<WriteResult>;
   removeOwnedItem(input: RemoveOwnedInput): Promise<WriteResult>;
   setContainerArtifacts(input: ContainerFillInput): Promise<WriteResult>;
   saveBuild(input: BuildWriteInput): Promise<WriteResult>;
   deleteBuild(slug: string, dryRun: boolean): Promise<WriteResult>;
-  upsertContentBlock(input: ContentWriteInput): Promise<WriteResult>;
   syncSource(source: string, force: boolean): Promise<Json>;
   rebuildSite(): Promise<Json>;
   rollbackEvent(eventId: number, dryRun: boolean): Promise<WriteResult>;
   close?(): Promise<void>;
 }
 
-function parseJson(value: string | null | undefined): unknown {
-  if (value == null) return null;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return value;
-  }
+function iconOf(db: Db, item: repo.ItemRow): string | null {
+  return repo.getIcon(db, item.id)?.path ?? null;
 }
 
-const DETAIL_PREFIX: Record<string, string> = {
-  weapon: 'w',
-  armor: 'a',
-  artifact: 'art',
-  container: 'c',
-};
-
-function detailsCard(db: Db, item: repo.ItemRow): unknown {
-  const prefix = DETAIL_PREFIX[item.kind];
-  if (prefix) {
-    const exact = repo.getDetailsCard(db, `${prefix}:${item.name}`);
-    if (exact) return parseJson(exact.data) ?? {};
-  }
-  const match = repo.listDetailsCards(db).find((card) => norm(card.name) === norm(item.name));
-  return match ? (parseJson(match.data) ?? {}) : null;
-}
-
-function rawOf(item: repo.ItemRow): Json {
-  return (parseJson(item.raw) ?? {}) as Json;
-}
-
-function iconOf(item: repo.ItemRow): string | null {
-  const raw = rawOf(item);
-  const catalog = raw.catalog as Json | undefined;
-  const details = raw.details as Json | undefined;
-  return (
-    item.icon_path ??
-    (catalog?.icon as string | undefined) ??
-    (details?.icon as string | undefined) ??
-    (raw.icon as string | undefined) ??
-    null
-  );
-}
-
-function itemSummary(item: repo.ItemRow): Json {
+function itemSummary(db: Db, item: repo.ItemRow): Json {
   return {
     id: item.id,
-    exboId: item.exbo_id,
+    externalId: item.external_id,
     name: item.name,
     nameEn: item.name_en,
     kind: item.kind,
@@ -180,27 +130,38 @@ function itemSummary(item: repo.ItemRow): Json {
     rank: item.rank,
     slot: item.slot,
     weight: item.weight,
-    quality: item.quality,
     cosmetic: !!item.is_cosmetic,
-    icon: iconOf(item),
+    icon: iconOf(db, item),
   };
 }
 
-function ownedJson(row: repo.OwnedJoined): Json {
+function ownedJson(db: Db, row: repo.OwnedJoined): Json {
+  const container = repo.getOwnedContainer(db, row.id);
   return {
     ownedId: row.id,
     itemId: row.item_id,
     name: row.display_name ?? row.item_name,
+    externalId: row.external_id,
     kind: row.kind,
     level: row.level,
     quality: row.quality,
     skinItemId: row.skin_item_id,
+    skinName: row.skin_name,
     qty: row.qty,
     note: row.note,
     role: row.role,
     slot: row.slot,
     icon: row.item_icon,
-    extra: parseJson(row.extra),
+    container: container
+      ? {
+          type: container.container_type,
+          shield: container.shield,
+          bonus: container.bonus,
+          protection: container.protection,
+          slots: container.slots,
+          eff: container.eff,
+        }
+      : null,
   };
 }
 
@@ -239,30 +200,8 @@ function writeError(error: unknown): never {
 export function localClient(db: Db): DossierClient {
   return {
     async getCharacter() {
-      const character = repo.getCharacter(db);
-      const meta = repo.getMeta<Json>(db, 'meta') ?? {};
-      if (!character) return { character: null, meta };
-      return {
-        character: {
-          nick: character.nick,
-          realm: character.realm,
-          faction: character.faction,
-          alliance: character.alliance,
-          clan: character.clan,
-          arrived: character.arrived,
-          hours: character.hours,
-          kd: character.kd,
-          accuracy: character.accuracy,
-          headshot: character.headshot,
-          achievements: character.achievements,
-          achievementPoints: character.achievement_points,
-          money: character.money,
-          maxMoney: character.max_money,
-          stash: character.stash,
-          playstyle: character.playstyle,
-        },
-        meta,
-      };
+      const payload = buildPayload(db);
+      return { character: payload.character, meta: payload.meta };
     },
 
     async findItems(query) {
@@ -274,7 +213,7 @@ export function localClient(db: Db): DossierClient {
           slot: query.slot ?? null,
           limit: query.limit ?? 20,
         })
-        .map(itemSummary);
+        .map((item) => itemSummary(db, item));
     },
 
     async getItem(query) {
@@ -284,14 +223,18 @@ export function localClient(db: Db): DossierClient {
         const kind = query.kind ?? 'weapon';
         item =
           repo.findItemByKindName(db, kind, query.name) ??
-          repo.searchItems(db, { q: query.name, kind, limit: 1 })[0] ??
+          repo.findItemByKindName(db, 'armor', query.name) ??
+          repo.findItemByKindName(db, 'container', query.name) ??
+          repo.findItemByKindName(db, 'artifact', query.name) ??
+          repo.searchItems(db, { q: query.name, limit: 1 })[0] ??
           null;
       }
       if (!item) return null;
       return {
-        ...itemSummary(item),
+        ...itemSummary(db, item),
         stats: repo.itemStats(db, item.id),
-        card: detailsCard(db, item),
+        effects: repo.listItemEffects(db, item.id),
+        card: buildItemCard(db, item),
       };
     },
 
@@ -302,7 +245,7 @@ export function localClient(db: Db): DossierClient {
     async listOwned(kind) {
       const character = repo.getCharacter(db);
       if (!character) return [];
-      return repo.listOwned(db, character.id, kind ?? undefined).map(ownedJson);
+      return repo.listOwned(db, character.id, kind ?? undefined).map((row) => ownedJson(db, row));
     },
 
     async listContainers() {
@@ -322,7 +265,7 @@ export function localClient(db: Db): DossierClient {
 
     async planArtifactBuild(input) {
       const artifacts = artifactSources(db) as Parameters<typeof planArtifactBuild>[1]['artifacts'];
-      const latest = repo.latestPriceSnapshotAt(db);
+      const latest = repo.latestPriceFetchedAt(db);
       const age = latest ? Math.max(0, Math.round((Date.now() - new Date(latest).getTime()) / 60000)) : 0;
       return planArtifactBuild(input, {
         artifacts,
@@ -355,8 +298,8 @@ export function localClient(db: Db): DossierClient {
       }));
     },
 
-    async exportLegacyJson() {
-      return exportLegacyJson(db) as Json;
+    async exportDossierJson() {
+      return exportDossierJson(db) as Json;
     },
 
     async upsertOwnedItem(input) {
@@ -441,22 +384,6 @@ export function localClient(db: Db): DossierClient {
     async deleteBuild(slug, dryRun) {
       try {
         return removeBuild(db, slug, dryRun);
-      } catch (error) {
-        return writeError(error);
-      }
-    },
-
-    async upsertContentBlock(input) {
-      try {
-        return putContentBlock(db, {
-          kind: input.kind,
-          slug: input.slug ?? null,
-          title: input.title ?? null,
-          lead: input.lead ?? null,
-          payload: input.payload,
-          position: input.position ?? 0,
-          dryRun: input.dryRun,
-        });
       } catch (error) {
         return writeError(error);
       }
@@ -583,8 +510,8 @@ export function httpClient(baseUrl: string, token: string): DossierClient {
     async sourcesStatus() {
       return (await call('sources_status')).sources as Json[];
     },
-    async exportLegacyJson() {
-      return (await call('export_legacy_json')).dossier as Json;
+    async exportDossierJson() {
+      return (await call('export_dossier_json')).dossier as Json;
     },
     async upsertOwnedItem(input) {
       return (await call('upsert_owned_item', toSnakeWrite(input))) as unknown as WriteResult;
@@ -600,9 +527,6 @@ export function httpClient(baseUrl: string, token: string): DossierClient {
     },
     async deleteBuild(slug, dryRun) {
       return (await call('delete_build', { slug, dry_run: dryRun })) as unknown as WriteResult;
-    },
-    async upsertContentBlock(input) {
-      return (await call('upsert_content_block', toSnakeWrite(input))) as unknown as WriteResult;
     },
     async syncSource(source, force) {
       return (await call('sync_source', { source, force, confirm: true })).result as Json;

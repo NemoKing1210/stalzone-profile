@@ -139,7 +139,7 @@ describe('createOwned', () => {
         container: { containerType: 'Рюкзак', slots: 4, eff: 80, protection: 10 },
       }),
     );
-    expect(repo.getOwnedContainer(db, Number(result.diff.after.id))).toMatchObject({
+    expect(repo.getOwnedContainer(db, Number((result.diff.after as { id: number }).id))).toMatchObject({
       container_type: 'Рюкзак',
       slots: 4,
       eff: 80,
@@ -296,7 +296,7 @@ describe('setContainerFill', () => {
         container: { slots: 4, eff: 80, protection: 10 },
       }),
     );
-    const ownedId = Number(container.diff.after.id);
+    const ownedId = Number((container.diff.after as { id: number }).id);
     const fill = setContainerFill(
       db,
       ownedId,

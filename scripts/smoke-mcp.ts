@@ -1,6 +1,7 @@
-import { loadConfig } from '@dossier/core/config';
-import { openDb } from '@dossier/core/db';
-import { migrate } from '@dossier/core/db/migrate';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { closeDb, migrate, openDb } from '@dossier/core';
 import {
   READ_OUTPUT_SCHEMAS,
   READ_TOOLS,
@@ -8,10 +9,15 @@ import {
   createDossierServer,
   localClient,
 } from '@dossier/mcp';
+import { seedCatalog } from '../tests/fixtures/seed';
 
-const cfg = loadConfig();
-const db = openDb(cfg.dbPath);
-migrate(db, cfg.migrationsDir);
+const external = process.env.SMOKE_DB_PATH;
+const dir = external ? null : fs.mkdtempSync(path.join(os.tmpdir(), 'dossier-smoke-'));
+const dbPath = external ?? path.join(dir!, 'smoke.db');
+
+const db = openDb(dbPath);
+migrate(db, path.join(process.cwd(), 'db', 'migrations'));
+if (!external) seedCatalog(db);
 
 const server = createDossierServer(localClient(db));
 const client = await connectInMemory(server);
@@ -37,6 +43,8 @@ try {
 } finally {
   await client.close();
   await server.close();
+  closeDb(dbPath);
+  if (dir) fs.rmSync(dir, { recursive: true, force: true });
 }
 
 if (failures) {
@@ -44,4 +52,4 @@ if (failures) {
   process.exit(1);
 }
 
-console.log(`\nAll ${READ_TOOLS.length} read tools returned valid output from ${cfg.dbPath}`);
+console.log(`\nAll ${READ_TOOLS.length} read tools returned valid output from ${external ? dbPath : 'a seeded temporary database'}`);
