@@ -6,7 +6,7 @@ const error = ref<string | null>(null);
 const { t } = useI18n();
 const { message: apiMessage } = useApiError();
 
-useHead(() => ({ title: `${t('auth.pageTitle')} — ${t('common.appName')}` }));
+useHead(() => ({ title: `${t('auth.pageTitle')} // ${t('common.appName')}` }));
 
 function nextPath(): string {
   const raw = route.query.next;

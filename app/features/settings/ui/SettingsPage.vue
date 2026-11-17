@@ -4,7 +4,7 @@ import { DEFAULT_ACCENT } from '~/shared/lib/accents';
 
 const { t } = useI18n();
 const { message: apiMessage } = useApiError();
-useHead(() => ({ title: `${t('settings.pageTitle')} — ${t('common.appName')}` }));
+useHead(() => ({ title: `${t('settings.pageTitle')} // ${t('common.appName')}` }));
 
 const { payload, meta, refresh } = useDossier();
 const { formatAge, formatDate } = useFormat();

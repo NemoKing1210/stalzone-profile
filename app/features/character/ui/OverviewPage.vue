@@ -6,7 +6,7 @@ import { factionLabel } from '~/shared/lib/factions';
 import EditCharacterModal from './EditCharacterModal.vue';
 
 const { t } = useI18n();
-useHead(() => ({ title: `${t('overview.pageTitle')} — ${t('common.appName')}` }));
+useHead(() => ({ title: `${t('overview.pageTitle')} // ${t('common.appName')}` }));
 
 const { payload, meta } = useDossier();
 const { fmtMoney, dec, num, formatDate, formatAge } = useFormat();

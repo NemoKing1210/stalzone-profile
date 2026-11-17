@@ -17,7 +17,7 @@ import {
 } from '../model/guide';
 
 const { t } = useI18n();
-useHead(() => ({ title: `${t('guide.title')} — ${t('common.appName')}` }));
+useHead(() => ({ title: `${t('guide.title')} // ${t('common.appName')}` }));
 
 const { payload } = useDossier();
 const { formatDate, num } = useFormat();

@@ -39,7 +39,7 @@ const { t } = useI18n();
 const { write } = useWrite();
 const { message: apiMessage } = useApiError();
 
-useHead(() => ({ title: `${t('setup.pageTitle')} — ${t('common.appName')}` }));
+useHead(() => ({ title: `${t('setup.pageTitle')} // ${t('common.appName')}` }));
 
 const { data: setup, refresh: refreshSetup } = await useFetch<SetupResponse>('/api/v1/setup', {
   key: 'setup-state',

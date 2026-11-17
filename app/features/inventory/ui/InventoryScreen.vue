@@ -27,7 +27,7 @@ const props = defineProps<{ kind: InventoryKind<TRow> }>();
 const { t } = useI18n();
 const { payload } = useDossier();
 const { g1, g2, num } = useFormat();
-useHead(() => ({ title: `${t(props.kind.labels.pageTitle)} — ${t('common.appName')}` }));
+useHead(() => ({ title: `${t(props.kind.labels.pageTitle)} // ${t('common.appName')}` }));
 
 const ui = computed(() => INVENTORY_UI[props.kind.key]);
 

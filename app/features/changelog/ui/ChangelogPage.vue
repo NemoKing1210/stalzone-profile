@@ -5,7 +5,7 @@ import type { CategoryKind, ChangelogEntry } from '../model/parse';
 import ChangelogInline from './ChangelogInline.vue';
 
 const { t, locale } = useI18n();
-useHead(() => ({ title: `${t('changelog.title')} — ${t('common.appName')}` }));
+useHead(() => ({ title: `${t('changelog.title')} // ${t('common.appName')}` }));
 
 const query = ref('');
 const activeKinds = ref<CategoryKind[]>([]);
