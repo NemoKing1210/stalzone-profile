@@ -1,11 +1,12 @@
 import { norm } from '@dossier/shared';
 import type { Db } from '../db/index.js';
+import { ensureStatDefinition } from './stats.js';
 
 export interface ItemRow {
   id: number;
   source_id: string;
-  exbo_id: string;
   realm: string;
+  external_id: string;
   name: string;
   name_norm: string;
   name_en: string | null;
@@ -15,17 +16,15 @@ export interface ItemRow {
   rank: string | null;
   slot: string | null;
   weight: number | null;
-  quality: string | null;
   is_cosmetic: number;
   base_item_id: number | null;
-  icon_path: string | null;
-  raw: string;
+  created_at: string;
   updated_at: string;
 }
 
 export interface ItemInput {
   sourceId?: string;
-  exboId: string;
+  externalId: string;
   realm?: string;
   name: string;
   nameEn?: string | null;
@@ -34,11 +33,23 @@ export interface ItemInput {
   rank?: string | null;
   slot?: string | null;
   weight?: number | null;
-  quality?: string | null;
   isCosmetic?: boolean;
   baseItemId?: number | null;
-  iconPath?: string | null;
-  raw?: Record<string, unknown>;
+}
+
+export interface ItemStatRow {
+  item_id: number;
+  stat_id: string;
+  label: string | null;
+  level: number;
+  value_num: number | null;
+  value_min: number | null;
+  value_max: number | null;
+  value_text: string | null;
+  pct: number;
+  is_positive: number | null;
+  is_additional: number;
+  source_id: string | null;
 }
 
 export interface StatInput {
@@ -74,96 +85,102 @@ export function isCosmeticCategory(category: string | null | undefined, nameKey?
   return cat === 'other' && /(motif|style)/i.test(key);
 }
 
-export function rawOf(row: Pick<ItemRow, 'raw'>): Record<string, any> {
-  try {
-    return JSON.parse(row.raw) as Record<string, any>;
-  } catch {
-    return {};
-  }
+/**
+ * Temporary compatibility shim: the legacy payload still calls `rawOf` until
+ * Task 6 rewrites it. It always returns an empty object because `item.raw` is gone.
+ */
+export function rawOf(_row: { raw?: string }): Record<string, unknown> {
+  return {};
 }
 
 export function upsertItem(db: Db, input: ItemInput): number {
   const realm = input.realm ?? 'ru';
   const sourceId = input.sourceId ?? 'local';
-  const existing = db
-    .prepare(`SELECT id, raw FROM item WHERE realm = ? AND exbo_id = ?`)
-    .get(realm, input.exboId) as { id: number; raw: string } | undefined;
+  const existing = db.prepare(`SELECT id FROM item WHERE realm = ? AND external_id = ?`).get(realm, input.externalId) as
+    | { id: number }
+    | undefined;
 
-  let mergedRaw: Record<string, unknown> = {};
-  if (existing) {
-    try {
-      mergedRaw = JSON.parse(existing.raw) as Record<string, unknown>;
-    } catch {
-      mergedRaw = {};
-    }
-  }
-  mergedRaw = { ...mergedRaw, ...(input.raw ?? {}) };
-
-  const kind = input.kind ?? kindFromCategory(input.category, String(input.raw?.nameKey ?? ''));
+  const kind = input.kind ?? (input.category ? kindFromCategory(input.category) : null);
   const now = new Date().toISOString();
   const values = {
     source_id: sourceId,
-    exbo_id: input.exboId,
     realm,
+    external_id: input.externalId,
     name: input.name,
     name_norm: norm(input.name),
     name_en: input.nameEn ?? null,
-    name_en_norm: norm(input.nameEn ?? ''),
+    name_en_norm: input.nameEn == null ? '' : norm(input.nameEn),
     kind,
     category: input.category ?? null,
     rank: input.rank ?? null,
     slot: input.slot ?? null,
     weight: input.weight ?? null,
-    quality: input.quality ?? null,
-    is_cosmetic: input.isCosmetic ? 1 : 0,
+    is_cosmetic: input.isCosmetic == null ? null : input.isCosmetic ? 1 : 0,
     base_item_id: input.baseItemId ?? null,
-    icon_path: input.iconPath ?? null,
-    raw: JSON.stringify(mergedRaw),
-    updated_at: now,
   };
 
   if (existing) {
     db.prepare(
       `UPDATE item SET
-        source_id = @source_id, name = @name, name_norm = @name_norm, name_en = COALESCE(@name_en, name_en),
+        source_id = @source_id,
+        name = @name, name_norm = @name_norm,
+        name_en = COALESCE(@name_en, name_en),
         name_en_norm = CASE WHEN @name_en IS NULL THEN name_en_norm ELSE @name_en_norm END,
-        kind = @kind,
+        kind = COALESCE(@kind, kind),
         category = COALESCE(@category, category),
         rank = COALESCE(@rank, rank),
         slot = COALESCE(@slot, slot),
         weight = COALESCE(@weight, weight),
-        quality = COALESCE(@quality, quality),
-        is_cosmetic = @is_cosmetic,
+        is_cosmetic = CASE WHEN @is_cosmetic IS NULL THEN is_cosmetic ELSE @is_cosmetic END,
         base_item_id = COALESCE(@base_item_id, base_item_id),
-        icon_path = COALESCE(@icon_path, icon_path),
-        raw = @raw, updated_at = @updated_at
+        updated_at = @updated_at
       WHERE id = @id`,
-    ).run({ ...values, id: existing.id });
+    ).run({
+      source_id: values.source_id,
+      name: values.name,
+      name_norm: values.name_norm,
+      name_en: values.name_en,
+      name_en_norm: values.name_en_norm,
+      kind,
+      category: values.category,
+      rank: values.rank,
+      slot: values.slot,
+      weight: values.weight,
+      is_cosmetic: values.is_cosmetic,
+      base_item_id: values.base_item_id,
+      updated_at: now,
+      id: existing.id,
+    });
     return existing.id;
   }
 
-  const cols = Object.keys(values);
   const info = db
-    .prepare(`INSERT INTO item (${cols.join(', ')}) VALUES (${cols.map((c) => '@' + c).join(', ')})`)
-    .run(values);
+    .prepare(
+      `INSERT INTO item
+        (source_id, realm, external_id, name, name_norm, name_en, name_en_norm, kind, category, rank, slot, weight,
+         is_cosmetic, base_item_id, created_at, updated_at)
+       VALUES
+        (@source_id, @realm, @external_id, @name, @name_norm, @name_en, @name_en_norm, @kind, @category, @rank, @slot,
+         @weight, @is_cosmetic, @base_item_id, @created_at, @updated_at)`,
+    )
+    .run({
+      ...values,
+      kind: kind ?? 'other',
+      is_cosmetic: values.is_cosmetic ?? 0,
+      created_at: now,
+      updated_at: now,
+    });
   return Number(info.lastInsertRowid);
 }
 
-export function setItemIconPath(db: Db, itemId: number, iconPath: string): void {
-  db.prepare(`UPDATE item SET icon_path = ?, updated_at = ? WHERE id = ?`).run(
-    iconPath,
-    new Date().toISOString(),
-    itemId,
-  );
-}
-
 function insertStat(db: Db, itemId: number, stat: StatInput, mode: 'replace' | 'ignore'): void {
+  ensureStatDefinition(db, stat.key);
   const sql = `INSERT OR ${mode === 'ignore' ? 'IGNORE' : 'REPLACE'} INTO item_stat
-    (item_id, key, label, level, value_num, value_min, value_max, value_text, pct, positive, is_additional, source_id)
-    VALUES (@item_id, @key, @label, @level, @value_num, @value_min, @value_max, @value_text, @pct, @positive, @is_additional, @source_id)`;
+    (item_id, stat_id, label, level, value_num, value_min, value_max, value_text, pct, is_positive, is_additional, source_id)
+    VALUES (@item_id, @stat_id, @label, @level, @value_num, @value_min, @value_max, @value_text, @pct, @is_positive, @is_additional, @source_id)`;
   db.prepare(sql).run({
     item_id: itemId,
-    key: stat.key,
+    stat_id: stat.key,
     label: stat.label ?? null,
     level: stat.level ?? 0,
     value_num: stat.valueNum ?? null,
@@ -171,7 +188,7 @@ function insertStat(db: Db, itemId: number, stat: StatInput, mode: 'replace' | '
     value_max: stat.valueMax ?? null,
     value_text: stat.valueText ?? null,
     pct: stat.pct ? 1 : 0,
-    positive: stat.positive == null ? null : stat.positive ? 1 : 0,
+    is_positive: stat.positive == null ? null : stat.positive ? 1 : 0,
     is_additional: stat.isAdditional ? 1 : 0,
     source_id: stat.sourceId ?? null,
   });
@@ -186,7 +203,7 @@ export function replaceItemStats(db: Db, itemId: number, stats: StatInput[], sou
   run();
 }
 
-/** Adds stats only where the (item,key,level,additional) slot is still empty. */
+/** Adds stats only where the (item, stat, level, additional) slot is still empty. */
 export function addItemStats(db: Db, itemId: number, stats: StatInput[], sourceId: string): void {
   const run = db.transaction(() => {
     for (const stat of stats) insertStat(db, itemId, { ...stat, sourceId }, 'ignore');
@@ -198,10 +215,11 @@ export function getItemById(db: Db, id: number): ItemRow | null {
   return (db.prepare(`SELECT * FROM item WHERE id = ?`).get(id) as ItemRow | undefined) ?? null;
 }
 
-export function getItemByExboId(db: Db, exboId: string, realm = 'ru'): ItemRow | null {
+export function getItemByExternalId(db: Db, externalId: string, realm = 'ru'): ItemRow | null {
   return (
-    (db.prepare(`SELECT * FROM item WHERE realm = ? AND exbo_id = ?`).get(realm, exboId) as ItemRow | undefined) ??
-    null
+    (db.prepare(`SELECT * FROM item WHERE realm = ? AND external_id = ?`).get(realm, externalId) as
+      | ItemRow
+      | undefined) ?? null
   );
 }
 
@@ -262,17 +280,21 @@ export function listItems(db: Db, kind?: string, realm = 'ru'): ItemRow[] {
   return db.prepare(`SELECT * FROM item WHERE realm = ? ORDER BY kind, name_norm`).all(realm) as ItemRow[];
 }
 
-export function itemStats(db: Db, itemId: number, level?: number): Record<string, unknown>[] {
+export function itemStats(db: Db, itemId: number, level?: number): ItemStatRow[] {
   const rows =
     level == null
-      ? db.prepare(`SELECT * FROM item_stat WHERE item_id = ? ORDER BY key, level`).all(itemId)
-      : db.prepare(`SELECT * FROM item_stat WHERE item_id = ? AND level = ? ORDER BY key`).all(itemId, level);
-  return rows as Record<string, unknown>[];
+      ? db
+          .prepare(`SELECT * FROM item_stat WHERE item_id = ? ORDER BY stat_id, level, is_additional`)
+          .all(itemId)
+      : db
+          .prepare(`SELECT * FROM item_stat WHERE item_id = ? AND level = ? ORDER BY stat_id, is_additional`)
+          .all(itemId, level);
+  return rows as ItemStatRow[];
 }
 
 export function statValue(db: Db, itemId: number, key: string, level = 0): number | null {
   const row = db
-    .prepare(`SELECT value_num FROM item_stat WHERE item_id = ? AND key = ? AND level = ? ORDER BY is_additional LIMIT 1`)
+    .prepare(`SELECT value_num FROM item_stat WHERE item_id = ? AND stat_id = ? AND level = ? ORDER BY is_additional LIMIT 1`)
     .get(itemId, key, level) as { value_num: number | null } | undefined;
   return row?.value_num ?? null;
 }
