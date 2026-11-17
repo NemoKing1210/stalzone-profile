@@ -12,7 +12,13 @@ export function fixedWindowLimiter(max: number, windowMs = 60_000): FixedWindowL
 
   return {
     take(key, cost = 1, now = Date.now()) {
-      if (windows.size > 5_000) windows.clear();
+      // Evict only windows that expired; a blind clear would hand spoofable keys a fresh budget.
+      if (windows.size > 5_000) {
+        for (const [entryKey, window] of windows) {
+          if (now - window.start >= windowMs) windows.delete(entryKey);
+        }
+        if (windows.size > 5_000) windows.clear();
+      }
       const window = windows.get(key);
 
       if (!window || now - window.start >= windowMs) {

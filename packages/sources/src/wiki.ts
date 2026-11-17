@@ -1,4 +1,4 @@
-import type { FetchLike } from './exbo.js';
+import { defaultFetch, type FetchLike } from './exbo.js';
 
 type Json = Record<string, any>;
 
@@ -35,7 +35,7 @@ function withCategories(base: string, categories: string[]): string {
 /** Structured item base and TTK data from the public stalzone.wiki API. */
 export const wikiAdapter = {
   async fetch(options: WikiFetchOptions = {}): Promise<WikiSnapshot> {
-    const fetchImpl = options.fetchImpl ?? ((url, init) => fetch(url, init));
+    const fetchImpl = options.fetchImpl ?? defaultFetch;
     const [artefact, armor, containers, ttkWeapon] = await Promise.all([
       getItems(withCategories(WIKI_ITEMS, ['artefact']), fetchImpl),
       getItems(withCategories(WIKI_ITEMS, ['armor']), fetchImpl),

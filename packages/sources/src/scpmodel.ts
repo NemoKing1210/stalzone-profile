@@ -1,4 +1,4 @@
-import type { FetchLike } from './exbo.js';
+import { defaultFetch, type FetchLike } from './exbo.js';
 
 type Json = Record<string, any>;
 
@@ -35,7 +35,7 @@ export interface PricesSnapshot {
 export const scpmodelAdapter = {
   async fetch(options: PricesFetchOptions = {}): Promise<PricesSnapshot> {
     const region = options.region ?? 'ru';
-    const fetchImpl = options.fetchImpl ?? ((url, init) => fetch(url, init));
+    const fetchImpl = options.fetchImpl ?? defaultFetch;
     const url = `${PRICES_URL}?region=${encodeURIComponent(region)}`;
     const response = await fetchImpl(url);
     if (response.status !== 200) throw new Error(`scpmodel HTTP ${response.status}: ${url}`);

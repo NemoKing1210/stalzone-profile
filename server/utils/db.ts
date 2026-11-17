@@ -1,6 +1,7 @@
 import path from 'node:path';
 import {
   bootLog,
+  closeDb,
   ensureDefaultSources,
   getLogger,
   initLogging,
@@ -22,17 +23,24 @@ export function useDb(): Db {
   // DB_PATH is read at runtime so the same image works with any mounted volume.
   const dbPath = path.resolve(String(process.env.DB_PATH || config.dbPath || './data/profile.db'));
   const migrationsDir = path.resolve(process.cwd(), 'db', 'migrations');
-  instance = openDb(dbPath);
-  const applied = migrate(instance, migrationsDir);
-  if (applied.applied.length > 0) {
-    if (tableExists(instance, 'log_entry')) {
-      initLogging(instance, { source: 'server', processHooks: false });
-      getLogger(instance, 'db').info('migrations applied', { applied: applied.applied });
-    } else {
-      bootLog('info', `migrations applied: ${applied.applied.join(', ')}`);
+  const db = openDb(dbPath);
+  try {
+    const applied = migrate(db, migrationsDir);
+    if (applied.applied.length > 0) {
+      if (tableExists(db, 'log_entry')) {
+        initLogging(db, { source: 'server', processHooks: false });
+        getLogger(db, 'db').info('migrations applied', { applied: applied.applied });
+      } else {
+        bootLog('info', `migrations applied: ${applied.applied.join(', ')}`);
+      }
     }
+    // Sources are reference data, not user data: a fresh DB must list them before the first sync.
+    ensureDefaultSources(db);
+  } catch (error) {
+    // A half-initialised handle must not be cached: every later request would see a stale schema.
+    closeDb(dbPath);
+    throw error;
   }
-  // Sources are reference data, not user data: a fresh DB must list them before the first sync.
-  ensureDefaultSources(instance);
+  instance = db;
   return instance;
 }

@@ -54,8 +54,7 @@ export function createMcpHttpHandler(options: McpHttpOptions) {
 
   return async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
     if (!options.token) {
-      res.statusCode = 404;
-      res.end();
+      sendJson(res, 404, { error: { code: 'NOT_FOUND', message: 'MCP is not enabled' } });
       return;
     }
     if (!authorized(req, options.token)) {
@@ -64,8 +63,7 @@ export function createMcpHttpHandler(options: McpHttpOptions) {
     }
     if (req.method !== 'POST') {
       res.setHeader('allow', 'POST');
-      res.statusCode = 405;
-      res.end();
+      sendJson(res, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: 'Use POST' } });
       return;
     }
 

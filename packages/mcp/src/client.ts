@@ -523,7 +523,11 @@ export function httpClient(baseUrl: string, token: string): ProfileClient {
       );
       await client.connect(transport);
       return client;
-    })();
+    })().catch((error) => {
+      // A rejected connect must not poison every later call for the process lifetime.
+      connection = null;
+      throw error;
+    });
     return connection;
   }
 
@@ -666,10 +670,15 @@ export function httpClient(baseUrl: string, token: string): ProfileClient {
       return (await call('clear_logs', writeArgs(input))) as unknown as WriteResult;
     },
     async close() {
-      if (!connection) return;
-      const client = await connection;
-      await client.close();
+      const pending = connection;
       connection = null;
+      if (!pending) return;
+      try {
+        const client = await pending;
+        await client.close();
+      } catch {
+        /* the connection never became usable */
+      }
     },
   };
 }

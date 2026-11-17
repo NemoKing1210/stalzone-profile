@@ -9,6 +9,8 @@ import {
   verifySessionToken,
 } from '@profile/core';
 import { apiError, type ApiErrorBody } from './errors';
+import { fixedWindowLimiter, type FixedWindowLimiter } from './log-limit';
+import { isSameOrigin, normalizedHost } from './origin';
 
 export const SESSION_COOKIE = 'profile_session';
 
@@ -25,9 +27,12 @@ function sessionSecret(): string {
 }
 
 function isSecureRequest(event: H3Event): boolean {
-  const forwarded = getRequestHeader(event, 'x-forwarded-proto')?.split(',')[0]?.trim();
-  const protocol = forwarded || getRequestURL(event).protocol.replace(/:$/, '');
-  return protocol === 'https';
+  const config = useRuntimeConfig();
+  if (isTruthy(config.trustProxy)) {
+    const forwarded = getRequestHeader(event, 'x-forwarded-proto')?.split(',')[0]?.trim();
+    if (forwarded) return forwarded === 'https';
+  }
+  return Boolean((event.node.req.socket as { encrypted?: boolean }).encrypted);
 }
 
 export function createSession(event: H3Event): void {
@@ -54,9 +59,14 @@ export function sessionExpiresAt(event: H3Event): number | null {
   return verifySessionToken(getCookie(event, SESSION_COOKIE), sessionSecret());
 }
 
+/** Configured MCP token, trimmed once so `/mcp` and bearer auth agree. */
+export function mcpToken(): string {
+  return String(useRuntimeConfig().mcpToken ?? '').trim();
+}
+
 /** Bearer access exists only when `NUXT_MCP_TOKEN` is configured. */
 export function hasValidBearer(event: H3Event): boolean {
-  const token = String(useRuntimeConfig().mcpToken ?? '');
+  const token = mcpToken();
   if (!token) return false;
   const header = getRequestHeader(event, 'authorization') ?? '';
   const match = /^Bearer\s+(.+)$/i.exec(header);
@@ -68,18 +78,19 @@ export function isAuthenticated(event: H3Event): boolean {
   return sessionExpiresAt(event) !== null || hasValidBearer(event);
 }
 
-/** Defence in depth for write routes; middleware already rejects anonymous requests. */
+/**
+ * Defence in depth for write routes; the middleware already rejects anonymous
+ * requests. Bearer clients count as authenticated, exactly as the middleware does.
+ */
 export function requireSession(event: H3Event): ApiErrorBody | null {
-  if (sessionExpiresAt(event) === null) return apiError(event, 401, 'UNAUTHORIZED', 'Authentication required');
+  if (!isAuthenticated(event)) return apiError(event, 401, 'UNAUTHORIZED', 'Authentication required');
   return null;
 }
 
-function hostOf(origin: string): string {
-  try {
-    return new URL(origin).host;
-  } catch {
-    return '';
-  }
+function requestHost(event: H3Event): string {
+  const config = useRuntimeConfig();
+  const forwarded = isTruthy(config.trustProxy) ? getRequestHeader(event, 'x-forwarded-host') : null;
+  return normalizedHost(forwarded ?? getRequestHeader(event, 'host') ?? '');
 }
 
 /** Browser mutations must come from this origin; non-browser clients must present the bearer token. */
@@ -89,9 +100,7 @@ export function requireOrigin(event: H3Event): ApiErrorBody | null {
     if (hasValidBearer(event)) return null;
     return apiError(event, 403, 'ORIGIN_REQUIRED', 'Could not verify the request origin');
   }
-  const host = getRequestHeader(event, 'x-forwarded-host') ?? getRequestHeader(event, 'host') ?? '';
-  const originHost = hostOf(origin);
-  if (!originHost || originHost !== host) {
+  if (!isSameOrigin(origin, requestHost(event))) {
     return apiError(event, 403, 'ORIGIN_MISMATCH', 'Request from a foreign origin rejected');
   }
   return null;
@@ -99,7 +108,18 @@ export function requireOrigin(event: H3Event): ApiErrorBody | null {
 
 const LOGIN_WINDOW_MS = 60_000;
 const LOGIN_MAX_ATTEMPTS = 5;
-const loginAttempts = new Map<string, number[]>();
+let loginLimiter: FixedWindowLimiter | null = null;
+let loginLimiterKey = '';
+
+/** Recreates the limiter when the runtime budget changes (tests, config reload). */
+function limiterFor(max: number, windowMs: number): FixedWindowLimiter {
+  const key = `${max}:${windowMs}`;
+  if (!loginLimiter || loginLimiterKey !== key) {
+    loginLimiter = fixedWindowLimiter(max, windowMs);
+    loginLimiterKey = key;
+  }
+  return loginLimiter;
+}
 
 /** Five attempts per minute per IP by default, counted before the password is checked. */
 export function assertLoginAllowed(event: H3Event): ApiErrorBody | null {
@@ -111,11 +131,7 @@ export function assertLoginAllowed(event: H3Event): ApiErrorBody | null {
     getRequestHeader(event, 'x-forwarded-for'),
     isTruthy(config.trustProxy),
   );
-  const now = Date.now();
-  const recent = (loginAttempts.get(ip) ?? []).filter((at) => now - at < windowMs);
-  recent.push(now);
-  loginAttempts.set(ip, recent);
-  if (recent.length > maxAttempts) {
+  if (!limiterFor(maxAttempts, windowMs).take(ip)) {
     return apiError(event, 429, 'TOO_MANY_ATTEMPTS', 'Too many attempts. Try again in a minute.');
   }
   return null;
@@ -123,5 +139,6 @@ export function assertLoginAllowed(event: H3Event): ApiErrorBody | null {
 
 /** Test hook: keeps the limiter from leaking between cases. */
 export function resetLoginAttempts(): void {
-  loginAttempts.clear();
+  loginLimiter = null;
+  loginLimiterKey = '';
 }

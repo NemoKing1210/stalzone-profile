@@ -5,6 +5,14 @@ type Json = Record<string, any>;
 
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
+/**
+ * Default adapter transport: every production request gets a deadline, so a stalled
+ * upstream cannot hold the process-wide sync lock forever. Tests inject `fetchImpl`.
+ */
+export const FETCH_TIMEOUT_MS = 30_000;
+export const defaultFetch: FetchLike = (url, init) =>
+  fetch(url, { ...init, signal: init?.signal ?? AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+
 export interface ExboDamageProfile {
   sd: number | null;
   ds: number | null;
@@ -241,7 +249,7 @@ async function mapLimit<T, R>(
 export const exboAdapter = {
   async fetch(options: ExboFetchOptions): Promise<ExboFetchResult> {
     const realm = options.realm ?? 'ru';
-    const fetchImpl = options.fetchImpl ?? ((url, init) => fetch(url, init));
+    const fetchImpl = options.fetchImpl ?? defaultFetch;
     const cacheFile = path.join(options.cacheDir, `exbo-${realm}.json`);
     const cached = readCache(cacheFile);
 

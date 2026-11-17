@@ -1,4 +1,4 @@
-import type { FetchLike } from './exbo.js';
+import { defaultFetch, type FetchLike } from './exbo.js';
 import { WIKI_ITEMS } from './wiki.js';
 
 type Json = Record<string, any>;
@@ -39,7 +39,7 @@ export interface MotifsFetchOptions {
 /** Cosmetic names and their base-item tokens from the wiki `other` category. */
 export const motifsAdapter = {
   async fetch(options: MotifsFetchOptions = {}): Promise<MotifRow[]> {
-    const fetchImpl = options.fetchImpl ?? ((url, init) => fetch(url, init));
+    const fetchImpl = options.fetchImpl ?? defaultFetch;
     const response = await fetchImpl(MOTIFS_URL);
     if (response.status !== 200) throw new Error(`motifs HTTP ${response.status}: ${MOTIFS_URL}`);
     const body = await response.json();
