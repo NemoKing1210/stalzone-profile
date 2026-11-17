@@ -7,7 +7,7 @@ const props = withDefaults(
     dense?: boolean;
     flush?: boolean;
   }>(),
-  { dense: false, flush: false },
+  { title: undefined, label: undefined, hint: undefined, dense: false, flush: false },
 );
 
 const id = useId();

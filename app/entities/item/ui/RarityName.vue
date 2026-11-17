@@ -8,7 +8,7 @@ const props = withDefaults(
     level?: number | null;
     size?: 'sm' | 'md' | 'lg';
   }>(),
-  { size: 'md' },
+  { rank: undefined, level: undefined, size: 'md' },
 );
 
 const sizeClass = computed(

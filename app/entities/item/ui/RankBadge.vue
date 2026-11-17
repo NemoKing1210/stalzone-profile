@@ -6,7 +6,7 @@ const props = withDefaults(
     rank?: string | null;
     size?: 'sm' | 'md' | 'lg';
   }>(),
-  { size: 'sm' },
+  { rank: undefined, size: 'sm' },
 );
 
 const { t } = useI18n();

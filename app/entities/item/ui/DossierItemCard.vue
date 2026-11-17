@@ -8,7 +8,7 @@ interface ItemStat {
   tone?: 'neutral' | 'success' | 'danger' | 'warning';
 }
 
-const props = withDefaults(
+withDefaults(
   defineProps<{
     name: string;
     rank?: string | null;
@@ -20,7 +20,16 @@ const props = withDefaults(
     selected?: boolean;
     priority?: boolean;
   }>(),
-  { selected: false, priority: false },
+  {
+    rank: undefined,
+    category: undefined,
+    level: undefined,
+    icon: undefined,
+    stats: undefined,
+    description: undefined,
+    selected: false,
+    priority: false,
+  },
 );
 
 defineEmits<{ select: [] }>();

@@ -10,7 +10,7 @@ const props = withDefaults(
     hint?: string;
     bar?: { value: number; max: number };
   }>(),
-  { tone: 'neutral' },
+  { tone: 'neutral', suffix: undefined, hint: undefined, bar: undefined },
 );
 
 const { t } = useI18n();

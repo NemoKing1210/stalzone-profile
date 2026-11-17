@@ -9,7 +9,7 @@ const props = withDefaults(
     unit?: string;
     tone?: 'neutral' | 'success' | 'danger' | 'warning';
   }>(),
-  { tone: 'neutral' },
+  { unit: undefined, tone: 'neutral' },
 );
 
 const percent = computed(() => clampPercent(props.value, props.max));
