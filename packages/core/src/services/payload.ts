@@ -31,7 +31,6 @@ export interface Payload {
   armor: Json[];
   containers: Json[];
   artifacts: Json[];
-  notes: Json[];
   catalog: { weapons: Json[]; armor: Json[]; meta: Json };
   recommendations: Json[];
   details: Record<string, Json>;
@@ -481,7 +480,6 @@ export function buildPayload(db: Db, characterId?: number): Payload {
       armor: [],
       containers: [],
       artifacts: [],
-      notes: [],
       catalog: { weapons: [], armor: [], meta: {} },
       recommendations: [],
       details: {},
@@ -505,11 +503,6 @@ export function buildPayload(db: Db, characterId?: number): Payload {
     armor: owned.filter((o) => o.kind === 'armor').map((o) => armorPayload(db, o)),
     containers: owned.filter((o) => o.kind === 'container').map((o) => containerPayload(db, o, fill[o.id] ?? [])),
     artifacts: owned.filter((o) => o.kind === 'artifact').map((o) => artifactPayload(db, o)),
-    notes: repo.listBlocks(db, 'notes').map((b) => ({
-      ...(repo.blockPayload<Json>(b) ?? {}),
-      slug: b.slug,
-      position: b.position,
-    })),
     catalog: {
       weapons: catalogOf(db, 'weapon'),
       armor: catalogOf(db, 'armor'),

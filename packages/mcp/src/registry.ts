@@ -88,7 +88,7 @@ const DeleteBuildInputSchema = z.object({
 });
 
 const ContentBlockInputSchema = z.object({
-  kind: z.enum(['recs', 'earnings', 'notes', 'builds_meta', 'catalog_meta']),
+  kind: z.enum(['recs', 'earnings', 'builds_meta', 'catalog_meta']),
   slug: z.string().max(200).nullish(),
   title: z.string().max(200).nullish(),
   lead: z.string().max(2000).nullish(),
@@ -172,7 +172,7 @@ const TOOL_DOCS: Record<string, string> = {
     set_container_artifacts: 'Replace a container fill (dry_run by default)',
     save_build: 'Create or update a build (dry_run by default)',
     delete_build: 'Delete a build (dry_run by default)',
-    upsert_content_block: 'Write a notes, recommendations or earnings block (dry_run by default)',
+    upsert_content_block: 'Write a recommendations or earnings block (dry_run by default)',
     sync_source: 'Run a source sync; requires confirm',
     rebuild_site: 'Site rebuild happens on deploy; MCP only reports the command',
     rollback_event: 'Roll back a journal event (dry_run by default)',

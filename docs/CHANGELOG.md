@@ -1,5 +1,62 @@
 # Changelog
 
+## 2026-11-17 — Dev server address comes from the environment
+
+- `nuxt.config.ts` reads `DEV_HOST` and `DEV_PORT` (from `.env` or the shell) instead of
+  hard-coding `127.0.0.1:80`. `npm run dev` prints the address it binds to, so
+  `DEV_HOST=stalzone-profile.local` makes the console banner show the domain; a non-IP
+  `DEV_HOST` is appended to `devServer.allowedHosts` automatically. Defaults are unchanged.
+- `.env.example`, the README variable table and the quick start describe the two variables.
+
+## 2026-11-17 — Character editor gets grouped fields, a faction select and a date input
+
+- The character editor groups its fields into Profile, Progress, Combat, Money and Notes
+  instead of one flat grid, and moves the actions into the modal footer with a new Reset
+  next to Cancel and Check/Save.
+- Faction becomes a searchable select of the current STALZONE factions («Сталкеры»,
+  «Бандиты», «Заря», «Рубеж», «Завет», «Наёмники», «Шёпот»); any other value can still be
+  typed and saved, and a stored legacy value stays selectable.
+- "In the Zone since" is a native date input. A stored non-ISO string (for example
+  `6 декабря 2024`) is not discarded: it is kept and shown as a hint until a date replaces
+  it, so opening the editor and saving cannot rewrite game data.
+- Numeric fields get real bounds and steps: percentages are 0–100, K/D steps by 0.01,
+  money by 1000. New `forms.section*`, `forms.chooseFaction`, `forms.createFaction` and
+  `forms.arrivedStored` keys in both catalogs. No API, schema, MCP or number changes.
+
+## 2026-11-16 — Overview reads as an inventory dashboard
+
+- The Character pane leads with a **Key stats** strip (hours, K/D, accuracy, headshots).
+  Percentages carry a 0–100 accent bar; no other value has a bar because none has a real
+  maximum. Achievements with points, money and maximum money (brass) and the in-zone date
+  follow as rows, then the stash as the stored string, never a bar.
+- Career splits into two balanced columns from 1280px. Sections became a 2×2 inventory-slot
+  grid whose links name their count; the prices age in Data state uses the freshness tones.
+- New keys `overview.keyStats` and `overview.sectionAria` in both catalogs. No API, schema,
+  MCP or number changes.
+- The paper-doll placeholder is gone from the Character pane: the nick, playstyle and edit
+  action now start the pane, so the first thing under the page title is data, not a stand-in.
+
+## 2026-11-16 — Weapons and Armor drop the side columns
+
+- The Weapons and Armor pages are a single full-width list or grid: the character summary,
+  the section list and the in-flow item card are gone. The top bar remains the only section
+  navigation, and selecting an item opens its card in a modal at every width.
+- The unused `InventorySidebar` component and the `weapons`/`armor` `detailTitle` and
+  `noSelection` translation keys are removed.
+
+## 2026-11-16 — Builds, Recommendations, Earnings and Notes removed from the site
+
+- The shell now has five sections: overview, weapons, armor, containers and artifacts. The
+  Builds, Recommendations, Earnings and Notes pages, their navigation entries, overview
+  counts and edit modals are gone.
+- Notes are removed end to end: the `notes` content kind is rejected by the API and MCP,
+  payload and export no longer carry `notes`, the seed has no notes, and migration `0003`
+  deletes existing `content_block` rows of that kind. The cleanup is one-way.
+- `/api/v1/builds`, the remaining content blocks (recommendations, earnings, build and
+  catalog meta), export and MCP tools are unchanged. Old
+  `/?tab=builds|recs|recommendations|earnings|notes` links stay on the overview instead of
+  redirecting to a removed route.
+
 ## 2026-11-15 — first reproducible version
 
 - Repository skeleton: npm workspaces, Nuxt 4 + Nuxt UI, TypeScript strict, ESLint,

@@ -10,8 +10,10 @@ Claude working in this repository.
 - Before any code change, follow TDD: a failing test → the minimal implementation →
   a green run. If the `test-driven-development` skill is available, use it.
 - Do not say "done", "fixed" or "passes" until you have run the command and read its
-  output. At minimum `npm run check`; for `app/` or `server/` also `npm run e2e`;
-  for numbers also `npm run golden`.
+  output. Verification is tiered in `AGENTS.md` (**Verification tiers**): Tier 1 focuses the
+  test you are changing, Tier 2 runs the affected suites before a commit, Tier 3 runs the
+  full gate (`npm run check` plus E2E/golden/build as applicable) before push/PR/merge.
+  Name the tier and the commands you actually ran.
 - Start a multi-file task with a plan and get it agreed when behavior, the DB schema or
   the API/MCP contract changes.
 - After context compaction, trust `git log`, `git status` and the files rather than your

@@ -352,21 +352,21 @@ describe('builds', () => {
 });
 
 describe('content blocks', () => {
-  it('creates a note and rolls it back', () => {
+  it('creates a recommendation block and rolls it back', () => {
     const input = ContentBlockInputSchema.parse({
-      kind: 'notes',
-      slug: 'note-test',
-      title: 'Заметка',
-      payload: { title: 'Заметка', text: 'текст' },
+      kind: 'recs',
+      slug: 'rec-test',
+      title: 'Рекомендация',
+      payload: { id: 'rec-test', title: 'Рекомендация', lead: null, rows: [] },
       dryRun: false,
     });
     const result = putContentBlock(db, input);
     expect(result.eventId).toBeTypeOf('number');
-    const block = db.prepare(`SELECT * FROM content_block WHERE slug = 'note-test'`).get();
+    const block = db.prepare(`SELECT * FROM content_block WHERE slug = 'rec-test'`).get();
     expect(block).toBeTruthy();
 
     rollbackEvent(db, result.eventId!, false);
-    expect(db.prepare(`SELECT * FROM content_block WHERE slug = 'note-test'`).get()).toBeUndefined();
+    expect(db.prepare(`SELECT * FROM content_block WHERE slug = 'rec-test'`).get()).toBeUndefined();
   });
 });
 

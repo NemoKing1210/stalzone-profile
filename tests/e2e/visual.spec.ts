@@ -38,7 +38,7 @@ test('login shares the same theme', async ({ page }) => {
   await expect(page.locator('input[type="password"]')).toBeVisible();
 });
 
-const PAGES = ['/', '/weapons', '/armor', '/containers', '/artifacts', '/builds', '/recommendations', '/earnings', '/notes', '/settings'];
+const PAGES = ['/', '/weapons', '/armor', '/containers', '/artifacts', '/settings'];
 
 test('no page scrolls horizontally at 360, 768, 1024 or 1440', async ({ page }) => {
   await login(page);
@@ -46,7 +46,9 @@ test('no page scrolls horizontally at 360, 768, 1024 or 1440', async ({ page }) 
     await page.setViewportSize({ width, height: 900 });
     for (const path of PAGES) {
       await page.goto(path);
-      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
       expect({ path, width, overflow }).toEqual({ path, width, overflow: 0 });
     }
   }
@@ -59,7 +61,9 @@ test('the Russian interface has no horizontal overflow at 390px', async ({ page 
   await page.setViewportSize({ width: 390, height: 844 });
   for (const path of PAGES) {
     await page.goto(path);
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
     expect({ path, overflow }).toEqual({ path, overflow: 0 });
   }
 });
@@ -71,7 +75,10 @@ test('the item grid is keyboard selectable and the modal closes on Esc', async (
   const card = page.getByTestId('weapon-grid').getByRole('button').first();
   await card.focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('region', { name: 'Item' })).toContainText('Item card');
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('Item card');
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/weapons');
@@ -82,22 +89,21 @@ test('the item grid is keyboard selectable and the modal closes on Esc', async (
   await expect(page.getByRole('dialog')).toBeHidden();
 });
 
-test('the tablet layout keeps two panes and hides the in-flow detail', async ({ page }) => {
+test('weapons and armor use a single full-width list without side panes', async ({ page }) => {
   await login(page);
   await page.setViewportSize({ width: 1024, height: 900 });
   const pages = [
-    { path: '/weapons', list: 'Weapons', detail: 'Item' },
-    { path: '/armor', list: 'Armor', detail: 'Armor item' },
+    { path: '/weapons', list: 'Weapons' },
+    { path: '/armor', list: 'Armor' },
   ];
   for (const entry of pages) {
     await page.goto(entry.path);
+    await expect(page.getByRole('region', { name: 'Character', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'Sections', exact: true })).toHaveCount(0);
     const listBox = await page.getByRole('region', { name: entry.list, exact: true }).boundingBox();
-    const sideBox = await page.getByRole('region', { name: 'Character', exact: true }).boundingBox();
     expect(listBox).not.toBeNull();
-    expect(sideBox).not.toBeNull();
-    expect(Math.abs((listBox?.y ?? 0) - (sideBox?.y ?? 0))).toBeLessThan(8);
-    expect(sideBox?.x ?? 0).toBeLessThan(listBox?.x ?? 0);
-    await expect(page.getByRole('region', { name: entry.detail, exact: true })).toBeHidden();
+    expect(listBox?.x ?? 0).toBeLessThan(40);
+    expect((listBox?.x ?? 0) + (listBox?.width ?? 0)).toBeGreaterThan(984);
   }
 });
 
@@ -106,7 +112,12 @@ test('card labels and pane counts use the readable muted token', async ({ page }
   await page.goto('/weapons');
   await hydrated(page);
   const card = page.getByTestId('weapon-grid').getByRole('button').first();
-  expect(await card.locator('.sz-caps').first().evaluate((el) => getComputedStyle(el).color)).toBe('rgb(154, 154, 148)');
+  expect(
+    await card
+      .locator('.sz-caps')
+      .first()
+      .evaluate((el) => getComputedStyle(el).color),
+  ).toBe('rgb(154, 154, 148)');
   const hint = page.getByRole('region', { name: 'Weapons', exact: true }).locator('header span.tabular-nums');
   expect(await hint.evaluate((el) => getComputedStyle(el).color)).toBe('rgb(154, 154, 148)');
 });
@@ -117,13 +128,6 @@ test('grid cards name the rank in text, not only in colour', async ({ page }) =>
   await hydrated(page);
   const card = page.getByTestId('weapon-grid').getByRole('button').first();
   await expect(card.getByText(/^(Lockpick|Newbie|Stalker|Veteran|Master|Legend)$/)).toBeVisible();
-});
-
-test('a truncated build title keeps its full text available', async ({ page }) => {
-  await login(page);
-  await page.goto('/builds');
-  const heading = page.getByRole('region', { name: /Максимум скорости/ }).getByRole('heading').first();
-  expect(await heading.getAttribute('title')).toBeTruthy();
 });
 
 test('the top bar is opaque, compact and keeps every navigation item inside it', async ({ page }) => {
@@ -137,7 +141,7 @@ test('the top bar is opaque, compact and keeps every navigation item inside it',
   const nav = page.locator('.sz-nav');
   const navBox = await nav.boundingBox();
   const actionsBox = await page.locator('header .ml-auto').boundingBox();
-  const lastBox = await page.getByRole('link', { name: 'Notes', exact: true }).boundingBox();
+  const lastBox = await page.getByRole('link', { name: 'Artifacts', exact: true }).boundingBox();
   expect(navBox).not.toBeNull();
   expect(actionsBox).not.toBeNull();
   expect(lastBox).not.toBeNull();
@@ -152,6 +156,22 @@ test('the top bar is opaque, compact and keeps every navigation item inside it',
   expect(await active.evaluate((el) => getComputedStyle(el).boxShadow)).toContain('99, 179, 86');
 });
 
+test('the header navigation is centred', async ({ page }) => {
+  await login(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+
+  const headerBox = await page.locator('header').first().boundingBox();
+  const first = await page.getByRole('link', { name: 'Overview', exact: true }).boundingBox();
+  const last = await page.getByRole('link', { name: 'Artifacts', exact: true }).boundingBox();
+  expect(headerBox).not.toBeNull();
+  expect(first).not.toBeNull();
+  expect(last).not.toBeNull();
+
+  const menuCenter = ((first?.x ?? 0) + (last?.x ?? 0) + (last?.width ?? 0)) / 2;
+  const headerCenter = (headerBox?.x ?? 0) + (headerBox?.width ?? 0) / 2;
+  expect(Math.abs(menuCenter - headerCenter)).toBeLessThan(2);
+});
+
 test('the mobile top bar keeps the navigation in its own scrollable row', async ({ page }) => {
   await login(page);
   await page.setViewportSize({ width: 390, height: 844 });
@@ -162,21 +182,19 @@ test('the mobile top bar keeps the navigation in its own scrollable row', async 
   expect(await nav.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
 });
 
-test('weapons place the detail between the sidebar and the item grid', async ({ page }) => {
+test('a selected weapon opens in a dialog and the grid keeps the full width', async ({ page }) => {
   await login(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/weapons');
+  await hydrated(page);
 
-  const sidebar = await page.getByRole('region', { name: 'Character', exact: true }).boundingBox();
-  const detail = await page.getByRole('region', { name: 'Item', exact: true }).boundingBox();
   const list = await page.getByRole('region', { name: 'Weapons', exact: true }).boundingBox();
-  expect(sidebar).not.toBeNull();
-  expect(detail).not.toBeNull();
   expect(list).not.toBeNull();
-  expect(sidebar?.x ?? 0).toBeLessThan(detail?.x ?? 0);
-  expect((detail?.x ?? 0) + (detail?.width ?? 0)).toBeLessThanOrEqual(list?.x ?? 0);
-  expect(Math.round(detail?.width ?? 0)).toBe(296);
-  expect(list?.width ?? 0).toBeGreaterThan(600);
+  expect(list?.width ?? 0).toBeGreaterThan(1000);
+
+  await page.getByTestId('weapon-grid').getByRole('button').first().click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Item', exact: true })).toHaveCount(0);
 });
 
 test('the overview centres career and puts sections at the right, stacking them on mobile', async ({ page }) => {
@@ -202,7 +220,7 @@ test('cards and tables use the dossier surfaces', async ({ page }) => {
   const card = page.getByTestId('weapon-grid').getByRole('button').first();
   expect(await card.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(31, 31, 31)');
 
-  await page.goto('/earnings');
+  await page.goto('/settings');
   const th = page.locator('table th').first();
   expect(await th.evaluate((el) => getComputedStyle(el).fontSize)).toBe('11px');
   expect(await th.evaluate((el) => getComputedStyle(el).textTransform)).toBe('uppercase');
@@ -210,7 +228,12 @@ test('cards and tables use the dossier surfaces', async ({ page }) => {
   const td = page.locator('table tbody tr').first().locator('td').first();
   expect((await td.boundingBox())?.height ?? 999).toBeLessThanOrEqual(56);
   expect(await td.evaluate((el) => getComputedStyle(el).paddingTop)).toBe('6px');
-  expect(await page.locator('table th').first().evaluate((el) => el.getBoundingClientRect().height)).toBeLessThanOrEqual(34);
+  expect(
+    await page
+      .locator('table th')
+      .first()
+      .evaluate((el) => el.getBoundingClientRect().height),
+  ).toBeLessThanOrEqual(34);
 });
 
 test('the overview title does not crowd its subtitle at 390', async ({ page }) => {
@@ -234,19 +257,11 @@ test('the overview title does not crowd its subtitle at 390', async ({ page }) =
 test('pane actions keep a 44px touch target on mobile', async ({ page }) => {
   await login(page);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/notes');
+  await page.goto('/settings');
   const action = page.locator('[data-pane-actions] button').first();
   const box = await action.boundingBox();
   expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
   expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
-});
-
-test('a long metric value wraps instead of crushing its label', async ({ page }) => {
-  await login(page);
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/builds');
-  const label = page.getByText('Container', { exact: true }).first();
-  expect(await label.evaluate((el) => el.getClientRects().length)).toBe(1);
 });
 
 test('freshness is stated once per page, in the top bar', async ({ page }) => {
@@ -254,13 +269,4 @@ test('freshness is stated once per page, in the top bar', async ({ page }) => {
   await page.goto('/weapons');
   await expect(page.getByTestId('freshness')).toHaveCount(1);
   await expect(page.locator('header').getByTestId('freshness')).toHaveCount(1);
-});
-
-test('every build column fits its pane at 1440', async ({ page }) => {
-  await login(page);
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/builds');
-  const scroller = page.locator('div.overflow-x-auto').first();
-  const fits = await scroller.evaluate((el) => el.scrollWidth <= el.clientWidth + 1);
-  expect(fits).toBe(true);
 });

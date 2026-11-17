@@ -45,7 +45,6 @@ describe('buildPayload contract', () => {
         'freshness',
         'icons',
         'meta',
-        'notes',
         'recommendations',
         'weapons',
       ].sort(),
@@ -59,7 +58,11 @@ describe('buildPayload contract', () => {
     expect(payload.artifacts).toHaveLength(22);
     expect(payload.recommendations).toHaveLength(4);
     expect(payload.earnings?.rows).toHaveLength(12);
-    expect(payload.notes).toHaveLength(8);
+    expect('notes' in payload).toBe(false);
+  });
+
+  it('does not import notes content blocks', () => {
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM content_block WHERE kind = 'notes'`).get()).toEqual({ count: 0 });
   });
 
   it('expands copies with stable names and levels', () => {
@@ -82,20 +85,9 @@ describe('buildPayload contract', () => {
     for (const section of [payload.weapons, payload.armor, payload.containers, payload.artifacts]) {
       expect(section.every((row: { ownedId?: number }) => typeof row.ownedId === 'number')).toBe(true);
     }
-    expect(payload.notes.map((note: { slug?: string }) => note.slug)).toEqual([
-      'note-1',
-      'note-2',
-      'note-3',
-      'note-4',
-      'note-5',
-      'note-6',
-      'note-7',
-      'note-8',
-    ]);
-
     const exported = exportLegacyJson(db);
     expect(Object.keys(exported.weapons[0])).not.toContain('ownedId');
-    expect(Object.keys(exported.notes[0]).sort()).toEqual(['text', 'title']);
+    expect(exported).not.toHaveProperty('notes');
     expect(Object.keys(exported.recommendations[0]).sort()).toEqual(['id', 'lead', 'rows', 'title']);
   });
 });

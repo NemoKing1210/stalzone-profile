@@ -3,7 +3,7 @@ const props = withDefaults(
   defineProps<{
     label: string;
     value: string | number | null;
-    tone?: 'neutral' | 'success' | 'danger' | 'warning';
+    tone?: 'neutral' | 'success' | 'danger' | 'warning' | 'money';
     suffix?: string;
     hint?: string;
     bar?: { value: number; max: number };
@@ -22,6 +22,7 @@ const toneClass = computed(() => {
     success: 'text-[var(--sz-success-text)]',
     danger: 'text-[var(--sz-danger-text)]',
     warning: 'text-[var(--sz-warning-text)]',
+    money: 'text-[var(--sz-money)]',
   }[props.tone];
 });
 const width = computed(() => (props.bar ? `${clampPercent(props.bar.value, props.bar.max)}%` : '0%'));

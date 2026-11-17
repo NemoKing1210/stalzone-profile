@@ -5,7 +5,7 @@ import { apiError, validationError } from '../../../utils/errors';
 import { requireOrigin } from '../../../utils/auth';
 import { handleWrite } from '../../../utils/write';
 
-const KINDS = new Set(['recs', 'earnings', 'notes', 'builds_meta', 'catalog_meta']);
+const KINDS = new Set(['recs', 'earnings', 'builds_meta', 'catalog_meta']);
 
 export default defineEventHandler(async (event) => {
   const originError = requireOrigin(event);

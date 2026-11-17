@@ -158,7 +158,8 @@ describe('build input', () => {
 
 describe('content block and login', () => {
   it('validates content kinds and non-empty passwords', () => {
-    expect(ContentBlockInputSchema.parse({ kind: 'notes', payload: [] }).position).toBe(0);
+    expect(ContentBlockInputSchema.parse({ kind: 'recs', payload: [] }).position).toBe(0);
+    expect(ContentBlockInputSchema.safeParse({ kind: 'notes', payload: [] }).success).toBe(false);
     expect(ContentBlockInputSchema.safeParse({ kind: 'unknown', payload: [] }).success).toBe(false);
     expect(LoginSchema.safeParse({ password: 'secret' }).success).toBe(true);
     expect(LoginSchema.safeParse({ password: '' }).success).toBe(false);

@@ -4,11 +4,6 @@ const TABS: Record<string, string> = {
   armor: '/armor',
   containers: '/containers',
   artifacts: '/artifacts',
-  builds: '/builds',
-  recs: '/recommendations',
-  recommendations: '/recommendations',
-  earnings: '/earnings',
-  notes: '/notes',
 };
 
 /** Old dossier links (`/?tab=weapons`) keep working after the move to routes. */

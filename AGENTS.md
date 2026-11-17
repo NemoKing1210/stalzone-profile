@@ -4,9 +4,19 @@ A personal STALZONE dossier: **SQLite is the single source of truth**, Nuxt 4 se
 site and the REST API, Nitro serves `/mcp`, and `packages/mcp` gives an agent the same data.
 One process, one database, no separate worker.
 
-Before the first change read: `README.md` (running it), `docs/ARCHITECTURE.md` (read/write
-flows), `docs/DATA-MODEL.md` (invariants), `docs/API.md`, `docs/MCP.md`, and `docs/I18N.md`
-(interface languages). This file holds rules, not a copy of the documentation.
+Read on demand rather than everything up front. On the first task in the repository, skim
+`README.md` (running it) and `docs/ARCHITECTURE.md` (read/write flows); after that, open only
+the document for the area you touch:
+
+| Touching                     | Document                       |
+| ---------------------------- | ------------------------------ |
+| DB schema and invariants     | `docs/DATA-MODEL.md`           |
+| Routes, payloads, errors     | `docs/API.md`                  |
+| MCP tools and clients        | `docs/MCP.md`                  |
+| Interface text and locales   | `docs/I18N.md`                 |
+| Deploy, env, troubleshooting | `README.md`, `docs/RUNBOOK.md` |
+
+This file holds rules, not a copy of the documentation.
 
 ## Commands
 
@@ -18,6 +28,12 @@ flows), `docs/DATA-MODEL.md` (invariants), `docs/API.md`, `docs/MCP.md`, and `do
 | Rebuild the local DB from seeds   | `npm run db:reset && npm run import:legacy`                                  |
 | Import seeds (idempotent)         | `npm run import:legacy`                                                      |
 | Unit + integration                | `npm test` (`npm run test:integration` — integration only)                   |
+| Unit tests only                   | `npm run test:unit`                                                          |
+| Focused tests                     | `npm test -- tests/integration/writes.test.ts` (list one or more paths)      |
+| Tests related to changed files    | `npm run test:related -- <changed files>`                                    |
+| One E2E spec                      | `npx playwright test tests/e2e/api.spec.ts`                                  |
+| Typecheck packages/server only    | `npm run typecheck:node`                                                     |
+| Lint changed files                | `npx eslint <changed files>`                                                 |
 | Full check                        | `npm run check` — typecheck + lint + tests                                   |
 | E2E                               | `npm run e2e` — builds and starts the server on `:3100` itself               |
 | Number parity with legacy         | `npm run golden` — expect `0 mismatches`, `legacyDeltas: []`                 |
@@ -31,6 +47,75 @@ flows), `docs/DATA-MODEL.md` (invariants), `docs/API.md`, `docs/MCP.md`, and `do
 
 `db:reset` deletes the file at `DB_PATH` (and `-wal`/`-shm`). Before running it, make sure
 `DB_PATH` points at a local or test database, not the working one.
+
+## Verification tiers
+
+Testing is tiered by stage and risk. Running the full gate after every edit wastes time;
+running one focused test alone proves nothing. Move up a tier only when the previous one is
+green.
+
+| Tier                               | When                                    | What to run                                                     |
+| ---------------------------------- | --------------------------------------- | --------------------------------------------------------------- |
+| 1 — inner loop                     | writing the RED test and the fix        | the one test you are changing: `npm test -- <file> -t '<name>'` |
+| 2 — before a commit                | once per logical change, after batching | typecheck + lint + the affected suites from the table below     |
+| 3 — before push/PR/merge to `main` | when leaving the branch                 | `npm run check` plus the extras listed below                    |
+
+Unit and integration tests (`npm test`) are cheap: they use a temporary DB and no network.
+The expensive gates are Nuxt typecheck, `npm run build`/`npm run e2e`, and `npm run golden`.
+Keep the cheap suites in the loop; defer the expensive ones to Tier 3.
+
+Tier 2 in practice:
+
+- `npm run typecheck:node` when `packages/`, `server/`, `scripts/` or configs changed;
+  `npm run typecheck` when `app/` changed (this is the slow Nuxt typecheck).
+- `npx eslint <changed files>`, or `npm run lint` when the scope is unclear.
+- The affected suites from the table. `npm run test:related -- <changed files>` is a fast
+  first pass that runs the test files importing the changed modules. It does not see E2E,
+  Vue templates or behavioral dependencies; if it finds few or no tests, fall back to the
+  table and widen the scope.
+- `git status --short` and `git diff --check` to catch stray files and whitespace.
+
+**Test selection by changed path — Tier 2 minimum.** When areas overlap, union the rows.
+When unsure, widen: a missed test is a correctness bug; an extra suite only costs seconds.
+
+| Changed paths                                            | Run                                                                                                                                     |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/core/src/calc/**`, DPS/TTK or artifact numbers | `npm test -- tests/unit/calc.test.ts`, then `npm run golden`                                                                            |
+| `packages/shared/src/schemas.ts`                         | `npm test -- tests/unit/shared.test.ts tests/integration`                                                                               |
+| `packages/shared/src/{ranks,format,norm}*`               | `npm test -- tests/unit`                                                                                                                |
+| `packages/core/src/repo/**`                              | `npm test -- tests/integration`                                                                                                         |
+| `packages/core/src/services/writes.ts`                   | `npm test -- tests/integration/writes.test.ts tests/integration/payload.test.ts`                                                        |
+| `packages/core/src/services/{import,export}.ts`          | `npm test -- tests/integration/import.test.ts tests/integration/db.test.ts tests/integration/payload.test.ts`                           |
+| `packages/core/src/services/sync.ts`                     | `npm test -- tests/integration/sync.test.ts tests/integration/prices.test.ts`                                                           |
+| `packages/sources/**`                                    | `npm test -- tests/integration/sync.test.ts tests/integration/prices.test.ts` (fake `fetchImpl` only)                                   |
+| `packages/mcp/**`                                        | `npm test -- tests/integration/mcp.test.ts`; `npm run smoke:mcp` before Tier 3 if read tools changed                                    |
+| `server/api/**`, `server/utils/**`                       | matching `tests/unit/*.test.ts` (`session`, `login-limit`); relevant E2E spec before Tier 3                                             |
+| `app/**`                                                 | relevant `tests/e2e/*.spec.ts` (`pages`, `shell`, `edit`, `i18n`, `visual`); `tests/unit/use-api-error.test.ts` when errors are touched |
+| `i18n/locales/*.json`                                    | `npm test -- tests/unit/i18n-catalogs.test.ts`; `tests/e2e/i18n.spec.ts` before Tier 3                                                  |
+| `db/migrations/**`                                       | `npm test -- tests/integration`                                                                                                         |
+| `db/seeds/**`                                            | `npm test -- tests/integration`; `npm run golden` if numbers move                                                                       |
+| `docs/**`, comments only                                 | no runtime tests; `git diff --check`                                                                                                    |
+| `package.json`, lockfile, build config                   | full `npm run check`                                                                                                                    |
+
+Tier 3 extras, according to what changed:
+
+- `npm run e2e` — `app/`, `server/`, `tests/e2e/`, or any API/MCP contract change.
+- `npm run golden` — anything that can move displayed numbers, prices or parity.
+- `npm run build` — Docker, deploy, env or build configuration.
+- `npm run smoke:mcp` — a read MCP tool was added or its output shape changed.
+
+Rules that keep the tiers honest:
+
+- Run a focused test with `-t` while iterating, then the whole file once it passes.
+- Batch the edits for one logical change and run Tier 2 once. Do not run suites after every
+  file save.
+- A previous green result counts for the rest of the session while its inputs are unchanged.
+  Re-run after a pull/rebase, a dependency or config change, or any edit in the suite's
+  dependency closure.
+- A red test stops the line: fix it before widening the scope. Never claim "check is green"
+  when only focused tests ran — name the tier, the command and what it covered.
+- Touching `app/` or `server/` does not mean rebuilding E2E after each edit: run the one
+  relevant spec once per logical change, and the full suite in Tier 3.
 
 ## Code map
 
@@ -148,9 +233,9 @@ strings come from `t(...)`; see `docs/I18N.md`.
   E2E assertions use the default English interface.
 - Test every rollback: state before/after, restoration of `extra` and container fill, and
   rejection when the entity is missing.
-- Before saying "done", run `npm run check`. If `app/` or `server/` changed, also run
-  `npm run e2e`; for numbers/parity run `npm run golden`; for Docker/deploy at least
-  `npm run build`.
+- Before saying "done" for a change, Tier 2 (the affected suites) must be green. Before
+  push/PR/merge, run Tier 3 (the full gate) — see **Verification tiers**. Say which tier you
+  ran; targeted tests are not a full check.
 
 ## Gotchas
 
@@ -170,13 +255,21 @@ strings come from `t(...)`; see `docs/I18N.md`.
 - **Ports:** dev `80` (`stalzone-profile.local`), e2e `3100`, empty-dossier e2e `3111`.
 - **Sign-in rate limit** counts by socket address; `X-Forwarded-For` is honored only with
   `NUXT_TRUST_PROXY=1` (behind Caddy).
+- **E2E is expensive.** `npm run e2e` builds the whole Nuxt app, resets the e2e DB and starts
+  a server. Treat it as a branch-level gate (Tier 3) or run a single spec
+  (`npx playwright test tests/e2e/<spec>.ts`) once per logical UI change — not after every edit.
+- **Moves and contract changes need a typecheck.** After renaming/deleting files or changing
+  shared signatures, run `npm run typecheck:node` (or `npm run typecheck` for `app/`);
+  focused tests can pass while stale imports remain.
 - **Golden** after number/calculator changes: differences are allowed only when documented,
   and they must be explained, not "fixed" by editing the expectation.
 
 ## Definition of Done
 
 1. There is a test that failed before the change and passes after it.
-2. `npm run check` is green; for UI/API also `npm run e2e`; for numbers also `npm run golden`.
+2. Tier 2 is green before the commit, and Tier 3 before push/PR/merge: `npm run check`;
+   `npm run e2e` when `app/`, `server/` or `tests/e2e/` changed; `npm run golden` when
+   numbers changed; `npm run build` for Docker/deploy/env.
 3. New migrations, fields, routes and tools are described in `docs/`.
 4. Secrets and personal data did not enter the diff.
 5. The commit follows Conventional Commits (`feat(scope): …`, `fix: …`, `docs: …`), one

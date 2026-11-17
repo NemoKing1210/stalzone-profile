@@ -1,3 +1,13 @@
+/**
+ * Dev server address. `npm run dev` prints exactly what it binds to, so setting
+ * `DEV_HOST=stalzone-profile.local` (in `.env` or the shell) makes the console show the
+ * domain instead of 127.0.0.1. The name must resolve through the hosts file (see README).
+ */
+const devHost = process.env.DEV_HOST?.trim() || '127.0.0.1';
+const devPort = Number(process.env.DEV_PORT) || 80;
+const isIpAddress = /^\d{1,3}(?:\.\d{1,3}){3}$/.test(devHost);
+const devAllowedHosts = [...new Set(['stalzone-profile.local', ...(isIpAddress ? [] : [devHost])])];
+
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: false },
@@ -18,10 +28,10 @@ export default defineNuxtConfig({
     fallback: 'dark',
   },
   devServer: {
-    host: '127.0.0.1',
-    port: 80,
+    host: devHost,
+    port: devPort,
     // Nuxt allows localhost and IPs by default; the local domain must be explicit.
-    allowedHosts: ['stalzone-profile.local'],
+    allowedHosts: devAllowedHosts,
   },
   app: {
     head: {

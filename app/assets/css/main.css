@@ -111,7 +111,10 @@
   html {
     background: var(--sz-bg);
     color-scheme: dark;
-    overflow-x: clip;
+    /* No overflow on <html>: Reka UI locks scrolling with overflow:hidden on <body>,
+       and that only reaches the viewport while the root's overflow stays visible.
+       Clipping the root instead leaves the scrollbar alive next to body's padding
+       compensation — a 15px gap when a menu opens. */
   }
 
   body {

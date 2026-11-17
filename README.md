@@ -1,6 +1,6 @@
 # Stalzone Profile
 
-A personal STALZONE dossier: gear, containers, builds, recommendations and auction prices.
+A personal STALZONE dossier: gear, containers and auction prices.
 SQLite is the source of truth, Nuxt 4 serves the site and the HTTP API, and MCP gives an
 agent access to the same data.
 
@@ -28,8 +28,10 @@ For the local domain add one line to `hosts` (administrator rights required):
 127.0.0.1 stalzone-profile.local
 ```
 
-The dev server listens on `127.0.0.1:80` and accepts that `Host`; the port and domain are
-set in `devServer` in `nuxt.config.ts`.
+The dev server listens on `127.0.0.1:80` and accepts that `Host`. Set `DEV_HOST` and
+`DEV_PORT` in `.env` or the shell to change the address: with
+`DEV_HOST=stalzone-profile.local` the console prints the domain instead of `127.0.0.1:80`.
+A non-IP `DEV_HOST` is added to the allowed hosts automatically.
 
 The sign-in password is set in one of two ways:
 
@@ -50,6 +52,8 @@ server uses an ephemeral secret and warns in the log: every restart resets all s
 |---|---|---|
 | `DB_PATH` | `./data/dossier.db` | SQLite file (in Docker — `/data/dossier.db`) |
 | `ICONS_DIR` | `./public/icons` | `.webp` icon directory (in Docker — `/data/icons`) |
+| `DEV_HOST` | `127.0.0.1` | dev-server address; the local domain makes the console print it |
+| `DEV_PORT` | `80` | dev-server port |
 | `NUXT_PASSWORD_HASH` | — | scrypt hash of the site password |
 | `NUXT_PASSWORD` | — | plain password for development |
 | `NUXT_SESSION_SECRET` | ephemeral | HMAC secret for the `dossier_session` cookie |

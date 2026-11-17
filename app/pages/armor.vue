@@ -185,11 +185,12 @@ function cardStats(row: ArmorRow): { label: string; value: string }[] {
 
 function selectRow(row: ArmorRow): void {
   selected.value = row;
-  if (import.meta.client && window.matchMedia('(max-width: 1279px)').matches) dialogOpen.value = true;
+  dialogOpen.value = true;
 }
 
 function startEdit(row: ArmorRow): void {
   if (row.ownedId == null) return;
+  dialogOpen.value = false;
   editTarget.value = {
     ownedId: row.ownedId,
     name: row.name,
@@ -216,194 +217,145 @@ function startEdit(row: ArmorRow): void {
       </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 lg:grid-cols-[248px_minmax(0,1fr)] xl:grid-cols-[248px_296px_minmax(0,1fr)]">
-      <div class="order-2 min-w-0 lg:order-1">
-        <InventorySidebar active="armor" />
-      </div>
+    <DossierPane class="min-w-0" flush :label="t('armor.title')" :hint="`${filteredRows.length} / ${rows.length}`">
+      <template #header>
+        <span class="sz-caps truncate text-[var(--sz-text-muted)]" :title="t('armor.title')">{{
+          t('armor.title')
+        }}</span>
+      </template>
 
-      <div class="order-3 hidden min-h-0 xl:order-2 xl:block">
-        <DossierPane class="h-full" :title="t('armor.detailTitle')" dense>
-        <template v-if="selected" #actions>
+      <div class="border-b border-[var(--sz-border)] p-2">
+        <div class="flex flex-wrap items-center gap-1.5">
+          <div class="flex gap-1">
+            <UButton
+              size="xs"
+              color="neutral"
+              :variant="filters.mode === 'owned' ? 'solid' : 'outline'"
+              @click="filters.mode = 'owned'"
+            >
+              {{ t('common.owned') }} · {{ ownedRows.length }}
+            </UButton>
+            <UButton
+              size="xs"
+              color="neutral"
+              :variant="filters.mode === 'catalog' ? 'solid' : 'outline'"
+              @click="filters.mode = 'catalog'"
+            >
+              {{ t('common.catalog') }} · {{ catalogRows.length }}
+            </UButton>
+          </div>
+
+          <div class="flex gap-1">
+            <UButton
+              icon="i-lucide-layout-grid"
+              size="xs"
+              color="neutral"
+              :variant="filters.view === 'grid' ? 'solid' : 'ghost'"
+              :aria-label="t('weapons.viewGrid')"
+              :aria-pressed="filters.view === 'grid'"
+              @click="filters.view = 'grid'"
+            />
+            <UButton
+              icon="i-lucide-list"
+              size="xs"
+              color="neutral"
+              :variant="filters.view === 'list' ? 'solid' : 'ghost'"
+              :aria-label="t('weapons.viewList')"
+              :aria-pressed="filters.view === 'list'"
+              @click="filters.view = 'list'"
+            />
+          </div>
+
+          <UInput
+            v-model="filters.q"
+            icon="i-lucide-search"
+            size="xs"
+            :placeholder="t('filters.searchArmor')"
+            class="w-full sm:w-56"
+          />
+          <USelect v-model="filters.rank" :items="rankItems" size="xs" class="w-36" :aria-label="t('filters.rank')" />
+          <USelect v-model="filters.sort" :items="sortItems" size="xs" class="w-32" :aria-label="t('filters.sort')" />
           <UButton
-            v-if="selected.ownedId"
-            icon="i-lucide-pencil"
+            :icon="filters.dir === 'desc' ? 'i-lucide-arrow-down-wide-narrow' : 'i-lucide-arrow-up-narrow-wide'"
+            size="xs"
             color="neutral"
             variant="ghost"
-            size="xs"
-            :aria-label="t('weapons.editAria', { name: selected.name })"
-            @click="startEdit(selected)"
+            :aria-label="t('filters.sort')"
+            @click="filters.dir = filters.dir === 'desc' ? 'asc' : 'desc'"
           />
-        </template>
-
-        <ItemCard
-          v-if="selected"
-          :name="selected.name"
-          kind="armor"
-          :data="selected"
-          :card="selectedCard"
-          :level="selected.lvl"
-        />
-        <div v-else class="space-y-2">
-          <p class="text-[12.5px] text-[var(--sz-text-muted)]">{{ t('armor.noSelection') }}</p>
-          <div class="divide-y divide-[var(--sz-border)] border-t border-[var(--sz-border)]">
-            <StatRow :label="t('common.owned')" :value="ownedRows.length" />
-            <StatRow :label="t('common.catalog')" :value="catalogRows.length" />
-          </div>
+          <UButton
+            v-if="filters.q || filters.rank !== ALL_RANKS"
+            icon="i-lucide-x"
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            :label="t('common.reset')"
+            @click="
+              () => {
+                filters.q = '';
+                filters.rank = ALL_RANKS;
+              }
+            "
+          />
         </div>
-      </DossierPane>
       </div>
 
-      <DossierPane class="order-1 min-w-0 lg:order-2 xl:order-3" flush :label="t('armor.title')" :hint="`${filteredRows.length} / ${rows.length}`">
-        <template #header>
-          <span class="sz-caps truncate text-[var(--sz-text-muted)]" :title="t('armor.title')">{{ t('armor.title') }}</span>
-        </template>
-
-        <div class="border-b border-[var(--sz-border)] p-2">
-          <div class="flex flex-wrap items-center gap-1.5">
-            <div class="flex gap-1">
-              <UButton
-                size="xs"
-                color="neutral"
-                :variant="filters.mode === 'owned' ? 'solid' : 'outline'"
-                @click="filters.mode = 'owned'"
-              >
-                {{ t('common.owned') }} · {{ ownedRows.length }}
-              </UButton>
-              <UButton
-                size="xs"
-                color="neutral"
-                :variant="filters.mode === 'catalog' ? 'solid' : 'outline'"
-                @click="filters.mode = 'catalog'"
-              >
-                {{ t('common.catalog') }} · {{ catalogRows.length }}
-              </UButton>
-            </div>
-
-            <div class="flex gap-1">
-              <UButton
-                icon="i-lucide-layout-grid"
-                size="xs"
-                color="neutral"
-                :variant="filters.view === 'grid' ? 'solid' : 'ghost'"
-                :aria-label="t('weapons.viewGrid')"
-                :aria-pressed="filters.view === 'grid'"
-                @click="filters.view = 'grid'"
-              />
-              <UButton
-                icon="i-lucide-list"
-                size="xs"
-                color="neutral"
-                :variant="filters.view === 'list' ? 'solid' : 'ghost'"
-                :aria-label="t('weapons.viewList')"
-                :aria-pressed="filters.view === 'list'"
-                @click="filters.view = 'list'"
-              />
-            </div>
-
-            <UInput
-              v-model="filters.q"
-              icon="i-lucide-search"
-              size="xs"
-              :placeholder="t('filters.searchArmor')"
-              class="w-full sm:w-56"
-            />
-            <USelect
-              v-model="filters.rank"
-              :items="rankItems"
-              size="xs"
-              class="w-36"
-              :aria-label="t('filters.rank')"
-            />
-            <USelect
-              v-model="filters.sort"
-              :items="sortItems"
-              size="xs"
-              class="w-32"
-              :aria-label="t('filters.sort')"
-            />
-            <UButton
-              :icon="filters.dir === 'desc' ? 'i-lucide-arrow-down-wide-narrow' : 'i-lucide-arrow-up-narrow-wide'"
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              :aria-label="t('filters.sort')"
-              @click="filters.dir = filters.dir === 'desc' ? 'asc' : 'desc'"
-            />
-            <UButton
-              v-if="filters.q || filters.rank !== ALL_RANKS"
-              icon="i-lucide-x"
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              :label="t('common.reset')"
-              @click="
-                () => {
-                  filters.q = '';
-                  filters.rank = ALL_RANKS;
-                }
-              "
+      <div class="p-2">
+        <template v-if="filters.view === 'grid'">
+          <div
+            v-if="sortedRows.length"
+            data-testid="armor-grid"
+            class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
+          >
+            <DossierItemCard
+              v-for="(row, index) in sortedRows"
+              :key="row.key"
+              :name="row.name"
+              :rank="row.rank"
+              :category="row.cls"
+              :level="row.lvl"
+              :icon="row.icon"
+              :stats="cardStats(row)"
+              :selected="selected?.key === row.key"
+              :priority="index === 0"
+              @select="selectRow(row)"
             />
           </div>
-        </div>
+          <UEmpty v-else icon="i-lucide-shield" :title="t('common.empty')" :description="emptyText" />
+        </template>
 
-        <div class="p-2">
-          <template v-if="filters.view === 'grid'">
-            <div v-if="sortedRows.length" data-testid="armor-grid" class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-              <DossierItemCard
-                v-for="(row, index) in sortedRows"
-                :key="row.key"
-                :name="row.name"
-                :rank="row.rank"
-                :category="row.cls"
-                :level="row.lvl"
-                :icon="row.icon"
-                :stats="cardStats(row)"
-                :selected="selected?.key === row.key"
-                :priority="index === 0"
-                @select="selectRow(row)"
-              />
-            </div>
-            <UEmpty
-              v-else
-              icon="i-lucide-shield"
-              :title="t('common.empty')"
-              :description="emptyText"
-            />
+        <UTable
+          v-else
+          v-model:sorting="sorting"
+          :data="filteredRows"
+          :columns="columns"
+          :loading="!payload"
+          :on-select="(_event, row) => selectRow(row.original)"
+          sticky="header"
+          class="w-full"
+        >
+          <template #rank-cell="{ row }">
+            <RankBadge :rank="row.original.rank" />
           </template>
-
-          <UTable
-            v-else
-            v-model:sorting="sorting"
-            :data="filteredRows"
-            :columns="columns"
-            :loading="!payload"
-            :on-select="(_event, row) => selectRow(row.original)"
-            sticky="header"
-            class="w-full"
-          >
-            <template #rank-cell="{ row }">
-              <RankBadge :rank="row.original.rank" />
-            </template>
-            <template #lvl-cell="{ row }">
-              <span v-if="row.original.lvl != null">+{{ row.original.lvl }}</span>
-              <span v-else class="text-[var(--sz-text-dim)]">—</span>
-            </template>
-            <template #armor-cell="{ row }">
-              {{ row.original.armor == null ? '—' : g1(row.original.armor) }}
-            </template>
-            <template #armor15-cell="{ row }">
-              {{ row.original.armor15 == null ? '—' : g1(row.original.armor15) }}
-            </template>
-            <template #weight-cell="{ row }">
-              {{ row.original.weight == null ? '—' : g2(row.original.weight) }}
-            </template>
-            <template #empty>
-              <UEmpty icon="i-lucide-shield" :title="t('common.empty')" :description="emptyText" />
-            </template>
-          </UTable>
-        </div>
-      </DossierPane>
-    </div>
+          <template #lvl-cell="{ row }">
+            <span v-if="row.original.lvl != null">+{{ row.original.lvl }}</span>
+            <span v-else class="text-[var(--sz-text-dim)]">—</span>
+          </template>
+          <template #armor-cell="{ row }">
+            {{ row.original.armor == null ? '—' : g1(row.original.armor) }}
+          </template>
+          <template #armor15-cell="{ row }">
+            {{ row.original.armor15 == null ? '—' : g1(row.original.armor15) }}
+          </template>
+          <template #weight-cell="{ row }">
+            {{ row.original.weight == null ? '—' : g2(row.original.weight) }}
+          </template>
+          <template #empty>
+            <UEmpty icon="i-lucide-shield" :title="t('common.empty')" :description="emptyText" />
+          </template>
+        </UTable>
+      </div>
+    </DossierPane>
 
     <p class="text-[11px] text-[var(--sz-text-dim)]">{{ t('armor.hint') }}</p>
 

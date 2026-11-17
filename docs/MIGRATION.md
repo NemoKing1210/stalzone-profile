@@ -18,7 +18,7 @@ restores it from the official repository.
 | detail cards (`details_card`) | **601** |
 | catalog positions (`catalog_entry`) | **495** (356 weapons + 139 armor) |
 | icons (`icon`) | **99** |
-| content blocks (`content_block`) | **15** |
+| content blocks (`content_block`) | **7** |
 | price rows (`price_snapshot`) | **1,589** (snapshot of 2026-11-14) |
 
 ## Number parity

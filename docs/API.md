@@ -82,7 +82,7 @@ text is English.
 | PUT | `/api/v1/containers/:id/fill` | `{ artifacts: [{ name, level, quality? }], asOf?, dryRun? }` |
 | POST | `/api/v1/builds` | `BuildInputSchema` |
 | DELETE | `/api/v1/builds/:slug?dryRun=` | — |
-| PUT | `/api/v1/content/:kind` | `ContentBlockInputSchema` (`kind`: `recs`, `earnings`, `notes`, `builds_meta`, `catalog_meta`) |
+| PUT | `/api/v1/content/:kind` | `ContentBlockInputSchema` (`kind`: `recs`, `earnings`, `builds_meta`, `catalog_meta`) |
 | PATCH | `/api/v1/character` | `CharacterPatchSchema` |
 | POST | `/api/v1/events/:id/rollback` | `{ dryRun? }` |
 

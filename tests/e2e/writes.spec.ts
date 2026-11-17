@@ -193,12 +193,12 @@ test('builds can be created, deleted and restored', async () => {
 });
 
 test('content blocks are written and rolled back', async () => {
-  const written = await api.put('/api/v1/content/notes', {
+  const written = await api.put('/api/v1/content/recs', {
     headers: { origin: ORIGIN },
     data: {
-      slug: 'e2e-note',
-      title: 'E2E заметка',
-      payload: { title: 'E2E заметка', text: 'проверка' },
+      slug: 'e2e-rec',
+      title: 'E2E рекомендация',
+      payload: { id: 'e2e-rec', title: 'E2E рекомендация', lead: null, rows: [] },
       position: 99,
       dryRun: false,
     },
@@ -207,14 +207,22 @@ test('content blocks are written and rolled back', async () => {
   const body = await written.json();
 
   let payload = await (await api.get('/api/v1/payload')).json();
-  expect(payload.notes.some((note: { title: string }) => note.title === 'E2E заметка')).toBe(true);
+  expect(payload.recommendations.some((rec: { title: string }) => rec.title === 'E2E рекомендация')).toBe(true);
 
   await api.post(`/api/v1/events/${body.eventId}/rollback`, {
     headers: { origin: ORIGIN },
     data: { dryRun: false },
   });
   payload = await (await api.get('/api/v1/payload')).json();
-  expect(payload.notes.some((note: { title: string }) => note.title === 'E2E заметка')).toBe(false);
+  expect(payload.recommendations.some((rec: { title: string }) => rec.title === 'E2E рекомендация')).toBe(false);
+});
+
+test('notes content blocks are rejected', async () => {
+  const response = await api.put('/api/v1/content/notes', {
+    headers: { origin: ORIGIN },
+    data: { payload: {}, dryRun: false },
+  });
+  expect(response.status()).toBe(400);
 });
 
 test('character edits are validated and rolled back', async () => {

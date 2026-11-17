@@ -619,16 +619,6 @@ export function importLegacy(db: Db, cfg: AppConfig): ImportReport {
       repo.putBlock(db, { kind: 'earnings', payload: legacy.earnings, position: 0 });
       report.blocks++;
     }
-    (legacy.notes ?? []).forEach((note: Json, index: number) => {
-      repo.putBlock(db, {
-        kind: 'notes',
-        slug: `note-${index + 1}`,
-        title: note.title ?? null,
-        payload: note,
-        position: index,
-      });
-      report.blocks++;
-    });
     if (legacy.catalog?.meta) {
       repo.putBlock(db, { kind: 'catalog_meta', payload: legacy.catalog.meta, position: 0 });
       report.blocks++;

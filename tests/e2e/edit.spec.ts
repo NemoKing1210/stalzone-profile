@@ -29,14 +29,38 @@ async function ks1Row(page: Page) {
   return row;
 }
 
-/** Selects the row and opens the editor from the detail pane. */
+/** Selects the row and opens the editor from the item dialog. */
 async function editRow(page: Page, row: Locator): Promise<void> {
   await row.click();
-  await page
-    .getByRole('region', { name: 'Item' })
-    .getByRole('button', { name: 'Edit KS-1', exact: true })
-    .click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Edit', exact: true }).click();
 }
+
+test('the character editor offers a faction select, a date picker and a reset', async ({ page }) => {
+  await login(page);
+  await page.getByRole('button', { name: 'Edit profile' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+
+  const faction = dialog.getByLabel('Faction');
+  await faction.click();
+  await expect(page.getByRole('option', { name: 'Заря', exact: true })).toBeVisible();
+  await page.getByRole('option', { name: 'Заря', exact: true }).click();
+
+  const arrived = dialog.getByLabel('In the Zone since');
+  await expect(arrived).toHaveAttribute('type', 'date');
+  await expect(dialog.getByText(/6 декабря 2024/)).toBeVisible();
+
+  await dialog.getByRole('switch').click();
+  await arrived.fill('2025-01-15');
+  await dialog.getByRole('button', { name: 'Check', exact: true }).click();
+  await expect(dialog.getByText('Dry run', { exact: true }).first()).toBeVisible();
+  await expect(dialog.getByText(/faction/)).toBeVisible();
+
+  await dialog.getByRole('button', { name: 'Reset', exact: true }).click();
+  await expect(dialog.getByText('Dry run', { exact: true })).toHaveCount(0);
+});
 
 test('edit, dry run and rollback keep the dossier consistent', async ({ page }) => {
   await login(page);

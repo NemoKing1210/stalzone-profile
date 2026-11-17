@@ -28,42 +28,86 @@ const counts = computed(() => [
     to: '/containers',
   },
   { label: t('nav.artifacts'), value: payload.value?.artifacts.length ?? 0, icon: 'i-lucide-gem', to: '/artifacts' },
-  { label: t('nav.builds'), value: payload.value?.builds.items.length ?? 0, icon: 'i-lucide-layers', to: '/builds' },
 ]);
 
-const stats = computed(() => [
-  { label: t('overview.stats.hours'), value: character.value.hours == null ? '—' : num(character.value.hours) },
-  { label: t('overview.stats.kd'), value: dec(character.value.kd) },
+/** Four headline numbers. Percentages get a 0–100 bar; no other value has a real maximum. */
+const kpis = computed(() => [
   {
+    key: 'hours',
+    label: t('overview.stats.hours'),
+    value: character.value.hours == null ? '—' : num(character.value.hours),
+    missing: character.value.hours == null,
+    bar: null as number | null,
+  },
+  {
+    key: 'kd',
+    label: t('overview.stats.kd'),
+    value: dec(character.value.kd),
+    missing: character.value.kd == null,
+    bar: null as number | null,
+  },
+  {
+    key: 'accuracy',
     label: t('overview.stats.accuracy'),
     value: character.value.accuracy == null ? '—' : `${character.value.accuracy}%`,
+    missing: character.value.accuracy == null,
+    bar: character.value.accuracy == null ? null : clampPercent(character.value.accuracy, 100),
   },
   {
+    key: 'headshot',
     label: t('overview.stats.headshot'),
     value: character.value.headshot == null ? '—' : `${character.value.headshot}%`,
+    missing: character.value.headshot == null,
+    bar: character.value.headshot == null ? null : clampPercent(character.value.headshot, 100),
   },
+]);
+
+const detailStats = computed(() => [
   {
     label: t('overview.stats.achievements'),
     value:
       character.value.achievements == null
-        ? '—'
+        ? null
         : `${num(character.value.achievements)} · ${t('overview.points', {
             count: num(character.value.achievementPoints ?? 0),
           })}`,
+    tone: 'neutral' as const,
   },
-  { label: t('overview.stats.money'), value: character.value.money == null ? '—' : fmtMoney(character.value.money) },
+  {
+    label: t('overview.stats.money'),
+    value: character.value.money == null ? null : fmtMoney(character.value.money),
+    tone: 'money' as const,
+  },
   {
     label: t('overview.stats.maxMoney'),
-    value: character.value.maxMoney == null ? '—' : fmtMoney(character.value.maxMoney),
+    value: character.value.maxMoney == null ? null : fmtMoney(character.value.maxMoney),
+    tone: 'money' as const,
   },
-  { label: t('overview.stats.inZoneSince'), value: formatDate(character.value.arrived) },
+  {
+    label: t('overview.stats.inZoneSince'),
+    value: formatDate(character.value.arrived),
+    tone: 'neutral' as const,
+  },
 ]);
 
+/** Same thresholds as FreshnessBadge; the age column carries the colour, the label stays put. */
+const pricesTone = computed(() => {
+  const age = payload.value?.freshness.pricesAgeMin;
+  if (age == null) return 'neutral' as const;
+  if (age < 180) return 'success' as const;
+  if (age < 60 * 24) return 'warning' as const;
+  return 'danger' as const;
+});
+
 const dataState = computed(() => [
-  { label: t('settings.dossierUpdated'), value: formatDate(payload.value?.freshness.dataUpdated) },
-  { label: t('settings.prices'), value: formatAge(payload.value?.freshness.pricesAgeMin) },
-  { label: t('settings.catalogUpdated'), value: formatDate(catalogUpdated.value) },
-  { label: t('settings.catalogSource'), value: catalogSource.value },
+  {
+    label: t('settings.dossierUpdated'),
+    value: formatDate(payload.value?.freshness.dataUpdated),
+    tone: 'neutral' as const,
+  },
+  { label: t('settings.prices'), value: formatAge(payload.value?.freshness.pricesAgeMin), tone: pricesTone.value },
+  { label: t('settings.catalogUpdated'), value: formatDate(catalogUpdated.value), tone: 'neutral' as const },
+  { label: t('settings.catalogSource'), value: catalogSource.value, tone: 'neutral' as const },
 ]);
 
 const career = computed(() => {
@@ -72,13 +116,20 @@ const career = computed(() => {
     .filter((entry): entry is [string, number] => Array.isArray(entry) && entry.length >= 2)
     .map(([label, value]) => ({ label, value }));
 });
+
+/** Two balanced columns on wide screens; one list on narrow ones. */
+const careerColumns = computed(() => {
+  const rows = career.value;
+  if (rows.length < 8) return [rows];
+  const half = Math.ceil(rows.length / 2);
+  return [rows.slice(0, half), rows.slice(half)];
+});
 </script>
 
 <template>
   <section class="space-y-4">
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <p class="sz-caps text-[11px] text-[var(--sz-text-dim)]">{{ t('overview.kicker') }}</p>
         <h1>{{ character.nick ?? 'STALZONE' }}</h1>
         <p class="text-[12.5px] text-[var(--sz-text-muted)]">
           {{ character.faction ?? t('overview.factionMissing') }}
@@ -86,74 +137,97 @@ const career = computed(() => {
           <span v-if="character.realm"> · {{ character.realm }}</span>
         </p>
       </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <span
-          class="inline-flex items-center gap-1.5 border border-[var(--sz-border)] px-1.5 py-1 text-[11px] uppercase tracking-[0.12em] text-[var(--sz-text-muted)]"
-        >
-          <UIcon name="i-lucide-shield-check" class="size-3.5" />
-          {{ t('overview.ownerOnly') }}
-        </span>
-      </div>
     </div>
 
     <template v-if="hasCharacter">
-      <div class="grid grid-cols-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)_320px]">
+      <div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-[300px_minmax(0,1fr)_320px]">
         <DossierPane class="order-1 min-w-0" :title="t('overview.character')" dense>
-          <div class="flex gap-3">
-            <div
-              class="flex h-[112px] w-[86px] shrink-0 items-center justify-center border border-[var(--sz-border)] bg-[var(--sz-surface-alt)]"
-              aria-hidden="true"
-            >
-              <UIcon name="i-lucide-user-round" class="size-9 text-[var(--sz-text-dim)]" />
-            </div>
-            <div class="min-w-0 flex-1 space-y-1">
-              <p class="font-display text-[15px] uppercase tracking-[0.06em]">{{ character.nick ?? 'STALZONE' }}</p>
-              <p class="text-[12.5px] text-[var(--sz-text-muted)]">
-                {{ character.faction ?? t('overview.factionMissing') }}
-                <span v-if="character.clan"> · {{ character.clan }}</span>
+          <div class="min-w-0 space-y-1.5">
+            <p class="font-display text-[15px] uppercase tracking-[0.06em]">{{ character.nick ?? 'STALZONE' }}</p>
+            <p v-if="character.playstyle" class="text-[11px] leading-snug text-[var(--sz-text-muted)]">
+              {{ t('overview.playstyle', { value: character.playstyle }) }}
+            </p>
+            <UButton
+              icon="i-lucide-pencil"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              :label="t('overview.editProfile')"
+              @click="editOpen = true"
+            />
+          </div>
+
+          <p class="sz-caps mt-3 border-t border-[var(--sz-border)] pt-2 text-[var(--sz-text-muted)]">
+            {{ t('overview.keyStats') }}
+          </p>
+          <div class="mt-1.5 grid grid-cols-2 gap-px bg-[var(--sz-border)]">
+            <div v-for="kpi in kpis" :key="kpi.key" data-testid="kpi" class="min-w-0 bg-[var(--sz-surface)] px-2 py-1.5">
+              <p class="sz-caps leading-tight text-[var(--sz-text-muted)]">{{ kpi.label }}</p>
+              <p
+                class="mt-1 font-display text-[21px] leading-none tabular-nums"
+                :class="kpi.missing ? 'text-[var(--sz-text-dim)]' : 'text-[var(--sz-text)]'"
+              >
+                {{ kpi.value }}
               </p>
-              <p v-if="character.playstyle" class="text-[11px] text-[var(--sz-text-muted)]">
-                {{ t('overview.playstyle', { value: character.playstyle }) }}
-              </p>
-              <UButton
-                v-if="hasCharacter"
-                icon="i-lucide-pencil"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                :label="t('overview.editProfile')"
-                @click="editOpen = true"
-              />
+              <div v-if="kpi.bar != null" class="mt-1.5 h-[2px] w-full bg-ink-950" aria-hidden="true">
+                <div class="h-full bg-[var(--sz-accent)]" :style="{ width: `${kpi.bar}%` }" />
+              </div>
             </div>
           </div>
 
-          <div class="mt-3 divide-y divide-[var(--sz-border)] border-t border-[var(--sz-border)]">
-            <StatRow v-for="stat in stats" :key="stat.label" :label="stat.label" :value="stat.value" />
+          <div class="mt-2 divide-y divide-[var(--sz-border)]">
+            <StatRow
+              v-for="stat in detailStats"
+              :key="stat.label"
+              :label="stat.label"
+              :value="stat.value"
+              :tone="stat.tone"
+            />
           </div>
 
-          <p v-if="character.stash" class="mt-2 text-[12.5px] text-[var(--sz-text-muted)]">
+          <p
+            v-if="character.stash"
+            class="mt-2 border-t border-[var(--sz-border)] pt-2 text-[12px] text-[var(--sz-text-muted)]"
+          >
             {{ t('overview.stash', { value: character.stash }) }}
           </p>
         </DossierPane>
 
         <div class="order-2 min-w-0 space-y-4 lg:order-3">
-          <DossierPane :title="t('overview.sections')" dense>
-            <NuxtLink
-              v-for="card in counts"
-              :key="card.to"
-              :to="card.to"
-              class="flex items-center gap-2 border-b border-[var(--sz-border)] px-1 py-2 text-[12.5px] last:border-b-0 hover:bg-[var(--sz-surface-alt)]"
-            >
-              <UIcon :name="card.icon" class="size-4 text-[var(--sz-text-dim)]" />
-              <span class="flex-1">{{ card.label }}</span>
-              <span class="tabular-nums text-[var(--sz-text-muted)]">{{ card.value }}</span>
-              <UIcon name="i-lucide-chevron-right" class="size-3.5 text-[var(--sz-text-dim)]" />
-            </NuxtLink>
+          <DossierPane :title="t('overview.sections')" dense flush>
+            <div class="grid grid-cols-2 gap-px bg-[var(--sz-border)]">
+              <NuxtLink
+                v-for="card in counts"
+                :key="card.to"
+                :to="card.to"
+                :aria-label="t('overview.sectionAria', { label: card.label, count: card.value })"
+                class="group relative flex min-h-[88px] flex-col justify-between bg-[var(--sz-surface)] p-2.5 transition-colors hover:bg-[var(--sz-surface-alt)]"
+              >
+                <div class="flex items-start justify-between gap-2">
+                  <UIcon
+                    :name="card.icon"
+                    class="size-4 text-[var(--sz-text-dim)] transition-colors group-hover:text-[var(--sz-accent)]"
+                  />
+                  <UIcon
+                    name="i-lucide-chevron-right"
+                    class="size-3.5 text-[var(--sz-text-dim)] transition-colors group-hover:text-[var(--sz-accent)]"
+                  />
+                </div>
+                <p class="font-display text-[22px] leading-none tabular-nums">{{ card.value }}</p>
+                <p class="sz-caps text-[var(--sz-text-muted)]">{{ card.label }}</p>
+              </NuxtLink>
+            </div>
           </DossierPane>
 
           <DossierPane :title="t('overview.dataState')" dense>
             <div class="divide-y divide-[var(--sz-border)]">
-              <StatRow v-for="entry in dataState" :key="entry.label" :label="entry.label" :value="entry.value" />
+              <StatRow
+                v-for="entry in dataState"
+                :key="entry.label"
+                :label="entry.label"
+                :value="entry.value"
+                :tone="entry.tone"
+              />
             </div>
             <p class="mt-2 text-[11px] leading-relaxed text-[var(--sz-text-dim)]">
               {{ t('overview.aboutSnapshot', { date: formatDate(payload?.freshness.dataUpdated) }) }}
@@ -164,14 +238,21 @@ const career = computed(() => {
         </div>
 
         <DossierPane class="order-3 min-w-0 lg:order-2" :title="t('overview.career')" dense>
-          <div v-if="career.length" class="divide-y divide-[var(--sz-border)]">
+          <div v-if="career.length" class="grid grid-cols-1 gap-x-4 xl:grid-cols-2">
             <div
-              v-for="entry in career"
-              :key="entry.label"
-              class="flex justify-between gap-3 py-1.5 text-[12.5px]"
+              v-for="(column, index) in careerColumns"
+              :key="index"
+              class="divide-y divide-[var(--sz-border)]"
+              :class="index > 0 ? 'xl:border-l xl:border-[var(--sz-border)] xl:pl-4' : ''"
             >
-              <span class="min-w-0 break-words text-[var(--sz-text-muted)]">{{ entry.label }}</span>
-              <span class="shrink-0 tabular-nums">{{ num(entry.value) }}</span>
+              <div
+                v-for="entry in column"
+                :key="entry.label"
+                class="flex items-baseline justify-between gap-3 py-2 text-[12.5px]"
+              >
+                <span class="min-w-0 break-words text-[var(--sz-text-muted)]">{{ entry.label }}</span>
+                <span class="shrink-0 font-display text-[15px] leading-none tabular-nums">{{ num(entry.value) }}</span>
+              </div>
             </div>
           </div>
           <p v-else class="text-[12.5px] text-[var(--sz-text-muted)]">{{ t('overview.careerEmpty') }}</p>

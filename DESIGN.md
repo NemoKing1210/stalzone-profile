@@ -5,6 +5,10 @@ Date: 2026-11-15.
 Scope: the visual language of the Nuxt site — color, type, layout, components, the accent setting.
 Out of scope: data model, API, MCP contract, business logic, number formulas, authorization.
 
+Current UI change (2026-11-16): the Builds, Recommendations, Earnings and Notes sections
+were removed from the site. Sections 8.5–8.8 below describe the earlier proposal and are
+kept for reference only.
+
 The site is a private STALZONE dossier. It keeps Nuxt UI for controls (buttons, inputs,
 selects, modals, tables, toasts) because that library already provides behaviour and
 accessibility. This document describes how those controls are dressed, which small custom
@@ -354,11 +358,10 @@ Rules:
 
 ### 5.2 Page archetypes
 
-**A. Inventory three-pane** — weapons, armor.
-Left 248px: character summary + section list (categories with counts). Center 296px: detail
-of the selected item (stats, effects) or an aggregate state when nothing is selected. Right
-1fr: toolbar (view toggle, search, rank, sort) + item grid or table + storage/count bar.
-On selection the center pane updates in place; a modal is used on mobile.
+**A. Inventory list** — weapons, armor.
+A single full-width pane: toolbar (view toggle, search, rank, sort) + item grid or table +
+storage/count bar. Selecting an item opens its card in a modal at every width; the list is
+never narrowed by a side column. Sections are reached from the top navigation.
 
 **B. Two-pane list + detail** — containers, artifacts, earnings.
 Left 260–320px: filters/section list. Right 1fr: card grid or table. Detail opens in the
@@ -371,7 +374,7 @@ optional metric strip, a body (rows, table or prose) and a footer verdict/note. 
 pane; long text must not be squeezed into 280px.
 
 **D. Dashboard** — overview.
-Left 280px: character sheet (paper-doll placeholder, nick, rank, faction, hours, money).
+Left 300px: character sheet (nick, playstyle, key stats and money).
 Center 1fr: career/achievement stat list. Right 320px: section counts and data freshness.
 On mobile the order is character → counts → career.
 
@@ -387,9 +390,9 @@ error alert, sign-in button, locale switcher top-right. No navigation.
 
 Breakpoints: `640`, `1024`, `1280`.
 
-- `≥1280`: three-pane layouts, 296px center, 248px left; tables show all columns.
-- `1024–1279`: two panes (left 260px + 1fr); center detail becomes a 320px slide-over opened
-  by row/card selection; tables drop low-priority columns.
+- `≥1280`: tables show all columns; the overview keeps its three panes.
+- `1024–1279`: list pages keep their filter + list panes (containers, artifacts); tables
+  drop low-priority columns.
 - `<1024`: single column. Navigation becomes a horizontally scrollable row. Item grids: 2
   columns at ≥640, 1 column below. Tables become horizontally scrollable with a sticky first
   column, or switch to a compact card list when the page already has one.
@@ -575,18 +578,28 @@ field, parsing a display string, or changing the data model to satisfy a visual 
 
 ### 8.1 Overview (`/`)
 
-- Left pane "Character": 86×112 paper-doll placeholder (no personal photo), nick, faction,
-  clan, playstyle, edit button. The data model has no player rank, so no rank chip is shown;
-  rank colours are only used for item names. Below: quick stats (hours, K/D, accuracy,
-  headshot, money, in-zone since) as `StatRow`s; values green only when they are genuinely
-  positive modifiers, otherwise neutral. The stash value is shown as the stored localized
-  string, without a progress bar.
-- Center pane "Career": the career list as rows; achievements with points; each row label
-  muted, value tabular.
-- Right pane "Sections": counts for weapons, armor, containers, artifacts, builds as links
-  with a 1px bottom border; then "Data state": dossier date, prices age, catalog date, source.
+A three-pane instrument. The page title is the nick; faction, clan and realm sit under it.
+
+- **Character** (left, 300px): nick, playstyle and the edit button, then a **Key stats** strip of four KPI tiles (hours, K/D, accuracy, headshots) separated by
+  1px hairlines. Percentages carry a 2px accent bar on a 0–100 scale; no other tile has a bar
+  because only percentages have a real maximum. Below: achievements with points, money and
+  maximum money (brass `--sz-money`), in-zone-since as `StatRow`s, then the stash as the
+  stored localized string, never a bar. No player rank chip; rank colours stay on item names.
+- **Career** (center 1fr): the career list as rows, label muted, value in the display face,
+  split into two balanced columns from 1280px (one list below).
+- **Sections** (right 320px): a 2×2 inventory-slot grid — one square tile per section with
+  icon, count and label; each tile links to its section and its accessible name includes the
+  count. Below: **Data state** with dossier date, prices age (success/warning/danger tone by
+  the freshness thresholds), catalog date and source, and the about note.
 - Mobile order: character → sections → career.
 - Empty dossier: a single pane with the current empty message, not a fake character.
+- **Character editor** (modal behind "Edit profile"): fields are grouped as Profile /
+  Progress / Combat / Money / Notes instead of one undifferentiated grid. Faction is a
+  searchable select over the current STALZONE factions with free entry for any other value;
+  "In the Zone since" is a native date input, and a stored non-ISO string is kept and shown
+  as a hint until a date replaces it. Numeric fields carry real bounds and steps (percentages
+  0–100, money in thousands). Actions sit in the modal footer: Reset, Cancel, and Check under
+  dry run or Save otherwise.
 
 ### 8.2 Weapons (`/weapons`) and Armor (`/armor`)
 
@@ -817,6 +830,7 @@ Anti-goals (would make the result a failure even if it looks "cool"):
 | Artifact weight | omitted | not exposed by the payload |
 | URL selection | no `?item=` deep link in this refresh | keeps routing/SSR out of a visual change |
 | Screenshots | local only; anonymized fixture or empty server for any shared image | the real dossier is personal data |
+| Overview composition | KPI tiles and inventory-slot tiles inside the three panes | the owner asked for a more game-like, clearer reading; still only real numbers and bars with a true maximum |
 
 Open items that the builder may settle:
 

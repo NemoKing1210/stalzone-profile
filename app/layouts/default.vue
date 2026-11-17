@@ -7,10 +7,6 @@ const sections = computed(() => [
   { label: t('nav.armor'), icon: 'i-lucide-shield', to: '/armor' },
   { label: t('nav.containers'), icon: 'i-lucide-backpack', to: '/containers' },
   { label: t('nav.artifacts'), icon: 'i-lucide-gem', to: '/artifacts' },
-  { label: t('nav.builds'), icon: 'i-lucide-layers', to: '/builds' },
-  { label: t('nav.recommendations'), icon: 'i-lucide-lightbulb', to: '/recommendations' },
-  { label: t('nav.earnings'), icon: 'i-lucide-coins', to: '/earnings' },
-  { label: t('nav.notes'), icon: 'i-lucide-notebook-pen', to: '/notes' },
 ]);
 
 const navItems = computed(() =>
@@ -42,14 +38,16 @@ async function logout(): Promise<void> {
 <template>
   <div class="flex min-h-screen flex-col bg-[var(--sz-bg)] text-[var(--sz-text)]">
     <header class="sticky top-0 z-40 border-b border-[var(--sz-border)] bg-ink-950">
-      <div class="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-4 px-4 sm:px-6">
-        <NuxtLink to="/" class="flex h-12 shrink-0 items-center gap-1.5">
+      <div
+        class="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-4 px-4 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,max-content)_minmax(0,1fr)]"
+      >
+        <NuxtLink to="/" class="flex h-12 shrink-0 items-center gap-1.5 lg:justify-self-start">
           <span class="font-brand text-[17px] leading-none tracking-[0.12em]">{{ t('common.brandLeft') }}</span>
           <span class="hidden text-[17px] leading-none text-[var(--sz-accent)] sm:inline">//</span>
           <span class="hidden font-brand text-[17px] leading-none tracking-[0.12em] sm:inline">{{ t('common.brandRight') }}</span>
         </NuxtLink>
 
-        <div class="sz-nav order-3 w-full min-w-0 overflow-x-auto lg:order-none lg:w-auto lg:flex-1">
+        <div class="sz-nav order-3 w-full min-w-0 overflow-x-auto lg:order-none lg:w-auto lg:justify-self-center">
           <UNavigationMenu
             :items="navItems"
             orientation="horizontal"
@@ -63,7 +61,7 @@ async function logout(): Promise<void> {
           />
         </div>
 
-        <div class="ml-auto flex items-center gap-1">
+        <div class="ml-auto flex items-center gap-1 lg:ml-0 lg:justify-self-end">
           <FreshnessBadge
             :data-updated="meta?.freshness?.dataUpdated"
             :prices-age-min="meta?.freshness?.pricesAgeMin"

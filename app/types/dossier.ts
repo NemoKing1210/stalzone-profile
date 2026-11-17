@@ -13,17 +13,6 @@ export interface OwnedEditTarget {
   slot: string | null;
 }
 
-export type ContentKind = 'recs' | 'earnings' | 'notes' | 'builds_meta' | 'catalog_meta';
-
-export interface ContentEditTarget {
-  kind: ContentKind;
-  slug: string | null;
-  title: string | null;
-  lead: string | null;
-  payload: unknown;
-  position?: number;
-}
-
 export interface EventRow {
   id: number;
   at: string;

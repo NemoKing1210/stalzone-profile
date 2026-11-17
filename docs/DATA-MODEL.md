@@ -15,7 +15,7 @@ in `db/migrations/`.
 | `container_fill` | artifacts in a container's slots as of `as_of` |
 | `build` / `build_slot` | builds and their rows |
 | `price_snapshot` | price history; view `price_latest` — the latest by name+quality+bonus |
-| `content_block` | notes, recommendations, earnings, build and catalog meta |
+| `content_block` | recommendations, earnings, build and catalog meta |
 | `icon` | key → icon file (`/icons/<sha1>.webp`, files in `ICONS_DIR`) |
 | `app_meta` | service JSON blocks (meta, career, profile, catalog order) |
 | `event_log` | write journal: `before`/`after` snapshots for rollback |
@@ -23,7 +23,9 @@ in `db/migrations/`.
 | `details_card` | 601 legacy cards by key `w:`, `a:`, `art:`, `c:` |
 
 Migrations: `0001_init.sql` (base schema), `0002_owned_qty_catalog_details.sql`
-(`owned.qty` copies, `display_name`, `catalog_entry`, `details_card`).
+(`owned.qty` copies, `display_name`, `catalog_entry`, `details_card`),
+`0003_remove_notes_content.sql` (deletes `content_block` rows with `kind = 'notes'`; the
+`notes` kind is no longer accepted by the API or MCP, and the deletion is one-way).
 
 ## Key invariants
 

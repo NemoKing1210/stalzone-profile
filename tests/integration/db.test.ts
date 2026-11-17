@@ -50,6 +50,32 @@ describe('migration 0002', () => {
   });
 });
 
+describe('migration 0003', () => {
+  it('removes notes content blocks and keeps the rest', () => {
+    const sub = fs.mkdtempSync(path.join(dir, 'migration-0003-'));
+    const partialDir = path.join(sub, 'migrations');
+    fs.mkdirSync(partialDir);
+    for (const file of ['0001_init.sql', '0002_owned_qty_catalog_details.sql']) {
+      fs.copyFileSync(path.join(migrationsDir, file), path.join(partialDir, file));
+    }
+
+    const old = openDb(path.join(sub, 'test.db'));
+    try {
+      migrate(old, partialDir);
+      repo.putBlock(old, { kind: 'notes', slug: 'note-1', payload: { title: 'Заметка' } });
+      repo.putBlock(old, { kind: 'recs', slug: 'rec-1', payload: { title: 'Рекомендация' } });
+      expect(old.prepare(`SELECT COUNT(*) AS count FROM content_block WHERE kind = 'notes'`).get()).toEqual({ count: 1 });
+
+      migrate(old, migrationsDir);
+
+      expect(old.prepare(`SELECT COUNT(*) AS count FROM content_block WHERE kind = 'notes'`).get()).toEqual({ count: 0 });
+      expect(old.prepare(`SELECT COUNT(*) AS count FROM content_block WHERE kind = 'recs'`).get()).toEqual({ count: 1 });
+    } finally {
+      closeDb(path.join(sub, 'test.db'));
+    }
+  });
+});
+
 describe('owned copies', () => {
   it('stores identical copies as one row with qty', () => {
     const characterId = character();

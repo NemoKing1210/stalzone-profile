@@ -120,7 +120,7 @@ export const BuildInputSchema = WriteOptionsSchema.extend({
 export type BuildInput = z.infer<typeof BuildInputSchema>;
 
 export const ContentBlockInputSchema = WriteOptionsSchema.extend({
-  kind: z.enum(['recs', 'earnings', 'notes', 'builds_meta', 'catalog_meta']),
+  kind: z.enum(['recs', 'earnings', 'builds_meta', 'catalog_meta']),
   slug: z.string().max(200).nullish(),
   title: z.string().max(200).nullish(),
   lead: z.string().max(2000).nullish(),

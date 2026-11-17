@@ -163,7 +163,6 @@ export interface DossierPayload {
   armor: ArmorPayload[];
   containers: ContainerPayload[];
   artifacts: ArtifactPayload[];
-  notes: { title?: string; slug?: string | null; position?: number; [key: string]: unknown }[];
   catalog: { weapons: CatalogEntry[]; armor: CatalogEntry[]; meta: Record<string, unknown> };
   recommendations: {
     id?: string;

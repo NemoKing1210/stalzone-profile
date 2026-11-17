@@ -85,7 +85,7 @@ export interface BuildWriteInput {
 }
 
 export interface ContentWriteInput {
-  kind: 'recs' | 'earnings' | 'notes' | 'builds_meta' | 'catalog_meta';
+  kind: 'recs' | 'earnings' | 'builds_meta' | 'catalog_meta';
   slug?: string | null;
   title?: string | null;
   lead?: string | null;
