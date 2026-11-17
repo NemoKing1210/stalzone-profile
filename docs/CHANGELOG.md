@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-11-17 — Contract-first modular monolith: core modules and app slices
+
+- `packages/core` is now `platform` (config, DB, migrations, journal, security) plus
+  bounded-context modules: `catalog`, `identity`, `inventory`, `builds`, `sync`, `setup`,
+  `maintenance`, `read-model`. Each module exposes one `index.ts`; its `repo/` and
+  `service/` files are private. The old `src/repo` and `src/services` shims and the
+  `@dossier/core/services/*` subpath are gone.
+- `packages/shared` publishes contracts under `src/contracts`; `src/schemas.ts` and the
+  `@dossier/shared/schemas` subpath are removed. Use `@dossier/shared/contracts`.
+- The app is split into slices — `app/shared` (ui, composables, lib, types),
+  `app/entities`, `app/features`, `app/pages` — with the old `app/components`,
+  `app/composables`, `app/utils` and `app/types` directories removed. Pages stay thin
+  wrappers around feature screens.
+- Boundaries are enforced, not just documented: dependency-cruiser covers packages,
+  server, app and tests, and ESLint (`boundaries/dependencies`) applies
+  `shared → entities → features → pages`, forbids feature-to-feature imports, bans
+  `@dossier/core` in the app and restricts `@dossier/shared` to `/contracts`, `/ranks`
+  and `/format`. `npm run check` and the CI verify stage run `npm run boundaries`.
+- No API, MCP or database contract change; the calculator and the golden fixture are
+  untouched.
+
 ## 2026-11-17 — Seedless onboarding: setup wizard, gear entry, icons, optional profile API
 
 - First run: sign in → `/setup` redirect → nickname/region → catalog download. The

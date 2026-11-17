@@ -188,7 +188,7 @@ Writes default to `dry_run`; a real write needs `confirm: true` and is limited t
 ## Checks
 
 ```bash
-npm run check      # typecheck + lint + unit/integration
+npm run check      # typecheck + lint + architecture boundaries + unit/integration
 npm run golden     # formula regression on a public synthetic fixture: 0 mismatches
 npm run build
 npm run smoke:mcp  # all read-only MCP tools against a temporary fixture database
@@ -197,10 +197,10 @@ npm run smoke:mcp  # all read-only MCP tools against a temporary fixture databas
 ## Layout
 
 ```
-app/                 Nuxt UI: pages, forms, components
+app/                 Nuxt UI slices: shared, entities, features, pages
 server/              Nitro: API, auth middleware, /mcp
-packages/core/       schema, repositories, calculations, writes, sync, payload
-packages/shared/     zod schemas, formatting, ranks
+packages/core/       platform + domain modules (catalog, identity, inventory, …)
+packages/shared/     contracts (zod), formatting, ranks
 packages/sources/    EXBO, wiki, motifs, scpmodel adapters
 packages/mcp/        tool registry, stdio and HTTP transports
 db/migrations/       SQL migrations

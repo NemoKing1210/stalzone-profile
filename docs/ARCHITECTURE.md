@@ -5,13 +5,14 @@
 ```
                     ┌──────────────────────────────┐
   Browser ────────▶ │ Nuxt 4 (SSR) + Nuxt UI       │
-                    │ app/  → pages and forms      │
+                    │ app/  → shared · entities ·  │
+                    │         features · pages     │
                     │ server/api → REST /api/v1    │
                     └──────────────┬───────────────┘
                                    │ better-sqlite3
                     ┌──────────────▼───────────────┐
   MCP agent ──────▶ │ packages/core                │
-  (stdio / HTTP)    │ repo · calc · services       │
+  (stdio / HTTP)    │ platform · modules           │
                     └──────────────┬───────────────┘
                                    │
                     ┌──────────────▼───────────────┐
@@ -32,24 +33,50 @@ no second database.
 
 | Package | Responsibility |
 |---|---|
-| `packages/shared` | zod schemas for API/MCP, `norm`, formatting, ranks |
-| `packages/core` | opening/migrating SQLite, repositories, formulas, writes, sync, payload, export |
+| `packages/shared` | contracts (zod schemas), `norm`, formatting, ranks |
+| `packages/core` | platform (config, DB, journal, security) and domain modules; no compatibility shims |
 | `packages/sources` | pure source adapters: fetch + parse, no DB writes |
 | `packages/mcp` | registry of 20 tools (12 read, 8 write), local client, stdio and HTTP transports |
-| `app` | Nuxt UI: sections, tables, modal forms, event log, i18n catalogs |
+| `app` | Nuxt UI slices: `shared → entities → features → pages`, plus layouts, plugins and middleware |
 | `server` | Nitro routes, session, origin check, `/mcp`, `/api/v1/admin/*` |
 
 Dependencies point one way: `app/server → mcp → core → sources/shared`. Adapters know
-nothing about the DB; `core/services/sync.ts` connects them to the repositories.
+nothing about the DB; `core/src/modules/sync` connects them to the repositories.
+
+Inside `packages/core` the layering is `platform ← domain modules ← application modules`.
+A module exposes its public API through `modules/<name>/index.ts`; other modules import only
+that index, never a sibling's `repo/` or `service/` file. The application modules that
+orchestrate several domains are `maintenance` (journal-based rollback), `read-model`
+(payload and export) and `sync`.
+
+| Module | Owns |
+|---|---|
+| `catalog` | items, stats, effects, prices, icons, the DPS/TTK and artifact formulas |
+| `identity` | character and its stats, including the `stat_definition` reference surface |
+| `inventory` | owned rows, container overrides, fill |
+| `builds` | saved builds and their artifacts |
+| `sync` | source adapters binding, freshness rows, profile statistics |
+| `setup` | the first-run state |
+| `maintenance` | atomic cleanup and rollback through `event_log` |
+| `read-model` | `buildPayload` and export |
+
+Inside `app` the slices follow the same rule with ESLint enforcement
+(`eslint.config.mjs`, `boundaries/dependencies`): `shared` imports only `shared`, `entities`
+imports `shared`/`entities`, `features` imports `shared`/`entities` (never another feature),
+and `pages` imports `shared`/`entities`/`features`. The app talks to the server only over
+HTTP: it imports no `@dossier/core`, and `@dossier/shared` only through `/contracts`,
+`/ranks` or `/format`.
 
 ## Read flow
 
 1. A page calls `useDossier()` → `GET /api/v1/payload` or `/api/v1/meta`.
 2. The route gets the shared `Db` from `server/utils/db.ts` (WAL, one migration per process).
-3. `buildPayload` assembles typed rows: character with derived fields, gear, catalog,
-   derived `details[key]` cards, builds, icons and freshness.
-4. DPS/TTK numbers come from one formula (`packages/core/src/calc/weapons.ts`) using raw
-   damage and rate of fire; no stored display value is substituted.
+3. `buildPayload` (`packages/core/src/modules/read-model/payload.ts`) assembles typed rows:
+   character with derived fields, gear, catalog, derived `details[key]` cards, builds, icons
+   and freshness, reading through each module's public read API.
+4. DPS/TTK numbers come from one formula
+   (`packages/core/src/modules/catalog/calc/weapons.ts`) using raw damage and rate of fire;
+   no stored display value is substituted.
 5. Container values follow the precedence override > item stats > `null`; missing data is
    `null`, never zero or an estimate.
 

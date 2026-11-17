@@ -58,7 +58,7 @@ npm run check
 
 `npm run golden` no longer reads a personal dossier: it migrates a temporary database,
 seeds the public fixture from `tests/fixtures/`, and recomputes every number with the
-single formula in `packages/core/src/calc/weapons.ts`.
+single formula in `packages/core/src/modules/catalog/calc/weapons.ts`.
 
 ## Rollback
 

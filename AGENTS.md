@@ -32,7 +32,8 @@ This file holds rules, not a copy of the documentation.
 | Tests related to changed files    | `npm run test:related -- <changed files>`                                    |
 | Typecheck packages/server only    | `npm run typecheck:node`                                                     |
 | Lint changed files                | `npx eslint <changed files>`                                                 |
-| Full check                        | `npm run check` — typecheck + lint + tests                                   |
+| Architecture boundaries           | `npm run boundaries` — dependency-cruiser over packages, server, app         |
+| Full check                        | `npm run check` — typecheck + lint + boundaries + tests                      |
 | Formula regression (public fixture) | `npm run golden` — expect `0 mismatches`, `legacyDeltas: []`               |
 | Site build                        | `npm run build` → `.output/`                                                 |
 | CLI/MCP build                     | `npm run build:cli` → `dist/cli.js`, `dist/mcp-stdio.js`                     |
@@ -79,17 +80,18 @@ When unsure, widen: a missed test is a correctness bug; an extra suite only cost
 
 | Changed paths                                            | Run                                                                                                                                     |
 | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/core/src/calc/**`, DPS/TTK or artifact numbers | `npm test -- tests/unit/calc.test.ts`, then `npm run golden`                                                                            |
-| `packages/shared/src/schemas.ts`                         | `npm test -- tests/unit/shared.test.ts tests/integration`                                                                               |
+| `packages/core/src/modules/catalog/calc/**`, DPS/TTK or artifact numbers | `npm test -- tests/unit/calc.test.ts`, then `npm run golden`                                                              |
+| `packages/shared/src/contracts/**`                       | `npm test -- tests/unit/shared.test.ts tests/integration`                                                                               |
 | `packages/shared/src/{ranks,format,norm}*`               | `npm test -- tests/unit`                                                                                                                |
-| `packages/core/src/repo/**`                              | `npm test -- tests/integration`                                                                                                         |
-| `packages/core/src/services/writes.ts`                   | `npm test -- tests/integration/writes.test.ts tests/integration/payload.test.ts`                                                        |
-| `packages/core/src/services/{import,export}.ts`          | `npm test -- tests/integration/import.test.ts tests/integration/db.test.ts tests/integration/payload.test.ts`                           |
-| `packages/core/src/services/sync.ts`                     | `npm test -- tests/integration/sync.test.ts tests/integration/prices.test.ts`                                                           |
+| `packages/core/src/modules/*/repo/**`                    | `npm test -- tests/integration`                                                                                                         |
+| `packages/core/src/modules/inventory/write.ts`           | `npm test -- tests/integration/writes.test.ts tests/integration/payload.test.ts`                                                        |
+| `packages/core/src/modules/read-model/**`                | `npm test -- tests/integration/import.test.ts tests/integration/db.test.ts tests/integration/payload.test.ts tests/integration/read-model.test.ts` |
+| `packages/core/src/modules/sync/**`                      | `npm test -- tests/integration/sync.test.ts tests/integration/prices.test.ts`                                                           |
+| `packages/core/src/modules/{maintenance,setup}/**`        | `npm test -- tests/integration/cleanup.test.ts tests/integration/maintenance-atomicity.test.ts tests/integration/setup.test.ts`         |
 | `packages/sources/**`                                    | `npm test -- tests/integration/sync.test.ts tests/integration/prices.test.ts` (fake `fetchImpl` only)                                   |
 | `packages/mcp/**`                                        | `npm test -- tests/integration/mcp.test.ts`; `npm run smoke:mcp` before Tier 3 if read tools changed                                    |
 | `server/api/**`, `server/utils/**`                       | matching `tests/unit/*.test.ts` (`session`, `login-limit`)                                                                               |
-| `app/**`                                                 | `npm run typecheck`; `tests/unit/use-api-error.test.ts` when errors are touched                                                          |
+| `app/**`                                                 | `npm run typecheck`, `npx eslint app`; `tests/unit/app/**` and `tests/unit/use-api-error.test.ts` for the touched slice                   |
 | `i18n/locales/*.json`                                    | `npm test -- tests/unit/i18n-catalogs.test.ts`                                                                                          |
 | `db/migrations/**`                                      | `npm test -- tests/integration`                                                                                                         |
 | `tests/fixtures/**`                                      | `npm test -- tests/integration`; `npm run golden` if numbers move                                                                       |
@@ -119,16 +121,19 @@ Rules that keep the tiers honest:
 
 | Path                         | Responsibility                                                           |
 | ---------------------------- | ------------------------------------------------------------------------ |
-| `packages/shared`            | zod schemas for API/MCP, `norm`, formatting, ranks, hashes               |
-| `packages/core/src/db`       | opening SQLite, migrations                                               |
-| `packages/core/src/repo`     | SQL repositories; services reach tables through them                     |
-| `packages/core/src/calc`     | DPS/TTK and artifact formulas — the only source of numbers               |
-| `packages/core/src/services` | export, writes, rollback, sync, payload, catalog view                     |
+| `packages/shared`            | contracts (zod), `norm`, formatting, ranks, hashes                       |
+| `packages/core/src/platform` | config, opening SQLite, migrations, journal, security                    |
+| `packages/core/src/modules`  | bounded contexts: catalog, identity, inventory, builds, sync, setup,     |
+|                              | maintenance, read-model — each with its own `index.ts` public API        |
+| `packages/core/src/modules/catalog/calc` | DPS/TTK and artifact formulas — the only source of numbers  |
 | `packages/sources`           | pure source adapters: fetch + parse, **no DB writes**                    |
 | `packages/mcp`               | tool registry, local client, stdio and HTTP                              |
-| `server/api/v1`              | thin Nitro routes: auth → zod → service → JSON                           |
+| `server/api/v1`              | thin Nitro routes: auth → zod → module service → JSON                    |
 | `server/utils`               | shared `Db`, session, errors, serialization                              |
-| `app`                        | Nuxt UI: pages, tables, modal forms, composables                         |
+| `app/shared`                 | cross-slice UI, composables and pure helpers                             |
+| `app/entities`               | domain presentation: item and source cards, rank badges                  |
+| `app/features`               | screens and their models: auth, character, inventory, settings, …        |
+| `app/pages`                  | thin route wrappers that mount a feature screen                          |
 | `db/migrations`              | new `NNNN_name.sql` files only                                           |
 | `tests/fixtures`             | public/synthetic catalog for tests and the golden                        |
 | `tests`                      | `unit` — pure functions, `integration` — temporary DB                    |
@@ -141,16 +146,18 @@ Lower layers do not import upper layers.
 Breaking any item is a bug, even when the tests are green.
 
 1. **Data changes only through services.** Do not edit `dossier.db`, `payload.json` or the
-   export by hand. Writes go only through the API, MCP or CLI, and always through
-   `packages/core/src/services/writes.ts` with an `event_log` entry in the same transaction.
+   export by hand. Writes go only through the API, MCP or CLI, and always through the owning
+   domain module's `write.ts` (`modules/<name>/write.ts`) with an `event_log` entry in the
+   same transaction. HTTP routes and MCP never write SQL themselves.
 2. **`before`/`after` in `event_log` are the rollback contract.** Change the format only in
    a backward-compatible way and cover rollback with a test.
 3. **No invented numbers.** No lot means `null` → "no lot"; no stat means `null` → "no data".
    Zero, a missing value and an estimate never substitute for each other.
-4. **All DPS/TTK come from one formula** in `packages/core/src/calc/weapons.ts`. Do not
-   substitute stored legacy values and do not duplicate the formula. When changing numbers,
-   run `npm run golden` and explain any difference. Changing displayed numbers is a separate
-   owner decision, not a side effect of refactoring.
+4. **All DPS/TTK come from one formula** in
+   `packages/core/src/modules/catalog/calc/weapons.ts`. Do not substitute stored legacy
+   values and do not duplicate the formula. When changing numbers, run `npm run golden` and
+   explain any difference. Changing displayed numbers is a separate owner decision, not a
+   side effect of refactoring.
 5. **Schema changes only through new migrations.** Do not edit applied
    `db/migrations/0001`. After a schema change update `docs/DATA-MODEL.md` and tests.
    The baseline `0001_init.sql` was replaced once on 2026-11-17 as an owner-approved reset.
@@ -171,37 +178,42 @@ Breaking any item is a bug, even when the tests are green.
 then a green run. A test written after the code is not a check — it does not prove it would
 have caught the defect.
 
-**New route.** Request/response schema in `packages/shared/src/schemas.ts`; the route in
-`server/api/v1/**` only calls `requireSession`/`requireOrigin`, `zod.parse`, the service and
-`apiError` on failure. Business logic belongs in core.
+**New route.** Request/response schema in `packages/shared/src/contracts/**`; the route in
+`server/api/v1/**` only calls `requireSession`/`requireOrigin`, `zod.parse`, the module's
+public read/write service and `apiError` on failure. Business logic belongs in core.
 
-**New write.** Add a service function in `writes.ts`, return
+**New write.** Add a service function to the owning module's `write.ts`, return
 `WriteResult { dryRun, diff: { before, after, human }, eventId? }`, and throw
 `WriteError(status, code, message, details?)`. `dryRun` must not change the DB or write
-events. The real write and `logEvent` happen in one transaction.
+events. The real write and `logEvent` happen in one transaction. Export the function from
+the module's `index.ts`; the façade re-exports it for the server and MCP.
 
 **New source.** An adapter in `packages/sources` knows nothing about the DB: it accepts
 `fetchImpl` and returns normalized data. Binding and writing happen in
-`packages/core/src/services/sync.ts`. On failure the source is marked `stale`; old data is
+`packages/core/src/modules/sync`. On failure the source is marked `stale`; old data is
 not deleted.
 
 **UI.** Nuxt UI plus the existing composables (`useDossier`, `useWrite`, `useFilters`,
-`useFormat`, `useApiError`). SSR safety is mandatory: do not touch `window`/`localStorage`
-during setup, and format dates deterministically to avoid hydration mismatches. All visible
-strings come from `t(...)`; see `docs/I18N.md`.
+`useFormat`, `useApiError`, all auto-imported from `app/shared/composables`). New screens
+live in `app/features/<feature>/ui` with their pure model in `.../model`, and the route file
+in `app/pages` stays a thin wrapper. SSR safety is mandatory: do not touch
+`window`/`localStorage` during setup, and format dates deterministically to avoid hydration
+mismatches. All visible strings come from `t(...)`; see `docs/I18N.md`.
 
-**Client code** imports `@dossier/shared/ranks` and `/format` through subpaths, not the
-`@dossier/shared` barrel: the barrel pulls `node:crypto` into the browser bundle.
+**Client code** imports `@dossier/shared/contracts`, `/ranks` and `/format` through subpaths,
+never the `@dossier/shared` barrel: the barrel pulls `node:crypto` into the browser bundle.
+The app imports no `@dossier/core`; ESLint enforces both rules together with the
+`shared → entities → features → pages` direction.
 
 ## What to update along with code
 
 | Changing          | Do not forget                                                                                                                                                          |
 | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | DB schema         | new `NNNN_name.sql` migration, `docs/DATA-MODEL.md`, repo, import tests                                                                                                |
-| API field/route   | `packages/shared/src/schemas.ts`, `docs/API.md`, the affected `tests/integration` suite                                                                                |
+| API field/route   | `packages/shared/src/contracts/**`, `docs/API.md`, the affected `tests/integration` suite                                                                              |
 | MCP tool          | `packages/mcp/src/registry.ts`, `docs/MCP.md`, the `ALL_TOOLS` list in `tests/integration/mcp.test.ts`; for a read tool also `READ_OUTPUT_SCHEMAS` and `npm run smoke:mcp` |
-| Data source       | `docs/ARCHITECTURE.md` (source table), `core/services/sync.ts`, `tests/integration/sync.test.ts`                                                                       |
-| Formula/numbers   | only `core/src/calc`, then `npm run golden`, and `docs/DATA-MODEL.md` when needed                                                                                      |
+| Data source       | `docs/ARCHITECTURE.md` (source table), `core/src/modules/sync`, `tests/integration/sync.test.ts`                                                                       |
+| Formula/numbers   | only `core/src/modules/catalog/calc`, then `npm run golden`, and `docs/DATA-MODEL.md` when needed                                                                      |
 | UI text           | `i18n/locales/en.json` and `i18n/locales/ru.json` (both), `docs/I18N.md`                                                                                               |
 | env/deploy        | `README.md`, `.env.example`, `deploy/docker-compose.yml`, `docs/RUNBOOK.md`, `docs/CHANGELOG.md`                                                                       |
 

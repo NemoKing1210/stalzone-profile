@@ -57,7 +57,7 @@ owner-approved reset; that exception is closed). Every later change is a new
 
 ## Derived reads
 
-Pages and MCP never read stored display values. `packages/core/src/services/payload.ts`
+Pages and MCP never read stored display values. `packages/core/src/modules/read-model/payload.ts`
 assembles the typed rows, and `catalog-view.ts` derives item cards and detail cards at read
 time (`details[key]`, weapon/armor/artifact/container cards).
 
@@ -72,7 +72,7 @@ time (`details[key]`, weapon/armor/artifact/container cards).
 
 ## Display formulas
 
-One formula for the whole project (`packages/core/src/calc/weapons.ts`):
+One formula for the whole project (`packages/core/src/modules/catalog/calc/weapons.ts`):
 
 ```
 displayedDmg = round(rawDamage, 1)
