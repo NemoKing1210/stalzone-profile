@@ -27,4 +27,11 @@ describe('contract single source', () => {
     expect(source).not.toMatch(/export type OwnedKind =/);
     expect(source).not.toMatch(/export interface EventRow\b/);
   });
+
+  it('takes the meta header from the contracts instead of redeclaring it', () => {
+    expect(read('app/shared/composables/useDossier.ts')).toContain(
+      "import type { MetaRead } from '@dossier/shared/contracts'",
+    );
+    expect(read('app/shared/types/dossier.ts')).not.toMatch(/interface DossierMetaResponse\b/);
+  });
 });

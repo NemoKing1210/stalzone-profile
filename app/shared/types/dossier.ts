@@ -41,12 +41,6 @@ export type EventRow = EventRead;
 
 /* ------------------------------ dossier payload ------------------------------ */
 
-export interface DossierMetaResponse {
-  meta: Record<string, unknown>;
-  catalogMeta: Record<string, unknown>;
-  freshness: Freshness;
-}
-
 export interface DossierCharacter {
   nick?: string;
   region?: string;

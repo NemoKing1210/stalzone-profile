@@ -53,6 +53,14 @@ export const FreshnessSchema = z.object({
 });
 export type Freshness = z.infer<typeof FreshnessSchema>;
 
+/** `/api/v1/meta`: the freshness header without the heavy dossier sections. */
+export const MetaReadSchema = z.object({
+  meta: PayloadMetaSchema,
+  catalogMeta: CatalogMetaSchema,
+  freshness: FreshnessSchema,
+});
+export type MetaRead = z.infer<typeof MetaReadSchema>;
+
 const payloadRow = z.record(z.string(), z.unknown());
 
 export const PayloadSchema = z.object({

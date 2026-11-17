@@ -45,7 +45,7 @@ need user-facing text should do the same or show the message as-is.
 | GET | `/api/v1/healthz` | `{ ok: true, db: "ok" }`, public |
 | GET | `/api/v1/setup` | `{ needsSetup, catalogItems, defaultRegion, profileApiConfigured, sources }` |
 | GET | `/api/v1/payload` | the whole dossier: character, gear, catalog, derived cards, builds, icons, freshness. `catalog.meta.items` counts every catalog row (weapons, armor, motifs, artifacts, containers), not only weapons and armor |
-| GET | `/api/v1/meta` | `{ meta, catalogMeta, freshness }` |
+| GET | `/api/v1/meta` | `{ meta, catalogMeta, freshness }` — described by `MetaRead` in `@dossier/shared/contracts` and pinned by `tests/integration/contracts/payload-contract.test.ts` |
 | GET | `/api/v1/character` | character with derived fields (`kd`, `accuracy`, `headshot`, `hours`, `arrived`) |
 | GET | `/api/v1/items?q=&kind=&rank=&slot=&limit=` | item search |
 | GET | `/api/v1/items/:id` | item, stats, effects, card, icon |

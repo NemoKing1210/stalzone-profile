@@ -22,14 +22,10 @@ const syncing = ref<string | null>(null);
 
 const sources = computed(() => payload.value?.freshness.sources ?? []);
 const syncableSources = computed(() => sources.value.filter((source) => source.id !== 'local'));
-const catalogMeta = computed(() => meta.value?.catalogMeta ?? {});
+const catalogMeta = computed(() => meta.value?.catalogMeta ?? null);
 const metaInfo = computed(() => payload.value?.meta ?? {});
-const catalogUpdated = computed(() =>
-  typeof catalogMeta.value.updated === 'string' ? catalogMeta.value.updated : null,
-);
-const catalogSource = computed(() =>
-  typeof catalogMeta.value.source === 'string' ? catalogMeta.value.source : null,
-);
+const catalogUpdated = computed(() => catalogMeta.value?.updated ?? null);
+const catalogSource = computed(() => catalogMeta.value?.source ?? null);
 const profileFetched = computed(() =>
   typeof metaInfo.value.statsFetched === 'string' ? metaInfo.value.statsFetched : null,
 );

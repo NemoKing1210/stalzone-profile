@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildPayload, closeDb, migrate, openDb, setupState, type Db } from '@dossier/core';
-import { PayloadSchema, SetupStateSchema } from '@dossier/shared/contracts';
+import { MetaReadSchema, PayloadSchema, SetupStateSchema } from '@dossier/shared/contracts';
 import { seedCatalog } from '../../fixtures/seed';
 
 const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
@@ -32,5 +32,12 @@ describe('payload contract', () => {
   it('parses a seeded catalog payload', () => {
     seedCatalog(db);
     expect(() => PayloadSchema.parse(buildPayload(db))).not.toThrow();
+  });
+
+  it('parses the meta header that /api/v1/meta returns', () => {
+    seedCatalog(db);
+    const payload = buildPayload(db);
+    const header = { meta: payload.meta, catalogMeta: payload.catalog.meta, freshness: payload.freshness };
+    expect(() => MetaReadSchema.parse(header)).not.toThrow();
   });
 });

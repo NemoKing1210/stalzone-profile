@@ -13,15 +13,11 @@ const { fmtMoney, dec, num, formatDate, formatAge } = useFormat();
 const character = computed(() => payload.value?.character ?? {});
 const hasCharacter = computed(() => Object.keys(character.value).length > 0);
 const metaInfo = computed(() => payload.value?.meta ?? {});
-const catalogMeta = computed(() => meta.value?.catalogMeta ?? {});
+const catalogMeta = computed(() => meta.value?.catalogMeta ?? null);
 const editOpen = ref(false);
 
-const catalogUpdated = computed(() =>
-  typeof catalogMeta.value.updated === 'string' ? catalogMeta.value.updated : null,
-);
-const catalogSource = computed(() =>
-  typeof catalogMeta.value.source === 'string' ? catalogMeta.value.source : null,
-);
+const catalogUpdated = computed(() => catalogMeta.value?.updated ?? null);
+const catalogSource = computed(() => catalogMeta.value?.source ?? null);
 
 const counts = computed(() => [
   { label: t('nav.weapons'), value: payload.value?.weapons.length ?? 0, icon: 'i-lucide-crosshair', to: '/weapons' },
