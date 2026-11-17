@@ -1,24 +1,30 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { EventReadSchema, ItemSummarySchema, OwnedReadSchema, PriceRowSchema, SourceStatusSchema } from '@dossier/shared/contracts';
-import { eventJson, itemJson } from '../../server/utils/serialize';
+import { itemSummary } from '@dossier/core';
+import { eventJson } from '../../server/utils/serialize';
 import { ownedRead } from '@dossier/core/modules/inventory';
 import { priceRead } from '@dossier/core/modules/catalog';
 import { sourceRead } from '@dossier/core/modules/sync';
 
 describe('HTTP serializers', () => {
   it('produces contract-valid item and event objects', () => {
-    const item = itemJson({
-      id: 1,
-      external_id: 'x',
-      name: 'AK',
-      name_en: null,
-      kind: 'weapon',
-      category: null,
-      rank: null,
-      slot: null,
-      weight: null,
-      is_cosmetic: 0,
-    } as never);
+    const item = itemSummary(
+      {
+        id: 1,
+        external_id: 'x',
+        name: 'AK',
+        name_en: null,
+        kind: 'weapon',
+        category: null,
+        rank: null,
+        slot: null,
+        weight: null,
+        is_cosmetic: 0,
+      } as never,
+      null,
+    );
     expect(ItemSummarySchema.parse(item).name).toBe('AK');
     const event = eventJson({
       id: 1,
@@ -83,5 +89,10 @@ describe('HTTP serializers', () => {
       last_error: null,
     } as never);
     expect(SourceStatusSchema.parse(source)).toMatchObject({ id: 'exbo_base', status: 'ok' });
+  });
+
+  it('keeps test-only helpers out of the serializer module', () => {
+    const source = fs.readFileSync(path.join(process.cwd(), 'server/utils/serialize.ts'), 'utf8');
+    expect(source).not.toContain('itemJson');
   });
 });
