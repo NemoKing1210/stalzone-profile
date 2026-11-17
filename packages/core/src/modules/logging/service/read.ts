@@ -38,17 +38,22 @@ export function queryLogs(db: Db, input: LogQuery): LogQueryResult {
   const entries = rows.slice(0, query.limit).map(entryFromRow);
 
   const groupsWhere = buildWhere(query, 'l');
+  // The sample must belong to the filtered set, not merely to the fingerprint.
+  const sampleWhere = buildWhere(query, 'l2');
+  const sampleClause = sampleWhere.sql ? sampleWhere.sql.replace(/^WHERE /, 'AND ') : '';
   const groupRows = db
     .prepare(
       `SELECT l.fingerprint, l.level, l.category, COUNT(*) AS count, MIN(l.at) AS first_at, MAX(l.at) AS last_at,
-              (SELECT l2.message FROM log_entry l2 WHERE l2.fingerprint = l.fingerprint ORDER BY l2.id DESC LIMIT 1) AS sample
+              (SELECT l2.message FROM log_entry l2
+                WHERE l2.fingerprint = l.fingerprint ${sampleClause}
+                ORDER BY l2.id DESC LIMIT 1) AS sample
        FROM log_entry l
        ${groupsWhere.sql}
        GROUP BY l.fingerprint
        ORDER BY count DESC, last_at DESC
        LIMIT 100`,
     )
-    .all(...groupsWhere.params) as GroupRow[];
+    .all(...sampleWhere.params, ...groupsWhere.params) as GroupRow[];
 
   const groups: LogGroup[] = groupRows.map((row) => ({
     fingerprint: row.fingerprint,

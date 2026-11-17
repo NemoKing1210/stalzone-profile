@@ -1,4 +1,5 @@
 import type { Db } from '../../platform/db/index.js';
+import { norm } from '@profile/shared';
 import { WriteError } from '../../platform/journal/index.js';
 import * as repo from './repo/index.js';
 import { inventorySnapshot } from './write/storage.js';
@@ -226,7 +227,7 @@ export function restoreStorageTx(db: Db, snapshot: Record<string, unknown>, char
     character_id: characterId,
     kind: storage.kind,
     name: storage.name,
-    name_norm: storage.name.trim().toLocaleLowerCase('ru'),
+    name_norm: norm(storage.name),
     width: storage.width,
     height: storage.height,
     max_weight: storage.maxWeight,

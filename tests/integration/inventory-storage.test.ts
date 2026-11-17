@@ -96,8 +96,22 @@ describe('inventory storage and item writes', () => {
     expect(getStorage(db, first)?.kind).toBe('inventory');
   });
 
-  it('creates and renames a stash, rejecting a duplicate normalized name', () => {
-    const created = createStorage(
+  it('refuses to move deleted storage contents into another character storage', () => {
+    const stash = seed.insertStorage(db, { characterId, kind: 'stash', name: 'Main', width: 6, height: 6 });
+    const otherCharacter = seed.upsertCharacter(db, { nick: 'other', region: 'eu' });
+    const foreign = seed.insertStorage(db, {
+      characterId: otherCharacter,
+      kind: 'stash',
+      name: 'Foreign',
+      width: 6,
+      height: 6,
+    });
+
+    expectWriteError(() => deleteStorage(db, stash, { moveToStorageId: foreign, dryRun: false }), 'VALIDATION');
+    expect(getStorage(db, stash)).not.toBeNull();
+  });
+
+  it('creates and renames a stash, rejecting a duplicate normalized name', () => {    const created = createStorage(
       db,
       StorageCreateSchema.parse({ name: 'Мой Склад', width: 8, height: 12, dryRun: false }),
     );

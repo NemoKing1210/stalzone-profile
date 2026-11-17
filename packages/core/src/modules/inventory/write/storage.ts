@@ -199,6 +199,9 @@ export function deleteStorage(
     }
     target = repo.getStorage(db, opts.moveToStorageId);
     if (!target) throw new WriteError(404, 'STORAGE_NOT_FOUND', 'Target storage not found');
+    if (target.character_id !== row.character_id) {
+      throw new WriteError(422, 'VALIDATION', 'Target storage belongs to another character');
+    }
     const occupied = repo
       .listStoragePlacements(db, target.id)
       .filter((placement) => placement.x != null && placement.y != null)

@@ -2,11 +2,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { CharacterCreateSchema, InventoryItemCreateSchema } from '@profile/shared';
+import { CharacterCreateSchema, CharacterPatchSchema, InventoryItemCreateSchema } from '@profile/shared';
 import {
   closeDb,
   ensureDefaultSources,
   getCharacter,
+  getCharacterRead,
   inventoryRead,
   listEvents,
   migrate,
@@ -15,9 +16,10 @@ import {
   createCharacter,
   createInventoryItem,
   createSetupCharacter,
+  patchCharacter,
   rollbackEvent,
 } from '@profile/core';
-import { upsertItem } from '@profile/core/testing';
+import { setCharacterStat, upsertItem } from '@profile/core/testing';
 
 const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
 
@@ -112,5 +114,37 @@ describe('createSetupCharacter', () => {
     expect(result.dryRun).toBe(true);
     expect(getCharacter(db)).toBeNull();
     expect(listEvents(db)).toHaveLength(0);
+  });
+});
+
+describe('patchCharacter clearing a manual stat', () => {
+  function seededCharacter(): { id: number } {
+    createCharacter(db, CharacterCreateSchema.parse({ nick: 'Tester', region: 'ru' }));
+    const character = getCharacter(db)!;
+    setCharacterStat(db, character.id, 'kil', 250, 'api', '2026-01-01T00:00:00.000Z');
+    patchCharacter(db, CharacterPatchSchema.parse({ stats: { kil: 300 } }));
+    return character;
+  }
+
+  it('reports the revealed API value in the diff and the event', () => {
+    seededCharacter();
+    const cleared = patchCharacter(db, CharacterPatchSchema.parse({ stats: { kil: null } }));
+
+    expect(cleared.diff.after).toMatchObject({ stats: { kil: 250 }, manualStats: [] });
+    expect(getCharacterRead(db)?.stats.kil).toBe(250);
+
+    const event = listEvents(db).find((row) => row.id === cleared.eventId)!;
+    expect(JSON.parse(event.after!)).toMatchObject({ stats: { kil: 250 }, manualStats: [] });
+  });
+
+  it('does not change the database on a dry run', () => {
+    seededCharacter();
+    const before = getCharacterRead(db)?.stats.kil;
+
+    const preview = patchCharacter(db, CharacterPatchSchema.parse({ stats: { kil: null }, dryRun: true }));
+
+    expect(preview.dryRun).toBe(true);
+    expect(preview.diff.after).toMatchObject({ stats: { kil: 250 } });
+    expect(getCharacterRead(db)?.stats.kil).toBe(before);
   });
 });

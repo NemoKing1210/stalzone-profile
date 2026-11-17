@@ -193,6 +193,14 @@ export function patchCharacter(db: Db, patch: CharacterPatch): WriteResult {
   for (const [statId, value] of Object.entries(before.stats)) {
     if (!cleared.has(statId)) stats[statId] = value;
   }
+  // Clearing a manual override reveals the API-owned row, if one exists; the snapshot
+  // must describe that visible value, not pretend the stat disappeared.
+  const apiStats: Record<string, number | string> = {};
+  for (const stat of repo.listCharacterStats(db, character.id)) {
+    if (stat.origin !== 'api') continue;
+    const value = stat.value_num ?? stat.value_text;
+    if (value != null) apiStats[stat.stat_id] = value;
+  }
   const manual = new Set(before.manualStats);
   /** Only counters that actually become manual are written; an unchanged API value stays API-owned. */
   const statWrites: Record<string, number | string | null> = {};
@@ -200,6 +208,8 @@ export function patchCharacter(db: Db, patch: CharacterPatch): WriteResult {
     if (value === null) {
       manual.delete(statId);
       statWrites[statId] = null;
+      // `stats` was built without cleared keys, so only a revealed API value can reappear.
+      if (statId in apiStats) stats[statId] = apiStats[statId]!;
       continue;
     }
     if (!manual.has(statId) && before.stats[statId] === value) continue;

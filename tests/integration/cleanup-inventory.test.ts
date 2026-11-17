@@ -28,8 +28,9 @@ import {
   updateStorage,
   type Db,
 } from '@profile/core';
-import { effectiveContainerSlots, inventoryCleanupSnapshot } from '@profile/core/modules/inventory';
+import { effectiveContainerSlots, getStorage, inventoryCleanupSnapshot } from '@profile/core/modules/inventory';
 import { getInventoryItem } from '@profile/core/testing';
+import { norm } from '@profile/shared';
 import {
   InventoryItemCreateSchema,
   InventoryItemPatchSchema,
@@ -232,8 +233,17 @@ describe('new inventory rollbacks', () => {
     expect(placement).toMatchObject({ location: 'grid', x: 1, y: 1 });
   });
 
-  it('undoes a container fill and an auto-arrange', () => {
-    const capacity = effectiveContainerSlots(db, getInventoryItem(db, seeded.instanceIds.backpack!)!)!;
+  it('restores a deleted storage name with the shared normalizer', () => {
+    updateStorage(db, seeded.storageIds.stash, StoragePatchSchema.parse({ name: 'Ёлка "склад"', dryRun: false }));
+    const removed = deleteStorage(db, seeded.storageIds.stash, { dryRun: false });
+
+    rollbackEvent(db, removed.eventId!, false);
+
+    expect(getStorage(db, seeded.storageIds.stash)?.name).toBe('Ёлка "склад"');
+    expect(getStorage(db, seeded.storageIds.stash)?.name_norm).toBe(norm('Ёлка "склад"'));
+  });
+
+  it('undoes a container fill and an auto-arrange', () => {    const capacity = effectiveContainerSlots(db, getInventoryItem(db, seeded.instanceIds.backpack!)!)!;
     const filled = setContainerFill(
       db,
       seeded.instanceIds.backpack!,
