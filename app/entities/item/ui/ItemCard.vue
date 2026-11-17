@@ -143,7 +143,7 @@ function display(value: unknown): string {
               .join(', ')
           : String(entry),
       )
-      .join(' · ');
+      .join(', ');
   }
   if (typeof value === 'object') {
     return Object.entries(value as Record<string, unknown>)
@@ -180,7 +180,7 @@ function display(value: unknown): string {
           <RankBadge v-if="rank" :rank="rank" />
           <span
             v-if="quality"
-            class="border border-[var(--sz-border)] px-1.5 py-0.5 text-[11px] uppercase leading-none tracking-[0.12em] text-[var(--sz-text-muted)]"
+            class="border border-[var(--sz-border)] px-1.5 py-0.5 text-[11px] leading-none text-[var(--sz-text-muted)]"
           >
             {{ quality }}
           </span>
@@ -229,23 +229,24 @@ function display(value: unknown): string {
     </p>
 
     <div v-if="props.kind === 'container' && (data || card)" class="space-y-2 text-[12.5px]">
-      <p class="text-[var(--sz-text-muted)]">
-        {{ data?.type ?? card?.type ?? t('items.kind.container') }}
-        · {{ t('items.slotsValue', { slots: data?.slots ?? card?.slots ?? '—', eff: data?.eff ?? card?.eff ?? '—' }) }}
-        <span v-if="data?.prot ?? card?.prot"> · {{ t('items.protectionValue', { value: data?.prot ?? card?.prot }) }}</span>
-        <span v-if="data?.shield ?? card?.shield"> · {{ t('items.shieldValue', { value: data?.shield ?? card?.shield }) }}</span>
+      <p class="flex flex-wrap items-baseline gap-x-3 text-[var(--sz-text-muted)]">
+        <span>{{ data?.type ?? card?.type ?? t('items.kind.container') }}</span>
+        <span>{{ t('items.slotsValue', { slots: data?.slots ?? card?.slots ?? '—', eff: data?.eff ?? card?.eff ?? '—' }) }}</span>
+        <span v-if="data?.prot ?? card?.prot">{{ t('items.protectionValue', { value: data?.prot ?? card?.prot }) }}</span>
+        <span v-if="data?.shield ?? card?.shield">{{ t('items.shieldValue', { value: data?.shield ?? card?.shield }) }}</span>
       </p>
       <p v-if="data?.bonus ?? card?.bonus" class="text-[var(--sz-text-muted)]">
         {{ t('items.bonusValue', { value: data?.bonus ?? card?.bonus }) }}
       </p>
       <ul class="flex flex-wrap gap-1">
         <li v-for="(artifact, index) in containerArtifacts" :key="`${artifact.name}-${index}`">
-          <span class="border border-[var(--sz-border)] px-1.5 py-0.5 text-[11px] uppercase tracking-[0.1em]">
-            {{ artifact.name }} · {{ artifact.lvl }}
+          <span class="inline-flex items-baseline gap-1 border border-[var(--sz-border)] px-1.5 py-0.5 text-[11px]">
+            {{ artifact.name }}
+            <span class="tabular-nums text-[var(--sz-text-muted)]">+{{ artifact.lvl }}</span>
           </span>
         </li>
       </ul>
-      <p v-if="containerAsOf" class="text-[11px] text-[var(--sz-text-dim)]">
+      <p v-if="containerAsOf" class="text-[12px] text-[var(--sz-text-dim)]">
         {{ t('items.fillAsOf', { date: formatDate(containerAsOf) }) }}
       </p>
     </div>

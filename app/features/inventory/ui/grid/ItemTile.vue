@@ -53,21 +53,21 @@ const label = computed(() =>
 
     <span
       v-if="item.level > 0"
-      class="absolute left-0.5 top-0.5 border border-[var(--sz-border)] bg-ink-950/85 px-1 text-[10px] font-medium tabular-nums leading-[1.35] text-[var(--sz-text-muted)]"
+      class="absolute left-0.5 top-0.5 border border-[var(--sz-border)] bg-ink-950/85 px-1 text-[11px] font-medium tabular-nums leading-[1.35] text-[var(--sz-text-muted)]"
     >
       {{ item.level }}
     </span>
 
     <span
       v-if="item.qty > 1"
-      class="absolute bottom-0.5 right-1 text-[11px] font-medium tabular-nums leading-none text-[var(--sz-text)] [text-shadow:0_1px_2px_#000]"
+      class="sz-image-label absolute bottom-0.5 right-1 text-[11px] font-medium tabular-nums leading-none text-[var(--sz-text)]"
     >
       ×{{ item.qty }}
     </span>
 
     <span
       v-if="artifacts || modules"
-      class="absolute right-0.5 top-0.5 flex items-center gap-0.5 border border-[var(--sz-border)] bg-ink-950/85 px-1 text-[10px] leading-[1.35] text-[var(--sz-text-muted)]"
+      class="absolute right-0.5 top-0.5 flex items-center gap-0.5 border border-[var(--sz-border)] bg-ink-950/85 px-1 text-[11px] leading-[1.35] text-[var(--sz-text-muted)]"
     >
       <UIcon :name="artifacts ? 'i-lucide-gem' : 'i-lucide-paperclip'" class="size-2.5" />
       {{ artifacts || modules }}

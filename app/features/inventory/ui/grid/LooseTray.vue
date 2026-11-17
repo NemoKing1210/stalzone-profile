@@ -35,8 +35,9 @@ function border(item: InventoryItemRead): string {
     data-drop="loose"
   >
     <header class="flex flex-wrap items-center justify-between gap-2">
-      <h2 class="sz-caps text-[11px] text-[var(--sz-text-muted)]">
-        {{ t('inventory.loose') }} · {{ props.items.length }}
+      <h2 class="sz-caps text-[11px] text-[var(--sz-text-muted)] [overflow-wrap:break-word]">
+        {{ t('inventory.loose') }}
+        <span class="tabular-nums">({{ props.items.length }})</span>
       </h2>
       <UButton
         v-if="props.items.length"
@@ -74,9 +75,10 @@ function border(item: InventoryItemRead): string {
           >
           <UIcon v-else name="i-lucide-package" class="size-6 text-[var(--sz-text-dim)]" />
         </span>
-        <span class="line-clamp-2 text-[10.5px] leading-tight text-[var(--sz-text)]">{{ item.name }}</span>
-        <span class="text-[10px] leading-none tabular-nums text-[var(--sz-text-muted)]">
-          {{ t('items.level', { level: item.level }) }}<template v-if="item.qty > 1"> · ×{{ item.qty }}</template>
+        <span class="line-clamp-2 text-[11px] leading-tight text-[var(--sz-text)]">{{ item.name }}</span>
+        <span class="flex items-baseline gap-1 text-[11px] leading-none tabular-nums text-[var(--sz-text-muted)]">
+          {{ t('items.level', { level: item.level }) }}
+          <span v-if="item.qty > 1" class="tabular-nums">×{{ item.qty }}</span>
         </span>
       </button>
       <p
@@ -88,3 +90,12 @@ function border(item: InventoryItemRead): string {
     </div>
   </section>
 </template>
+
+<style scoped>
+/* Display heads keep their own wrapping guarantees, whatever the global sheet holds. */
+h2 {
+  overflow-wrap: break-word;
+  min-width: 0;
+  text-wrap: balance;
+}
+</style>

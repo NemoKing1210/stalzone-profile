@@ -102,7 +102,7 @@ async function rollback(): Promise<void> {
         </template>
         <template #action-cell="{ row }">
           <span
-            class="inline-flex border border-[var(--sz-border)] px-1.5 py-0.5 text-[11px] uppercase leading-none tracking-[0.1em] text-[var(--sz-text-muted)]"
+            class="inline-flex border border-[var(--sz-border)] px-1.5 py-0.5 text-[11px] leading-none text-[var(--sz-text-muted)]"
           >
             {{ actionLabel(row.original.action) }}
           </span>

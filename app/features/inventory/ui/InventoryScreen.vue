@@ -257,8 +257,9 @@ function openArtifact(name: string, level: number): void {
         <template v-if="filters.view === 'grid'">
           <div v-if="sortedRows.length" :data-testid="kind.gridTestId">
             <section v-for="section in sections" :key="section.key" :class="section.label ? 'space-y-2' : ''">
-              <h2 v-if="section.label" class="sz-caps text-[11px] text-[var(--sz-text-muted)]">
-                {{ section.label }} · {{ section.rows.length }}
+              <h2 v-if="section.label" class="sz-caps text-[11px] text-[var(--sz-text-muted)] [overflow-wrap:break-word]">
+                {{ section.label }}
+                <span class="tabular-nums">({{ section.rows.length }})</span>
               </h2>
               <div :class="kind.gridClass">
                 <component
@@ -284,8 +285,9 @@ function openArtifact(name: string, level: number): void {
             :description="emptyText"
           />
           <template v-for="section in sections" :key="`table-${section.key}`">
-            <h2 v-if="section.label" class="sz-caps mb-1 text-[11px] text-[var(--sz-text-muted)]">
-              {{ section.label }} · {{ section.rows.length }}
+            <h2 v-if="section.label" class="sz-caps mb-1 text-[11px] text-[var(--sz-text-muted)] [overflow-wrap:break-word]">
+              {{ section.label }}
+              <span class="tabular-nums">({{ section.rows.length }})</span>
             </h2>
             <UTable
               v-model:sorting="sorting"
@@ -305,7 +307,7 @@ function openArtifact(name: string, level: number): void {
       </div>
     </ProfilePane>
 
-    <p v-if="kind.labels.hint" class="text-[11px] text-[var(--sz-text-dim)]">{{ t(kind.labels.hint) }}</p>
+    <p v-if="kind.labels.hint" class="text-[12px] text-[var(--sz-text-dim)]">{{ t(kind.labels.hint) }}</p>
 
     <UModal
       v-model:open="dialogOpen"
@@ -356,3 +358,13 @@ function openArtifact(name: string, level: number): void {
     <component :is="ui.actions" v-model:add-open="addOpen" :kind="kind.key" />
   </section>
 </template>
+
+<style scoped>
+/* Display heads keep their own wrapping guarantees, whatever the global sheet holds. */
+h1,
+h2 {
+  overflow-wrap: break-word;
+  min-width: 0;
+  text-wrap: balance;
+}
+</style>

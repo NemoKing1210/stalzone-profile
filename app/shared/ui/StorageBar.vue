@@ -26,9 +26,9 @@ const color = computed(
 
 <template>
   <div class="min-w-0">
-    <div class="flex items-baseline justify-between gap-2 text-[11px] uppercase tracking-[0.12em] text-[var(--sz-text-muted)]">
-      <span class="truncate">{{ label }}</span>
-      <span class="shrink-0 tabular-nums text-[var(--sz-text-muted)]">
+    <div class="flex items-baseline justify-between gap-2 text-[11px] text-[var(--sz-text-muted)]">
+      <span class="sz-caps truncate">{{ label }}</span>
+      <span class="shrink-0 tabular-nums">
         {{ value }} / {{ max }}<span v-if="unit"> {{ unit }}</span>
       </span>
     </div>

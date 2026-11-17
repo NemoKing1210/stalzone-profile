@@ -79,7 +79,7 @@ function border(item: InventoryItemRead | null): string {
       </template>
       <template v-else>
         <UIcon :name="entry.icon" class="size-4 text-[var(--sz-text-dim)]" />
-        <span class="sz-caps text-[9.5px] leading-tight text-[var(--sz-text-dim)]">
+        <span class="sz-caps text-[11px] leading-tight text-[var(--sz-text-dim)]">
           {{ t(`inventory.slots.${entry.slot}`) }}
         </span>
       </template>

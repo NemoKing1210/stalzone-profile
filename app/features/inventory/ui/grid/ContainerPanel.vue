@@ -77,7 +77,7 @@ const summary = computed(() => {
       <p class="text-[12px] text-[var(--sz-text-muted)]">
         {{ props.container.name }} · {{ summary }}
       </p>
-      <p class="text-[11px] tabular-nums text-[var(--sz-text-dim)]">
+      <p class="text-[12px] tabular-nums text-[var(--sz-text-dim)]">
         {{ t('inventory.innerProtection') }}:
         {{ props.container.container?.protection ?? '—' }}
       </p>

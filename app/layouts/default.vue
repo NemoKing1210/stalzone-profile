@@ -98,7 +98,7 @@ async function logout(): Promise<void> {
       <slot />
     </main>
 
-    <footer class="border-t border-[var(--sz-border)] px-4 py-2 text-[11px] text-[var(--sz-text-dim)] sm:px-6">
+    <footer class="border-t border-[var(--sz-border)] px-4 py-2 text-[12px] text-[var(--sz-text-dim)] sm:px-6">
       {{ t('nav.footer') }}
       <span class="sr-only">{{ t('nav.currentSection', { path: route.path }) }}</span>
     </footer>

@@ -20,7 +20,7 @@ const tooltip = computed(() => t('freshness.data', { date: formatDate(props.data
   <UTooltip :text="tooltip">
     <span
       data-testid="freshness"
-      class="inline-flex items-center gap-1.5 whitespace-nowrap text-[11px] uppercase tracking-[0.1em]"
+      class="inline-flex items-center gap-1.5 whitespace-nowrap text-[11px]"
       :class="toneClass"
     >
       <span class="size-1.5 rounded-full bg-current" />

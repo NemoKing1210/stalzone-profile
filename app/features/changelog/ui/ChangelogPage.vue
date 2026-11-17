@@ -89,7 +89,7 @@ function entryItemCount(entry: ChangelogEntry): number {
           </p>
         </div>
         <p
-          class="sz-caps shrink-0 border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] px-2.5 py-1.5 text-[var(--sz-text-muted)]"
+          class="shrink-0 border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] px-2.5 py-1.5 text-[12px] text-[var(--sz-text-muted)]"
         >
           {{ summary }}
         </p>
@@ -104,7 +104,7 @@ function entryItemCount(entry: ChangelogEntry): number {
           v-for="kind in kinds"
           :key="kind"
           type="button"
-          class="inline-flex items-center gap-1.5 border px-2 py-1 text-[11px] uppercase leading-none tracking-[0.12em] transition-colors"
+          class="inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap border px-2 py-1 text-[11px] leading-none transition-colors sm:min-h-8"
           :class="
             activeKinds.includes(kind)
               ? 'border-[var(--sz-accent)] bg-[var(--sz-surface-alt)] text-[var(--sz-text)]'
@@ -203,7 +203,7 @@ function entryItemCount(entry: ChangelogEntry): number {
               <header
                 class="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-[var(--sz-border)] bg-[var(--sz-surface-header)] px-3 py-2"
               >
-                <h2 class="min-w-0 flex-1 text-[15px] leading-tight">
+                <h2 class="min-w-0 flex-1 text-[15px] leading-tight [overflow-wrap:break-word]">
                   {{ entry.date ? entry.title : t('changelog.unreleased') }}
                 </h2>
                 <span class="shrink-0 text-[11px] tabular-nums text-[var(--sz-text-muted)]">
@@ -218,7 +218,7 @@ function entryItemCount(entry: ChangelogEntry): number {
                   class="border-l-2 pl-2.5"
                   :style="{ borderColor: KIND_COLOR[section.kind] }"
                 >
-                  <h3 class="sz-caps mb-1.5 flex items-center gap-1.5 text-[var(--sz-text-muted)]">
+                  <h3 class="mb-1.5 flex items-center gap-1.5 text-[12.5px] font-medium text-[var(--sz-text-muted)]">
                     <span class="size-1.5 shrink-0" :style="{ background: KIND_COLOR[section.kind] }" />
                     <span class="min-w-0">{{ kindLabel(section.kind) }}</span>
                     <span class="ml-auto tabular-nums text-[var(--sz-text-dim)]">{{ section.items.length }}</span>
@@ -247,7 +247,7 @@ function entryItemCount(entry: ChangelogEntry): number {
                 <p
                   v-for="(note, index) in entry.notes"
                   :key="index"
-                  class="flex min-w-0 gap-2 text-[11.5px] italic leading-relaxed text-[var(--sz-text-muted)] [overflow-wrap:anywhere]"
+                  class="flex min-w-0 gap-2 text-[12px] italic leading-relaxed text-[var(--sz-text-muted)] [overflow-wrap:anywhere]"
                 >
                   <UIcon name="i-lucide-info" class="mt-0.5 size-3.5 shrink-0 text-[var(--sz-text-dim)]" />
                   <ChangelogInline :tokens="note.tokens" />
@@ -260,3 +260,13 @@ function entryItemCount(entry: ChangelogEntry): number {
     </ol>
   </section>
 </template>
+
+<style scoped>
+/* Display heads keep their own wrapping guarantees, whatever the global sheet holds. */
+h1,
+h2 {
+  overflow-wrap: break-word;
+  min-width: 0;
+  text-wrap: balance;
+}
+</style>

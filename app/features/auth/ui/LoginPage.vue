@@ -62,3 +62,12 @@ async function submit(): Promise<void> {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Display heads keep their own wrapping guarantees, whatever the global sheet holds. */
+h1 {
+  overflow-wrap: break-word;
+  min-width: 0;
+  text-wrap: balance;
+}
+</style>

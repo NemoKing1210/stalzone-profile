@@ -55,12 +55,12 @@ const recordsValue = computed(() =>
       <div class="flex min-w-0 flex-wrap items-center gap-1.5">
         <h2 class="sz-caps truncate text-[var(--sz-text)]">{{ title }}</h2>
         <span
-          class="inline-flex border border-[var(--sz-border)] px-1.5 py-0.5 text-[10px] uppercase leading-none tracking-[0.12em] text-[var(--sz-text-muted)]"
+          class="inline-flex border border-[var(--sz-border)] px-1.5 py-0.5 text-[11px] leading-none text-[var(--sz-text-muted)]"
         >
           {{ kindLabel }}
         </span>
         <span
-          class="inline-flex border px-1.5 py-0.5 text-[10px] uppercase leading-none tracking-[0.12em]"
+          class="inline-flex border px-1.5 py-0.5 text-[11px] leading-none"
           :class="statusClass[source.status] ?? statusClass.idle"
         >
           {{ statusLabel }}
@@ -85,31 +85,31 @@ const recordsValue = computed(() =>
 
     <p class="text-[12.5px] leading-relaxed">{{ description }}</p>
     <p class="mt-1.5 text-[12px] leading-relaxed text-[var(--sz-text-muted)]">
-      <span class="sz-caps text-[10px]">{{ t('settings.sources.updatesLabel') }}</span>
+      <span class="sz-caps text-[11px]">{{ t('settings.sources.updatesLabel') }}</span>
       {{ updates }}
     </p>
 
     <dl class="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[12px]">
-      <dt class="sz-caps text-[10px] text-[var(--sz-text-muted)]">{{ t('settings.sources.lastOk') }}</dt>
+      <dt class="sz-caps text-[11px] text-[var(--sz-text-muted)]">{{ t('settings.sources.lastOk') }}</dt>
       <dd :title="source.lastOkAt ? formatDate(source.lastOkAt) : undefined">{{ ageValue(source.lastOkAt) }}</dd>
 
-      <dt class="sz-caps text-[10px] text-[var(--sz-text-muted)]">{{ t('settings.sources.lastTry') }}</dt>
+      <dt class="sz-caps text-[11px] text-[var(--sz-text-muted)]">{{ t('settings.sources.lastTry') }}</dt>
       <dd :title="source.lastTryAt ? formatDate(source.lastTryAt) : undefined">{{ ageValue(source.lastTryAt) }}</dd>
 
       <template v-if="showsRecords">
-        <dt class="sz-caps text-[10px] text-[var(--sz-text-muted)]">{{ t('settings.sources.records') }}</dt>
+        <dt class="sz-caps text-[11px] text-[var(--sz-text-muted)]">{{ t('settings.sources.records') }}</dt>
         <dd class="tabular-nums">{{ recordsValue }}</dd>
       </template>
 
       <template v-if="source.commit">
-        <dt class="sz-caps text-[10px] text-[var(--sz-text-muted)]">{{ t('settings.sources.commit') }}</dt>
+        <dt class="sz-caps text-[11px] text-[var(--sz-text-muted)]">{{ t('settings.sources.commit') }}</dt>
         <dd class="font-mono text-[11px]">
-          {{ commitShort }}<span v-if="source.commitDate"> · {{ formatDate(source.commitDate) }}</span>
+          {{ commitShort }}<span v-if="source.commitDate" class="ml-2 text-[var(--sz-text-muted)]">{{ formatDate(source.commitDate) }}</span>
         </dd>
       </template>
 
       <template v-if="source.url">
-        <dt class="sz-caps text-[10px] text-[var(--sz-text-muted)]">{{ t('settings.sources.origin') }}</dt>
+        <dt class="sz-caps text-[11px] text-[var(--sz-text-muted)]">{{ t('settings.sources.origin') }}</dt>
         <dd class="min-w-0 break-all">
           <a
             :href="source.url"
@@ -123,7 +123,7 @@ const recordsValue = computed(() =>
       </template>
 
       <template v-if="source.lastError">
-        <dt class="sz-caps text-[10px] text-[var(--sz-text-muted)]">{{ t('settings.sources.lastError') }}</dt>
+        <dt class="sz-caps text-[11px] text-[var(--sz-text-muted)]">{{ t('settings.sources.lastError') }}</dt>
         <dd class="break-words text-[var(--sz-danger-text)]">{{ source.lastError }}</dd>
       </template>
     </dl>

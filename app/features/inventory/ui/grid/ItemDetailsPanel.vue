@@ -106,14 +106,15 @@ function confirmRemove(): void {
       </span>
       <div class="min-w-0 flex-1">
         <p class="truncate text-[13px]">{{ props.item.displayName ?? props.item.name }}</p>
-        <p class="truncate text-[11px] text-[var(--sz-text-muted)]">
-          {{ props.item.category ?? props.item.kind }} · {{ t('items.level', { level: props.item.level }) }}
+        <p class="flex flex-wrap items-baseline gap-x-2 truncate text-[11px] text-[var(--sz-text-muted)]">
+          <span>{{ props.item.category ?? props.item.kind }}</span>
+          <span>{{ t('items.level', { level: props.item.level }) }}</span>
         </p>
         <div class="mt-1 flex flex-wrap gap-1">
           <RankBadge :rank="props.item.rank" />
           <span
             v-if="props.item.rarityTier"
-            class="border border-[var(--sz-border)] px-1.5 py-0.5 text-[10px] uppercase tracking-[0.1em] text-[var(--sz-text-muted)]"
+            class="border border-[var(--sz-border)] px-1.5 py-0.5 text-[11px] text-[var(--sz-text-muted)]"
           >
             {{ props.item.rarityTier }}
           </span>

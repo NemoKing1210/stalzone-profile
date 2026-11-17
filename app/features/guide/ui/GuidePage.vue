@@ -113,14 +113,13 @@ function flowArrow(index: number, length: number): boolean {
     <header class="border border-[var(--sz-border)] bg-[var(--sz-surface)]">
       <div class="flex flex-wrap items-start justify-between gap-4 p-4 sm:p-5">
         <div class="min-w-0 max-w-3xl">
-          <p class="sz-caps text-[var(--sz-accent)]">{{ t('common.appName') }}</p>
-          <h1 class="mt-1">{{ t('guide.title') }}</h1>
+          <h1>{{ t('guide.title') }}</h1>
           <p class="mt-2 text-[13px] leading-relaxed text-[var(--sz-text-muted)]">{{ t('guide.subtitle') }}</p>
           <p class="mt-2 text-[12px] leading-relaxed text-[var(--sz-text-dim)]">{{ t('guide.lead') }}</p>
         </div>
 
         <dl class="grid w-full grid-cols-2 gap-px border border-[var(--sz-border)] bg-[var(--sz-border)] sm:w-auto sm:min-w-[22rem]">
-          <div v-for="stat in heroStats" :key="stat.key" class="bg-[var(--sz-surface-alt)] px-3 py-2">
+          <div v-for="stat in heroStats" :key="stat.key" class="bg-[var(--sz-surface-alt)] px-3.5 py-3.5">
             <dt class="sz-caps text-[var(--sz-text-muted)]">{{ stat.label }}</dt>
             <dd class="font-display text-[26px] leading-none tabular-nums text-[var(--sz-accent)]">{{ stat.value }}</dd>
           </div>
@@ -133,7 +132,7 @@ function flowArrow(index: number, length: number): boolean {
           v-for="section in GUIDE_SECTIONS"
           :key="section.id"
           :href="`#${section.id}`"
-          class="inline-flex items-center gap-1 border border-transparent px-1.5 py-1 text-[11px] uppercase leading-none tracking-[0.1em] text-[var(--sz-text-muted)] hover:border-[var(--sz-border)] hover:bg-[var(--sz-surface-alt)] hover:text-[var(--sz-text)]"
+          class="inline-flex items-center gap-1 whitespace-nowrap border border-transparent px-1.5 py-1 text-[11px] leading-none text-[var(--sz-text-muted)] hover:border-[var(--sz-border)] hover:bg-[var(--sz-surface-alt)] hover:text-[var(--sz-text)]"
         >
           <UIcon :name="section.icon" class="size-3.5" />
           {{ t(section.titleKey) }}
@@ -170,12 +169,12 @@ function flowArrow(index: number, length: number): boolean {
           <header class="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-[var(--sz-border)] bg-[var(--sz-surface-header)] px-2.5 py-1.5">
             <UIcon :name="page.icon" class="size-4 shrink-0 text-[var(--sz-accent)]" />
             <h3 class="sz-caps text-[var(--sz-text)]">{{ t(page.titleKey) }}</h3>
-            <code class="ml-auto border border-[var(--sz-border)] px-1 py-0.5 font-mono text-[10.5px] text-[var(--sz-text-muted)]">
+            <code class="ml-auto border border-[var(--sz-border)] px-1 py-0.5 font-mono text-[11px] text-[var(--sz-text-muted)]">
               {{ page.route }}
             </code>
             <span
               v-if="page.kind === 'system'"
-              class="border border-[var(--sz-border-strong)] px-1 py-0.5 text-[9.5px] uppercase leading-none tracking-[0.1em] text-[var(--sz-text-dim)]"
+              class="border border-[var(--sz-border-strong)] px-1 py-0.5 text-[11px] leading-none text-[var(--sz-text-dim)]"
             >
               {{ t('guide.site.badge.system') }}
             </span>
@@ -195,7 +194,7 @@ function flowArrow(index: number, length: number): boolean {
             </ul>
             <NuxtLink
               :to="page.route"
-              class="mt-auto inline-flex items-center gap-1 self-start border border-[var(--sz-border)] px-1.5 py-1 text-[10.5px] uppercase leading-none tracking-[0.12em] text-[var(--sz-text-muted)] hover:border-[var(--sz-border-strong)] hover:bg-[var(--sz-surface)] hover:text-[var(--sz-text)]"
+              class="mt-auto inline-flex items-center gap-1 self-start whitespace-nowrap border border-[var(--sz-border)] px-1.5 py-1 text-[11px] leading-none text-[var(--sz-text-muted)] hover:border-[var(--sz-border-strong)] hover:bg-[var(--sz-surface)] hover:text-[var(--sz-text)]"
             >
               {{ t('guide.site.open') }}
               <UIcon name="i-lucide-arrow-up-right" class="size-3" />
@@ -213,7 +212,7 @@ function flowArrow(index: number, length: number): boolean {
     >
       <div class="space-y-4">
         <section>
-          <h3 class="sz-caps mb-2 flex items-center gap-2 text-[var(--sz-text-muted)]">
+          <h3 class="mb-2 flex items-center gap-2 text-[12.5px] font-medium text-[var(--sz-text-muted)]">
             <span class="h-2 w-2 shrink-0" :style="{ background: 'var(--sz-info)' }" />
             {{ t('guide.flow.readTitle') }}
           </h3>
@@ -229,7 +228,7 @@ function flowArrow(index: number, length: number): boolean {
                     {{ index + 1 }}
                   </span>
                   <UIcon :name="step.icon" class="size-4 shrink-0 text-[var(--sz-text-muted)]" />
-                  <h4 class="min-w-0 text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--sz-text)]">
+                  <h4 class="min-w-0 text-[12.5px] font-medium text-[var(--sz-text)]">
                     {{ t(step.titleKey) }}
                   </h4>
                 </div>
@@ -238,7 +237,7 @@ function flowArrow(index: number, length: number): boolean {
                   <code
                     v-for="chip in step.chips"
                     :key="chip"
-                    class="border border-[var(--sz-border)] px-1 py-0.5 font-mono text-[10px] text-[var(--sz-text-dim)]"
+                    class="border border-[var(--sz-border)] px-1 py-0.5 font-mono text-[11px] text-[var(--sz-text-dim)]"
                   >
                     {{ chip }}
                   </code>
@@ -255,7 +254,7 @@ function flowArrow(index: number, length: number): boolean {
         </section>
 
         <section>
-          <h3 class="sz-caps mb-2 flex items-center gap-2 text-[var(--sz-text-muted)]">
+          <h3 class="mb-2 flex items-center gap-2 text-[12.5px] font-medium text-[var(--sz-text-muted)]">
             <span class="h-2 w-2 shrink-0" :style="{ background: 'var(--sz-accent)' }" />
             {{ t('guide.flow.writeTitle') }}
           </h3>
@@ -271,7 +270,7 @@ function flowArrow(index: number, length: number): boolean {
                     {{ index + 1 }}
                   </span>
                   <UIcon :name="step.icon" class="size-4 shrink-0 text-[var(--sz-text-muted)]" />
-                  <h4 class="min-w-0 text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--sz-text)]">
+                  <h4 class="min-w-0 text-[12.5px] font-medium text-[var(--sz-text)]">
                     {{ t(step.titleKey) }}
                   </h4>
                 </div>
@@ -280,7 +279,7 @@ function flowArrow(index: number, length: number): boolean {
                   <code
                     v-for="chip in step.chips"
                     :key="chip"
-                    class="border border-[var(--sz-border)] px-1 py-0.5 font-mono text-[10px] text-[var(--sz-text-dim)]"
+                    class="border border-[var(--sz-border)] px-1 py-0.5 font-mono text-[11px] text-[var(--sz-text-dim)]"
                   >
                     {{ chip }}
                   </code>
@@ -297,8 +296,8 @@ function flowArrow(index: number, length: number): boolean {
         </section>
 
         <div class="border-l-2 border-[var(--sz-accent)] bg-[var(--sz-surface-alt)] px-3 py-2">
-          <p class="sz-caps text-[var(--sz-text-muted)]">{{ t('guide.flow.layersTitle') }}</p>
-          <p class="mt-1 font-mono text-[11.5px] leading-relaxed text-[var(--sz-text)]">
+          <p class="text-[12px] text-[var(--sz-text-muted)]">{{ t('guide.flow.layersTitle') }}</p>
+          <p class="mt-1 font-mono text-[12px] leading-relaxed text-[var(--sz-text)]">
             {{ t('guide.flow.layersText') }}
           </p>
         </div>
@@ -314,7 +313,7 @@ function flowArrow(index: number, length: number): boolean {
       <p class="mb-3 text-[12px] leading-relaxed text-[var(--sz-text-muted)]">{{ t('guide.api.note') }}</p>
       <div class="space-y-3">
         <section v-for="group in apiGroups" :key="group.id">
-          <h3 class="sz-caps mb-1.5 flex items-center gap-2 text-[var(--sz-text-muted)]">
+          <h3 class="mb-1.5 flex items-center gap-2 text-[12.5px] font-medium text-[var(--sz-text-muted)]">
             <span class="h-2 w-2 shrink-0" :style="{ background: group.color }" />
             {{ t(`guide.api.groups.${group.id}`) }}
             <span class="ml-auto tabular-nums text-[var(--sz-text-dim)]">{{ group.endpoints.length }}</span>
@@ -326,7 +325,7 @@ function flowArrow(index: number, length: number): boolean {
               class="grid gap-x-3 gap-y-1 border-b border-[var(--sz-border)] px-2 py-1.5 last:border-b-0 sm:grid-cols-[4.5rem_minmax(0,18rem)_minmax(0,1fr)] sm:items-baseline"
             >
               <span
-                class="inline-flex w-fit border px-1 py-0.5 font-mono text-[10px] leading-none"
+                class="inline-flex w-fit border px-1 py-0.5 font-mono text-[11px] leading-none"
                 :class="METHOD_CLASS[endpoint.method]"
               >
                 {{ endpoint.method }}
@@ -338,7 +337,7 @@ function flowArrow(index: number, length: number): boolean {
                 {{ t(endpoint.descriptionKey) }}
                 <span
                   v-if="endpoint.publicAccess"
-                  class="ml-1 inline-block border border-[var(--sz-border-strong)] px-1 text-[9.5px] uppercase leading-[1.4] tracking-[0.1em] text-[var(--sz-text-dim)]"
+                  class="ml-1 inline-block border border-[var(--sz-border-strong)] px-1 text-[11px] leading-[1.4] text-[var(--sz-text-dim)]"
                 >
                   {{ t('guide.api.public') }}
                 </span>
@@ -357,7 +356,7 @@ function flowArrow(index: number, length: number): boolean {
     >
       <div class="grid gap-3 lg:grid-cols-2">
         <section v-for="group in mcpGroups" :key="group.id">
-          <h3 class="sz-caps mb-1.5 flex items-center gap-2 text-[var(--sz-text-muted)]">
+          <h3 class="mb-1.5 flex items-center gap-2 text-[12.5px] font-medium text-[var(--sz-text-muted)]">
             <span
               class="h-2 w-2 shrink-0"
               :style="{ background: group.id === 'read' ? 'var(--sz-info)' : 'var(--sz-accent)' }"
@@ -379,7 +378,7 @@ function flowArrow(index: number, length: number): boolean {
       </div>
 
       <div class="mt-3 border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] p-2.5">
-        <h3 class="sz-caps mb-1.5 flex items-center gap-2 text-[var(--sz-text-muted)]">
+        <h3 class="mb-1.5 flex items-center gap-2 text-[12.5px] font-medium text-[var(--sz-text-muted)]">
           <UIcon name="i-lucide-shield-check" class="size-4 text-[var(--sz-accent)]" />
           {{ t('guide.mcp.policyTitle') }}
         </h3>
@@ -404,7 +403,7 @@ function flowArrow(index: number, length: number): boolean {
     >
       <div class="space-y-3">
         <section v-for="group in cliGroups" :key="group.id">
-          <h3 class="sz-caps mb-1.5 text-[var(--sz-text-muted)]">{{ t(`guide.cli.groups.${group.id}`) }}</h3>
+          <h3 class="mb-1.5 text-[12.5px] font-medium text-[var(--sz-text-muted)]">{{ t(`guide.cli.groups.${group.id}`) }}</h3>
           <ul class="border border-[var(--sz-border)]">
             <li
               v-for="command in group.commands"
@@ -418,7 +417,7 @@ function flowArrow(index: number, length: number): boolean {
                 {{ t(command.descriptionKey) }}
                 <span
                   v-if="command.danger"
-                  class="ml-1 inline-block border border-[var(--sz-danger)] px-1 text-[9.5px] uppercase leading-[1.4] tracking-[0.1em] text-[var(--sz-danger-text)]"
+                  class="ml-1 inline-block border border-[var(--sz-danger)] px-1 text-[11px] leading-[1.4] text-[var(--sz-danger-text)]"
                 >
                   {{ t('guide.cli.danger') }}
                 </span>
@@ -427,7 +426,7 @@ function flowArrow(index: number, length: number): boolean {
           </ul>
         </section>
       </div>
-      <p class="mt-2 text-[11.5px] leading-relaxed text-[var(--sz-text-dim)]">{{ t('guide.cli.note') }}</p>
+      <p class="mt-2 text-[12px] leading-relaxed text-[var(--sz-text-dim)]">{{ t('guide.cli.note') }}</p>
     </ProfilePane>
 
     <ProfilePane
@@ -453,11 +452,11 @@ function flowArrow(index: number, length: number): boolean {
             <span class="sz-caps text-[var(--sz-text)]">{{ t(`sources.${source.id}`) }}</span>
             <span
               v-if="source.optIn"
-              class="border border-[var(--sz-warning)] px-1 text-[9.5px] uppercase leading-[1.4] tracking-[0.1em] text-[var(--sz-warning-text)]"
+              class="border border-[var(--sz-warning)] px-1 text-[11px] leading-[1.4] text-[var(--sz-warning-text)]"
             >
               {{ t('guide.sources.optIn') }}
             </span>
-            <code class="font-mono text-[10px] text-[var(--sz-text-dim)]">{{ source.id }}</code>
+            <code class="font-mono text-[11px] text-[var(--sz-text-dim)]">{{ source.id }}</code>
           </div>
           <span class="min-w-0 text-[12px] leading-snug text-[var(--sz-text)]">{{ t(source.updatesKey) }}</span>
           <span class="min-w-0 text-[12px] leading-snug text-[var(--sz-text-muted)]">{{ t(source.triggerKey) }}</span>
@@ -491,7 +490,7 @@ function flowArrow(index: number, length: number): boolean {
         >
           <UIcon :name="principle.icon" class="mt-0.5 size-4 shrink-0 text-[var(--sz-accent)]" />
           <div class="min-w-0">
-            <h3 class="text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--sz-text)]">
+            <h3 class="text-[12.5px] font-medium text-[var(--sz-text)]">
               {{ t(principle.titleKey) }}
             </h3>
             <p class="mt-1 text-[12px] leading-relaxed text-[var(--sz-text-muted)]">{{ t(principle.textKey) }}</p>
@@ -500,7 +499,7 @@ function flowArrow(index: number, length: number): boolean {
       </div>
 
       <div class="mt-3 border border-dashed border-[var(--sz-border-strong)] bg-[var(--sz-surface)] px-3 py-2.5">
-        <p class="sz-caps flex items-center gap-2 text-[var(--sz-accent)]">
+        <p class="flex items-center gap-2 text-[12px] text-[var(--sz-accent)]">
           <UIcon name="i-lucide-file-check-2" class="size-4" />
           {{ t('guide.keep.title') }}
         </p>

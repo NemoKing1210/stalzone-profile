@@ -333,7 +333,7 @@ onBeforeUnmount(() => {
 
         <div class="min-w-0 flex-1">
           <div
-            class="flex items-center gap-2 overflow-hidden text-[10px] uppercase tracking-[0.14em] text-[var(--sz-text-dim)]"
+            class="flex items-center gap-2 overflow-hidden text-[11px] text-[var(--sz-text-dim)]"
           >
             <span class="shrink-0 text-[var(--sz-accent)]">{{ t('radio.station') }}</span>
             <span v-if="status === 'playing'" class="flex shrink-0 items-center gap-1 text-[var(--sz-success-text)]">
@@ -351,7 +351,7 @@ onBeforeUnmount(() => {
             {{ currentTrack.title }}
           </div>
           <div class="hidden items-center gap-2 sm:flex">
-            <span class="shrink-0 font-mono text-[10.5px] tabular-nums text-[var(--sz-text-muted)]">
+            <span class="shrink-0 font-mono text-[11px] tabular-nums text-[var(--sz-text-muted)]">
               {{ timeLabel }}
             </span>
             <div
@@ -440,7 +440,7 @@ onBeforeUnmount(() => {
           <template #content>
             <div class="w-64 p-2">
               <div
-                class="flex items-baseline justify-between gap-2 px-1 pb-2 text-[10px] uppercase tracking-[0.14em] text-[var(--sz-text-dim)]"
+                class="flex items-baseline justify-between gap-2 px-1 pb-2 text-[11px] text-[var(--sz-text-dim)]"
               >
                 <span>{{ t('radio.tracks') }}</span>
                 <span>{{ t('radio.position', { index: trackIndex + 1, count: RADIO_TRACKS.length }) }}</span>
@@ -459,11 +459,11 @@ onBeforeUnmount(() => {
                 @click="selectTrack(index)"
               >
                 <span class="min-w-0 flex-1 truncate text-[12.5px]">{{ track.title }}</span>
-                <span v-if="index === trackIndex" class="text-[9px] uppercase tracking-[0.14em]">
+                <span v-if="index === trackIndex" class="text-[11px]">
                   {{ t('radio.current') }}
                 </span>
               </UButton>
-              <p class="mt-2 border-t border-[var(--sz-border)] px-1 pt-2 text-[10px] text-[var(--sz-text-dim)]">
+              <p class="mt-2 border-t border-[var(--sz-border)] px-1 pt-2 text-[11px] text-[var(--sz-text-dim)]">
                 {{ t('radio.credits') }}
               </p>
             </div>
@@ -517,14 +517,14 @@ onBeforeUnmount(() => {
     opacity 160ms ease;
 }
 
-.radio-bar-enter-from,
-.radio-bar-leave-to {
+.js .radio-bar-enter-from,
+.js .radio-bar-leave-to {
   opacity: 0;
   transform: translateY(100%);
 }
 
-.radio-fab-enter-from,
-.radio-fab-leave-to {
+.js .radio-fab-enter-from,
+.js .radio-fab-leave-to {
   opacity: 0;
   transform: scale(0.85) translateY(0.5rem);
 }

@@ -162,7 +162,7 @@ Raw palette (dark only):
 | `--sz-line-strong` | `#454545` | selected/active border |
 | `--sz-text` | `#D8D8D3` | primary text |
 | `--sz-text-muted` | `#9A9A94` | secondary text, labels |
-| `--sz-text-dim` | `#7A7A74` | decorative only (never essential text) |
+| `--sz-text-dim` | `#8F8F89` | decorative only, still clears 4.5:1 on every pane |
 | `--sz-text-inverse` | `#101010` | text on accent fills |
 | `--sz-green` | `#63B356` | default accent, positive |
 | `--sz-green-bright` | `#86CF7F` | positive text on dark |
@@ -188,9 +188,10 @@ Semantic mapping (the names used by components):
 | `--sz-surface-header` | `#262626` | pane/table header |
 | `--sz-border` | `#343434` | |
 | `--sz-border-strong` | `#454545` | |
+| `--sz-field` | `#74746E` | field edge ring; clears 3:1 on a pane (`--ui-border-accented`) |
 | `--sz-text` | `#D8D8D3` | |
 | `--sz-text-muted` | `#9A9A94` | |
-| `--sz-text-dim` | `#7A7A74` | decorative |
+| `--sz-text-dim` | `#8F8F89` | decorative, 4.5:1 or better on every pane |
 | `--sz-success` | `#63B356` | fixed, never follows accent |
 | `--sz-success-text` | `#86CF7F` | |
 | `--sz-warning` | `#E0A63C` | |
@@ -448,7 +449,7 @@ Controls remain Nuxt UI. The table lists the intended defaults; they are applied
 | --- | --- |
 | `UApp` | global wrapper; `toaster` positioned bottom-right |
 | `UButton` | square; primary = accent fill + `--sz-on-accent`; secondary = `--sz-surface` + 1px border; ghost = transparent + muted, hover surface; danger = red fill; sizes xs 28px, sm 32px, md 36px; focus ring 2px accent offset 2px; no shadow |
-| `UInput`, `USelect`, `USelectMenu`, `UInputNumber` | height 32px; `--sz-ink-900` background; 1px `--sz-border`; square; placeholder `--sz-text-dim`; focus border accent + 1px ring; invalid border red + message in `--sz-danger-text` |
+| `UInput`, `USelect`, `USelectMenu`, `UInputNumber` | height 32px; `--sz-ink-900` background; 1px `--sz-field` (clears 3:1 on a pane); square; placeholder `--sz-text-dim`; focus border accent + 1px ring; invalid border red + message in `--sz-danger-text` |
 | `UFormField` | label 11px caps muted; description 11px dim; error 11px danger text; 6px gap |
 | `UModal`, `USlideover` | surface `--sz-ink-800`, 1px border, square; header 44px with title 14px 500; backdrop blur(3px) 72% black; footer actions right-aligned; scrollable body; mobile full-height |
 | `UTable` | header `--sz-ink-750`, 11px caps, sticky; rows 30px, hairline dividers; hover accent 5%; selected row accent 8% + 2px left accent bar; numeric cells right/tabular; sortable header shows a 10px caret and `aria-sort` |

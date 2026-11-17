@@ -245,7 +245,7 @@ async function remove(): Promise<void> {
               <UInputNumber v-model="form.layoutWeight" :min="0" class="w-full" />
             </UFormField>
           </div>
-          <p class="text-[11px] text-[var(--sz-text-dim)]">{{ t('forms.layoutHint') }}</p>
+          <p class="text-[12px] text-[var(--sz-text-dim)]">{{ t('forms.layoutHint') }}</p>
           <p v-if="!layoutPair.valid" class="text-[11px] text-[var(--sz-error-text)]">
             {{ t('forms.layoutPairError') }}
           </p>

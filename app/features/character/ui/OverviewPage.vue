@@ -121,11 +121,11 @@ const dataState = computed(() => [
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
         <h1>{{ character.nick ?? 'STALZONE' }}</h1>
-        <p class="text-[12.5px] text-[var(--sz-text-muted)]">
-          {{ factionName ?? t('overview.factionMissing') }}
-          <span v-if="character.clanName"> · {{ character.clanName }}</span>
-          <span v-if="character.clanRank"> · {{ character.clanRank }}</span>
-          <span v-if="character.region"> · {{ character.region }}</span>
+        <p class="flex flex-wrap items-center gap-x-3 text-[12.5px] text-[var(--sz-text-muted)]">
+          <span>{{ factionName ?? t('overview.factionMissing') }}</span>
+          <span v-if="character.clanName">{{ character.clanName }}</span>
+          <span v-if="character.clanRank">{{ character.clanRank }}</span>
+          <span v-if="character.region">{{ character.region }}</span>
         </p>
       </div>
     </div>
@@ -133,8 +133,7 @@ const dataState = computed(() => [
     <template v-if="hasCharacter">
       <div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
         <ProfilePane class="order-1 min-w-0" :title="t('overview.character')" dense>
-          <div class="min-w-0 space-y-1.5">
-            <p class="font-display text-[15px] uppercase tracking-[0.06em]">{{ character.nick ?? 'STALZONE' }}</p>
+          <div class="min-w-0">
             <UButton
               icon="i-lucide-pencil"
               color="neutral"
@@ -149,7 +148,7 @@ const dataState = computed(() => [
             {{ t('overview.keyStats') }}
           </p>
           <div class="mt-1.5 grid grid-cols-2 gap-px bg-[var(--sz-border)]">
-            <div v-for="kpi in kpis" :key="kpi.key" data-testid="kpi" class="min-w-0 bg-[var(--sz-surface)] px-2 py-1.5">
+            <div v-for="kpi in kpis" :key="kpi.key" data-testid="kpi" class="min-w-0 bg-[var(--sz-surface)] px-2.5 py-3">
               <p class="sz-caps leading-tight text-[var(--sz-text-muted)]">{{ kpi.label }}</p>
               <p
                 class="mt-1 font-display text-[21px] leading-none tabular-nums"
@@ -182,7 +181,7 @@ const dataState = computed(() => [
                 :key="card.to"
                 :to="card.to"
                 :aria-label="t('overview.sectionAria', { label: card.label, count: card.value })"
-                class="group relative flex min-h-[88px] flex-col justify-between bg-[var(--sz-surface)] p-2.5 transition-colors hover:bg-[var(--sz-surface-alt)]"
+                class="group relative flex min-h-[88px] flex-col justify-between bg-[var(--sz-surface)] p-3 transition-colors hover:bg-[var(--sz-surface-alt)]"
               >
                 <div class="flex items-start justify-between gap-2">
                   <UIcon
@@ -210,7 +209,7 @@ const dataState = computed(() => [
                 :tone="entry.tone"
               />
             </div>
-            <p class="mt-2 text-[11px] leading-relaxed text-[var(--sz-text-dim)]">
+            <p class="mt-2 text-[12px] leading-relaxed text-[var(--sz-text-dim)]">
               {{ t('overview.aboutSnapshot', { date: formatDate(payload?.freshness.dataUpdated) }) }}
               <span v-if="metaInfo.source"> {{ t('overview.aboutSources', { sources: metaInfo.source }) }}</span>
               {{ t('overview.aboutNote') }}

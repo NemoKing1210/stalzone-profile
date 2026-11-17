@@ -20,11 +20,11 @@ const total = computed<RangeValue | null>(() => carry.value?.total ?? null);
 const safeLimit = computed<RangeValue | null>(() => carry.value?.safeLimit ?? null);
 const bonus = computed<RangeValue | null>(() => carry.value?.bonus ?? null);
 
-/** A null value is "no data", never zero. A real range prints as `min–max`. */
+/** A null value is "no data", never zero. A real range prints as `min / max`. */
 function rangeOut(value: RangeValue | null | undefined): string {
   if (!value) return '—';
   if (value.value != null) return g2(value.value);
-  if (value.min != null && value.max != null) return `${g2(value.min)}–${g2(value.max)}`;
+  if (value.min != null && value.max != null) return `${g2(value.min)} / ${g2(value.max)}`;
   return '—';
 }
 
@@ -70,7 +70,10 @@ const storageMax = computed(() =>
       :aria-valuemax="total?.value ?? undefined"
       :aria-label="t('inventory.carried')"
     >
-      <div class="h-full transition-[width]" :style="{ width: `${percent}%`, backgroundColor: barColor }" />
+      <div
+        class="h-full origin-left transition-transform"
+        :style="{ width: '100%', transform: `scaleX(${percent / 100})`, backgroundColor: barColor }"
+      />
     </div>
 
     <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[11px] text-[var(--sz-text-muted)]">
@@ -81,14 +84,14 @@ const storageMax = computed(() =>
       <span v-if="total && (total.min != null || total.max != null)">
         {{ t('inventory.range') }}:
         <span class="tabular-nums text-[var(--sz-text)]">
-          {{ total.min == null ? '—' : g2(total.min) }}–{{ total.max == null ? '—' : g2(total.max) }}
+          {{ total.min == null ? '—' : g2(total.min) }} / {{ total.max == null ? '—' : g2(total.max) }}
         </span>
       </span>
 
       <UPopover v-if="carry">
         <button
           type="button"
-          class="ml-auto inline-flex items-center gap-1 border border-[var(--sz-border)] px-1.5 py-0.5 text-[10.5px] uppercase tracking-[0.1em] text-[var(--sz-text-muted)] hover:text-[var(--sz-text)]"
+          class="ml-auto inline-flex items-center gap-1 border border-[var(--sz-border)] px-1.5 py-0.5 text-[11px] text-[var(--sz-text-muted)] hover:text-[var(--sz-text)]"
         >
           <UIcon name="i-lucide-signature" class="size-3" />
           {{ t('inventory.breakdown') }}
@@ -121,7 +124,7 @@ const storageMax = computed(() =>
                 <span
                   v-for="entry in carried.missing"
                   :key="entry"
-                  class="border border-[var(--sz-border)] px-1 py-0.5 text-[10.5px]"
+                  class="border border-[var(--sz-border)] px-1 py-0.5 text-[11px]"
                 >
                   {{ entry }}
                 </span>
@@ -143,13 +146,13 @@ const storageMax = computed(() =>
     <div v-if="carry?.overweight || carry?.aboveSafe" class="flex flex-wrap gap-1">
       <span
         v-if="carry.overweight"
-        class="border border-[var(--sz-danger)] px-1.5 py-0.5 text-[10.5px] uppercase tracking-[0.1em] text-[var(--sz-danger-text)]"
+        class="border border-[var(--sz-danger)] px-1.5 py-0.5 text-[11px] text-[var(--sz-danger-text)]"
       >
         {{ t('inventory.overweight') }}
       </span>
       <span
         v-if="carry.aboveSafe"
-        class="border border-[var(--sz-warning)] px-1.5 py-0.5 text-[10.5px] uppercase tracking-[0.1em] text-[var(--sz-warning-text)]"
+        class="border border-[var(--sz-warning)] px-1.5 py-0.5 text-[11px] text-[var(--sz-warning-text)]"
       >
         {{ t('inventory.aboveSafe') }}
       </span>

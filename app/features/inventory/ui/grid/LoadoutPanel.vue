@@ -105,14 +105,14 @@ function innerEntries(container: ContainerLoadout): { key: string; value: number
     <p v-else class="text-[var(--sz-text-dim)]">{{ t('inventory.noProtection') }}</p>
 
     <section v-if="effects.length" class="space-y-1">
-      <h3 class="sz-caps text-[10.5px] text-[var(--sz-text-muted)]">{{ t('inventory.effects') }}</h3>
+      <h3 class="text-[11px] font-medium text-[var(--sz-text-muted)]">{{ t('inventory.effects') }}</h3>
       <div class="space-y-1.5">
         <div
           v-for="[key, effect] in effects"
           :key="key"
           class="border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] px-2 py-1"
         >
-          <p class="truncate text-[11px] uppercase tracking-[0.08em] text-[var(--sz-text-muted)]">
+          <p class="truncate text-[11px] text-[var(--sz-text-muted)]">
             {{ effectLabel(key) }}
           </p>
           <StatRow
@@ -128,7 +128,7 @@ function innerEntries(container: ContainerLoadout): { key: string; value: number
     <p v-else class="text-[var(--sz-text-dim)]">{{ t('inventory.noEffects') }}</p>
 
     <section v-if="containers.length" class="space-y-1">
-      <h3 class="sz-caps text-[10.5px] text-[var(--sz-text-muted)]">{{ t('inventory.containers') }}</h3>
+      <h3 class="text-[11px] font-medium text-[var(--sz-text-muted)]">{{ t('inventory.containers') }}</h3>
       <div
         v-for="container in containers"
         :key="container.itemId"

@@ -180,15 +180,18 @@ async function syncProfile(): Promise<void> {
       <h2 class="mt-5 text-[18px] text-[var(--sz-text)]">{{ t('setup.title') }}</h2>
       <p class="mt-1 text-[12px] text-[var(--sz-text-muted)]">{{ t('setup.intro') }}</p>
 
-      <nav class="mt-4 flex flex-wrap gap-x-3 gap-y-1 text-[11px] uppercase tracking-wider">
-        <span :class="step === 1 ? 'text-[var(--sz-accent)]' : 'text-[var(--sz-text-dim)]'">
-          1 · {{ t('setup.stepCharacter') }}
+      <nav class="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-[12px]">
+        <span class="inline-flex items-center gap-1.5" :class="step === 1 ? 'text-[var(--sz-accent)]' : 'text-[var(--sz-text-dim)]'">
+          <span class="tabular-nums">1</span>
+          {{ t('setup.stepCharacter') }}
         </span>
-        <span :class="step === 2 ? 'text-[var(--sz-accent)]' : 'text-[var(--sz-text-dim)]'">
-          2 · {{ t('setup.stepCatalog') }}
+        <span class="inline-flex items-center gap-1.5" :class="step === 2 ? 'text-[var(--sz-accent)]' : 'text-[var(--sz-text-dim)]'">
+          <span class="tabular-nums">2</span>
+          {{ t('setup.stepCatalog') }}
         </span>
-        <span :class="step === 3 ? 'text-[var(--sz-accent)]' : 'text-[var(--sz-text-dim)]'">
-          3 · {{ t('setup.stepProfile') }}
+        <span class="inline-flex items-center gap-1.5" :class="step === 3 ? 'text-[var(--sz-accent)]' : 'text-[var(--sz-text-dim)]'">
+          <span class="tabular-nums">3</span>
+          {{ t('setup.stepProfile') }}
         </span>
       </nav>
 
@@ -345,3 +348,12 @@ async function syncProfile(): Promise<void> {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Display heads keep their own wrapping guarantees, whatever the global sheet holds. */
+h1 {
+  overflow-wrap: break-word;
+  min-width: 0;
+  text-wrap: balance;
+}
+</style>

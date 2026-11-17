@@ -83,21 +83,22 @@ const equivalent = computed(() => {
         <li v-for="(entry, index) in props.container.artifacts" :key="`${entry.name}-${index}`">
           <button
             type="button"
-            class="whitespace-nowrap border border-[var(--sz-border)] px-1.5 py-0.5 text-[11px] uppercase tracking-[0.1em] hover:border-[var(--sz-accent)] hover:bg-[var(--sz-surface-alt)] active:bg-[var(--sz-surface-alt)]"
+            class="inline-flex items-baseline gap-1 whitespace-nowrap border border-[var(--sz-border)] px-1.5 py-0.5 text-[11px] hover:border-[var(--sz-accent)] hover:bg-[var(--sz-surface-alt)] active:bg-[var(--sz-surface-alt)]"
             :style="{ color: rankTextColor(null) }"
             @click="$emit('artifact', entry.name, entry.lvl)"
           >
-            {{ entry.name }} · +{{ entry.lvl }}
+            {{ entry.name }}
+            <span class="tabular-nums text-[var(--sz-text-muted)]">+{{ entry.lvl }}</span>
           </button>
         </li>
       </ul>
       <p v-else class="text-[12.5px] text-[var(--sz-text-muted)]">{{ t('containers.fillEmpty') }}</p>
-      <p v-if="props.container.artifactsAsOf" class="mt-1 text-[11px] text-[var(--sz-text-dim)]">
+      <p v-if="props.container.artifactsAsOf" class="mt-1 text-[12px] text-[var(--sz-text-dim)]">
         {{ t('containers.fillAsOf', { date: formatDate(props.container.artifactsAsOf) }) }}
       </p>
     </div>
 
-    <p v-if="props.container.slots != null && props.container.eff != null" class="text-[11px] text-[var(--sz-text-dim)]">
+    <p v-if="props.container.slots != null && props.container.eff != null" class="text-[12px] text-[var(--sz-text-dim)]">
       {{
         t('containers.formula', {
           slots: num(props.container.slots),

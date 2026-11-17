@@ -54,7 +54,7 @@ export default defineNuxtConfig({
           // The only pre-hydration write: picks the stored accent before the first paint so
           // the page does not flash green. It reads one cosmetic key and no personal data.
           innerHTML:
-            "try{var a=localStorage.getItem('profile.accent');document.documentElement.dataset.accent=['green','amber','blue','violet','bone'].indexOf(a)>-1?a:'green'}catch(e){}",
+            "try{var a=localStorage.getItem('profile.accent');document.documentElement.dataset.accent=['green','amber','blue','violet','bone'].indexOf(a)>-1?a:'green'}catch(e){}document.documentElement.classList.add('js');",
           tagPosition: 'head',
         },
       ],

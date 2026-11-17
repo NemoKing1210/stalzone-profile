@@ -155,7 +155,7 @@ function isVerified(item: InventoryItemRead): boolean {
           <span class="truncate text-[12px]">{{ installed(selectedSlot)!.name }}</span>
           <span
             v-if="!isVerified(installed(selectedSlot)!)"
-            class="shrink-0 border border-[var(--sz-warning)] px-1 text-[9.5px] text-[var(--sz-warning-text)]"
+            class="shrink-0 border border-[var(--sz-warning)] px-1 text-[11px] text-[var(--sz-warning-text)]"
           >
             {{ t('inventory.unverified') }}
           </span>
@@ -195,7 +195,7 @@ function isVerified(item: InventoryItemRead): boolean {
           {{ attachment.name }}
         </button>
       </div>
-      <p v-else class="text-[11px] text-[var(--sz-text-dim)]">{{ t('inventory.noAttachments') }}</p>
+      <p v-else class="text-[12px] text-[var(--sz-text-dim)]">{{ t('inventory.noAttachments') }}</p>
       <p class="text-[10.5px] text-[var(--sz-text-dim)]">{{ t('inventory.compatHint') }}</p>
     </section>
   </div>
