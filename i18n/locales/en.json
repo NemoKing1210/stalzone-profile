@@ -315,7 +315,7 @@
   "catalogNotice": {
     "title": "The item catalog is not downloaded",
     "text": "Download public game data before adding gear.",
-    "action": "Open setup"
+    "action": "Open settings"
   },
   "owned": {
     "addTitle": "Add to the dossier",
@@ -324,7 +324,7 @@
     "searchItem": "Search the catalog",
     "add": "Add",
     "catalogRequired": "Download the item catalog before adding gear.",
-    "catalogRequiredAction": "Open setup",
+    "catalogRequiredAction": "Open settings",
     "created": "Added",
     "fillNext": "Fill the container slots",
     "noItems": "Nothing found in the catalog."
@@ -429,8 +429,9 @@
     "continue": "Continue",
     "profileIntro": "The official STALZONE API fills public statistics: time in game, kills, shots fired, achievements.",
     "profileSync": "Load profile",
-    "profileSynced": "Profile statistics loaded",
+    "profileSynced": "Profile statistics loaded: {items}",
     "profileNotConfigured": "The profile API is not configured. You can add statistics in the character editor later.",
+    "profileSettings": "Open settings",
     "finish": "Open the dossier"
   },
   "freshness": {
@@ -447,6 +448,7 @@
       "note": "Note"
     },
     "actions": {
+      "characterCreate": "Character created",
       "profile": "Profile",
       "ownedCreate": "Item added",
       "ownedUpdate": "Item changed",

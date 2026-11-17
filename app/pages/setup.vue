@@ -9,9 +9,12 @@ interface SetupSource {
   lastError: string | null;
 }
 
+type SetupRegion = 'ru' | 'eu' | 'na' | 'sea';
+
 interface SetupResponse {
   needsSetup: boolean;
   catalogItems: number;
+  defaultRegion: SetupRegion;
   profileApiConfigured: boolean;
   sources: SetupSource[];
 }
@@ -25,6 +28,7 @@ interface SyncResult {
 
 const { t } = useI18n();
 const { write } = useWrite();
+const { message: apiMessage } = useApiError();
 
 useHead(() => ({ title: `${t('setup.pageTitle')} — ${t('common.appName')}` }));
 
@@ -32,15 +36,17 @@ const { data: setup, refresh: refreshSetup } = await useFetch<SetupResponse>('/a
   key: 'setup-state',
 });
 
+// A create makes the state say "set up" too; the wizard must stay open for steps 2–3.
+let createdHere = false;
+
 watchEffect(() => {
-  if (setup.value && !setup.value.needsSetup) navigateTo('/');
+  if (setup.value && shouldCloseSetup({ needsSetup: setup.value.needsSetup, createdHere })) navigateTo('/');
 });
 
 const step = ref(1);
-type SetupRegion = 'ru' | 'eu' | 'na' | 'sea';
 const form = reactive<{ nick: string; region: SetupRegion; faction: string; playstyle: string }>({
   nick: '',
-  region: 'ru',
+  region: setup.value?.defaultRegion ?? 'ru',
   faction: '',
   playstyle: '',
 });
@@ -62,7 +68,7 @@ async function createCharacter(): Promise<void> {
   if (creating.value || !form.nick.trim()) return;
   creating.value = true;
   try {
-    const result = await write('/api/v1/character', {
+    await write('/api/v1/character', {
       method: 'POST',
       body: {
         nick: form.nick.trim(),
@@ -72,8 +78,9 @@ async function createCharacter(): Promise<void> {
         dryRun: false,
       },
     });
+    createdHere = true;
     await refreshSetup();
-    if (result || setup.value?.needsSetup === false) step.value = 2;
+    step.value = 2;
   } finally {
     creating.value = false;
   }
@@ -88,10 +95,10 @@ async function syncSource(source: string): Promise<void> {
     });
     const result = response.results[0];
     if (result?.status === 'ok') results[source] = { status: 'ok', items: result.items };
-    else results[source] = { status: 'stale', error: result?.error ?? t('errors.generic') };
+    else results[source] = { status: 'stale', error: apiMessage(result?.error, result?.error) };
   } catch (error: unknown) {
-    const data = (error as { data?: { error?: { message?: string } } }).data?.error;
-    results[source] = { status: 'stale', error: data?.message ?? t('errors.generic') };
+    const data = (error as { data?: { error?: { code?: string; message?: string } } }).data?.error;
+    results[source] = { status: 'stale', error: apiMessage(data?.code, data?.message) };
   }
 }
 
@@ -104,10 +111,10 @@ async function syncProfile(): Promise<void> {
     });
     const result = response.results[0];
     if (result?.status === 'ok') profileResult.value = { status: 'ok', items: result.items };
-    else profileResult.value = { status: 'stale', error: result?.error ?? t('errors.generic') };
+    else profileResult.value = { status: 'stale', error: apiMessage(result?.error, result?.error) };
   } catch (error: unknown) {
-    const data = (error as { data?: { error?: { message?: string } } }).data?.error;
-    profileResult.value = { status: 'stale', error: data?.message ?? t('errors.generic') };
+    const data = (error as { data?: { error?: { code?: string; message?: string } } }).data?.error;
+    profileResult.value = { status: 'stale', error: apiMessage(data?.code, data?.message) };
   }
 }
 </script>
@@ -213,7 +220,7 @@ async function syncProfile(): Promise<void> {
             color="success"
             variant="subtle"
             icon="i-lucide-check"
-            :title="t('setup.profileSynced')"
+            :title="t('setup.profileSynced', { items: profileResult?.items ?? 0 })"
           />
           <UAlert
             v-else-if="profileResult?.status === 'stale'"
@@ -223,13 +230,15 @@ async function syncProfile(): Promise<void> {
             :title="profileResult?.error"
           />
         </template>
-        <UAlert
-          v-else
-          color="neutral"
-          variant="subtle"
-          icon="i-lucide-info"
-          :title="t('setup.profileNotConfigured')"
-        />
+        <template v-else>
+          <UAlert
+            color="neutral"
+            variant="subtle"
+            icon="i-lucide-info"
+            :title="t('setup.profileNotConfigured')"
+          />
+          <UButton color="neutral" variant="outline" to="/settings" :label="t('setup.profileSettings')" />
+        </template>
 
         <div class="flex justify-end">
           <UButton :label="t('setup.finish')" @click="navigateTo('/')" />

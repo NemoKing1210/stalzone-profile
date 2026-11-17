@@ -87,10 +87,13 @@ export async function fetchStalzoneProfile(
   const clanNode = root.clan;
   const clanName = text(clanNode?.info?.name) ?? text(clanNode?.name);
   const clanRank = text(clanNode?.member?.rank) ?? text(clanNode?.rank);
-  const rawStats: unknown = root.stats ?? root.profile?.stats ?? [];
-  const stats = Array.isArray(rawStats)
-    ? rawStats.map((raw) => statOf(raw as Json)).filter((stat): stat is StalzoneProfileStat => !!stat)
-    : [];
+  const rawStats: unknown = root.stats ?? root.profile?.stats;
+  // A 2xx body without the counters is a degraded answer, not "no counters":
+  // guessing an empty list would erase the API rows already in the dossier.
+  if (!Array.isArray(rawStats)) throw new Error('stalzone profile response has no stats array');
+  const stats = rawStats
+    .map((raw) => statOf(raw as Json))
+    .filter((stat): stat is StalzoneProfileStat => !!stat);
 
   return {
     username: text(root.username) ?? text(root.nick) ?? input.nick,

@@ -97,7 +97,7 @@ async function syncSource(id: string): Promise<void> {
     } else {
       toast.add({
         title: t('settings.toast.sourceUnavailable'),
-        description: result?.error ?? t('settings.toast.sourceUnavailableDescription'),
+        description: apiMessage(result?.error, result?.error || t('settings.toast.sourceUnavailableDescription')),
         color: 'warning',
         icon: 'i-lucide-cloud-off',
       });

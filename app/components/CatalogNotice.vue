@@ -18,6 +18,6 @@ const empty = computed(() => {
       <p class="text-[13px] text-[var(--sz-text)]">{{ t('catalogNotice.title') }}</p>
       <p class="text-[11.5px] text-[var(--sz-text-muted)]">{{ t('catalogNotice.text') }}</p>
     </div>
-    <UButton size="xs" to="/setup" :label="t('catalogNotice.action')" />
+    <UButton size="xs" to="/settings" :label="t('catalogNotice.action')" />
   </div>
 </template>

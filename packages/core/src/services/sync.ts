@@ -182,6 +182,8 @@ function syncExbo(db: Db, options: SyncOptions): Promise<SyncResult> {
           const kind = repo.kindFromCategory(record.cat);
           const itemId = repo.upsertItem(db, {
             sourceId: 'exbo_base',
+            // The icons source looks items up by the same realm; keep both sides in step.
+            realm: options.realm ?? 'ru',
             externalId: record.id,
             name: record.ru ?? record.id,
             nameEn: record.en,
@@ -302,10 +304,14 @@ async function syncIcons(db: Db, options: SyncOptions): Promise<SyncResult> {
   const fetchImpl = options.fetchImpl ?? ((url: string, init?: RequestInit) => fetch(url, init));
 
   const targets: { itemId: number; url: string }[] = [];
+  let known = 0;
   for (const record of snapshot.items) {
     const item = repo.getItemByExternalId(db, record.id, realm);
     if (!item || !ICON_KINDS.has(item.kind)) continue;
-    if (repo.getIcon(db, item.id)) continue;
+    known += 1;
+    const existing = repo.getIcon(db, item.id);
+    // A row without its file is a dangling path: download again instead of trusting the row.
+    if (existing && fs.existsSync(path.join(dir, path.basename(existing.path)))) continue;
     const url = remoteIcon(record, realm);
     if (url) targets.push({ itemId: item.id, url });
   }
@@ -329,7 +335,30 @@ async function syncIcons(db: Db, options: SyncOptions): Promise<SyncResult> {
     }
   });
 
-  return { source: 'icons', status: 'ok', items: icons, icons, failed, fetchedAt: new Date().toISOString() };
+  const fetchedAt = new Date().toISOString();
+  if (known === 0) {
+    return {
+      source: 'icons',
+      status: 'stale',
+      items: 0,
+      icons,
+      failed,
+      fetchedAt,
+      error: 'no catalog items to match; sync exbo_base first',
+    };
+  }
+  if (targets.length > 0 && icons === 0) {
+    return {
+      source: 'icons',
+      status: 'stale',
+      items: 0,
+      icons,
+      failed,
+      fetchedAt,
+      error: 'every icon download failed',
+    };
+  }
+  return { source: 'icons', status: 'ok', items: icons, icons, failed, fetchedAt };
 }
 
 /**

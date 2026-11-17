@@ -20,7 +20,18 @@ if (apiUrl) {
   const cfg = loadConfig();
   const db = openDb(cfg.dbPath);
   migrate(db, cfg.migrationsDir);
-  client = localClient(db);
+  client = localClient(db, {
+    iconsDir: cfg.iconsDir,
+    profileApi:
+      cfg.stalzoneClientId && cfg.stalzoneClientSecret
+        ? {
+            clientId: cfg.stalzoneClientId,
+            clientSecret: cfg.stalzoneClientSecret,
+            apiUrl: cfg.stalzoneApiUrl,
+            tokenUrl: cfg.stalzoneTokenUrl,
+          }
+        : undefined,
+  });
 }
 
 const server = createDossierServer(client);

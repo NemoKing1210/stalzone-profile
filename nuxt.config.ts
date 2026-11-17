@@ -62,10 +62,13 @@ export default defineNuxtConfig({
     loginRateMax: 5,
     loginWindowMs: 60_000,
     trustProxy: '',
-    stalzoneClientId: '',
-    stalzoneClientSecret: '',
-    stalzoneApiUrl: 'https://eapi.stalzone.com',
-    stalzoneTokenUrl: 'https://exbo.net/oauth/token',
+    // NUXT_* wins at runtime; the plain names let one `.env` pair serve the site and the CLI.
+    stalzoneClientId: process.env.NUXT_STALZONE_CLIENT_ID || process.env.STALZONE_CLIENT_ID || '',
+    stalzoneClientSecret: process.env.NUXT_STALZONE_CLIENT_SECRET || process.env.STALZONE_CLIENT_SECRET || '',
+    stalzoneApiUrl:
+      process.env.NUXT_STALZONE_API_URL || process.env.STALZONE_API_URL || 'https://eapi.stalzone.com',
+    stalzoneTokenUrl:
+      process.env.NUXT_STALZONE_TOKEN_URL || process.env.STALZONE_TOKEN_URL || 'https://exbo.net/oauth/token',
     public: {
       appName: 'Stalzone Profile',
     },

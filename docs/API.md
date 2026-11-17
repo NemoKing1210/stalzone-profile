@@ -43,8 +43,8 @@ need user-facing text should do the same or show the message as-is.
 | Method | Path | Response |
 |---|---|---|
 | GET | `/api/v1/healthz` | `{ ok: true, db: "ok" }`, public |
-| GET | `/api/v1/setup` | `{ needsSetup, catalogItems, profileApiConfigured, sources }` |
-| GET | `/api/v1/payload` | the whole dossier: character, gear, catalog, derived cards, builds, icons, freshness |
+| GET | `/api/v1/setup` | `{ needsSetup, catalogItems, defaultRegion, profileApiConfigured, sources }` |
+| GET | `/api/v1/payload` | the whole dossier: character, gear, catalog, derived cards, builds, icons, freshness. `catalog.meta.items` counts every catalog row (weapons, armor, motifs, artifacts, containers), not only weapons and armor |
 | GET | `/api/v1/meta` | `{ meta, catalogMeta, freshness }` |
 | GET | `/api/v1/character` | character with derived fields (`kd`, `accuracy`, `headshot`, `hours`, `arrived`) |
 | GET | `/api/v1/items?q=&kind=&rank=&slot=&limit=` | item search |
@@ -123,9 +123,13 @@ opt-in. Response:
 }
 ```
 
-The `icons` result adds `icons` (files written) and `failed` (per-file failures that do not
-fail the source). The `profile` source requires the STALZONE client credentials; without
-them it answers `status: "stale"` with `error: "STALZONE_API_NOT_CONFIGURED"`.
+The `icons` result adds `icons` (files written) and `failed` (per-file failures). A single
+failed file does not fail the source; when every download fails the result is
+`status: "stale"` with `error: "every icon download failed"`. An item whose icon row exists
+but whose file is missing from `ICONS_DIR` is downloaded again. The `profile` source requires
+the STALZONE client credentials; without them it answers `status: "stale"` with
+`error: "STALZONE_API_NOT_CONFIGURED"`. A 2xx profile response without a `stats` array is
+treated as stale, so the stored API statistics are not wiped by a degraded answer.
 
 A source failure does not fail the request: `status: "stale"`, an `error` with the text,
 and the previous data stays. Inside the 15-minute TTL `scpmodel` does not go to the network

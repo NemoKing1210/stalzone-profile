@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { closeDb, migrate, openDb, type Db } from '@dossier/core';
 import {
@@ -274,6 +274,47 @@ describe('MCP HTTP transport', () => {
       expect(response.status).toBe(404);
     } finally {
       await new Promise<void>((resolve) => disabledServer.close(() => resolve()));
+    }
+  });
+});
+
+describe('MCP local sync options', () => {
+  it('runs the icons source in the configured directory', async () => {
+    const iconsDir = path.join(dir, 'mcp-icons');
+    const cacheDir = path.join(dir, 'mcp-cache');
+    const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
+
+    // Any request that escapes the fake fetch would reach the network.
+    const globalFetch = vi.fn(async () => {
+      throw new Error('network disabled in tests');
+    });
+    vi.stubGlobal('fetch', globalFetch);
+    try {
+      const fetchImpl = async (url: string): Promise<Response> => {
+        if (url.endsWith('/commits/main')) {
+          return json({ sha: 'abc123', commit: { committer: { date: '2026-11-14T10:00:00Z' } } });
+        }
+        if (url.includes('/git/trees/main')) return json({ tree: [{ path: 'ru/items/weapon/ks-1.json' }] });
+        if (url.endsWith('/ru/stats.json')) return json([]);
+        if (url.includes('/icons/')) return new Response(new Uint8Array([137, 80, 78, 71]), { status: 200 });
+        if (url.includes('raw.githubusercontent.com')) {
+          return json({
+            id: 'ks-1',
+            category: 'weapon/shotgun_rifle',
+            name: { lines: { ru: 'KS-1', en: 'KS-1' } },
+            infoBlocks: [],
+          });
+        }
+        throw new Error(`unexpected url ${url}`);
+      };
+
+      const result = await localClient(db, { iconsDir, cacheDir, fetchImpl }).syncSource('icons', false);
+
+      expect(result).toMatchObject({ source: 'icons', status: 'ok', icons: 1 });
+      expect(fs.readdirSync(iconsDir)).toEqual([expect.stringMatching(/^[a-f0-9]{40}\.png$/)]);
+      expect(globalFetch).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
     }
   });
 });

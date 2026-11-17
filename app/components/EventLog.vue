@@ -19,6 +19,7 @@ const confirmOpen = computed({
 });
 
 const ACTION_KEYS: Record<string, string> = {
+  'character.create': 'characterCreate',
   'character.update': 'profile',
   'owned.create': 'ownedCreate',
   'owned.update': 'ownedUpdate',

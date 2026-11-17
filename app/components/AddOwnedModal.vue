@@ -43,6 +43,8 @@ const { data: motifs } = useFetch<{ name: string }[]>('/api/v1/items', {
   default: () => [],
 });
 const skinItems = computed(() => (motifs.value ?? []).map((motif) => motif.name));
+/** Skins belong to weapons and armor; containers and artifacts have none. */
+const hasSkins = computed(() => props.kind === 'weapon' || props.kind === 'armor');
 
 let timer: ReturnType<typeof setTimeout> | undefined;
 onBeforeUnmount(() => clearTimeout(timer));
@@ -61,6 +63,8 @@ async function loadItems(): Promise<void> {
 }
 
 watch(search, () => {
+  // A different query means a different result list; the old pick must not stay armed.
+  selected.value = null;
   clearTimeout(timer);
   timer = setTimeout(loadItems, 250);
 });
@@ -94,7 +98,7 @@ async function submit(): Promise<void> {
       level: form.level,
       qty: form.qty,
       quality: form.quality ?? null,
-      skin: form.skin ?? null,
+      skin: hasSkins.value ? (form.skin ?? null) : null,
       role: props.kind === 'weapon' ? (form.role ?? null) : null,
       slot: props.kind === 'weapon' ? (form.slot ?? null) : null,
       note: form.note ?? null,
@@ -115,7 +119,7 @@ async function submit(): Promise<void> {
     <template #body>
       <div v-if="catalogEmpty" class="space-y-3">
         <UAlert color="warning" variant="subtle" icon="i-lucide-package-x" :title="t('owned.catalogRequired')" />
-        <UButton to="/setup" :label="t('owned.catalogRequiredAction')" />
+        <UButton to="/settings" :label="t('owned.catalogRequiredAction')" />
       </div>
 
       <UForm v-else :state="form" class="space-y-4" @submit="submit">
@@ -157,7 +161,7 @@ async function submit(): Promise<void> {
           <UFormField :label="t('forms.quality')" name="quality">
             <UInput v-model.nullable="form.quality" :placeholder="t('forms.qualityPlaceholder')" class="w-full" />
           </UFormField>
-          <UFormField v-if="kind !== 'container'" :label="t('forms.skin')" name="skin">
+          <UFormField v-if="hasSkins" :label="t('forms.skin')" name="skin">
             <USelectMenu
               v-model="form.skin"
               :items="skinItems"

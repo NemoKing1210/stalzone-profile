@@ -4,7 +4,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { closeDb, ensureDefaultSources, migrate, openDb, upsertCharacter, type Db } from '@dossier/core';
 import { listSources, SOURCE_IDS } from '@dossier/core/repo';
-import { setupState } from '@dossier/core/services/setup';
+import { defaultSetupRegion, setupState } from '@dossier/core/services/setup';
 
 const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
 
@@ -41,5 +41,14 @@ describe('default sources', () => {
     expect(listSources(db).map((row) => row.id).sort()).toEqual([...SOURCE_IDS].sort());
     expect(SOURCE_IDS).toContain('icons');
     expect(SOURCE_IDS).toContain('profile');
+  });
+});
+
+describe('defaultSetupRegion', () => {
+  it('preselects a live realm and falls back to ru', () => {
+    expect(defaultSetupRegion('eu')).toBe('eu');
+    expect(defaultSetupRegion('sea')).toBe('sea');
+    expect(defaultSetupRegion('global')).toBe('ru');
+    expect(defaultSetupRegion(null)).toBe('ru');
   });
 });

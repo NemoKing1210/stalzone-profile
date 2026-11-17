@@ -5,7 +5,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 export { createDossierServer, READ_TOOLS, READ_OUTPUT_SCHEMAS, writeLimiter } from './registry.js';
 export type { WriteLimiter } from './registry.js';
 export { localClient, httpClient } from './client.js';
-export type { DossierClient } from './client.js';
+export type { DossierClient, LocalClientOptions } from './client.js';
 export { createMcpHttpHandler } from './http.js';
 
 /** Test/smoke helper: connects a fresh SDK client to a server over linked in-memory transports. */

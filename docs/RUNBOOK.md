@@ -117,7 +117,12 @@ npm run sync wiki -- --force # ignore the TTL/cache
 The same actions are buttons in `/setup`, `/settings` and the `sync_source` MCP tool.
 `profile` is opt-in and never runs as part of `all`. It deletes only `origin='api'`
 statistics and rewrites them; manual overrides win, and a counter missing from the
-response disappears instead of staying stale.
+response disappears instead of staying stale. A response without a `stats` array is
+rejected as `stale`, and a rejected profile never touches the stored rows.
+
+`icons` runs after `exbo_base` because it needs the item list. It skips an item only when
+both the icon row and the file exist, so a lost `ICONS_DIR` file is downloaded again; if
+every download in a run fails the source is `stale`.
 
 If a source fails it stays `stale`: old data remains visible, `/settings` shows
 `last_error`, and the freshness badge shows the age. Do not delete the database because of

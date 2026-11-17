@@ -59,7 +59,12 @@ describe('i18n catalogs', () => {
   });
 
   it('names the cleanup actions in the journal', () => {
-    for (const key of ['events.actions.ownedClear', 'events.actions.buildClear', 'events.actions.dossierClear']) {
+    for (const key of [
+      'events.actions.ownedClear',
+      'events.actions.buildClear',
+      'events.actions.dossierClear',
+      'events.actions.characterCreate',
+    ]) {
       expect(en[key]).toBeTruthy();
       expect(en[key]).not.toBe(key);
     }
@@ -71,6 +76,7 @@ describe('i18n catalogs', () => {
       'setup.create',
       'setup.catalogIntro',
       'setup.skipCatalog',
+      'setup.profileSettings',
       'setup.finish',
       'setup.step',
     ]) {

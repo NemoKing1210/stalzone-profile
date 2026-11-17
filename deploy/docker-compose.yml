@@ -21,6 +21,9 @@ services:
       NUXT_TRUST_PROXY: ${NUXT_TRUST_PROXY:-}
       NUXT_STALZONE_CLIENT_ID: ${NUXT_STALZONE_CLIENT_ID:-}
       NUXT_STALZONE_CLIENT_SECRET: ${NUXT_STALZONE_CLIENT_SECRET:-}
+      # The same pair for `npm run sync` inside the container (the CLI reads plain names).
+      STALZONE_CLIENT_ID: ${NUXT_STALZONE_CLIENT_ID:-}
+      STALZONE_CLIENT_SECRET: ${NUXT_STALZONE_CLIENT_SECRET:-}
     volumes:
       - dossier-data:/data
     ports:

@@ -374,15 +374,15 @@ describe('unknown source', () => {
 describe('icons sync', () => {
   const cacheDir = () => path.join(dir, 'cache');
 
-  function exboFetch(icon: () => Promise<Response>): (url: string) => Promise<Response> {
+  function exboFetch(icon: () => Promise<Response>, realm = 'ru'): (url: string) => Promise<Response> {
     return async (url: string) => {
       if (url.endsWith('/commits/main')) {
         return jsonResponse({ sha: 'abc123', commit: { committer: { date: '2026-11-14T10:00:00Z' } } });
       }
       if (url.includes('/git/trees/main')) {
-        return jsonResponse({ tree: [{ path: 'ru/items/weapon/wg53.json' }] });
+        return jsonResponse({ tree: [{ path: `${realm}/items/weapon/wg53.json` }] });
       }
-      if (url.endsWith('/ru/stats.json')) return jsonResponse([]);
+      if (url.endsWith(`/${realm}/stats.json`)) return jsonResponse([]);
       if (url.includes('/icons/')) return icon();
       if (url.includes('raw.githubusercontent.com')) return jsonResponse(EXBO_ITEM);
       throw new Error(`unexpected url ${url}`);
@@ -412,7 +412,46 @@ describe('icons sync', () => {
     expect(calls.icon).toBe(1);
   });
 
-  it('counts a failed icon without failing the source', async () => {
+  it('downloads an icon again when its file disappeared', async () => {
+    const iconsDir = path.join(dir, 'icons');
+    const calls = { icon: 0 };
+    const fetchImpl = exboFetch(async () => {
+      calls.icon += 1;
+      return new Response(new Uint8Array([137, 80, 78, 71]), { status: 200 });
+    });
+    await runSync(db, 'exbo_base', { fetchImpl, cacheDir: cacheDir() });
+    await runSync(db, 'icons', { fetchImpl, cacheDir: cacheDir(), iconsDir });
+
+    const item = repo.findItemByKindName(db, 'weapon', 'АК-12')!;
+    const file = path.join(iconsDir, path.basename(repo.getIcon(db, item.id)!.path));
+    fs.rmSync(file);
+
+    const again = await runSync(db, 'icons', { fetchImpl, cacheDir: cacheDir(), iconsDir });
+    expect(again).toMatchObject({ status: 'ok', icons: 1 });
+    expect(calls.icon).toBe(2);
+    expect(fs.existsSync(file)).toBe(true);
+  });
+
+  it('refuses to report an empty catalog as a successful icon sync', async () => {
+    const fetchImpl = exboFetch(async () => new Response(new Uint8Array([137, 80, 78, 71]), { status: 200 }));
+
+    const result = await runSync(db, 'icons', { fetchImpl, cacheDir: cacheDir(), iconsDir: path.join(dir, 'icons') });
+
+    expect(result).toMatchObject({ source: 'icons', status: 'stale', icons: 0 });
+    expect(result.error).toContain('exbo_base');
+  });
+
+  it('downloads icons for an EU catalog into the EU realm', async () => {
+    const iconsDir = path.join(dir, 'icons');
+    const fetchImpl = exboFetch(async () => new Response(new Uint8Array([137, 80, 78, 71]), { status: 200 }), 'eu');
+    await runSync(db, 'exbo_base', { fetchImpl, cacheDir: cacheDir(), realm: 'eu' });
+
+    const result = await runSync(db, 'icons', { fetchImpl, cacheDir: cacheDir(), iconsDir, realm: 'eu' });
+
+    expect(result).toMatchObject({ source: 'icons', status: 'ok', icons: 1 });
+  });
+
+  it('reports stale when every icon download fails', async () => {
     const fetchImpl = exboFetch(async () => new Response('no', { status: 404 }));
     await runSync(db, 'exbo_base', { fetchImpl, cacheDir: cacheDir() });
 
@@ -421,7 +460,7 @@ describe('icons sync', () => {
       cacheDir: cacheDir(),
       iconsDir: path.join(dir, 'icons'),
     });
-    expect(result).toMatchObject({ source: 'icons', status: 'ok', icons: 0, failed: 1 });
+    expect(result).toMatchObject({ source: 'icons', status: 'stale', icons: 0, failed: 1 });
     expect(repo.getIcon(db, repo.findItemByKindName(db, 'weapon', 'АК-12')!.id)).toBeNull();
   });
 });
@@ -491,6 +530,57 @@ describe('profile sync', () => {
     const after = repo.characterStatMap(db, characterId);
     expect(after.dea).toBeUndefined();
     expect(after.kil).toMatchObject({ value_num: 99, origin: 'manual' });
+  });
+
+  it('sends OAuth client credentials and an uppercase, encoded profile request', async () => {
+    const nick = 'Nemo King/Тест';
+    repo.upsertCharacter(db, { nick, region: 'eu' });
+    const seen: { url: string; init?: RequestInit }[] = [];
+    const fetchImpl = async (url: string, init?: RequestInit) => {
+      seen.push({ url, init });
+      if (url === profileApi.tokenUrl) return jsonResponse({ access_token: 'tok', expires_in: 3600 });
+      return jsonResponse({ username: nick, stats: [] });
+    };
+
+    await runSync(db, 'profile', { fetchImpl, profileApi });
+
+    expect(seen).toHaveLength(2);
+    const [token, profile] = seen;
+    expect(token.url).toBe(profileApi.tokenUrl);
+    expect(token.init?.method).toBe('POST');
+    expect((token.init?.headers as Record<string, string>)['content-type']).toBe(
+      'application/x-www-form-urlencoded',
+    );
+    const body = new URLSearchParams(String(token.init?.body));
+    expect(body.get('client_id')).toBe('id');
+    expect(body.get('client_secret')).toBe('secret');
+    expect(body.get('grant_type')).toBe('client_credentials');
+    expect(body.get('scope')).toBe('');
+
+    expect(profile.url).toBe(
+      `https://api.test/EU/character/by-name/${encodeURIComponent(nick)}/profile`,
+    );
+    expect((profile.init?.headers as Record<string, string>).authorization).toBe('Bearer tok');
+  });
+
+  it('keeps the previous API rows when a 2xx profile response has no stats array', async () => {
+    const characterId = repo.upsertCharacter(db, { nick: 'Nemo_King', region: 'ru' });
+    const full = {
+      username: 'Nemo_King',
+      stats: [
+        { id: 'kil', type: 'INTEGER', value: 10 },
+        { id: 'dea', type: 'INTEGER', value: 4 },
+      ],
+    };
+    const { fetchImpl } = profileFetch([full, { username: 'Nemo_King' }]);
+
+    await runSync(db, 'profile', { fetchImpl, profileApi });
+    expect(repo.characterStatMap(db, characterId).dea).toMatchObject({ value_num: 4, origin: 'api' });
+
+    const degraded = await runSync(db, 'profile', { fetchImpl, profileApi });
+    expect(degraded).toMatchObject({ source: 'profile', status: 'stale' });
+    expect(repo.characterStatMap(db, characterId).dea).toMatchObject({ value_num: 4, origin: 'api' });
+    expect(repo.characterStatMap(db, characterId).kil).toMatchObject({ value_num: 10, origin: 'api' });
   });
 
   it('reports stale without credentials or a character', async () => {

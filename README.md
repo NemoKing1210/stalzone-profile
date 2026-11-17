@@ -71,9 +71,9 @@ server uses an ephemeral secret and warns in the log: every restart resets all s
 | `NUXT_TRUST_PROXY` | — | `1` trusts `X-Forwarded-For` (only behind Caddy/proxy) |
 | `REALM` | `ru` | source region |
 | `SNAPSHOTS_DIR` | `./snapshots` | backup directory |
-| `STALZONE_CLIENT_ID` | — | official STALZONE API client id (CLI/scripts) |
+| `STALZONE_CLIENT_ID` | — | official STALZONE API client id; one pair serves the dev server, CLI and MCP |
 | `STALZONE_CLIENT_SECRET` | — | official STALZONE API client secret; both it and the id are needed |
-| `NUXT_STALZONE_CLIENT_ID` | — | the same pair for the Nuxt server (`/setup`, `/settings`) |
+| `NUXT_STALZONE_CLIENT_ID` | — | runtime override for the Nuxt server (`/setup`, `/settings`); Docker sets this one |
 | `NUXT_STALZONE_CLIENT_SECRET` | — | — |
 | `STALZONE_API_URL` | `https://eapi.stalzone.com` | profile API endpoint |
 | `STALZONE_TOKEN_URL` | `https://exbo.net/oauth/token` | OAuth token endpoint |

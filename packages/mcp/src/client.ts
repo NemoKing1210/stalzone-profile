@@ -17,7 +17,7 @@ import {
   type WriteResult,
 } from '@dossier/core/services/writes';
 import { planArtifactBuild, type PlanInput, type PriceQuote } from '@dossier/core/calc';
-import { runSync } from '@dossier/core/services/sync';
+import { runSync, type SyncOptions } from '@dossier/core/services/sync';
 
 type Json = Record<string, unknown>;
 
@@ -196,8 +196,15 @@ function writeError(error: unknown): never {
   throw error;
 }
 
-/** In-process client used by Nitro's `/mcp` route and the stdio shim without DOSSIER_API_URL. */
-export function localClient(db: Db): DossierClient {
+/** Environment-specific sync knobs (icon directory, profile API credentials, test fetch). */
+export type LocalClientOptions = Pick<SyncOptions, 'iconsDir' | 'profileApi' | 'fetchImpl' | 'cacheDir' | 'realm'>;
+
+/**
+ * In-process client used by Nitro's `/mcp` route and the stdio shim without
+ * DOSSIER_API_URL. Sync options are forwarded so both hosts resolve them the
+ * same way the CLI and the admin route do; `force` always comes from the tool.
+ */
+export function localClient(db: Db, syncOptions: LocalClientOptions = {}): DossierClient {
   return {
     async getCharacter() {
       const payload = buildPayload(db);
@@ -391,7 +398,8 @@ export function localClient(db: Db): DossierClient {
 
     async syncSource(source, force) {
       try {
-        return (await runSync(db, source === 'exbo' ? 'exbo_base' : source, { force })) as unknown as Json;
+        const options = { ...syncOptions, force };
+        return (await runSync(db, source === 'exbo' ? 'exbo_base' : source, options)) as unknown as Json;
       } catch (error) {
         if (error instanceof Error && error.message.startsWith('unknown source')) {
           throw new McpClientError('UNKNOWN_SOURCE', error.message);
