@@ -7,6 +7,20 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ## [Unreleased]
 
+### Added
+
+- `MetaRead` in `@dossier/shared/contracts` describes `GET /api/v1/meta` and is validated
+  by the payload contract test; `OwnedKind` is exported as a type beside its schema.
+
+### Changed
+
+- `@dossier/core` publishes each module only by name (`./modules/<name>`); the deep
+  `./modules/*` wildcard and the dead `src/calc` compatibility shims are gone.
+- The write result, freshness, event and owned-kind shapes have one definition in
+  `@dossier/shared/contracts`; core and the app reuse them instead of redeclaring.
+- `server/utils/serialize.ts` keeps only the event adapter: the test-only `itemJson`
+  wrapper and the unused `findAnyDetailsCard` export are removed.
+
 ## [2026-11-17] — Contract-first modular monolith: core modules and app slices
 
 ### Added
