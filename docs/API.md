@@ -31,7 +31,7 @@ Mutations (`POST/PATCH/PUT/DELETE`) require this host's `Origin` or
 | 401 | `UNAUTHORIZED` / `INVALID_PASSWORD` | no session / wrong password |
 | 403 | `ORIGIN_REQUIRED`, `ORIGIN_MISMATCH` | a mutation from a foreign origin |
 | 404 | `NOT_FOUND` | the entity does not exist |
-| 409 | `NO_CHARACTER` and domain conflicts | no character |
+| 409 | `NO_CHARACTER`, `NOTHING_TO_CLEAR` and domain conflicts | no character / the cleanup scope is empty |
 | 422 | `ITEM_NOT_FOUND` and domain write errors | the item was not found (with `details.suggestions`) |
 | 429 | `RATE_LIMITED` | too many sign-in attempts |
 
@@ -58,6 +58,7 @@ need user-facing text should do the same or show the message as-is.
 | GET | `/api/v1/sources` | source statuses and age |
 | GET | `/api/v1/events?limit=` | change journal |
 | GET | `/api/v1/admin/export` | JSON in the old dossier format (attachment) |
+| GET | `/api/v1/admin/cleanup` | owned records/copies and build count |
 
 ## Writes
 
@@ -85,6 +86,11 @@ text is English.
 | PUT | `/api/v1/content/:kind` | `ContentBlockInputSchema` (`kind`: `recs`, `earnings`, `builds_meta`, `catalog_meta`) |
 | PATCH | `/api/v1/character` | `CharacterPatchSchema` |
 | POST | `/api/v1/events/:id/rollback` | `{ dryRun? }` |
+| POST | `/api/v1/admin/cleanup` | `{ scope: "owned" \| "builds" \| "all", dryRun? }` |
+
+Each cleanup scope writes one `event_log` row (`owned.clear`, `build.clear`,
+`dossier.clear`) whose `before` is the full snapshot, so Rollback restores the cleared
+data. An empty scope answers `409 NOTHING_TO_CLEAR`.
 
 ## Sync
 
