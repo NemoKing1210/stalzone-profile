@@ -6,7 +6,9 @@ import {
   ContainerFillSchema,
   LoginSchema,
   OwnedCreateSchema,
+  OwnedItemInputSchema,
   OwnedPatchSchema,
+  RemoveOwnedInputSchema,
   SyncSourceSchema,
   dec,
   fmtMoney,
@@ -125,6 +127,17 @@ describe('owned schemas', () => {
   it('rejects an out-of-range level and an empty name', () => {
     expect(OwnedCreateSchema.safeParse({ name: 'АК-12', level: 16 }).success).toBe(false);
     expect(OwnedCreateSchema.safeParse({ name: '' }).success).toBe(false);
+  });
+
+  it('accepts only the four ownable kinds', () => {
+    for (const kind of ['attachment', 'ammo', 'motif', 'other']) {
+      expect(OwnedCreateSchema.safeParse({ name: 'АК-12', kind }).success).toBe(false);
+      expect(OwnedItemInputSchema.safeParse({ name: 'АК-12', kind }).success).toBe(false);
+      expect(RemoveOwnedInputSchema.safeParse({ name: 'АК-12', kind }).success).toBe(false);
+    }
+    for (const kind of ['weapon', 'armor', 'container', 'artifact']) {
+      expect(OwnedCreateSchema.safeParse({ name: 'АК-12', kind }).success).toBe(true);
+    }
   });
 
   it('requires a real change in a patch', () => {

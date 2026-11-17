@@ -233,11 +233,22 @@ async function syncMotifs(db: Db, options: SyncOptions): Promise<SyncResult> {
   const findMotif = db.prepare(`SELECT id FROM item WHERE kind = 'motif' AND name_norm = ? LIMIT 1`);
   db.transaction(() => {
     for (const row of rows) {
-      const motif = findMotif.get(norm(row.skin)) as { id: number } | undefined;
-      if (!motif) continue;
       const baseItemId = resolveMotifBase(db, row);
+      const existing = findMotif.get(norm(row.skin)) as { id: number } | undefined;
+      if (!existing) {
+        repo.upsertItem(db, {
+          sourceId: 'motifs',
+          externalId: row.key,
+          name: row.skin,
+          kind: 'motif',
+          category: 'other',
+          isCosmetic: true,
+          baseItemId,
+        });
+        continue;
+      }
       if (baseItemId == null) continue;
-      db.prepare(`UPDATE item SET base_item_id = ?, updated_at = ? WHERE id = ?`).run(baseItemId, now, motif.id);
+      db.prepare(`UPDATE item SET base_item_id = ?, updated_at = ? WHERE id = ?`).run(baseItemId, now, existing.id);
     }
   })();
   return {

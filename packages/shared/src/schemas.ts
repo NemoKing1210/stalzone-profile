@@ -13,6 +13,9 @@ export const ItemKindSchema = z.enum([
   'other',
 ]);
 
+/** Only these kinds can belong to the dossier; the rest stay catalog-only. */
+export const OwnedKindSchema = z.enum(['weapon', 'armor', 'container', 'artifact']);
+
 /** Options shared by every write request coming from the site or the API. */
 export const WriteOptionsSchema = z.object({
   dryRun: z.boolean().default(false),
@@ -44,7 +47,7 @@ export type OwnedContainerInput = z.infer<typeof OwnedContainerSchema>;
 
 export const OwnedCreateSchema = WriteOptionsSchema.extend({
   name: z.string().min(1).max(200),
-  kind: ItemKindSchema.default('weapon'),
+  kind: OwnedKindSchema.default('weapon'),
   level: z.number().int().min(0).max(15).default(0),
   skin: z.string().min(1).max(200).nullish(),
   quality: z.string().min(1).max(100).nullish(),
@@ -149,7 +152,7 @@ export const LoginSchema = z.object({
 
 export const OwnedItemInputSchema = z.object({
   name: z.string().min(1),
-  kind: ItemKindSchema.default('weapon'),
+  kind: OwnedKindSchema.default('weapon'),
   level: z.number().int().min(0).max(15).default(0),
   skin: z.string().min(1).nullish(),
   quality: z.string().min(1).nullish(),
@@ -163,7 +166,7 @@ export type OwnedItemInput = z.infer<typeof OwnedItemInputSchema>;
 
 export const RemoveOwnedInputSchema = z.object({
   name: z.string().min(1),
-  kind: ItemKindSchema.default('weapon'),
+  kind: OwnedKindSchema.default('weapon'),
   level: z.number().int().min(0).max(15).nullish(),
   dry_run: z.boolean().default(true),
   confirm: z.boolean().default(false),

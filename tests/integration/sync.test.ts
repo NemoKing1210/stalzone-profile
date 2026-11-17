@@ -245,6 +245,35 @@ describe('motifs sync', () => {
       .get('родной двор') as { id: number; base_item_id: number | null } | undefined;
     expect(motif?.base_item_id).toBe(baseId);
   });
+
+  it('creates a motif row when the database has none', async () => {
+    const baseId = repo.upsertItem(db, {
+      sourceId: 'local',
+      externalId: 'local:weapon:ks-1',
+      name: 'KS-1',
+      nameEn: 'KS-1',
+      kind: 'weapon',
+      category: 'weapon/shotgun_rifle',
+    });
+    expect(repo.findItemByKindName(db, 'motif', 'Родной двор')).toBeNull();
+
+    const fetchImpl = async (url: string) => {
+      if (!url.includes('category=other')) throw new Error(`unexpected url ${url}`);
+      return jsonResponse([
+        { category: 'other', name: { key: 'item.motif.wpn.ks1_ssop.name', lines: { ru: 'Родной двор' } } },
+      ]);
+    };
+
+    const result = await runSync(db, 'motifs', { fetchImpl });
+    expect(result).toMatchObject({ status: 'ok', items: 1 });
+
+    const motif = repo.findItemByKindName(db, 'motif', 'Родной двор');
+    expect(motif).not.toBeNull();
+    expect(motif?.base_item_id).toBe(baseId);
+    expect(
+      db.prepare(`SELECT COUNT(*) AS c FROM item WHERE kind = 'motif'`).get() as { c: number },
+    ).toEqual({ c: 1 });
+  });
 });
 
 describe('scpmodel sync', () => {
