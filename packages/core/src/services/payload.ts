@@ -1,20 +1,22 @@
-import { CAT_RU, norm, rankKey, round } from '@dossier/shared';
+import { CAT_RU, rankKey } from '@dossier/shared';
+import { armorAtLevel, displayDmg, displayDps, displayTtk, headMultiplier, protKeyFor } from '../calc/index.js';
 import type { Db } from '../db/index.js';
-import {
-  armorAtLevel,
-  displayDmg,
-  displayDps,
-  displayTtk,
-  headMultiplier,
-  protKeyFor,
-  type WeaponStatLike,
-} from '../calc/index.js';
 import * as repo from '../repo/index.js';
-import { itemStats, rawOf } from '../repo/items.js';
-import type { ItemRow } from '../repo/items.js';
-import type { OwnedJoined, ContainerFillRow } from '../repo/owned.js';
+import type { ItemRow, ItemStatRow } from '../repo/items.js';
+import type { OwnedJoined } from '../repo/owned.js';
+import {
+  artifactSources,
+  buildCatalog,
+  buildDetails,
+  buildItemCard,
+  itemText,
+  itemValue,
+  itemValueExact,
+  type ItemCard,
+} from './catalog-view.js';
+import { deriveCharacterFields, effectiveCharacterStats } from './character-stats.js';
 
-type Json = any;
+type Json = Record<string, any>;
 
 export interface PayloadFreshness {
   dataUpdated: string | null;
@@ -26,75 +28,31 @@ export interface PayloadFreshness {
 export interface Payload {
   meta: Json;
   character: Json;
-  career: Json;
   weapons: Json[];
   armor: Json[];
   containers: Json[];
   artifacts: Json[];
   catalog: { weapons: Json[]; armor: Json[]; meta: Json };
-  recommendations: Json[];
-  details: Record<string, Json>;
-  earnings: Json;
-  builds: Json;
+  details: Record<string, ItemCard>;
+  builds: { items: Json[] };
   icons: Record<string, string>;
   freshness: PayloadFreshness;
 }
 
-interface StatRow extends WeaponStatLike {
-  label: string | null;
-  value_text: string | null;
-  value_min: number | null;
-  value_max: number | null;
-  pct: number;
-  positive: number | null;
-  is_additional: number;
-  source_id: string | null;
-}
+const REFERENCE_SOURCES = ['exbo_base', 'wiki', 'motifs'] as const;
 
-const SOURCE_PRIORITY: Record<string, number> = {
-  wiki: 0,
-  exbo_base: 1,
-  scpmodel: 2,
-  local: 3,
-};
-
-function statsOf(db: Db, itemId: number): StatRow[] {
-  return itemStats(db, itemId) as unknown as StatRow[];
-}
-
-function preferred(rows: StatRow[], key: string, level?: number): StatRow | null {
-  let pool = rows.filter((r) => r.key === key);
-  if (!pool.length) return null;
-  if (level != null) {
-    const exact = pool.filter((r) => r.level === level);
-    if (exact.length) pool = exact;
-    else {
-      const lower = pool.filter((r) => r.level < level).sort((a, b) => b.level - a.level);
-      const nearest = lower[0];
-      if (nearest) pool = [nearest];
+function newest(values: (string | null | undefined)[]): string | null {
+  let best: string | null = null;
+  let bestTime = -Infinity;
+  for (const value of values) {
+    if (!value) continue;
+    const time = new Date(value).getTime();
+    if (Number.isFinite(time) && time > bestTime) {
+      best = value;
+      bestTime = time;
     }
   }
-  return (
-    pool.sort(
-      (a, b) => (SOURCE_PRIORITY[a.source_id ?? ''] ?? 9) - (SOURCE_PRIORITY[b.source_id ?? ''] ?? 9),
-    )[0] ?? null
-  );
-}
-
-function valueAt(rows: StatRow[], key: string, level: number): number | null {
-  return preferred(rows, key, level)?.value_num ?? null;
-}
-
-/** Exact level only: used for +15 values, where a lower level must not stand in. */
-function valueExact(rows: StatRow[], key: string, level: number): number | null {
-  const row = rows
-    .filter((r) => r.key === key && r.level === level && r.value_num != null)
-    .sort((a, b) => (SOURCE_PRIORITY[a.source_id ?? ''] ?? 9) - (SOURCE_PRIORITY[b.source_id ?? ''] ?? 9))[0];
-  return row?.value_num ?? null;
-}
-
-function textAt(rows: StatRow[], key: string): string | null {
-  return preferred(rows, key)?.value_text ?? null;
+  return best;
 }
 
 function slotRu(value: string | null | undefined): string | null {
@@ -104,49 +62,29 @@ function slotRu(value: string | null | undefined): string | null {
   return value;
 }
 
-function typeRu(item: ItemRow, raw: Json): string {
-  return (
-    CAT_RU[item.category ?? ''] ??
-    raw?.details?.type ??
-    raw?.catalog?.type ??
-    raw?.ownedLegacy?.type ??
-    (item.kind === 'armor' ? raw?.details?.cls : null) ??
-    'Прочее'
-  );
+function iconOf(db: Db, item: ItemRow | null): string | null {
+  return item ? (repo.getIcon(db, item.id)?.path ?? null) : null;
 }
 
-function clsRu(item: ItemRow, raw: Json): string {
-  return CAT_RU[item.category ?? ''] ?? raw?.details?.cls ?? raw?.catalog?.cls ?? raw?.ownedLegacy?.cls ?? 'прочее';
-}
-
-function catShort(item: ItemRow, raw: Json): string | null {
-  if (item.category?.includes('/')) return item.category.split('/')[1] ?? null;
-  return raw?.catalog?.cat ?? raw?.details?.cat ?? raw?.ownedLegacy?.cat ?? null;
-}
-
-function iconOf(item: ItemRow, raw: Json): string | null {
-  return item.icon_path ?? raw?.catalog?.icon ?? raw?.details?.icon ?? raw?.icon ?? null;
+function catalogMeta(db: Db, items: number): Json {
+  const updated = newest(REFERENCE_SOURCES.map((id) => repo.getSource(db, id)?.last_ok_at ?? null));
+  return {
+    updated,
+    source: repo.getSource(db, 'exbo_base')?.last_ok_at ? 'exbo_base' : '',
+    items,
+  };
 }
 
 function weaponPayload(db: Db, owned: OwnedJoined): Json {
   const item = repo.getItemById(db, owned.item_id);
   if (!item) return { name: owned.item_name, lvl: owned.level, missing: true };
-  const raw = rawOf(item);
-  const rows = statsOf(db, item.id);
+  const rows = repo.itemStats(db, item.id);
   const level = owned.level;
-  const extra = parseJson(owned.extra);
-  const legacy = raw?.ownedLegacy ?? extra?.legacy;
-
-  const rawDmg =
-    valueAt(rows, 'damage.start', level) ?? legacy?.dmg ?? raw?.details?.p0?.d0 ?? raw?.catalog?.dmg15 ?? null;
-  const rawDmg15 =
-    valueExact(rows, 'damage.start', 15) ?? legacy?.dmg15 ?? raw?.details?.p15?.d0 ?? null;
+  const rawDmg = itemValue(rows, 'damage.start', level);
+  const rawDmg15 = itemValueExact(rows, 'damage.start', 15);
   const rof =
-    valueAt(rows, 'weapon.tooltip.weapon.info.rate_of_fire', level) ??
-    valueAt(rows, 'weapon.tooltip.weapon.info.rate_of_fire', 15) ??
-    legacy?.rof ??
-    raw?.details?.rof ??
-    raw?.catalog?.rof ??
+    itemValue(rows, 'weapon.tooltip.weapon.info.rate_of_fire', level) ??
+    itemValue(rows, 'weapon.tooltip.weapon.info.rate_of_fire', 15) ??
     null;
 
   return {
@@ -155,101 +93,53 @@ function weaponPayload(db: Db, owned: OwnedJoined): Json {
     qty: owned.qty,
     note: owned.note,
     quality: owned.quality,
-    skin: extra?.skin ?? null,
-    slot: slotRu(owned.slot ?? item.slot) ?? null,
+    skin: owned.skin_name,
+    slot: slotRu(owned.slot ?? item.slot),
     lvl: level,
-    mag:
-      valueAt(rows, 'weapon.tooltip.weapon.info.clip_size', level) ??
-      legacy?.mag ??
-      raw?.details?.mag ??
-      raw?.catalog?.mag ??
-      null,
-    weight: item.weight ?? legacy?.weight ?? raw?.details?.weight ?? raw?.catalog?.weight ?? null,
-    role: owned.role ?? null,
-    caliber:
-      textAt(rows, 'kv:weapon.tooltip.weapon.info.ammo_type') ??
-      legacy?.caliber ??
-      raw?.details?.caliber ??
-      raw?.catalog?.caliber ??
-      null,
-    cat: catShort(item, raw),
+    mag: itemValue(rows, 'weapon.tooltip.weapon.info.clip_size', level),
+    weight: item.weight,
+    role: owned.role,
+    caliber: itemText(rows, 'kv:weapon.tooltip.weapon.info.ammo_type'),
+    cat: item.category?.includes('/') ? (item.category.split('/')[1] ?? null) : null,
     dmg: displayDmg(rawDmg),
     rof,
     dps: displayDps(rawDmg, rof),
-    spread:
-      valueAt(rows, 'weapon.tooltip.weapon.info.spread', level) ??
-      legacy?.spread ??
-      raw?.details?.spread ??
-      raw?.catalog?.spread ??
-      null,
-    recoil:
-      valueAt(rows, 'weapon.tooltip.weapon.info.recoil', level) ??
-      legacy?.recoil ??
-      raw?.details?.recoil ??
-      raw?.catalog?.recoil ??
-      null,
-    dist:
-      valueAt(rows, 'weapon.tooltip.weapon.info.distance', level) ??
-      legacy?.dist ??
-      raw?.details?.distMax ??
-      raw?.catalog?.dist ??
-      null,
-    type: typeRu(item, raw),
-    rank: rankKey(item.rank) ?? legacy?.rank ?? raw?.catalog?.rank ?? raw?.details?.rank ?? null,
+    spread: itemValue(rows, 'weapon.tooltip.weapon.info.spread', level),
+    recoil: itemValue(rows, 'weapon.tooltip.weapon.info.recoil', level),
+    dist: itemValue(rows, 'weapon.tooltip.weapon.info.distance', level),
+    type: CAT_RU[item.category ?? ''] ?? null,
+    rank: rankKey(item.rank) ?? null,
     dmg15: displayDmg(rawDmg15),
     dps15: displayDps(rawDmg15, rof),
     ttk: displayTtk(rawDmg, rof),
     ttk15: displayTtk(rawDmg15, rof),
-    headMul: headMultiplier({ txt: raw?.details?.txt ?? raw?.exbo?.txt ?? null }),
-    icon: iconOf(item, raw),
+    headMul: headMultiplier({
+      stats: { 'weapon.tooltip.weapon.info.head_damage_multiplier': itemValue(rows, 'weapon.tooltip.weapon.info.head_damage_multiplier') },
+    }),
+    icon: iconOf(db, item),
   };
 }
 
-function armorCurve(rows: StatRow[], raw: Json): number[] | null {
-  const fromStats = rows
-    .filter((r) => r.key === 'bullet_dmg_factor' && r.value_num != null)
-    .sort((a, b) => a.level - b.level)
-    .map((r) => r.value_num!) as number[];
-  if (fromStats.length) return fromStats;
-  if (Array.isArray(raw?.details?.curve)) return raw.details.curve as number[];
-  return null;
+function armorProtection(rows: ItemStatRow[], curve: number[] | null, level: number): Json {
+  const prot: Record<string, number | null> = {
+    bullet: armorAtLevel(curve, level),
+    bullet15: armorAtLevel(curve, 15),
+  };
+  for (const row of rows) {
+    if (row.level !== 0) continue;
+    const key = protKeyFor(row.stat_id);
+    if (!key || key === 'bullet') continue;
+    if (prot[key] == null && row.value_num != null) prot[key] = row.value_num;
+  }
+  return prot;
 }
 
 function armorPayload(db: Db, owned: OwnedJoined): Json {
   const item = repo.getItemById(db, owned.item_id);
   if (!item) return { name: owned.item_name, lvl: owned.level, missing: true };
-  const raw = rawOf(item);
-  const rows = statsOf(db, item.id);
-  const level = owned.level;
-  const curve = armorCurve(rows, raw);
-  const extra = parseJson(owned.extra);
-  const legacy = raw?.ownedLegacy ?? extra?.legacy;
-
-  const bullet =
-    armorAtLevel(curve, level) ?? legacy?.armor ?? raw?.details?.prot?.bullet ?? null;
-  const bullet15 =
-    armorAtLevel(curve, 15) ?? legacy?.armor15 ?? raw?.details?.prot?.bullet15 ?? null;
-
-  const prot: Record<string, number | null> = { bullet, bullet15 };
-  for (const row of rows) {
-    if (row.level !== 0) continue;
-    const key = protKeyFor(row.key);
-    if (!key || key === 'bullet') continue;
-    if (prot[key] == null && row.value_num != null) prot[key] = row.value_num;
-  }
-  if (!Object.keys(prot).some((k) => k !== 'bullet' && k !== 'bullet15') && (raw?.details?.prot ?? legacy?.prot)) {
-    for (const [key, value] of Object.entries(raw?.details?.prot ?? legacy?.prot ?? {})) {
-      if (key === 'bullet' || key === 'bullet15') continue;
-      if (typeof value === 'number') prot[key] = value;
-    }
-  }
-
-  let mods = raw?.details?.mods ?? legacy?.mods;
-  if (!Array.isArray(mods)) {
-    mods = rows
-      .filter((r) => r.level === 0 && r.value_num != null && !protKeyFor(r.key) && r.key !== 'core.tooltip.info.weight')
-      .map((r) => ({ name: r.label ?? r.key, value: r.value_num, pct: !!r.pct }));
-  }
+  const rows = repo.itemStats(db, item.id);
+  const card = buildItemCard(db, item);
+  const curve = (card.curve as number[] | null) ?? null;
 
   return {
     name: owned.display_name ?? owned.item_name,
@@ -257,123 +147,66 @@ function armorPayload(db: Db, owned: OwnedJoined): Json {
     qty: owned.qty,
     note: owned.note,
     quality: owned.quality,
-    skin: extra?.skin ?? null,
-    cls: clsRu(item, raw),
-    weight: item.weight ?? legacy?.weight ?? raw?.details?.weight ?? null,
-    lvl: level,
-    armor: bullet,
-    rank: rankKey(item.rank) ?? legacy?.rank ?? raw?.details?.rank ?? raw?.catalog?.rank ?? null,
-    armor15: bullet15,
-    prot,
-    mods,
-    icon: iconOf(item, raw),
+    skin: owned.skin_name,
+    cls: CAT_RU[item.category ?? ''] ?? null,
+    weight: item.weight,
+    lvl: owned.level,
+    armor: armorAtLevel(curve, owned.level),
+    rank: rankKey(item.rank) ?? null,
+    armor15: armorAtLevel(curve, 15),
+    prot: armorProtection(rows, curve, owned.level),
+    mods: card.mods ?? [],
+    icon: iconOf(db, item),
   };
 }
 
-function containerPayload(db: Db, owned: OwnedJoined, fill: ContainerFillRow[]): Json {
+function containerPayload(db: Db, owned: OwnedJoined): Json {
   const item = repo.getItemById(db, owned.item_id);
-  const raw = item ? rawOf(item) : {};
-  const extra = parseJson(owned.extra);
+  const rows = item ? repo.itemStats(db, item.id) : [];
+  const override = repo.getOwnedContainer(db, owned.id);
+  const fill = repo.listContainerSlots(db, owned.id);
+
   return {
     name: owned.display_name ?? owned.item_name,
     ownedId: owned.id,
     qty: owned.qty,
     note: owned.note,
     quality: owned.quality,
-    skin: extra?.skin ?? null,
-    type: extra?.type ?? raw?.details?.type ?? 'контейнер',
-    weight: extra?.weight ?? item?.weight ?? raw?.details?.weight ?? null,
-    slots: extra?.slots ?? raw?.details?.slots ?? null,
-    eff: extra?.eff ?? raw?.details?.eff ?? null,
-    prot: extra?.prot ?? raw?.details?.prot ?? null,
-    shield: extra?.shield ?? raw?.details?.shield ?? null,
-    bonus: extra?.bonus ?? raw?.details?.bonus ?? null,
-    rank: rankKey(item?.rank ?? extra?.rank) ?? extra?.rank ?? null,
+    skin: owned.skin_name,
+    type: override?.container_type ?? null,
+    weight: item?.weight ?? itemValue(rows, 'core.tooltip.info.weight'),
+    slots: override?.slots ?? itemValue(rows, 'container.slots'),
+    eff: override?.eff ?? itemValue(rows, 'container.effectiveness'),
+    prot: override?.protection ?? itemValue(rows, 'container.protection'),
+    shield: override?.shield ?? null,
+    bonus: override?.bonus ?? null,
+    rank: rankKey(item?.rank) ?? null,
     artifacts: fill.map((row) => ({ name: row.artifact_name ?? row.artifact_item_id, lvl: row.level })),
     artifactsAsOf: fill[0]?.as_of ?? null,
-    icon: item?.icon_path ?? raw?.details?.icon ?? null,
+    icon: iconOf(db, item ?? null),
   };
 }
 
 function artifactPayload(db: Db, owned: OwnedJoined): Json {
   const item = repo.getItemById(db, owned.item_id);
-  const raw = item ? rawOf(item) : {};
-  const extra = parseJson(owned.extra);
+  const effects = repo
+    .listItemEffects(db, owned.item_id)
+    .map((effect) => effect.label)
+    .join(', ');
   return {
     name: owned.display_name ?? owned.item_name,
     ownedId: owned.id,
     qty: owned.qty,
     note: owned.note,
     quality: owned.quality,
-    skin: extra?.skin ?? null,
-    type: extra?.type ?? CAT_RU[item?.category ?? ''] ?? raw?.details?.type ?? 'прочий',
+    skin: owned.skin_name,
+    type: CAT_RU[item?.category ?? ''] ?? 'прочий',
     q: owned.quality ?? null,
     lvl: owned.level,
-    effects: extra?.effects ?? artifactEffectsText(raw),
-    rank: rankKey(item?.rank) ?? extra?.rank ?? 'default',
-    icon: item?.icon_path ?? raw?.details?.icon ?? null,
+    effects,
+    rank: rankKey(item?.rank) ?? 'default',
+    icon: iconOf(db, item ?? null),
   };
-}
-
-function artifactEffectsText(raw: Json): string {
-  const stats = raw?.wiki?.stats ?? [];
-  const labels = stats
-    .filter((s: Json) => s?.is_positive !== false)
-    .map((s: Json) => s?.name?.lines?.ru)
-    .filter(Boolean);
-  return labels.length ? labels.join(', ') : raw?.details?.effects ?? '';
-}
-
-function parseJson(value: string | null | undefined): Json {
-  if (!value) return null;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
-}
-
-function detailsMap(db: Db): Record<string, Json> {
-  const rows = repo.listDetailsCards(db);
-  if (rows.length) {
-    const out: Record<string, Json> = {};
-    for (const row of rows) out[row.key] = parseJson(row.data) ?? {};
-    return out;
-  }
-  const out: Record<string, Json> = {};
-  for (const item of repo.listItems(db)) {
-    const card = rawOf(item)?.details;
-    if (!card?.name || !card?.kind) continue;
-    const prefix = card.kind === 'weapon' ? 'w' : card.kind === 'armor' ? 'a' : card.kind === 'artifact' ? 'art' : 'c';
-    out[`${prefix}:${card.name}`] = card;
-  }
-  return out;
-}
-
-function catalogOf(db: Db, kind: 'weapon' | 'armor'): Json[] {
-  const entries = repo.listCatalogEntries(db, kind);
-  if (entries.length) {
-    const iconByName = new Map<string, string>();
-    for (const item of repo.listItems(db, kind)) {
-      const icon = item.icon_path ?? iconOf(item, rawOf(item));
-      if (icon) iconByName.set(norm(item.name), icon);
-    }
-    return entries.map((entry) => {
-      const data = parseJson(entry.data) ?? {};
-      return { ...data, icon: data.icon ?? iconByName.get(entry.name_norm) ?? null };
-    });
-  }
-  const list: Json[] = [];
-  for (const item of repo.listItems(db, kind)) {
-    const raw = rawOf(item);
-    if (raw?.catalog) list.push({ ...raw.catalog, icon: raw.catalog.icon ?? iconOf(item, raw) });
-  }
-  const order = repo.getMeta<string[]>(db, kind === 'weapon' ? 'catalog_order_weapons' : 'catalog_order_armor');
-  if (Array.isArray(order)) {
-    const index = new Map(order.map((name, i) => [norm(name), i]));
-    list.sort((a, b) => (index.get(norm(a.name)) ?? 9999) - (index.get(norm(b.name)) ?? 9999));
-  }
-  return list;
 }
 
 /** Identical ownership rows are stored once with `qty`; the dossier shows one entry per copy. */
@@ -386,12 +219,10 @@ function expandOwned(rows: OwnedJoined[]): OwnedJoined[] {
   return out;
 }
 
-function buildsOf(db: Db): Json {
-  const meta = repo.blockPayload<Json>(repo.getBlock(db, 'builds_meta')) ?? {};
-  const slots = repo.allBuildSlots(db);
+function buildsOf(db: Db): { items: Json[] } {
   const items = repo.listBuilds(db).map((build) => {
     const container = build.container_item_id ? repo.getItemById(db, build.container_item_id) : null;
-    const rows = (slots[build.id] ?? []).map((row) => ({
+    const slots = repo.listBuildSlots(db, build.id).map((row) => ({
       name: row.item_name ?? row.label ?? '—',
       q: row.quality ?? null,
       price: row.price ?? null,
@@ -413,108 +244,102 @@ function buildsOf(db: Db): Json {
       eff: build.eff,
       budget: build.budget,
       total: build.total,
-      metrics: parseJson(build.metrics) ?? [],
-      rows,
+      metrics: repo.listBuildMetrics(db, build.id).map((metric) => ({
+        l: metric.label,
+        v: metric.value,
+        s: metric.sub,
+      })),
+      rows: slots,
       verdict: build.verdict,
     };
   });
-  return {
-    updated: meta.updated ?? null,
-    priceNote: meta.priceNote ?? null,
-    items,
-    avoid: meta.avoid ?? [],
-    current: meta.current ?? null,
-  };
+  return { items };
 }
 
 function characterPayload(db: Db, characterId?: number): Json {
-  const c = repo.getCharacter(db, characterId);
-  if (!c) return {};
-  const meta = repo.getMeta<Json>(db, 'meta') ?? {};
+  const character = repo.getCharacter(db, characterId);
+  if (!character) return {};
+  const rows = repo.listCharacterStats(db, character.id);
+  const effective = effectiveCharacterStats(rows);
+  const values: Json = {};
+  for (const [statId, stat] of Object.entries(effective)) values[statId] = stat.value;
+
   return {
-    nick: c.nick,
-    realm: /^ru$/i.test(c.realm) ? 'RU' : /^global$/i.test(c.realm) ? 'Global' : c.realm.toUpperCase(),
-    alliance: c.alliance,
-    faction: c.faction,
-    clan: c.clan,
-    arrived: c.arrived,
-    hours: c.hours,
-    kd: c.kd,
-    accuracy: c.accuracy,
-    headshot: c.headshot,
-    achievements: c.achievements,
-    achievementPoints: c.achievement_points,
-    money: c.money,
-    maxMoney: c.max_money,
-    stash: c.stash,
-    playstyle: c.playstyle,
-    region: meta.region ?? null,
+    nick: character.nick,
+    region: character.region,
+    faction: character.faction,
+    alliance: character.alliance,
+    clanName: character.clan_name,
+    clanRank: character.clan_rank,
+    money: character.money,
+    maxMoney: character.max_money,
+    stash: character.stash,
+    playstyle: character.playstyle,
+    ...deriveCharacterFields(effective),
+    stats: values,
   };
 }
 
 function freshness(db: Db): PayloadFreshness {
-  const latest = repo.latestPriceSnapshotAt(db);
+  const latest = repo.latestPriceFetchedAt(db);
   const ageMin = latest ? Math.max(0, Math.round((Date.now() - new Date(latest).getTime()) / 60000)) : null;
   return {
-    dataUpdated: repo.getMeta<Json>(db, 'meta')?.updated ?? null,
+    dataUpdated: newest([
+      ...repo.listSources(db).map((source) => source.last_ok_at),
+      repo.getCharacter(db)?.updated_at ?? null,
+    ]),
     pricesUpdatedAt: latest,
     pricesAgeMin: ageMin,
-    sources: repo.listSources(db).map((s) => ({
-      id: s.id,
-      status: s.status,
-      lastOkAt: s.last_ok_at,
-      lastTryAt: s.last_try_at,
-      lastError: s.last_error,
+    sources: repo.listSources(db).map((source) => ({
+      id: source.id,
+      status: source.status,
+      lastOkAt: source.last_ok_at,
+      lastTryAt: source.last_try_at,
+      lastError: source.last_error,
     })),
   };
 }
 
 export function buildPayload(db: Db, characterId?: number): Payload {
-  const c = repo.getCharacter(db, characterId);
-  if (!c) {
+  const character = repo.getCharacter(db, characterId);
+  if (!character) {
     return {
-      meta: {},
+      meta: { updated: null, source: '', region: null, statsFetched: null },
       character: {},
-      career: [],
       weapons: [],
       armor: [],
       containers: [],
       artifacts: [],
-      catalog: { weapons: [], armor: [], meta: {} },
-      recommendations: [],
+      catalog: { weapons: [], armor: [], meta: { updated: null, source: '', items: 0 } },
       details: {},
-      earnings: null,
-      builds: { updated: null, priceNote: null, items: [], avoid: [], current: null },
+      builds: { items: [] },
       icons: {},
       freshness: freshness(db),
     };
   }
 
-  const owned = expandOwned(repo.listOwned(db, c.id));
-  const fill = repo.allContainerFill(db, c.id);
-  const character = characterPayload(db, c.id);
-  const meta = repo.getMeta<Json>(db, 'meta') ?? {};
+  const owned = expandOwned(repo.listOwned(db, character.id));
+  const catalogWeapons = buildCatalog(db, 'weapon');
+  const catalogArmor = buildCatalog(db, 'armor');
+  const stats = repo.listCharacterStats(db, character.id);
 
   return {
-    meta,
-    character,
-    career: repo.getMeta<Json>(db, 'career') ?? [],
-    weapons: owned.filter((o) => o.kind === 'weapon').map((o) => weaponPayload(db, o)),
-    armor: owned.filter((o) => o.kind === 'armor').map((o) => armorPayload(db, o)),
-    containers: owned.filter((o) => o.kind === 'container').map((o) => containerPayload(db, o, fill[o.id] ?? [])),
-    artifacts: owned.filter((o) => o.kind === 'artifact').map((o) => artifactPayload(db, o)),
-    catalog: {
-      weapons: catalogOf(db, 'weapon'),
-      armor: catalogOf(db, 'armor'),
-      meta: repo.blockPayload<Json>(repo.getBlock(db, 'catalog_meta')) ?? {},
+    meta: {
+      ...catalogMeta(db, catalogWeapons.length + catalogArmor.length),
+      region: character.region,
+      statsFetched: newest(stats.map((stat) => stat.fetched_at)),
     },
-    recommendations: repo.listBlocks(db, 'recs').map((b) => ({
-      ...(repo.blockPayload<Json>(b) ?? {}),
-      slug: b.slug,
-      position: b.position,
-    })),
-    details: detailsMap(db),
-    earnings: repo.blockPayload<Json>(repo.getBlock(db, 'earnings')),
+    character: characterPayload(db, character.id),
+    weapons: owned.filter((row) => row.kind === 'weapon').map((row) => weaponPayload(db, row)),
+    armor: owned.filter((row) => row.kind === 'armor').map((row) => armorPayload(db, row)),
+    containers: owned.filter((row) => row.kind === 'container').map((row) => containerPayload(db, row)),
+    artifacts: owned.filter((row) => row.kind === 'artifact').map((row) => artifactPayload(db, row)),
+    catalog: {
+      weapons: catalogWeapons,
+      armor: catalogArmor,
+      meta: catalogMeta(db, catalogWeapons.length + catalogArmor.length),
+    },
+    details: buildDetails(db),
     builds: buildsOf(db),
     icons: repo.iconMap(db),
     freshness: freshness(db),
@@ -522,63 +347,33 @@ export function buildPayload(db: Db, characterId?: number): Payload {
 }
 
 export function compareWeapons(db: Db, names: [string, string], level = 15): Json {
-  const out = names.map((name) => {
+  return names.map((name) => {
     const item =
       repo.findItemByKindName(db, 'weapon', name) ?? repo.searchItems(db, { q: name, kind: 'weapon', limit: 1 })[0];
     if (!item) return { query: name, found: false };
-    const rows = statsOf(db, item.id);
-    const raw = rawOf(item);
-    const rawDmg = valueExact(rows, 'damage.start', level) ?? raw?.details?.p15?.d0 ?? null;
-    const rof =
-      valueAt(rows, 'weapon.tooltip.weapon.info.rate_of_fire', level) ?? raw?.details?.rof ?? null;
+    const rows = repo.itemStats(db, item.id);
+    const damage = itemValueExact(rows, 'damage.start', level);
+    const rof = itemValue(rows, 'weapon.tooltip.weapon.info.rate_of_fire', level);
     return {
       query: name,
       found: true,
       name: item.name,
       rank: rankKey(item.rank),
-      type: typeRu(item, raw),
-      dmg: displayDmg(rawDmg),
+      type: CAT_RU[item.category ?? ''] ?? null,
+      dmg: displayDmg(damage),
       rof,
-      dps: displayDps(rawDmg, rof),
-      ttk: displayTtk(rawDmg, rof),
-      mag: valueAt(rows, 'weapon.tooltip.weapon.info.clip_size', level) ?? raw?.details?.mag ?? null,
-      reload: valueAt(rows, 'weapon.tooltip.magazine.info.reload_time', level) ?? raw?.details?.reload ?? null,
-      dist: valueAt(rows, 'weapon.tooltip.weapon.info.distance', level) ?? raw?.details?.distMax ?? null,
-      spread: valueAt(rows, 'weapon.tooltip.weapon.info.spread', level) ?? raw?.details?.spread ?? null,
-      recoil: valueAt(rows, 'weapon.tooltip.weapon.info.recoil', level) ?? raw?.details?.recoil ?? null,
-      weight: item.weight ?? raw?.details?.weight ?? null,
-      caliber: textAt(rows, 'kv:weapon.tooltip.weapon.info.ammo_type') ?? raw?.details?.caliber ?? null,
-      icon: iconOf(item, raw),
+      dps: displayDps(damage, rof),
+      ttk: displayTtk(damage, rof),
+      mag: itemValue(rows, 'weapon.tooltip.weapon.info.clip_size', level),
+      reload: itemValue(rows, 'weapon.tooltip.magazine.info.reload_time', level),
+      dist: itemValue(rows, 'weapon.tooltip.weapon.info.distance', level),
+      spread: itemValue(rows, 'weapon.tooltip.weapon.info.spread', level),
+      recoil: itemValue(rows, 'weapon.tooltip.weapon.info.recoil', level),
+      weight: item.weight,
+      caliber: itemText(rows, 'kv:weapon.tooltip.weapon.info.ammo_type'),
+      icon: iconOf(db, item),
     };
   });
-  return out;
 }
 
-export function artifactSources(db: Db): Json[] {
-  return repo
-    .listItems(db, 'artifact')
-    .map((item) => {
-      const raw = rawOf(item);
-      const stats = (raw?.wiki?.stats ?? []).map((s: Json) => mapArtifactStat(s, false));
-      const additional = (raw?.wiki?.additionalStats ?? []).map((s: Json) => mapArtifactStat(s, true));
-      return { exboId: item.exbo_id, name: item.name, type: CAT_RU[item.category ?? ''] ?? 'прочий', stats, additional };
-    })
-    .filter((a) => a.stats.length || a.additional.length);
-}
-
-function mapArtifactStat(stat: Json, additional: boolean): Json {
-  const key = String(stat?.key ?? stat?.name?.key ?? '').replace('stalker.artefact_properties.factor.', '');
-  const value = stat?.value ?? {};
-  const min = typeof value.min === 'number' ? value.min : (value.calculated ?? 0);
-  const max = typeof value.max === 'number' ? value.max : (value.calculated ?? 0);
-  return {
-    key,
-    label: stat?.name?.lines?.ru ?? key,
-    min,
-    max,
-    mid: round((min + max) / 2, 4),
-    pos: stat?.is_positive !== false,
-    pct: !!stat?.is_percentage,
-    additional,
-  };
-}
+export { artifactSources };

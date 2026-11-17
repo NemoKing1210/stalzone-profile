@@ -1,0 +1,203 @@
+{
+  "sources": [
+    { "id": "exbo_base", "kind": "reference" },
+    { "id": "wiki", "kind": "reference" },
+    { "id": "motifs", "kind": "reference" },
+    { "id": "scpmodel", "kind": "market" },
+    { "id": "local", "kind": "local" }
+  ],
+  "stats": [
+    { "id": "damage.start", "category": "WEAPON", "type": "INTEGER", "labelRu": "Урон", "labelEn": "Damage" },
+    { "id": "weapon.tooltip.weapon.info.rate_of_fire", "category": "WEAPON", "type": "INTEGER", "labelRu": "Скорострельность", "labelEn": "Rate of fire" },
+    { "id": "weapon.tooltip.weapon.info.clip_size", "category": "WEAPON", "type": "INTEGER", "labelRu": "Объем магазина", "labelEn": "Magazine" },
+    { "id": "weapon.tooltip.weapon.info.spread", "category": "WEAPON", "type": "DECIMAL", "labelRu": "Разброс", "labelEn": "Spread" },
+    { "id": "weapon.tooltip.weapon.info.recoil", "category": "WEAPON", "type": "INTEGER", "labelRu": "Отдача", "labelEn": "Recoil" },
+    { "id": "weapon.tooltip.weapon.info.distance", "category": "WEAPON", "type": "INTEGER", "labelRu": "Дистанция", "labelEn": "Distance" },
+    { "id": "core.tooltip.info.weight", "category": "CORE", "type": "DECIMAL", "labelRu": "Вес", "labelEn": "Weight" },
+    { "id": "kv:weapon.tooltip.weapon.info.ammo_type", "category": "WEAPON", "type": "TEXT", "labelRu": "Калибр", "labelEn": "Caliber" },
+    { "id": "weapon.tooltip.weapon.info.head_damage_multiplier", "category": "WEAPON", "type": "DECIMAL", "labelRu": "Урон в голову", "labelEn": "Head damage" },
+    { "id": "bullet_dmg_factor", "category": "ARMOR", "type": "DECIMAL", "labelRu": "Пулестойкость", "labelEn": "Bullet protection" },
+    { "id": "tear_dmg_factor", "category": "ARMOR", "type": "DECIMAL", "labelRu": "Защита от разрыва", "labelEn": "Tear protection" },
+    { "id": "container.slots", "category": "CONTAINER", "type": "INTEGER", "labelRu": "Слотов", "labelEn": "Slots" },
+    { "id": "container.effectiveness", "category": "CONTAINER", "type": "DECIMAL", "labelRu": "Эффективность", "labelEn": "Effectiveness" },
+    { "id": "container.protection", "category": "CONTAINER", "type": "DECIMAL", "labelRu": "Защита", "labelEn": "Protection" },
+    { "id": "kil", "category": "SURVIVAL", "type": "INTEGER", "labelRu": "Убийства", "labelEn": "Kills" },
+    { "id": "dea", "category": "SURVIVAL", "type": "INTEGER", "labelRu": "Смерти", "labelEn": "Deaths" },
+    { "id": "sho-fir", "category": "COMBAT", "type": "INTEGER", "labelRu": "Выстрелов", "labelEn": "Shots fired" },
+    { "id": "sho-hit", "category": "COMBAT", "type": "INTEGER", "labelRu": "Попаданий", "labelEn": "Shots hit" },
+    { "id": "sho-hea", "category": "COMBAT", "type": "INTEGER", "labelRu": "В голову", "labelEn": "Headshots" },
+    { "id": "pla-tim", "category": "SURVIVAL", "type": "DURATION", "labelRu": "Время в игре", "labelEn": "Playtime" },
+    { "id": "ach-gai", "category": "ACHIEVEMENTS", "type": "INTEGER", "labelRu": "Достижения", "labelEn": "Achievements" },
+    { "id": "reg-tim", "category": "SURVIVAL", "type": "DATE", "labelRu": "Дата регистрации", "labelEn": "Registered" },
+    { "id": "speed_modifier", "category": "ARTEFACT", "type": "DECIMAL", "labelRu": "Скорость", "labelEn": "Speed" }
+  ],
+  "items": [
+    {
+      "sourceId": "exbo_base",
+      "externalId": "ak-12",
+      "name": "АК-12",
+      "nameEn": "AK-12",
+      "kind": "weapon",
+      "category": "weapon/assault_rifle",
+      "rank": "RANK_MASTER",
+      "slot": "основное",
+      "weight": 3.8,
+      "icon": { "path": "/icons/ak12.webp", "mime": "image/webp", "sha1": "ak12" },
+      "stats": [
+        { "key": "damage.start", "level": 0, "valueNum": 40 },
+        { "key": "damage.start", "level": 15, "valueNum": 55 },
+        { "key": "weapon.tooltip.weapon.info.rate_of_fire", "valueNum": 600 },
+        { "key": "weapon.tooltip.weapon.info.clip_size", "valueNum": 30 },
+        { "key": "weapon.tooltip.weapon.info.spread", "valueNum": 0.3 },
+        { "key": "weapon.tooltip.weapon.info.recoil", "valueNum": 50 },
+        { "key": "weapon.tooltip.weapon.info.distance", "valueNum": 400 },
+        { "key": "weapon.tooltip.weapon.info.head_damage_multiplier", "valueNum": 1.5 },
+        { "key": "core.tooltip.info.weight", "valueNum": 3.8 },
+        { "key": "kv:weapon.tooltip.weapon.info.ammo_type", "valueText": "5.45x39" }
+      ]
+    },
+    {
+      "sourceId": "exbo_base",
+      "externalId": "ks-1",
+      "name": "KS-1",
+      "nameEn": "KS-1",
+      "kind": "weapon",
+      "category": "weapon/shotgun_rifle",
+      "rank": "RANK_VETERAN",
+      "slot": "основное",
+      "weight": 2.1,
+      "stats": [
+        { "key": "damage.start", "level": 0, "valueNum": 10 },
+        { "key": "damage.start", "level": 15, "valueNum": 12 },
+        { "key": "weapon.tooltip.weapon.info.rate_of_fire", "valueNum": 600 },
+        { "key": "weapon.tooltip.weapon.info.clip_size", "valueNum": 8 },
+        { "key": "core.tooltip.info.weight", "valueNum": 2.1 }
+      ]
+    },
+    {
+      "sourceId": "wiki",
+      "externalId": "kunitsa",
+      "name": "Куница",
+      "nameEn": "Kunitsa",
+      "kind": "armor",
+      "category": "armor/combined",
+      "rank": "RANK_STALKER",
+      "weight": 8,
+      "stats": [
+        { "key": "bullet_dmg_factor", "level": 0, "valueNum": 46, "label": "Пулестойкость" },
+        { "key": "bullet_dmg_factor", "level": 1, "valueNum": 47.6, "label": "Пулестойкость" },
+        { "key": "bullet_dmg_factor", "level": 2, "valueNum": 49.2, "label": "Пулестойкость" },
+        { "key": "bullet_dmg_factor", "level": 3, "valueNum": 50.8, "label": "Пулестойкость" },
+        { "key": "bullet_dmg_factor", "level": 4, "valueNum": 52.4, "label": "Пулестойкость" },
+        { "key": "bullet_dmg_factor", "level": 5, "valueNum": 54, "label": "Пулестойкость" },
+        { "key": "bullet_dmg_factor", "level": 6, "valueNum": 55.6, "label": "Пулестойкость" },
+        { "key": "bullet_dmg_factor", "level": 7, "valueNum": 57.2, "label": "Пулестойкость" },
+        { "key": "bullet_dmg_factor", "level": 8, "valueNum": 58.8, "label": "Пулестойкость" },
+        { "key": "bullet_dmg_factor", "level": 9, "valueNum": 60.4, "label": "Пулестойкость" },
+        { "key": "bullet_dmg_factor", "level": 10, "valueNum": 62, "label": "Пулестойкость" },
+        { "key": "bullet_dmg_factor", "level": 11, "valueNum": 63.6, "label": "Пулестойкость" },
+        { "key": "bullet_dmg_factor", "level": 12, "valueNum": 65.2, "label": "Пулестойкость" },
+        { "key": "bullet_dmg_factor", "level": 13, "valueNum": 66.8, "label": "Пулестойкость" },
+        { "key": "bullet_dmg_factor", "level": 14, "valueNum": 68.4, "label": "Пулестойкость" },
+        { "key": "bullet_dmg_factor", "level": 15, "valueNum": 70, "label": "Пулестойкость" },
+        { "key": "tear_dmg_factor", "valueNum": 20, "label": "Защита от разрыва" },
+        { "key": "core.tooltip.info.weight", "valueNum": 8 }
+      ]
+    },
+    {
+      "sourceId": "wiki",
+      "externalId": "backpack-1",
+      "name": "Рюкзак",
+      "nameEn": "Backpack",
+      "kind": "container",
+      "category": "containers/backpacks",
+      "rank": "RANK_STALKER",
+      "stats": [
+        { "key": "container.slots", "valueNum": 4 },
+        { "key": "container.effectiveness", "valueNum": 80 },
+        { "key": "container.protection", "valueNum": 10 }
+      ]
+    },
+    {
+      "sourceId": "wiki",
+      "externalId": "art-1",
+      "name": "Нервяк",
+      "nameEn": "Nervyak",
+      "kind": "artifact",
+      "category": "artefact/gravity",
+      "rank": "RANK_MASTER",
+      "stats": [
+        {
+          "key": "speed_modifier",
+          "label": "Скорость",
+          "valueMin": 0.5,
+          "valueMax": 1,
+          "pct": true,
+          "positive": true
+        }
+      ],
+      "effects": [{ "position": 0, "label": "Скорость", "isPositive": true }]
+    },
+    {
+      "sourceId": "local",
+      "externalId": "local:motif:1",
+      "name": "Камуфляж",
+      "kind": "motif",
+      "category": "other",
+      "isCosmetic": true,
+      "baseExternalId": "ak-12"
+    }
+  ],
+  "character": {
+    "nick": "tester",
+    "region": "ru",
+    "clanName": "Клан",
+    "clanRank": "Лидер",
+    "money": 100000
+  },
+  "characterStats": [
+    { "statId": "kil", "valueNum": 250, "origin": "api" },
+    { "statId": "dea", "valueNum": 100, "origin": "api" },
+    { "statId": "sho-fir", "valueNum": 1000, "origin": "api" },
+    { "statId": "sho-hit", "valueNum": 250, "origin": "api" },
+    { "statId": "sho-hea", "valueNum": 50, "origin": "api" },
+    { "statId": "pla-tim", "valueText": "PT123H", "origin": "api" },
+    { "statId": "ach-gai", "valueNum": 42, "origin": "api" },
+    { "statId": "reg-tim", "valueText": "2024-06-01", "origin": "api" }
+  ],
+  "owned": [
+    { "itemExternalId": "ak-12", "kind": "weapon", "level": 15, "qty": 1 },
+    { "itemExternalId": "kunitsa", "kind": "armor", "level": 10, "qty": 1 },
+    {
+      "itemExternalId": "backpack-1",
+      "kind": "container",
+      "level": 0,
+      "qty": 1,
+      "container": { "containerType": "Рюкзак", "slots": 4, "eff": 80, "protection": 10 }
+    },
+    { "itemExternalId": "art-1", "kind": "artifact", "level": 15, "qty": 1 }
+  ],
+  "containerSlots": [
+    {
+      "containerItemExternalId": "backpack-1",
+      "slots": [{ "itemExternalId": "art-1", "level": 15 }],
+      "asOf": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "build": {
+    "slug": "speed",
+    "title": "Скорость",
+    "metrics": [{ "l": "DPS", "v": "550", "s": null }],
+    "rows": [{ "label": "Нервяк", "price": 1000 }]
+  },
+  "prices": [
+    {
+      "name": "АК-12",
+      "quality": "Редкий",
+      "bonus": 0,
+      "lotPrice": 1000,
+      "sourceId": "scpmodel",
+      "fetchedAt": "2026-01-01T00:00:00.000Z"
+    }
+  ]
+}
