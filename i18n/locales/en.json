@@ -25,6 +25,8 @@
     },
     "owned": "Mine",
     "catalog": "Catalog",
+    "viewGrid": "Grid",
+    "viewList": "List",
     "refresh": "Refresh",
     "dryRun": "Dry run: show changes without writing",
     "dryRunTitle": "Dry run",
@@ -138,10 +140,17 @@
     "rank": "Rank",
     "searchWeapons": "Search: name, type, caliber",
     "searchArmor": "Search: name or class",
+    "searchContainers": "Search: name, type, bonus",
     "searchArtifacts": "Search: name, type, effect",
     "artifactType": "Artifact type",
     "sort": "Sort",
     "allTypes": "All types",
+    "type": "Type",
+    "group": "Group",
+    "groupNone": "No grouping",
+    "groupByType": "By type",
+    "groupByClass": "By class",
+    "noType": "No type",
     "noMatch": "Nothing matches the filters."
   },
   "table": {
@@ -157,7 +166,12 @@
     "weight": "Weight",
     "class": "Class",
     "armor": "Bullet protection",
-    "armor15": "Bullet protection +15"
+    "armor15": "Bullet protection +15",
+    "slots": "Slots",
+    "fill": "Fill",
+    "efficiency": "Efficiency",
+    "effects": "Effects",
+    "quality": "Quality"
   },
   "weapons": {
     "pageTitle": "Weapons",
@@ -166,9 +180,7 @@
     "emptyCatalog": "The weapon catalog is empty. Load the EXBO base.",
     "emptyOwned": "No weapons in the dossier yet. Add them through the API or MCP.",
     "hint": "Click a row to open the item card from the source dossier. Sorting and filters are saved in the browser.",
-    "editAria": "Edit {name}",
-    "viewGrid": "Grid",
-    "viewList": "List"
+    "editAria": "Edit {name}"
   },
   "armor": {
     "pageTitle": "Armor",
@@ -185,6 +197,11 @@
     "detailTitle": "Container",
     "noSelection": "Select a container.",
     "summary": "{count} pcs · slots, efficiency and current fill",
+    "sortName": "By name",
+    "sortWeight": "By weight",
+    "sortSlots": "By slots",
+    "sortEfficiency": "By efficiency",
+    "sortFill": "By fill",
     "typeFallback": "container",
     "card": "Card",
     "fill": "Fill",
@@ -206,8 +223,7 @@
     "title": "Artifacts",
     "summary": "{shown} of {total} · effects and upgrade level",
     "sortName": "By name",
-    "sortLevelDesc": "By level (highest first)",
-    "sortLevelAsc": "By level (lowest first)",
+    "sortLevel": "By level",
     "sortRank": "By rank",
     "typeFallback": "type not specified",
     "effectsEmpty": "no effect data",

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { OwnedEditTarget } from '~/types/dossier';
+import { groupRows } from '~/utils/groupRows';
 
 const { t } = useI18n();
 useHead(() => ({ title: `${t('armor.pageTitle')} — ${t('common.appName')}` }));
@@ -28,6 +29,8 @@ const filters = useFilters('armor', {
   view: 'grid',
   q: '',
   rank: ALL_RANKS,
+  type: 'all',
+  group: 'none',
   sort: 'armor',
   dir: 'desc',
 });
@@ -48,6 +51,7 @@ const sortItems = computed(() => [
   { label: '+15', value: 'armor15' },
   { label: t('table.weight'), value: 'weight' },
   { label: t('table.name'), value: 'name' },
+  { label: t('table.level'), value: 'lvl' },
 ]);
 
 const ownedRows = computed<ArmorRow[]>(() =>
@@ -90,10 +94,29 @@ const catalogRows = computed<ArmorRow[]>(() =>
 
 const rows = computed(() => (filters.mode === 'catalog' ? catalogRows.value : ownedRows.value));
 
+function typeOptions(list: ArmorRow[]) {
+  const classes = [...new Set(list.map((row) => row.cls).filter((cls): cls is string => Boolean(cls)))];
+  classes.sort((a, b) => a.localeCompare(b, 'ru', { numeric: true }));
+  return [
+    { label: t('filters.allTypes'), value: 'all' },
+    ...classes.map((cls) => ({ label: cls, value: cls })),
+  ];
+}
+
+const typeItems = computed(() => typeOptions([...ownedRows.value, ...catalogRows.value]));
+const groupItems = computed(() => [
+  { label: t('filters.groupNone'), value: 'none' },
+  { label: t('filters.groupByClass'), value: 'type' },
+]);
+
+const SORT_KEYS = new Set(['armor', 'armor15', 'weight', 'name', 'lvl']);
+const sortKey = computed(() => (SORT_KEYS.has(filters.sort) ? filters.sort : 'armor') as keyof ArmorRow);
+
 const filteredRows = computed(() => {
   const query = filters.q.trim().toLowerCase();
   return rows.value.filter((row) => {
     if (filters.rank !== ALL_RANKS && row.rank !== filters.rank) return false;
+    if (filters.type !== 'all' && row.cls !== filters.type) return false;
     if (!query) return true;
     return [row.name, row.cls, row.rank]
       .filter(Boolean)
@@ -103,7 +126,7 @@ const filteredRows = computed(() => {
 
 const sortedRows = computed(() => {
   const direction = filters.dir === 'asc' ? 1 : -1;
-  const key = filters.sort as keyof ArmorRow;
+  const key = sortKey.value;
   return [...filteredRows.value].sort((a, b) => {
     const left = a[key];
     const right = b[key];
@@ -114,6 +137,13 @@ const sortedRows = computed(() => {
     return String(left).localeCompare(String(right), 'ru', { numeric: true }) * direction;
   });
 });
+
+const groupedRows = computed(() =>
+  filters.group === 'type' ? groupRows(sortedRows.value, (row) => row.cls, t('filters.noType')) : null,
+);
+const sections = computed(
+  () => groupedRows.value ?? [{ key: '__all', label: null as string | null, rows: sortedRows.value }],
+);
 
 const columns = computed(() => {
   const catalog = filters.mode === 'catalog';
@@ -225,135 +255,86 @@ function startEdit(row: ArmorRow): void {
       </template>
 
       <div class="border-b border-[var(--sz-border)] p-2">
-        <div class="flex flex-wrap items-center gap-1.5">
-          <div class="flex gap-1">
-            <UButton
-              size="xs"
-              color="neutral"
-              :variant="filters.mode === 'owned' ? 'solid' : 'outline'"
-              @click="filters.mode = 'owned'"
-            >
-              {{ t('common.owned') }} · {{ ownedRows.length }}
-            </UButton>
-            <UButton
-              size="xs"
-              color="neutral"
-              :variant="filters.mode === 'catalog' ? 'solid' : 'outline'"
-              @click="filters.mode = 'catalog'"
-            >
-              {{ t('common.catalog') }} · {{ catalogRows.length }}
-            </UButton>
-          </div>
-
-          <div class="flex gap-1">
-            <UButton
-              icon="i-lucide-layout-grid"
-              size="xs"
-              color="neutral"
-              :variant="filters.view === 'grid' ? 'solid' : 'ghost'"
-              :aria-label="t('weapons.viewGrid')"
-              :aria-pressed="filters.view === 'grid'"
-              @click="filters.view = 'grid'"
-            />
-            <UButton
-              icon="i-lucide-list"
-              size="xs"
-              color="neutral"
-              :variant="filters.view === 'list' ? 'solid' : 'ghost'"
-              :aria-label="t('weapons.viewList')"
-              :aria-pressed="filters.view === 'list'"
-              @click="filters.view = 'list'"
-            />
-          </div>
-
-          <UInput
-            v-model="filters.q"
-            icon="i-lucide-search"
-            size="xs"
-            :placeholder="t('filters.searchArmor')"
-            class="w-full sm:w-56"
-          />
-          <USelect v-model="filters.rank" :items="rankItems" size="xs" class="w-36" :aria-label="t('filters.rank')" />
-          <USelect v-model="filters.sort" :items="sortItems" size="xs" class="w-32" :aria-label="t('filters.sort')" />
-          <UButton
-            :icon="filters.dir === 'desc' ? 'i-lucide-arrow-down-wide-narrow' : 'i-lucide-arrow-up-narrow-wide'"
-            size="xs"
-            color="neutral"
-            variant="ghost"
-            :aria-label="t('filters.sort')"
-            @click="filters.dir = filters.dir === 'desc' ? 'asc' : 'desc'"
-          />
-          <UButton
-            v-if="filters.q || filters.rank !== ALL_RANKS"
-            icon="i-lucide-x"
-            size="xs"
-            color="neutral"
-            variant="ghost"
-            :label="t('common.reset')"
-            @click="
-              () => {
-                filters.q = '';
-                filters.rank = ALL_RANKS;
-              }
-            "
-          />
-        </div>
+        <InventoryToolbar
+          :filters="filters"
+          :modes="[
+            { label: t('common.owned'), value: 'owned', count: ownedRows.length },
+            { label: t('common.catalog'), value: 'catalog', count: catalogRows.length },
+          ]"
+          :search-placeholder="t('filters.searchArmor')"
+          :rank-items="rankItems"
+          :type-items="typeItems"
+          :type-label="t('table.class')"
+          :sort-items="sortItems"
+          :group-items="groupItems"
+          @update="(patch) => Object.assign(filters, patch)"
+        />
       </div>
 
       <div class="p-2">
         <template v-if="filters.view === 'grid'">
-          <div
-            v-if="sortedRows.length"
-            data-testid="armor-grid"
-            class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
-          >
-            <DossierItemCard
-              v-for="(row, index) in sortedRows"
-              :key="row.key"
-              :name="row.name"
-              :rank="row.rank"
-              :category="row.cls"
-              :level="row.lvl"
-              :icon="row.icon"
-              :stats="cardStats(row)"
-              :selected="selected?.key === row.key"
-              :priority="index === 0"
-              @select="selectRow(row)"
-            />
+          <div v-if="sortedRows.length" data-testid="armor-grid">
+            <section v-for="section in sections" :key="section.key" :class="section.label ? 'space-y-2' : ''">
+              <h2 v-if="section.label" class="sz-caps text-[11px] text-[var(--sz-text-muted)]">
+                {{ section.label }} · {{ section.rows.length }}
+              </h2>
+              <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                <DossierItemCard
+                  v-for="(row, index) in section.rows"
+                  :key="row.key"
+                  :name="row.name"
+                  :rank="row.rank"
+                  :category="row.cls"
+                  :level="row.lvl"
+                  :icon="row.icon"
+                  :stats="cardStats(row)"
+                  :selected="selected?.key === row.key"
+                  :priority="section === sections[0] && index === 0"
+                  @select="selectRow(row)"
+                />
+              </div>
+            </section>
           </div>
           <UEmpty v-else icon="i-lucide-shield" :title="t('common.empty')" :description="emptyText" />
         </template>
 
-        <UTable
-          v-else
-          v-model:sorting="sorting"
-          :data="filteredRows"
-          :columns="columns"
-          :loading="!payload"
-          :on-select="(_event, row) => selectRow(row.original)"
-          sticky="header"
-          class="w-full"
-        >
-          <template #rank-cell="{ row }">
-            <RankBadge :rank="row.original.rank" />
+        <template v-else>
+          <UEmpty v-if="!sections.length" icon="i-lucide-shield" :title="t('common.empty')" :description="emptyText" />
+          <template v-for="section in sections" :key="`table-${section.key}`">
+            <h2 v-if="section.label" class="sz-caps mb-1 text-[11px] text-[var(--sz-text-muted)]">
+              {{ section.label }} · {{ section.rows.length }}
+            </h2>
+            <UTable
+              v-model:sorting="sorting"
+              :data="section.rows"
+              :columns="columns"
+              :loading="!payload"
+              :on-select="(_event, row) => selectRow(row.original)"
+              sticky="header"
+              class="w-full"
+            >
+              <template #rank-cell="{ row }">
+                <RankBadge :rank="row.original.rank" />
+              </template>
+              <template #lvl-cell="{ row }">
+                <span v-if="row.original.lvl != null">+{{ row.original.lvl }}</span>
+                <span v-else class="text-[var(--sz-text-dim)]">—</span>
+              </template>
+              <template #armor-cell="{ row }">
+                {{ row.original.armor == null ? '—' : g1(row.original.armor) }}
+              </template>
+              <template #armor15-cell="{ row }">
+                {{ row.original.armor15 == null ? '—' : g1(row.original.armor15) }}
+              </template>
+              <template #weight-cell="{ row }">
+                {{ row.original.weight == null ? '—' : g2(row.original.weight) }}
+              </template>
+              <template #empty>
+                <UEmpty icon="i-lucide-shield" :title="t('common.empty')" :description="emptyText" />
+              </template>
+            </UTable>
           </template>
-          <template #lvl-cell="{ row }">
-            <span v-if="row.original.lvl != null">+{{ row.original.lvl }}</span>
-            <span v-else class="text-[var(--sz-text-dim)]">—</span>
-          </template>
-          <template #armor-cell="{ row }">
-            {{ row.original.armor == null ? '—' : g1(row.original.armor) }}
-          </template>
-          <template #armor15-cell="{ row }">
-            {{ row.original.armor15 == null ? '—' : g1(row.original.armor15) }}
-          </template>
-          <template #weight-cell="{ row }">
-            {{ row.original.weight == null ? '—' : g2(row.original.weight) }}
-          </template>
-          <template #empty>
-            <UEmpty icon="i-lucide-shield" :title="t('common.empty')" :description="emptyText" />
-          </template>
-        </UTable>
+        </template>
       </div>
     </DossierPane>
 

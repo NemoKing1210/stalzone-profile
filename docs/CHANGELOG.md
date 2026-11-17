@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-17 — Inventory toolbar and grouping
+
+- Weapons and Armor gained a type/class filter and grouping by type/class; all four
+  inventory pages now share one toolbar component with grid/list views, search, rank, sort
+  direction and reset.
+- Containers and Artifacts are single full-width panes: grid/list views, search, type and
+  rank filters, sorting and grouping. Container details and fill, and artifact cards, open
+  in modals; the container side pane and slide-over are gone.
+- The toolbar persists its state per section in `localStorage`; no API, DB or MCP changes.
+
 ## 2026-11-17 — Dev server address comes from the environment
 
 - `nuxt.config.ts` reads `DEV_HOST` and `DEV_PORT` (from `.env` or the shell) instead of

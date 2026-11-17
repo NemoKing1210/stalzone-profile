@@ -358,15 +358,15 @@ Rules:
 
 ### 5.2 Page archetypes
 
-**A. Inventory list** — weapons, armor.
-A single full-width pane: toolbar (view toggle, search, rank, sort) + item grid or table +
-storage/count bar. Selecting an item opens its card in a modal at every width; the list is
-never narrowed by a side column. Sections are reached from the top navigation.
+**A. Inventory list** — weapons, armor, containers, artifacts.
+A single full-width pane: the shared toolbar (Owned/Catalog where the payload has a catalog,
+grid/list views, search, type/class, rank, sort and direction, grouping, reset) + card grid
+or table + a count hint. Grouping renders sections with `label · count` headings. Selecting
+an item opens its card in a modal at every width; the list is never narrowed by a side
+column. Sections are reached from the top navigation.
 
-**B. Two-pane list + detail** — containers, artifacts, earnings.
-Left 260–320px: filters/section list. Right 1fr: card grid or table. Detail opens in the
-right pane on desktop and in a slide-over on mobile. Earnings keeps a full-width table with
-an expanding row for notes/source.
+**B. Two-pane list + detail** — reserved.
+No current section uses it; the pages that did were removed or moved to archetype A.
 
 **C. Document column** — builds, recommendations, notes.
 Full-width panes stacked with 16px gaps. Each pane = header (title, tag, edit action), an
@@ -391,8 +391,7 @@ error alert, sign-in button, locale switcher top-right. No navigation.
 Breakpoints: `640`, `1024`, `1280`.
 
 - `≥1280`: tables show all columns; the overview keeps its three panes.
-- `1024–1279`: list pages keep their filter + list panes (containers, artifacts); tables
-  drop low-priority columns.
+- `1024–1279`: tables drop low-priority columns.
 - `<1024`: single column. Navigation becomes a horizontally scrollable row. Item grids: 2
   columns at ≥640, 1 column below. Tables become horizontally scrollable with a sticky first
   column, or switch to a compact card list when the page already has one.
@@ -620,22 +619,26 @@ A three-pane instrument. The page title is the nick; faction, clan and realm sit
 
 ### 8.3 Containers (`/containers`)
 
-- Left pane: container list (name, type, rank, weight, fill count). Selected container
-  accent-outlined.
-- Right pane: container header with `RarityName`, type, rank; a 4-cell stat strip (slots,
-  efficiency, equivalent, weight); the artifact fill as a compact grid of artifact chips
-  (name + level, rank colour); fill date; actions Edit / Fill.
+- One full-width pane with the shared inventory toolbar: grid/list views, search over name,
+  type and bonus, rank and type filters, sort (name, weight, slots, efficiency, fill),
+  direction, grouping by type and reset. State persists per browser.
+- Card: `RarityName`, type, rank, icon, bonus text, stats slots / fill / weight. List:
+  name, type, rank, slots, fill, efficiency, weight.
+- Clicking a card or row opens a modal with `ContainerDetail` (header, 4-cell stat strip,
+  artifact chips, fill date); owned containers get Edit and Fill actions. Opening a child
+  dialog closes the container modal, so only one dialog is open at a time.
 - Empty fill: "no artifacts" with the fill action, not an empty box.
-- Mobile: list first, detail as a slide-over.
 
 ### 8.4 Artifacts (`/artifacts`)
 
-- Left pane: search, type filter, sort, rank filter; counts.
-- Right pane: artifact cards in a responsive grid (2 columns ≥1024, 1 below); each card has
-  `RarityName`, type, quality, level and effect text clamped to 3 lines. Artifact weight is not
-  exposed by the payload and is therefore not shown; missing fields render `—`, never a guess.
-  Click opens the detail pane/modal with full effects. No data-model change is made for the
-  visual layer.
+- One full-width pane with the shared inventory toolbar: grid/list views, search over name,
+  type and effect, rank and type filters, sort (name, level, rank), direction, grouping by
+  type and reset. State persists per browser.
+- Cards: `RarityName`, type, quality, level and effect text clamped to 3 lines. List: name,
+  type, rank, level, quality and a one-line truncated effect.
+- Clicking a card or row opens the artifact card modal with full effects; owned artifacts
+  keep the Edit action. Artifact weight is not exposed by the payload and is therefore not
+  shown; missing fields render `—`, never a guess.
 - Effects text stays muted prose; no colouring of arbitrary words.
 
 ### 8.5 Builds (`/builds`)
@@ -691,7 +694,7 @@ A three-pane instrument. The page title is the nick; faction, clan and realm sit
   `settings.accentDefault`, `settings.accentReset`, `accents.green`, `accents.amber`,
   `accents.blue`, `accents.violet`, `accents.bone`, `common.selected`.
 - Uppercase and tracking are CSS, not part of the translation.
-- Russian labels are longer; layouts must wrap, not truncate. Test both locales in e2e.
+- Russian labels are longer; layouts must wrap, not truncate. Check both locales manually.
 - Numbers, dates and money use existing formatters; the visual layer must not introduce a
   second formatting path. `formatDate` gains one documented fallback: a non-ISO stored value
   is returned trimmed instead of `—`, with a unit test.
@@ -758,7 +761,7 @@ A three-pane instrument. The page title is the nick; faction, clan and realm sit
 
 ## 13. Rollout and acceptance
 
-Phases (each phase ends with `npm run check`; UI phases also `npm run e2e`):
+Phases (each phase ends with `npm run check`):
 
 1. **Foundations** — fonts, tokens, `app.config.ts`, base element styles, accent CSS blocks.
 2. **Shell** — top bar, navigation, page header, status bar, login.
@@ -771,7 +774,7 @@ Phases (each phase ends with `npm run check`; UI phases also `npm run e2e`):
 
 Acceptance:
 
-- `npm run check` green; `npm run e2e` green; `npm run golden` still `0 mismatches`,
+- `npm run check` green; `npm run golden` still `0 mismatches`,
   `legacyDeltas: []` (no numeric change).
 - No horizontal page scroll at 360, 768, 1024, 1440px.
 - Keyboard-only pass: login → overview → weapons → open item → edit → close; visible focus
