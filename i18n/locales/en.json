@@ -80,7 +80,10 @@
     "NOT_ROLLBACKABLE": "This event cannot be rolled back",
     "NOTHING_TO_CLEAR": "Nothing to clear",
     "DB_UNAVAILABLE": "The database is unavailable",
-    "NO_CHARACTER": "No character in the database — create it through the editor or the API"
+    "NO_CHARACTER": "No character in the database — create it through the editor or the API",
+    "CHARACTER_EXISTS": "A character already exists",
+    "CHARACTER_NOT_EMPTY": "The character has gear or builds; remove them before rolling back",
+    "STALZONE_API_NOT_CONFIGURED": "The STALZONE profile API is not configured"
   },
   "auth": {
     "subtitle": "Personal dossier. Password sign-in.",
@@ -126,6 +129,8 @@
     "scpmodel": "Auction (scpmodel)",
     "motifs": "Skins",
     "local": "Local data",
+    "icons": "Item icons",
+    "profile": "STALZONE profile",
     "status": {
       "ok": "ok",
       "stale": "stale",
@@ -382,6 +387,35 @@
       "syncFailedDescription": "Check the connection and try again"
     }
   },
+  "setup": {
+    "pageTitle": "First run",
+    "title": "Set up the dossier",
+    "intro": "Create the character this dossier belongs to. Gear and statistics come later.",
+    "step": "Step {current} of {total}",
+    "stepCharacter": "Character",
+    "stepCatalog": "Item catalog",
+    "stepProfile": "Profile statistics",
+    "nick": "Nickname",
+    "region": "Region",
+    "faction": "Faction (optional)",
+    "playstyle": "Play style (optional)",
+    "create": "Create character",
+    "creating": "Creating…",
+    "catalogIntro": "The item catalog is public game data downloaded from EXBO, stalzone.wiki and the auction. It needs internet.",
+    "catalogEmptyHint": "Without the catalog the dossier is browsable, but new gear cannot be added.",
+    "sync": "Download",
+    "syncing": "Downloading…",
+    "retry": "Retry",
+    "sourceOk": "Done: {items}",
+    "sourceStale": "Failed: {error}",
+    "skipCatalog": "Skip for now",
+    "continue": "Continue",
+    "profileIntro": "The official STALZONE API fills public statistics: time in game, kills, shots fired, achievements.",
+    "profileSync": "Load profile",
+    "profileSynced": "Profile statistics loaded",
+    "profileNotConfigured": "The profile API is not configured. You can add statistics in the character editor later.",
+    "finish": "Open the dossier"
+  },
   "freshness": {
     "prices": "Prices: {age}",
     "data": "Dossier data: {date}"
@@ -462,7 +496,7 @@
       "sho-hit": "Shots hit",
       "sho-hea": "Headshots hit",
       "pla-tim": "Playtime (PT123H or hours)",
-      "ach-gai": "Achievement points",
+      "ach-gai": "Achievements count",
       "reg-tim": "Registered (YYYY-MM-DD)"
     },
     "containerOverride": "Container override",

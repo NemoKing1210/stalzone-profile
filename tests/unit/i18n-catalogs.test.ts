@@ -65,6 +65,32 @@ describe('i18n catalogs', () => {
     }
   });
 
+  it('has the setup wizard copy in both locales', () => {
+    for (const key of [
+      'setup.title',
+      'setup.create',
+      'setup.catalogIntro',
+      'setup.skipCatalog',
+      'setup.finish',
+      'setup.step',
+    ]) {
+      expect(en[key], key).toBeTruthy();
+      expect(ru[key], key).toBeTruthy();
+    }
+  });
+
+  it('registers the new API error codes', () => {
+    for (const code of ['CHARACTER_EXISTS', 'CHARACTER_NOT_EMPTY', 'STALZONE_API_NOT_CONFIGURED']) {
+      expect(API_ERROR_CODES.has(code), code).toBe(true);
+    }
+  });
+
+  it('names the achievement counter as a count, not points', () => {
+    expect(en['forms.stat.ach-gai']).toMatch(/achievement/i);
+    expect(en['forms.stat.ach-gai']).not.toMatch(/points/i);
+    expect(ru['forms.stat.ach-gai']).toMatch(/достижен/i);
+  });
+
   it('gives every rank a name instead of a missing-value label', () => {
     for (const rank of ['default', 'newbie', 'stalker', 'veteran', 'master', 'legend']) {
       expect(en[`ranks.${rank}`]).not.toMatch(/^(no|none|—)/i);
