@@ -4,6 +4,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { closeDb, migrate, openDb, type Db } from '@dossier/core';
 import * as repo from '@dossier/core';
+import * as seed from '@dossier/core/testing';
 
 let dir: string;
 let db: Db;
@@ -22,7 +23,7 @@ afterEach(() => {
 
 describe('characters and character stats', () => {
   it('stores identity columns without derived stat columns', () => {
-    const id = repo.upsertCharacter(db, {
+    const id = seed.upsertCharacter(db, {
       nick: 'tester',
       region: 'eu',
       faction: 'Заря',
@@ -43,29 +44,29 @@ describe('characters and character stats', () => {
   });
 
   it('rejects an unknown region', () => {
-    expect(() => repo.upsertCharacter(db, { nick: 'x', region: 'moon' })).toThrow(/CHECK/);
+    expect(() => seed.upsertCharacter(db, { nick: 'x', region: 'moon' })).toThrow(/CHECK/);
   });
 
   it('keeps API and manual values side by side; manual wins in the map', () => {
-    const id = repo.upsertCharacter(db, { nick: 'tester', region: 'ru' });
-    repo.setCharacterStat(db, id, 'kil', 250, 'api', '2026-01-01T00:00:00.000Z');
-    repo.setCharacterStat(db, id, 'kil', 300, 'manual', '2026-01-02T00:00:00.000Z');
-    repo.setCharacterStat(db, id, 'reg-tim', '2024-06-01', 'api');
+    const id = seed.upsertCharacter(db, { nick: 'tester', region: 'ru' });
+    seed.setCharacterStat(db, id, 'kil', 250, 'api', '2026-01-01T00:00:00.000Z');
+    seed.setCharacterStat(db, id, 'kil', 300, 'manual', '2026-01-02T00:00:00.000Z');
+    seed.setCharacterStat(db, id, 'reg-tim', '2024-06-01', 'api');
     expect(repo.listCharacterStats(db, id)).toHaveLength(3);
     expect(repo.characterStatMap(db, id)).toMatchObject({
       kil: { value_num: 300, value_text: null, origin: 'manual' },
       'reg-tim': { value_num: null, value_text: '2024-06-01', origin: 'api' },
     });
-    repo.clearCharacterStat(db, id, 'kil', 'manual');
+    seed.clearCharacterStat(db, id, 'kil', 'manual');
     expect(repo.characterStatMap(db, id).kil).toMatchObject({ value_num: 250, origin: 'api' });
   });
 
   it('creates a stat definition on demand and rejects an empty value', () => {
-    const id = repo.upsertCharacter(db, { nick: 'tester', region: 'ru' });
-    repo.setCharacterStat(db, id, 'custom-stat', 7, 'manual');
+    const id = seed.upsertCharacter(db, { nick: 'tester', region: 'ru' });
+    seed.setCharacterStat(db, id, 'custom-stat', 7, 'manual');
     expect(repo.getStatDefinition(db, 'custom-stat')?.value_type).toBe('INTEGER');
-    repo.setCharacterStat(db, id, 'custom-text', 'abc', 'manual');
+    seed.setCharacterStat(db, id, 'custom-text', 'abc', 'manual');
     expect(repo.getStatDefinition(db, 'custom-text')?.value_type).toBe('TEXT');
-    expect(() => repo.setCharacterStat(db, id, 'empty', '', 'manual')).toThrow(/value/i);
+    expect(() => seed.setCharacterStat(db, id, 'empty', '', 'manual')).toThrow(/value/i);
   });
 });

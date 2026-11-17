@@ -2,8 +2,17 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { closeDb, ensureDefaultSources, migrate, openDb, type Db } from '@dossier/core';
-import { bestPrice, insertPriceQuote, latestPriceFetchedAt, latestPriceRows } from '@dossier/core/repo/prices';
+import {
+  closeDb,
+  ensureDefaultSources,
+  migrate,
+  openDb,
+  type Db,
+  bestPrice,
+  latestPriceFetchedAt,
+  latestPriceRows,
+} from '@dossier/core';
+import { insertPriceQuote } from '@dossier/core/testing';
 
 let dir: string;
 let db: Db;

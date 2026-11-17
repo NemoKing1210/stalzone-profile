@@ -21,12 +21,7 @@ import {
   listOwned,
   migrate,
   openDb,
-  upsertCharacter,
-  upsertItem,
   type Db,
-} from '@dossier/core';
-import * as repo from '@dossier/core';
-import {
   createOwned,
   deleteBuild,
   deleteOwned,
@@ -36,7 +31,9 @@ import {
   setContainerFill,
   updateOwned,
   WriteError,
-} from '@dossier/core/services/writes';
+} from '@dossier/core';
+import * as seed from '@dossier/core/testing';
+import * as repo from '@dossier/core';
 
 const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
 
@@ -46,7 +43,7 @@ let characterId: number;
 const ids: Record<string, number> = {};
 
 function item(name: string, kind: string): number {
-  return upsertItem(db, { sourceId: 'local', externalId: `test:${kind}:${name}`, name, kind });
+  return seed.upsertItem(db, { sourceId: 'local', externalId: `test:${kind}:${name}`, name, kind });
 }
 
 beforeEach(() => {
@@ -54,7 +51,7 @@ beforeEach(() => {
   db = openDb(path.join(dir, 'test.db'));
   migrate(db, migrationsDir);
   ensureDefaultSources(db);
-  characterId = upsertCharacter(db, { nick: 'tester', region: 'ru' });
+  characterId = seed.upsertCharacter(db, { nick: 'tester', region: 'ru' });
 
   ids.ak12 = item('АК-12', 'weapon');
   ids.ak15 = item('АК-15', 'weapon');
@@ -64,11 +61,11 @@ beforeEach(() => {
   ids.backpack = item('Рюкзак', 'container');
   ids.camo = item('Камуфляж', 'motif');
 
-  repo.setCharacterStat(db, characterId, 'kil', 250, 'api');
-  repo.setCharacterStat(db, characterId, 'dea', 100, 'api');
-  repo.setCharacterStat(db, characterId, 'pla-tim', 'PT123H', 'api');
+  seed.setCharacterStat(db, characterId, 'kil', 250, 'api');
+  seed.setCharacterStat(db, characterId, 'dea', 100, 'api');
+  seed.setCharacterStat(db, characterId, 'pla-tim', 'PT123H', 'api');
 
-  repo.upsertOwned(db, {
+  seed.upsertOwned(db, {
     characterId,
     itemId: ids.nervyak,
     kind: 'artifact',
@@ -76,7 +73,7 @@ beforeEach(() => {
     qty: 3,
     displayName: 'Нервяк',
   });
-  repo.upsertOwned(db, {
+  seed.upsertOwned(db, {
     characterId,
     itemId: ids.backpack,
     kind: 'container',
@@ -192,7 +189,7 @@ describe('updateOwned', () => {
   });
 
   it('resolves a skin by exact motif name and clears it with null', () => {
-    const ownedId = repo.upsertOwned(db, {
+    const ownedId = seed.upsertOwned(db, {
       characterId,
       itemId: ids.ak15,
       kind: 'weapon',
@@ -230,11 +227,7 @@ describe('updateOwned', () => {
   it('rolls back an update that added the container override', () => {
     const [container] = listOwned(db, characterId, 'container');
     expect(repo.getOwnedContainer(db, container.id)).toBeNull();
-    const written = updateOwned(
-      db,
-      container.id,
-      OwnedPatchSchema.parse({ container: { shield: 30 }, dryRun: false }),
-    );
+    const written = updateOwned(db, container.id, OwnedPatchSchema.parse({ container: { shield: 30 }, dryRun: false }));
     expect(repo.getOwnedContainer(db, container.id)?.shield).toBe(30);
 
     rollbackEvent(db, written.eventId!, false);
@@ -340,10 +333,7 @@ describe('setContainerFill', () => {
     const result = setContainerFill(db, container.id, input);
     expect(result.eventId).toBeTypeOf('number');
     expect((result.diff.after as { artifacts: unknown[] }).artifacts).toHaveLength(2);
-    expect(listContainerSlots(db, container.id).map((row) => row.artifact_item_id)).toEqual([
-      ids.nervyak,
-      ids.korka,
-    ]);
+    expect(listContainerSlots(db, container.id).map((row) => row.artifact_item_id)).toEqual([ids.nervyak, ids.korka]);
     expect(listEvents(db)[0].action).toBe('container.fill');
   });
 
@@ -432,7 +422,9 @@ describe('character', () => {
     patchCharacter(db, CharacterPatchSchema.parse({ stats: { kil: null }, dryRun: false }));
     expect(buildPayload(db).character.kd).toBe(2.5);
     expect(
-      repo.listCharacterStats(db, repo.getCharacter(db)!.id).find((row) => row.stat_id === 'kil' && row.origin === 'manual'),
+      repo
+        .listCharacterStats(db, repo.getCharacter(db)!.id)
+        .find((row) => row.stat_id === 'kil' && row.origin === 'manual'),
     ).toBeUndefined();
   });
 

@@ -4,6 +4,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { closeDb, migrate, openDb, type Db } from '@dossier/core';
 import * as repo from '@dossier/core';
+import * as seed from '@dossier/core/testing';
 
 let dir: string;
 let db: Db;
@@ -22,7 +23,7 @@ afterEach(() => {
 
 describe('builds and prices', () => {
   it('stores metrics in build_metric and replaces them on save', () => {
-    repo.saveBuild(db, {
+    seed.seedBuild(db, {
       slug: 'speed',
       title: 'Скорость',
       metrics: [{ l: 'DPS', v: '100', s: null }],
@@ -32,14 +33,14 @@ describe('builds and prices', () => {
     expect(repo.listBuildMetrics(db, build.id)).toEqual([
       { build_id: build.id, position: 0, label: 'DPS', value: '100', sub: null },
     ]);
-    repo.saveBuild(db, { slug: 'speed', title: 'Скорость', metrics: [{ l: 'TTK', v: '1.0', s: 'сек' }], rows: [] });
+    seed.seedBuild(db, { slug: 'speed', title: 'Скорость', metrics: [{ l: 'TTK', v: '1.0', s: 'сек' }], rows: [] });
     expect(repo.listBuildMetrics(db, build.id).map((m) => m.label)).toEqual(['TTK']);
     expect(repo.listBuildSlots(db, build.id)).toEqual([]);
   });
 
   it('reads the newest price per name, quality and bonus', () => {
     repo.ensureDefaultSources(db);
-    repo.insertPriceQuote(db, {
+    seed.insertPriceQuote(db, {
       name: 'АК-12',
       quality: 'Редкий',
       bonus: 0,
@@ -47,7 +48,7 @@ describe('builds and prices', () => {
       sourceId: 'scpmodel',
       fetchedAt: '2026-01-01T00:00:00.000Z',
     });
-    repo.insertPriceQuote(db, {
+    seed.insertPriceQuote(db, {
       name: 'АК-12',
       quality: 'Редкий',
       bonus: 0,

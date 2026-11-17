@@ -10,10 +10,12 @@ import {
   listEvents,
   migrate,
   openDb,
-  upsertItem,
   type Db,
+  createCharacter,
+  createOwned,
+  rollbackEvent,
 } from '@dossier/core';
-import { createCharacter, createOwned, rollbackEvent } from '@dossier/core/services/writes';
+import { upsertItem } from '@dossier/core/testing';
 
 const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
 
@@ -61,10 +63,7 @@ describe('createCharacter', () => {
   });
 
   it('does not write on dry run', () => {
-    const result = createCharacter(
-      db,
-      CharacterCreateSchema.parse({ nick: 'Tester', region: 'ru', dryRun: true }),
-    );
+    const result = createCharacter(db, CharacterCreateSchema.parse({ nick: 'Tester', region: 'ru', dryRun: true }));
 
     expect(result.dryRun).toBe(true);
     expect(getCharacter(db)).toBeNull();

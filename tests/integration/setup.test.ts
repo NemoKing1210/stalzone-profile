@@ -2,9 +2,18 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { closeDb, ensureDefaultSources, migrate, openDb, upsertCharacter, type Db } from '@dossier/core';
-import { listSources, SOURCE_IDS } from '@dossier/core/repo';
-import { defaultSetupRegion, setupState } from '@dossier/core/services/setup';
+import {
+  closeDb,
+  ensureDefaultSources,
+  migrate,
+  openDb,
+  type Db,
+  listSources,
+  SOURCE_IDS,
+  defaultSetupRegion,
+  setupState,
+} from '@dossier/core';
+import { upsertCharacter } from '@dossier/core/testing';
 
 const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
 
@@ -38,7 +47,11 @@ describe('default sources', () => {
     ensureDefaultSources(db);
     ensureDefaultSources(db);
 
-    expect(listSources(db).map((row) => row.id).sort()).toEqual([...SOURCE_IDS].sort());
+    expect(
+      listSources(db)
+        .map((row) => row.id)
+        .sort(),
+    ).toEqual([...SOURCE_IDS].sort());
     expect(SOURCE_IDS).toContain('icons');
     expect(SOURCE_IDS).toContain('profile');
   });

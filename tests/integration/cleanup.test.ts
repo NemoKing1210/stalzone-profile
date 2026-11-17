@@ -13,13 +13,7 @@ import {
   listOwned,
   migrate,
   openDb,
-  replaceContainerSlots,
-  upsertCharacter,
-  upsertItem,
-  upsertOwned,
   type Db,
-} from '@dossier/core';
-import {
   cleanupCounts,
   clearAll,
   clearBuilds,
@@ -27,7 +21,8 @@ import {
   rollbackEvent,
   saveBuild,
   WriteError,
-} from '@dossier/core/services/writes';
+} from '@dossier/core';
+import { replaceContainerSlots, upsertCharacter, upsertItem, upsertOwned } from '@dossier/core/testing';
 
 const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
 

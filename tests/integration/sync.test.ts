@@ -2,10 +2,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { closeDb, ensureDefaultSources, migrate, openDb, type Db } from '@dossier/core';
+import { closeDb, ensureDefaultSources, migrate, openDb, type Db, runSync } from '@dossier/core';
 import * as repo from '@dossier/core';
+import * as seed from '@dossier/core/testing';
 import { exboAdapter, motifsAdapter, parseExboItem, wikiAdapter } from '@dossier/sources';
-import { runSync } from '@dossier/core/services/sync';
 
 const EXBO_ITEM = {
   id: 'wg53',
@@ -125,15 +125,14 @@ describe('EXBO adapter', () => {
       if (url.includes('/git/trees/main')) {
         calls.tree += 1;
         return jsonResponse({
-          tree: [
-            { path: 'ru/items/weapon/wg53.json' },
-            { path: 'ru/items/weapon/skins/wg53_skin.json' },
-          ],
+          tree: [{ path: 'ru/items/weapon/wg53.json' }, { path: 'ru/items/weapon/skins/wg53_skin.json' }],
         });
       }
       if (url.endsWith('/ru/stats.json')) {
         calls.stats += 1;
-        return jsonResponse([{ id: 'kil', category: 'SURVIVAL', type: 'INTEGER', name: { lines: { ru: 'Убийства' } } }]);
+        return jsonResponse([
+          { id: 'kil', category: 'SURVIVAL', type: 'INTEGER', name: { lines: { ru: 'Убийства' } } },
+        ]);
       }
       if (url.includes('raw.githubusercontent.com')) {
         calls.raw += 1;
@@ -209,7 +208,7 @@ describe('wiki sync', () => {
 
 describe('motifs sync', () => {
   it('refreshes base_item_id from the cosmetic token', async () => {
-    const baseId = repo.upsertItem(db, {
+    const baseId = seed.upsertItem(db, {
       sourceId: 'local',
       externalId: 'local:weapon:fn-fal',
       name: 'FN FAL',
@@ -217,7 +216,7 @@ describe('motifs sync', () => {
       kind: 'weapon',
       category: 'weapon/assault_rifle',
     });
-    repo.upsertItem(db, {
+    seed.upsertItem(db, {
       sourceId: 'local',
       externalId: 'motif:1',
       name: 'Родной двор',
@@ -247,7 +246,7 @@ describe('motifs sync', () => {
   });
 
   it('creates a motif row when the database has none', async () => {
-    const baseId = repo.upsertItem(db, {
+    const baseId = seed.upsertItem(db, {
       sourceId: 'local',
       externalId: 'local:weapon:ks-1',
       name: 'KS-1',
@@ -270,16 +269,14 @@ describe('motifs sync', () => {
     const motif = repo.findItemByKindName(db, 'motif', 'Родной двор');
     expect(motif).not.toBeNull();
     expect(motif?.base_item_id).toBe(baseId);
-    expect(
-      db.prepare(`SELECT COUNT(*) AS c FROM item WHERE kind = 'motif'`).get() as { c: number },
-    ).toEqual({ c: 1 });
+    expect(db.prepare(`SELECT COUNT(*) AS c FROM item WHERE kind = 'motif'`).get() as { c: number }).toEqual({ c: 1 });
   });
 });
 
 describe('scpmodel sync', () => {
   it('keeps the previous price and reports age when the source returns 500', async () => {
     const previous = new Date(Date.now() - 30 * 60_000).toISOString();
-    repo.insertPriceQuote(db, {
+    seed.insertPriceQuote(db, {
       name: 'Нервяк',
       quality: 'Редкий',
       lotPrice: 123,
@@ -305,7 +302,7 @@ describe('scpmodel sync', () => {
   });
 
   it('does not call the source inside the 15 minute TTL', async () => {
-    repo.insertPriceQuote(db, {
+    seed.insertPriceQuote(db, {
       name: 'Нервяк',
       quality: 'Редкий',
       lotPrice: 123,
@@ -328,7 +325,7 @@ describe('scpmodel sync', () => {
   });
 
   it('stores fresh rows and links them to known items', async () => {
-    repo.upsertItem(db, {
+    seed.upsertItem(db, {
       sourceId: 'local',
       externalId: 'wg1',
       name: 'Нервяк',
@@ -473,7 +470,10 @@ describe('profile sync', () => {
     tokenUrl: 'https://auth.test/oauth/token',
   };
 
-  function profileFetch(profiles: unknown[]): { fetchImpl: (url: string) => Promise<Response>; calls: { token: number; profile: number } } {
+  function profileFetch(profiles: unknown[]): {
+    fetchImpl: (url: string) => Promise<Response>;
+    calls: { token: number; profile: number };
+  } {
     const calls = { token: 0, profile: 0 };
     return {
       calls,
@@ -492,8 +492,8 @@ describe('profile sync', () => {
   }
 
   it('writes API stats, keeps manual overrides and drops removed stats', async () => {
-    const characterId = repo.upsertCharacter(db, { nick: 'Nemo_King', region: 'ru' });
-    repo.setCharacterStat(db, characterId, 'kil', 99, 'manual');
+    const characterId = seed.upsertCharacter(db, { nick: 'Nemo_King', region: 'ru' });
+    seed.setCharacterStat(db, characterId, 'kil', 99, 'manual');
 
     const full = {
       username: 'Nemo_King',
@@ -534,7 +534,7 @@ describe('profile sync', () => {
 
   it('sends OAuth client credentials and an uppercase, encoded profile request', async () => {
     const nick = 'Nemo King/Тест';
-    repo.upsertCharacter(db, { nick, region: 'eu' });
+    seed.upsertCharacter(db, { nick, region: 'eu' });
     const seen: { url: string; init?: RequestInit }[] = [];
     const fetchImpl = async (url: string, init?: RequestInit) => {
       seen.push({ url, init });
@@ -548,23 +548,19 @@ describe('profile sync', () => {
     const [token, profile] = seen;
     expect(token.url).toBe(profileApi.tokenUrl);
     expect(token.init?.method).toBe('POST');
-    expect((token.init?.headers as Record<string, string>)['content-type']).toBe(
-      'application/x-www-form-urlencoded',
-    );
+    expect((token.init?.headers as Record<string, string>)['content-type']).toBe('application/x-www-form-urlencoded');
     const body = new URLSearchParams(String(token.init?.body));
     expect(body.get('client_id')).toBe('id');
     expect(body.get('client_secret')).toBe('secret');
     expect(body.get('grant_type')).toBe('client_credentials');
     expect(body.get('scope')).toBe('');
 
-    expect(profile.url).toBe(
-      `https://api.test/EU/character/by-name/${encodeURIComponent(nick)}/profile`,
-    );
+    expect(profile.url).toBe(`https://api.test/EU/character/by-name/${encodeURIComponent(nick)}/profile`);
     expect((profile.init?.headers as Record<string, string>).authorization).toBe('Bearer tok');
   });
 
   it('keeps the previous API rows when a 2xx profile response has no stats array', async () => {
-    const characterId = repo.upsertCharacter(db, { nick: 'Nemo_King', region: 'ru' });
+    const characterId = seed.upsertCharacter(db, { nick: 'Nemo_King', region: 'ru' });
     const full = {
       username: 'Nemo_King',
       stats: [
@@ -584,7 +580,7 @@ describe('profile sync', () => {
   });
 
   it('reports stale without credentials or a character', async () => {
-    repo.upsertCharacter(db, { nick: 'Nemo_King', region: 'ru' });
+    seed.upsertCharacter(db, { nick: 'Nemo_King', region: 'ru' });
     const noCreds = await runSync(db, 'profile', { fetchImpl: async () => jsonResponse({}) });
     expect(noCreds).toMatchObject({ status: 'stale', error: 'STALZONE_API_NOT_CONFIGURED' });
 

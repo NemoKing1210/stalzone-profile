@@ -1,28 +1,87 @@
 import { describe, expect, it } from 'vitest';
-import type { ItemRow } from '@dossier/core';
-import { itemJson } from '../../server/utils/serialize';
+import { EventReadSchema, ItemSummarySchema, OwnedReadSchema, PriceRowSchema, SourceStatusSchema } from '@dossier/shared/contracts';
+import { eventJson, itemJson } from '../../server/utils/serialize';
+import { ownedRead } from '@dossier/core/modules/inventory';
+import { priceRead } from '@dossier/core/modules/catalog';
+import { sourceRead } from '@dossier/core/modules/sync';
 
-const item = {
-  id: 1,
-  external_id: 'exbo-ak-12',
-  name: 'АК-12',
-  name_en: null,
-  kind: 'weapon',
-  category: 'weapon/assault_rifle',
-  rank: 'RANK_MASTER',
-  slot: 'основное',
-  weight: 3.8,
-  is_cosmetic: 0,
-} as ItemRow;
-
-describe('serialize', () => {
-  it('serializes an item without raw or quality and includes typed effects', () => {
-    const json = itemJson(item, {
-      stats: [{ stat_id: 'damage.start', value_num: 40 }],
-      effects: [{ position: 0, label: 'Скорость', is_positive: 1 }],
+describe('HTTP serializers', () => {
+  it('produces contract-valid item and event objects', () => {
+    const item = itemJson({
+      id: 1,
+      external_id: 'x',
+      name: 'AK',
+      name_en: null,
+      kind: 'weapon',
+      category: null,
+      rank: null,
+      slot: null,
+      weight: null,
+      is_cosmetic: 0,
+    } as never);
+    expect(ItemSummarySchema.parse(item).name).toBe('AK');
+    const event = eventJson({
+      id: 1,
+      at: '2026-01-01T00:00:00.000Z',
+      actor: 'owner',
+      action: 'x',
+      entity: 'owned',
+      entity_id: '1',
+      before: null,
+      after: '{"a":1}',
+      note: null,
     });
-    expect(json).not.toHaveProperty('raw');
-    expect(json).not.toHaveProperty('quality');
-    expect(json.effects).toEqual([{ position: 0, label: 'Скорость', is_positive: 1 }]);
+    expect(EventReadSchema.parse(event).after).toEqual({ a: 1 });
+  });
+
+  it('maps module rows to owned, price and source contract DTOs', () => {
+    const owned = ownedRead(
+      {
+        id: 1,
+        item_id: 2,
+        item_name: 'AK',
+        display_name: null,
+        external_id: 'exbo-ak',
+        kind: 'weapon',
+        category: 'weapon/assault_rifle',
+        level: 1,
+        quality: null,
+        note: null,
+        role: null,
+        slot: 'основное',
+        qty: 1,
+        skin_item_id: null,
+        item_icon: '/icons/ak.webp',
+        updated_at: '2026-01-01T00:00:00.000Z',
+      } as never,
+      null,
+    );
+    expect(OwnedReadSchema.parse(owned)).toMatchObject({ id: 1, itemId: 2, icon: '/icons/ak.webp', container: null });
+
+    const price = priceRead({
+      id: 3,
+      item_id: 2,
+      external_id: 'exbo-ak',
+      name: 'AK',
+      quality: null,
+      bonus: null,
+      lot_price: 100,
+      lot_count: 5,
+      current_price: 95,
+      last_trade: 90,
+      lot_updated_at: null,
+      source_id: 'scpmodel',
+      fetched_at: '2026-01-01T00:00:00.000Z',
+    } as never);
+    expect(PriceRowSchema.parse(price)).toMatchObject({ itemId: 2, lotPrice: 100, sourceId: 'scpmodel' });
+
+    const source = sourceRead({
+      id: 'exbo_base',
+      status: 'ok',
+      last_ok_at: '2026-01-01T00:00:00.000Z',
+      last_try_at: '2026-01-01T00:00:00.000Z',
+      last_error: null,
+    } as never);
+    expect(SourceStatusSchema.parse(source)).toMatchObject({ id: 'exbo_base', status: 'ok' });
   });
 });
