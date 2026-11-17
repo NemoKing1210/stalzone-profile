@@ -99,11 +99,24 @@ minute. The `dossier://schema` resource describes the tools and the write rules.
 | `wiki` | stalzone.wiki API | artifacts, armor, weapons, containers, TTK |
 | `motifs` | stalzone.wiki `category=other` | skins' `item.base_item_id` |
 | `scpmodel` | scpmodel.ru/api/predictions | `price_quote` (TTL 15 min) |
+| `icons` | EXBO repository (same commit snapshot) | `icon` rows and `.png` files in `ICONS_DIR` |
+| `profile` | official STALZONE API (OAuth client credentials) | `character_stat` with origin `api`, clan/alliance, `profile_fetched_at` |
 
-The public profile snapshot is not part of phase 1: an official profile source is optional
-and comes with seedless onboarding (phase 2). `source.status`: `idle | ok | stale | error`;
-`last_ok_at`, `last_try_at`, `last_error`. On failure data is not erased — the UI shows the
-age of the last successful snapshot.
+`all` means the catalog sources (`exbo_base`, `wiki`, `motifs`, `scpmodel`, `icons`).
+`profile` is opt-in: it needs both client credentials and is never run implicitly.
+`source.status`: `idle | ok | stale | error`; `last_ok_at`, `last_try_at`, `last_error`.
+On failure data is not erased — the UI shows the age of the last successful snapshot.
+A profile refresh deletes only `origin='api'` rows before inserting the current values, so
+manual overrides survive and a counter missing from the response does not linger.
+
+## First run
+
+`POST /api/auth/login` → an authenticated HTML navigation without a character is
+redirected to `/setup` by `server/middleware/auth.ts`. The wizard reads
+`GET /api/v1/setup` (`needsSetup`, `catalogItems`, `profileApiConfigured`, `sources`),
+creates the character with `POST /api/v1/character`, runs the catalog syncs and optionally
+`profile`. API calls, `/_*`, `/icons/*` and non-HTML requests are never redirected; they
+answer as themselves. Once a character exists, `/setup` redirects to `/`.
 
 ## Interface languages
 

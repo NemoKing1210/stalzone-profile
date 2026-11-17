@@ -17,13 +17,25 @@ Locally:
 ```bash
 npm ci
 npm run db:migrate
-npm run sync
 npm run dev
 ```
 
 The dev server opens at `http://stalzone-profile.local`; add
 `127.0.0.1 stalzone-profile.local` to `hosts`. The port and domain are in `devServer`
 in `nuxt.config.ts`.
+
+Then, in the browser:
+
+1. Sign in with the password from `.env`.
+2. `/setup` opens on its own: enter the nickname and a live region (`ru`, `eu`, `na`,
+   `sea`).
+3. Download the catalog (`exbo_base`, `wiki`, `motifs`, `scpmodel`, `icons`). It needs
+   internet; skipping leaves the dossier browsable but without items to add.
+4. If `NUXT_STALZONE_CLIENT_ID`/`NUXT_STALZONE_CLIENT_SECRET` are set, load the profile
+   statistics. Otherwise enter the counters by hand in the character editor.
+
+`/setup` also runs from the terminal: `npm run sync` for the catalog, then the API/MCP for
+gear.
 
 ## 2. Docker
 
@@ -95,12 +107,17 @@ Checking a copy against a separate file: copy it to `/tmp/check.db` and run the 
 ## 4. Sync
 
 ```bash
-npm run sync                 # all sources, sequentially
+npm run sync                 # catalog sources, sequentially: exbo_base, wiki, motifs, scpmodel, icons
 npm run sync scpmodel        # prices only (cached within 15 minutes)
+npm run sync icons           # download missing item icons into ICONS_DIR
+npm run sync profile         # official STALZONE statistics; needs the client credentials
 npm run sync wiki -- --force # ignore the TTL/cache
 ```
 
-The same actions are buttons in `/settings` and the `sync_source` MCP tool.
+The same actions are buttons in `/setup`, `/settings` and the `sync_source` MCP tool.
+`profile` is opt-in and never runs as part of `all`. It deletes only `origin='api'`
+statistics and rewrites them; manual overrides win, and a counter missing from the
+response disappears instead of staying stale.
 
 If a source fails it stays `stale`: old data remains visible, `/settings` shows
 `last_error`, and the freshness badge shows the age. Do not delete the database because of
@@ -129,8 +146,12 @@ only if the migrations are non-destructive. A backup always exists before an upg
 | `/mcp` returns 401 | the `Authorization: Bearer ...` header, the same token |
 | Prices do not update | `sources_status`, `last_error`, the 15-minute TTL |
 | "no data" for a stat | the source has not synced yet; do not substitute numbers by hand |
+| Add button says the catalog is missing | run `/setup` or `npm run sync`, then reload |
+| Icons are missing | `npm run sync icons`; check `ICONS_DIR` is writable, `source=icons` in `/settings` |
+| Profile sync reports `STALZONE_API_NOT_CONFIGURED` | set both client credentials (Nuxt names for the site, plain names for the CLI) |
+| Profile sync reports a 401/403 | rotate/check the client credentials; manual counters stay untouched |
 | `SQLITE_BUSY` | do not open the database with a third-party editor; WAL is already enabled |
-| The site is empty after deploy | the volume is new: run `node dist/cli.js sync` and add the character through the API or site |
+| The site is empty after deploy | the volume is new: sign in, run `/setup`, or `node dist/cli.js sync` and add the character through the API |
 
 Logs:
 

@@ -43,6 +43,7 @@ need user-facing text should do the same or show the message as-is.
 | Method | Path | Response |
 |---|---|---|
 | GET | `/api/v1/healthz` | `{ ok: true, db: "ok" }`, public |
+| GET | `/api/v1/setup` | `{ needsSetup, catalogItems, profileApiConfigured, sources }` |
 | GET | `/api/v1/payload` | the whole dossier: character, gear, catalog, derived cards, builds, icons, freshness |
 | GET | `/api/v1/meta` | `{ meta, catalogMeta, freshness }` |
 | GET | `/api/v1/character` | character with derived fields (`kd`, `accuracy`, `headshot`, `hours`, `arrived`) |
@@ -77,6 +78,7 @@ text is English.
 
 | Method | Path | Body |
 |---|---|---|
+| POST | `/api/v1/character` | `CharacterCreateSchema`: `nick`, `region` (`ru \| eu \| na \| sea`), optional `faction`, `alliance`, `clanName`, `clanRank`, `playstyle`, `dryRun`. The dossier holds one character: a second create answers `409 CHARACTER_EXISTS` |
 | POST | `/api/v1/owned` | `OwnedCreateSchema` (optionally `container` for a container) |
 | PATCH | `/api/v1/owned/:id` | `OwnedPatchSchema` (optionally `container` override or `null` to clear) |
 | DELETE | `/api/v1/owned/:id?qty=` | — (removes one copy or `qty`) |
@@ -97,6 +99,10 @@ Each cleanup scope writes one `event_log` row (`owned.clear`, `build.clear`,
 `dossier.clear`) whose `before` is the full snapshot, so Rollback restores the cleared
 data. An empty scope answers `409 NOTHING_TO_CLEAR`.
 
+Character creation writes one `character.create` event with `before: null`. Its rollback
+deletes the character only while no gear or build exists; otherwise it answers
+`409 CHARACTER_NOT_EMPTY`, because deleting the row would cascade the dossier away.
+
 ## Sync
 
 `POST /api/v1/admin/sync` (session + Origin):
@@ -105,7 +111,9 @@ data. An empty scope answers `409 NOTHING_TO_CLEAR`.
 { "source": "all", "force": false }
 ```
 
-`source`: `exbo_base | wiki | motifs | scpmodel | all`. Response:
+`source`: `exbo_base | wiki | motifs | scpmodel | icons | profile | all`. `all` runs the
+catalog sources only (`exbo_base`, `wiki`, `motifs`, `scpmodel`, `icons`); `profile` is
+opt-in. Response:
 
 ```json
 {
@@ -114,6 +122,10 @@ data. An empty scope answers `409 NOTHING_TO_CLEAR`.
   ]
 }
 ```
+
+The `icons` result adds `icons` (files written) and `failed` (per-file failures that do not
+fail the source). The `profile` source requires the STALZONE client credentials; without
+them it answers `status: "stale"` with `error: "STALZONE_API_NOT_CONFIGURED"`.
 
 A source failure does not fail the request: `status: "stale"`, an `error` with the text,
 and the previous data stays. Inside the 15-minute TTL `scpmodel` does not go to the network
