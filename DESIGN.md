@@ -327,6 +327,7 @@ Rules:
 | Layer | Value |
 | --- | --- |
 | sticky table header | 10 |
+| radio bar | 30 |
 | app header | 40 |
 | dropdown/popover | 50 |
 | modal/slideover | 60 |
@@ -362,6 +363,8 @@ and no network requests.
 │  page content (panes, tables, grids)                                     │
 ├ status bar ──────────────────────────────────────────────────────────────┤
 │ count / storage / last update / section context                          │
+├ radio bar ───────────────────────────────────────────────────────────────┤
+│ play · prev/next · ZONE FM · track · time · meter · volume · track list   │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -375,6 +378,12 @@ and no network requests.
 - Main: page-specific archetype below; padding 16/24px.
 - Status bar (optional per page): 28px, `--sz-ink-950`, top border; shows counts, storage
   weight, last update, and only real shortcuts. Hidden on mobile if it costs vertical space.
+- Radio bar: collapsed by default to a floating 44px radio button at the bottom-right;
+  expanding shows the 56px mobile / 64px desktop bar, closing returns to the button. Both
+  states are fixed overlays: the shell reserves no height, so opening or hiding the player
+  never shifts the layout. The open/collapsed choice persists. It exists only in the
+  authenticated shell (not on `/login` or `/setup`) and stays silent until the user presses
+  play; it never autoplays. See §6.4.
 
 ### 5.2 Page archetypes
 
@@ -521,6 +530,31 @@ muted lot count), `StatBar` (wraps the 3px bar), `EventLog`, `LocaleSwitcher`,
   preview state.
 - Selection: accent border; no glow; the selected row remains readable on hover.
 - Disabled: 40% opacity; tooltips explain why when the reason is not obvious.
+
+### 6.4 Radio bar
+
+`ZoneRadio` (`app/features/radio/ui`) is the shell's only fixed element at the bottom.
+
+- 56px mobile / 64px desktop, `position: fixed`, z-index 30, `--sz-ink-950` background and a
+  1px `--sz-border` top rule; `env(safe-area-inset-bottom)` padding on iOS.
+- Left: play/pause, previous, next. Centre: `ZONE FM` in 10px tracked uppercase, an `ON AIR`
+  dot only while playing, the track title, and on wider screens the elapsed/total time and a
+  2px progress rule. Right: a 16-bar level meter, mute, volume, and the track list.
+- The meter reads an `AnalyserNode`; the time reads the media element. Nothing is invented:
+  before metadata the time is `--:--`, and a failed play reads as an error.
+- All colours are `--sz-*` tokens; the accent drives the meter, the progress rule and the
+  current track in the list. Square corners, no shadows, no texture.
+- Mobile keeps play/pause, previous, next, the title, a volume popover and the track list.
+  The meter, elapsed time and inline slider are hidden; the 44px touch targets remain.
+- Collapsed by default: a single square radio button floats at the bottom-right (with a
+  small `ON AIR` dot while playing) and opens the bar; the bar's chevron returns it to the
+  button. Collapsing never pauses playback. Both states are fixed overlays, so neither
+  reserves height nor moves the page.
+- Appearance is animated: the bar slides up from the bottom edge with a fade (200ms
+  transform, 160ms opacity) and the button fades and scales in; hiding reverses it. Under
+  `prefers-reduced-motion: reduce` both change instantly.
+- The chosen track, volume and open/collapsed state persist in `localStorage` under
+  `dossier.radio`; playback state does not. See `docs/AUDIO.md` for the assets and license.
 
 ## 7. Accent setting
 

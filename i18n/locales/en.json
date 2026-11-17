@@ -921,5 +921,25 @@
     "slot": "Slot",
     "slotPlaceholder": "primary or secondary",
     "note": "Note"
+  },
+  "radio": {
+    "station": "ZONE FM",
+    "region": "Zone radio",
+    "open": "Open radio",
+    "hide": "Hide player",
+    "play": "Play",
+    "pause": "Pause",
+    "previous": "Previous track",
+    "next": "Next track",
+    "tracks": "Tracks",
+    "volume": "Volume",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "onAir": "On air",
+    "current": "Current",
+    "credits": "Music: Tsorthan Grove — CC0",
+    "loading": "Loading…",
+    "error": "The track could not be played.",
+    "position": "Track {index} of {count}"
   }
 }

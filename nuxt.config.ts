@@ -89,6 +89,11 @@ export default defineNuxtConfig({
     '/_nuxt/**': {
       headers: { 'cache-control': 'public, max-age=31536000, immutable' },
     },
+    // Tracks stay session-gated; `private` keeps a shared cache out and
+    // `must-revalidate` stops a cached `302 /login` from outliving the session.
+    '/audio/**': {
+      headers: { 'cache-control': 'private, max-age=0, must-revalidate' },
+    },
     '/**': {
       headers: { 'cache-control': 'private, no-store' },
     },

@@ -27,6 +27,13 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
   lines follow the accent plus fine grain, painted with CSS and one inline SVG. It is fixed
   behind the content, never reaches a pane or a table; no image assets or network requests
   are added.
+- A session-only `ZONE FM` radio bar sits at the bottom of the authenticated shell. It plays
+  three looping CC0 ambient tracks by Tsorthan Grove with play/pause, previous/next, a track
+  list, volume and mute, a level meter driven by the real analyser and Media Session support.
+  The player is collapsed to a small floating radio button by default and opens on click with
+  a slide-up animation; both states are fixed overlays, so it never shifts the page. The
+  chosen track, volume and open/collapsed state persist, and playback never autoplays. Audio
+  lives in `public/audio/zone-fm/` behind the session, and its provenance is in `docs/AUDIO.md`.
 
 ### Changed
 

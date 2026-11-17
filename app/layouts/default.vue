@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { FreshnessBadge } from '~/entities/source';
+import { ZoneRadio } from '~/features/radio';
 
 const { t } = useI18n();
 
@@ -100,5 +101,7 @@ async function logout(): Promise<void> {
       {{ t('nav.footer') }}
       <span class="sr-only">{{ t('nav.currentSection', { path: route.path }) }}</span>
     </footer>
+
+    <ZoneRadio />
   </div>
 </template>
