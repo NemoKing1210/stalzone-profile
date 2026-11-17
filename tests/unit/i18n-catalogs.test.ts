@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { API_ERROR_CODES } from '../../app/utils/apiErrorMessage';
 
 type Catalog = Record<string, unknown>;
 
@@ -43,6 +44,24 @@ describe('i18n catalogs', () => {
     for (const key of ['common.language', 'nav.weapons', 'errors.UNAUTHORIZED']) {
       expect(en[key]).toBeTruthy();
       expect(ru[key]).toBeTruthy();
+    }
+  });
+
+  it('registers every catalog error code in the UI allow-list', () => {
+    const codes = Object.keys(en)
+      .filter((key) => key.startsWith('errors.') && key !== 'errors.generic')
+      .map((key) => key.slice('errors.'.length));
+    for (const code of codes) expect(API_ERROR_CODES.has(code), code).toBe(true);
+  });
+
+  it('names the exact counts in the clear-all confirmation', () => {
+    expect(params(en['settings.cleanup.confirmAll']!)).toEqual(['copies', 'count', 'records']);
+  });
+
+  it('names the cleanup actions in the journal', () => {
+    for (const key of ['events.actions.ownedClear', 'events.actions.buildClear', 'events.actions.dossierClear']) {
+      expect(en[key]).toBeTruthy();
+      expect(en[key]).not.toBe(key);
     }
   });
 
