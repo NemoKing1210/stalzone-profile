@@ -151,7 +151,9 @@ Breaking any item is a bug, even when the tests are green.
    run `npm run golden` and explain any difference. Changing displayed numbers is a separate
    owner decision, not a side effect of refactoring.
 5. **Schema changes only through new migrations.** Do not edit applied
-   `db/migrations/0001`, `0002`. After a schema change update `docs/DATA-MODEL.md` and tests.
+   `db/migrations/0001`. After a schema change update `docs/DATA-MODEL.md` and tests.
+   The baseline `0001_init.sql` was replaced once on 2026-11-17 as an owner-approved reset.
+   This exception is closed; from now on schema changes only add new `NNNN_*.sql` migrations.
 6. **Copies collapse into `qty`.** Do not expand identical copies into separate DB rows;
    the payload expands them for display only.
 7. **Authorization is never weakened.** Public paths are only `/login`, `/api/auth/login`,
