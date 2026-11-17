@@ -17,7 +17,7 @@ Locally:
 ```bash
 npm ci
 npm run db:migrate
-npm run import:legacy
+npm run sync
 npm run dev
 ```
 
@@ -34,13 +34,16 @@ docker compose -f deploy/docker-compose.yml ps
 curl -fsS http://127.0.0.1:3000/api/v1/healthz
 ```
 
-The first start creates `/data/dossier.db` and applies migrations. The dossier on an empty
-volume is empty — load the seeds:
+The first start creates `/data/dossier.db` and applies migrations. The catalog on an empty
+volume is empty — load it from the sources:
 
 ```bash
-docker compose -f deploy/docker-compose.yml exec app node dist/cli.js import
+docker compose -f deploy/docker-compose.yml exec app node dist/cli.js sync
 docker compose -f deploy/docker-compose.yml restart app
 ```
+
+Then sign in and fill in the character identity and raw counters in the editor; gear is
+added through the site, the API or MCP.
 
 Check: `http://<host>:3000/login` serves the form; sign in with the password from `.env`.
 
@@ -126,7 +129,7 @@ only if the migrations are non-destructive. A backup always exists before an upg
 | Prices do not update | `sources_status`, `last_error`, the 15-minute TTL |
 | "no data" for a stat | the source has not synced yet; do not substitute numbers by hand |
 | `SQLITE_BUSY` | do not open the database with a third-party editor; WAL is already enabled |
-| The site is empty after deploy | the volume is new: run `node dist/cli.js import` |
+| The site is empty after deploy | the volume is new: run `node dist/cli.js sync` and add the character through the API or site |
 
 Logs:
 

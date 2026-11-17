@@ -7,7 +7,7 @@ agent access to the same data.
 - **Site** — dossier sections with search, sorting and editing.
 - **API** — `/api/v1/*` behind session auth; writes go only through the API, MCP or CLI.
 - **MCP** — stdio for a local agent and HTTP `/mcp` with a bearer token.
-- **Sync** — EXBO database, stalzone.wiki, skins, profile, scpmodel prices.
+- **Sync** — EXBO database, stalzone.wiki, skins and scpmodel prices.
 
 The data is personal: expose it only over HTTPS and behind a password.
 
@@ -18,9 +18,13 @@ Node.js 24 (22 minimum) and npm are required.
 ```bash
 npm ci
 npm run db:migrate        # SQLite schema
-npm run import:legacy     # seeds: dossier, icons, wiki slice, prices
+npm run sync              # public catalog: EXBO, wiki, motifs, prices
 npm run dev               # http://stalzone-profile.local
 ```
+
+The database starts empty apart from migrations and sources. The catalog comes from
+`npm run sync`; character identity, raw counters and gear are added through the site, the
+API or MCP. Nothing personal ships in the repository.
 
 For the local domain add one line to `hosts` (administrator rights required):
 
@@ -62,7 +66,6 @@ server uses an ephemeral secret and warns in the log: every restart resets all s
 | `NUXT_LOGIN_WINDOW_MS` | `60000` | rate-limit window |
 | `NUXT_TRUST_PROXY` | — | `1` trusts `X-Forwarded-For` (only behind Caddy/proxy) |
 | `REALM` | `ru` | source region |
-| `PROFILE_FILE` | `./db/seeds/profile.json` | public profile snapshot |
 | `SNAPSHOTS_DIR` | `./snapshots` | backup directory |
 
 The full template is `.env.example`.
@@ -96,11 +99,11 @@ DOSSIER_DOMAIN=dossier.example.com \
   docker compose -f deploy/docker-compose.yml --profile proxy up -d
 ```
 
-The first start on an empty volume has no dossier. Load the seeds:
+The first start on an empty volume has no catalog. Load it:
 
 ```bash
 docker compose -f deploy/docker-compose.yml exec app \
-  node dist/cli.js import
+  node dist/cli.js sync
 ```
 
 ### Backups
@@ -117,7 +120,7 @@ Restore: stop the application, put the copy in place of `DB_PATH` (and remove
 
 ```bash
 npm run sync                # all sources
-npm run sync wiki           # one: exbo_base | wiki | motifs | profile | scpmodel
+npm run sync wiki           # one: exbo_base | wiki | motifs | scpmodel
 npm run sync scpmodel -- --force
 ```
 
@@ -173,9 +176,9 @@ Writes default to `dry_run`; a real write needs `confirm: true` and is limited t
 
 ```bash
 npm run check      # typecheck + lint + unit/integration
-npm run golden     # parity with the legacy dossier: 0 mismatches
+npm run golden     # formula regression on a public synthetic fixture: 0 mismatches
 npm run build
-npm run smoke:mcp  # all read-only MCP tools against the current database
+npm run smoke:mcp  # all read-only MCP tools against a temporary fixture database
 ```
 
 ## Layout
@@ -183,14 +186,13 @@ npm run smoke:mcp  # all read-only MCP tools against the current database
 ```
 app/                 Nuxt UI: pages, forms, components
 server/              Nitro: API, auth middleware, /mcp
-packages/core/       schema, repositories, calculations, import, writes, sync
+packages/core/       schema, repositories, calculations, writes, sync, payload
 packages/shared/     zod schemas, formatting, ranks
-packages/sources/    EXBO, wiki, motifs, profile, scpmodel adapters
+packages/sources/    EXBO, wiki, motifs, scpmodel adapters
 packages/mcp/        tool registry, stdio and HTTP transports
 db/migrations/       SQL migrations
-db/seeds/            dossier, icons, wiki slice, prices (no raw EXBO database)
 deploy/              Dockerfile, compose, Caddy, backup
-scripts/             CLI, import, golden, smoke
+scripts/             CLI, golden, smoke
 docs/                architecture, API, MCP, data model, migration, runbook
 ```
 

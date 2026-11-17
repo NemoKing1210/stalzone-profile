@@ -80,7 +80,7 @@
     "NOT_ROLLBACKABLE": "This event cannot be rolled back",
     "NOTHING_TO_CLEAR": "Nothing to clear",
     "DB_UNAVAILABLE": "The database is unavailable",
-    "NO_CHARACTER": "No character in the database — import the dossier first"
+    "NO_CHARACTER": "No character in the database — create it through the editor or the API"
   },
   "auth": {
     "subtitle": "Personal dossier. Password sign-in.",
@@ -118,7 +118,7 @@
     "aboutSources": "Sources: {sources}.",
     "aboutNote": "Prices are updated separately; a missing lot is shown as “no lot”, a missing stat as “no data”. All numbers are recomputed with one formula from the database.",
     "emptyTitle": "Dossier is empty",
-    "emptyDescription": "Import the source data with npm run import:legacy or add gear through the API or MCP."
+    "emptyDescription": "Load the catalog with npm run sync, then add gear through the site, the API or MCP."
   },
   "sources": {
     "exbo_base": "EXBO base",
@@ -332,7 +332,7 @@
       "error": "Error"
     },
     "emptyTitle": "No sources registered",
-    "emptyDescription": "Run migrations and the import to create source records.",
+    "emptyDescription": "Run migrations to create source records.",
     "exportTitle": "Dossier export",
     "exportText": "JSON in the source dossier format: character, gear, catalog, cards, builds and recommendations.",
     "downloadJson": "Download JSON",

@@ -6,8 +6,6 @@ export interface AppConfig {
   dbPath: string;
   realm: string;
   snapshotsDir: string;
-  legacyRoot: string | null;
-  seedsDir: string;
   iconsDir: string;
   migrationsDir: string;
   host: string;
@@ -47,8 +45,6 @@ export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     dbPath,
     realm: overrides.realm ?? process.env.REALM ?? 'ru',
     snapshotsDir,
-    legacyRoot: overrides.legacyRoot ?? process.env.LEGACY_ROOT ?? null,
-    seedsDir: overrides.seedsDir ?? path.join(rootDir, 'db', 'seeds'),
     iconsDir: path.resolve(
       rootDir,
       overrides.iconsDir ?? process.env.ICONS_DIR ?? path.join('public', 'icons'),

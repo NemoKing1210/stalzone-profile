@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-11-17 — Typed database baseline, seedless catalog and reset
+
+- `0001_init.sql` is replaced by a typed baseline: reference tables (`source`,
+  `stat_definition`, `item`, `item_stat`, `item_effect`, `icon`, `price_quote`,
+  `price_latest`) and dossier tables (`character`, `character_stat`, `owned_item`,
+  `owned_container`, `container_slot`, `build`, `build_metric`, `build_slot`, `event_log`).
+  Working tables keep no JSON; only `event_log.before/after` does. An existing database
+  must be rebuilt — see `docs/MIGRATION.md`. There is no automatic data migration.
+- The personal seeds, legacy import, `content_block` features (career, recommendations,
+  earnings, build/catalog meta), `catalog_entry` and `details_card` are removed. The
+  catalog and detail cards are derived at read time from synced public sources; the first
+  run is an empty database plus `npm run sync`.
+- `character_stat` stores raw counters with `api`/`manual` origins. The character editor
+  edits raw counters only; K/D, accuracy, headshot share and hours are derived, read-only.
+- Container display follows override (`owned_container`) > item stats > `null`; containers
+  are edited in the item modal instead of free-form `extra`.
+- API: `PATCH /api/v1/character` accepts `stats`; the content route is gone;
+  `GET /api/v1/details/:key` serves derived cards; the export is the typed dossier JSON.
+- MCP: `upsert_content_block` and `export_legacy_json` are gone; `export_dossier_json` is
+  added; `get_character` and `get_item` return the typed shapes (derived fields, stats,
+  effects, card). 20 tools: 12 read, 8 write.
+- `npm run golden` no longer reads a personal dossier: it recomputes a public synthetic
+  fixture and must print `mismatches: 0` and `legacyDeltas: []`.
+- `.env.example`, compose, README, runbook and docs drop `PROFILE_FILE` and the seed
+  workflow; `npm run import:legacy` is removed.
+
 ## 2026-11-17 — Inventory toolbar and grouping
 
 - Weapons and Armor gained a type/class filter and grouping by type/class; all four
