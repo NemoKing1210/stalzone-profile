@@ -124,7 +124,7 @@ async function syncSource(id: string): Promise<void> {
       variant="link"
       :ui="{
         root: 'gap-0',
-        list: 'gap-0 overflow-x-auto border-b border-[var(--sz-border)]',
+        list: 'gap-0 overflow-x-auto overflow-y-clip [overflow-clip-margin:1px] border-b border-[var(--sz-border)]',
         trigger: 'sz-caps rounded-none px-3 py-2.5 text-[var(--sz-text-muted)] hover:text-[var(--sz-text)]',
         content: 'p-0 pt-4',
       }"
