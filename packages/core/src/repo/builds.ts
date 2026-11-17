@@ -12,10 +12,24 @@ export interface BuildRow {
   eff: number | null;
   budget: number | null;
   total: number | null;
-  metrics: string | null;
   verdict: string | null;
   position: number;
+  created_at: string;
   updated_at: string;
+}
+
+export interface BuildMetricRow {
+  build_id: number;
+  position: number;
+  label: string;
+  value: string | null;
+  sub: string | null;
+}
+
+export interface BuildMetricInput {
+  l: string;
+  v?: string | null;
+  s?: string | null;
 }
 
 export interface BuildSlotRow {
@@ -47,7 +61,7 @@ export interface BuildInput {
   eff?: number | null;
   budget?: number | null;
   total?: number | null;
-  metrics?: unknown;
+  metrics?: BuildMetricInput[] | null;
   verdict?: string | null;
   position?: number;
   rows?: {
@@ -80,11 +94,28 @@ export function listBuilds(db: Db): BuildRow[] {
   return db.prepare(`SELECT * FROM build ORDER BY position, id`).all() as BuildRow[];
 }
 
+export function listBuildMetrics(db: Db, buildId: number): BuildMetricRow[] {
+  return db
+    .prepare(`SELECT build_id, position, label, value, sub FROM build_metric WHERE build_id = ? ORDER BY position`)
+    .all(buildId) as BuildMetricRow[];
+}
+
+export function allBuildMetrics(db: Db): Record<number, BuildMetricRow[]> {
+  const rows = db
+    .prepare(`SELECT build_id, position, label, value, sub FROM build_metric ORDER BY build_id, position`)
+    .all() as BuildMetricRow[];
+  const out: Record<number, BuildMetricRow[]> = {};
+  for (const row of rows) (out[row.build_id] ||= []).push(row);
+  return out;
+}
+
 export function listBuildSlots(db: Db, buildId: number): BuildSlotRow[] {
   return db
     .prepare(
-      `SELECT bs.*, i.name AS item_name, i.rank AS item_rank, i.icon_path AS item_icon
-       FROM build_slot bs LEFT JOIN item i ON i.id = bs.item_id
+      `SELECT bs.*, i.name AS item_name, i.rank AS item_rank, ic.path AS item_icon
+       FROM build_slot bs
+       LEFT JOIN item i ON i.id = bs.item_id
+       LEFT JOIN icon ic ON ic.item_id = bs.item_id
        WHERE bs.build_id = ? ORDER BY bs.position`,
     )
     .all(buildId) as BuildSlotRow[];
@@ -93,8 +124,10 @@ export function listBuildSlots(db: Db, buildId: number): BuildSlotRow[] {
 export function allBuildSlots(db: Db): Record<number, BuildSlotRow[]> {
   const rows = db
     .prepare(
-      `SELECT bs.*, i.name AS item_name, i.rank AS item_rank, i.icon_path AS item_icon
-       FROM build_slot bs LEFT JOIN item i ON i.id = bs.item_id
+      `SELECT bs.*, i.name AS item_name, i.rank AS item_rank, ic.path AS item_icon
+       FROM build_slot bs
+       LEFT JOIN item i ON i.id = bs.item_id
+       LEFT JOIN icon ic ON ic.item_id = bs.item_id
        ORDER BY bs.build_id, bs.position`,
     )
     .all() as BuildSlotRow[];
@@ -117,7 +150,6 @@ export function saveBuild(db: Db, input: BuildInput): { id: number; created: boo
     eff: input.eff ?? null,
     budget: input.budget ?? null,
     total: input.total ?? null,
-    metrics: input.metrics === undefined ? null : JSON.stringify(input.metrics),
     verdict: input.verdict ?? null,
     position: input.position ?? 0,
     updated_at: now,
@@ -129,18 +161,32 @@ export function saveBuild(db: Db, input: BuildInput): { id: number; created: boo
       db.prepare(
         `UPDATE build SET title = @title, short = @short, tag = @tag, goal = @goal,
           container_item_id = @container_item_id, slots = @slots, eff = @eff, budget = @budget, total = @total,
-          metrics = @metrics, verdict = @verdict, position = @position, updated_at = @updated_at
+          verdict = @verdict, position = @position, updated_at = @updated_at
          WHERE id = @id`,
       ).run({ ...values, id: existing.id });
       id = existing.id;
-      db.prepare(`DELETE FROM build_slot WHERE build_id = ?`).run(id);
     } else {
-      const cols = Object.keys(values);
       const info = db
-        .prepare(`INSERT INTO build (${cols.join(', ')}) VALUES (${cols.map((c) => '@' + c).join(', ')})`)
-        .run(values);
+        .prepare(
+          `INSERT INTO build (slug, title, short, tag, goal, container_item_id, slots, eff, budget, total, verdict,
+             position, created_at, updated_at)
+           VALUES (@slug, @title, @short, @tag, @goal, @container_item_id, @slots, @eff, @budget, @total, @verdict,
+             @position, @created_at, @updated_at)`,
+        )
+        .run({ ...values, created_at: now });
       id = Number(info.lastInsertRowid);
     }
+
+    db.prepare(`DELETE FROM build_metric WHERE build_id = ?`).run(id);
+    db.prepare(`DELETE FROM build_slot WHERE build_id = ?`).run(id);
+
+    const metricStmt = db.prepare(
+      `INSERT INTO build_metric (build_id, position, label, value, sub) VALUES (?, ?, ?, ?, ?)`,
+    );
+    (input.metrics ?? []).forEach((metric, index) => {
+      metricStmt.run(id, index, metric.l, metric.v ?? null, metric.s ?? null);
+    });
+
     const slotStmt = db.prepare(
       `INSERT INTO build_slot (build_id, position, item_id, label, quality, rank, price, lots, eff, bonus, minus, why)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
