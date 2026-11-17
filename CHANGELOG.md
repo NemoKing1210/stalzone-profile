@@ -9,6 +9,9 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- The site has a favicon: the brand radiation trefoil in the game green on the ink tile,
+  shipped as a 16/32/48 px `public/favicon.ico` and declared in the document head. It lives
+  at the existing public path, so it renders on `/login` and `/setup` too.
 - The first-run catalog step explains each data source: every source is a card with a short
   description, a Required or Recommended badge, a status line, an indeterminate progress bar
   while it downloads and a completed bar afterwards. A summary shows how many sources are

@@ -44,6 +44,7 @@ export default defineNuxtConfig({
     head: {
       htmlAttrs: { 'data-accent': 'green' },
       title: 'Stalzone Profile',
+      link: [{ rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }],
       meta: [
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
         { name: 'robots', content: 'noindex, nofollow' },

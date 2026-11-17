@@ -311,7 +311,9 @@ Rules:
 - Section icons: crosshair (weapons), shield (armor), backpack (containers), gem (artifacts),
   layers (builds), lightbulb (recommendations), coins (earnings), notebook (notes), settings.
 - The brand mark is a small radiation trefoil or a simple bracket monogram drawn in CSS/SVG;
-  it is not an asset from the game.
+  it is not an asset from the game. The shipped favicon (`public/favicon.ico`, 16/32/48 px)
+  is that trefoil in the default game green on the ink tile; browser icons cannot follow the
+  user-selected accent, so it is fixed.
 
 ### 4.5 Motion
 
