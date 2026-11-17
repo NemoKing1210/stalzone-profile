@@ -1,0 +1,73 @@
+import { z } from 'zod';
+import { SourcesReadSchema } from './api.js';
+import { BuildReadSchema } from './builds.js';
+import { ItemCardSchema, ItemEffectSchema, ItemStatSchema, ItemSummarySchema } from './catalog.js';
+import { ContainerOverrideSchema, ContainerReadSchema } from './inventory.js';
+import { DossierExportSchema, PayloadCharacterSchema, PayloadMetaSchema } from './payload.js';
+
+/** The MCP owned row uses `ownedId`; the HTTP owned row uses `id`. */
+export const McpOwnedReadSchema = z.object({
+  ownedId: z.number().int(),
+  itemId: z.number().int(),
+  name: z.string(),
+  externalId: z.string(),
+  kind: z.string(),
+  level: z.number().int(),
+  quality: z.string().nullable(),
+  skinItemId: z.number().int().nullable(),
+  skinName: z.string().nullable(),
+  qty: z.number().int(),
+  note: z.string().nullable(),
+  role: z.string().nullable(),
+  slot: z.string().nullable(),
+  icon: z.string().nullable(),
+  container: ContainerOverrideSchema.nullable(),
+});
+export type McpOwnedRead = z.infer<typeof McpOwnedReadSchema>;
+
+/** The MCP price row omits the database ids that the HTTP route includes. */
+export const McpPriceRowSchema = z.object({
+  name: z.string(),
+  quality: z.string().nullable(),
+  bonus: z.number().nullable(),
+  lotPrice: z.number().nullable(),
+  lotCount: z.number().nullable(),
+  currentPrice: z.number().nullable(),
+  lastTrade: z.number().nullable(),
+  lotUpdatedAt: z.string().nullable(),
+  sourceId: z.string(),
+  fetchedAt: z.string(),
+});
+export type McpPriceRow = z.infer<typeof McpPriceRowSchema>;
+
+export const McpItemSchema = ItemSummarySchema.extend({
+  stats: z.array(ItemStatSchema),
+  effects: z.array(ItemEffectSchema),
+  card: ItemCardSchema,
+});
+export type McpItem = z.infer<typeof McpItemSchema>;
+
+export const PlanResultSchema = z
+  .object({
+    picked: z.array(z.record(z.string(), z.unknown())),
+  })
+  .loose();
+export type PlanResult = z.infer<typeof PlanResultSchema>;
+
+export const READ_OUTPUT_SCHEMAS: Record<string, z.ZodTypeAny> = {
+  get_character: z.object({
+    character: PayloadCharacterSchema.nullable(),
+    meta: PayloadMetaSchema,
+  }),
+  find_items: z.object({ items: z.array(ItemSummarySchema) }),
+  get_item: z.object({ item: McpItemSchema }),
+  compare_items: z.object({ items: z.array(z.object({ found: z.boolean() }).loose()) }),
+  list_owned: z.object({ items: z.array(McpOwnedReadSchema) }),
+  list_containers: z.object({ items: z.array(ContainerReadSchema) }),
+  list_builds: z.object({ builds: z.object({ items: z.array(BuildReadSchema) }) }),
+  get_build: z.object({ build: BuildReadSchema.nullable() }),
+  plan_artifact_build: z.object({ plan: PlanResultSchema }),
+  get_prices: z.object({ prices: z.record(z.string(), z.array(McpPriceRowSchema)) }),
+  sources_status: z.object({ sources: SourcesReadSchema }),
+  export_dossier_json: z.object({ dossier: DossierExportSchema }),
+};

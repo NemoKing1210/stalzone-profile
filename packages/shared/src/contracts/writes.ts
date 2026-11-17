@@ -1,28 +1,16 @@
 import { z } from 'zod';
-
-export const RegionSchema = z.enum(['ru', 'eu', 'na', 'sea', 'global']).default('ru');
-
-export const ItemKindSchema = z.enum([
-  'weapon',
-  'armor',
-  'container',
-  'artifact',
-  'attachment',
-  'ammo',
-  'motif',
-  'other',
-]);
-
-/** Only these kinds can belong to the dossier; the rest stay catalog-only. */
-export const OwnedKindSchema = z.enum(['weapon', 'armor', 'container', 'artifact']);
+import {
+  CleanupScopeSchema,
+  ItemKindSchema,
+  OwnedKindSchema,
+  SetupRegionSchema,
+  SyncSourceSchema,
+} from './primitives.js';
 
 /** Options shared by every write request coming from the site or the API. */
 export const WriteOptionsSchema = z.object({
   dryRun: z.boolean().default(false),
 });
-
-export const CleanupScopeSchema = z.enum(['owned', 'builds', 'all']);
-export type CleanupScope = z.infer<typeof CleanupScopeSchema>;
 
 export const CleanupRequestSchema = z.object({
   scope: CleanupScopeSchema,
@@ -99,7 +87,7 @@ export type CharacterPatch = z.infer<typeof CharacterPatchSchema>;
 /** First-run creation. The dossier holds at most one character. */
 export const CharacterCreateSchema = WriteOptionsSchema.extend({
   nick: z.string().trim().min(1).max(64),
-  region: z.enum(['ru', 'eu', 'na', 'sea']),
+  region: SetupRegionSchema,
   faction: z.string().max(100).nullish(),
   alliance: z.string().max(100).nullish(),
   clanName: z.string().max(100).nullish(),
@@ -239,8 +227,6 @@ export type PlanArtifactBuildInput = z.infer<typeof PlanArtifactBuildInputSchema
 export const SyncInputSchema = z.object({
   force: z.boolean().default(false),
 });
-
-export const SyncSourceSchema = z.enum(['exbo_base', 'wiki', 'motifs', 'scpmodel', 'icons', 'profile', 'all']);
 
 export const SyncRequestSchema = z.object({
   source: SyncSourceSchema.default('all'),
