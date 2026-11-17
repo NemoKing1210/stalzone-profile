@@ -175,9 +175,14 @@ describe('container fill', () => {
 });
 
 describe('cleanup request', () => {
-  it('parses cleanup requests with a default dry run', () => {
-    expect(CleanupRequestSchema.parse({})).toEqual({ dryRun: false });
-    expect(CleanupRequestSchema.parse({ dryRun: true })).toEqual({ dryRun: true });
+  it('defaults to the inventory scope and a dry run', () => {
+    expect(CleanupRequestSchema.parse({})).toEqual({ scope: 'inventory', dryRun: false });
+    expect(CleanupRequestSchema.parse({ scope: 'journal' })).toEqual({ scope: 'journal', dryRun: false });
+    expect(CleanupRequestSchema.parse({ scope: 'all', dryRun: true })).toEqual({ scope: 'all', dryRun: true });
+  });
+
+  it('rejects an unknown scope', () => {
+    expect(CleanupRequestSchema.safeParse({ scope: 'catalog' }).success).toBe(false);
   });
 });
 

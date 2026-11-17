@@ -56,7 +56,7 @@ orchestrate several domains are `maintenance` (journal-based rollback), `read-mo
 | `inventory` | owned rows, container overrides, fill |
 | `sync` | source adapters binding, freshness rows, profile statistics |
 | `setup` | the first-run state |
-| `maintenance` | atomic cleanup and rollback through `event_log` |
+| `maintenance` | scoped profile resets and rollback through `event_log` |
 | `read-model` | `buildPayload` and export |
 
 Inside `app` the slices follow the same rule with ESLint enforcement

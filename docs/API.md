@@ -57,7 +57,7 @@ need user-facing text should do the same or show the message as-is.
 | GET | `/api/v1/sources` | source statuses and age |
 | GET | `/api/v1/events?limit=` | change journal |
 | GET | `/api/v1/admin/export` | the typed profile JSON (attachment) |
-| GET | `/api/v1/admin/cleanup` | owned records and copies |
+| GET | `/api/v1/admin/cleanup` | counts for every reset scope: `owned`, `manualStats`, `character`, `journal` |
 
 ## Writes
 
@@ -83,7 +83,7 @@ text is English.
 | PUT | `/api/v1/containers/:id/fill` | `{ artifacts: [{ name, level, quality? }], asOf?, dryRun? }` |
 | PATCH | `/api/v1/character` | `CharacterPatchSchema` |
 | POST | `/api/v1/events/:id/rollback` | `{ dryRun? }` |
-| POST | `/api/v1/admin/cleanup` | `{ dryRun? }` |
+| POST | `/api/v1/admin/cleanup` | `{ scope?: inventory \| manualStats \| character \| journal \| all, dryRun? }` |
 
 `CharacterPatchSchema` accepts identity fields (`nick`, `region`, `faction` — one of the
 four faction slugs or `null`, `alliance`, `clanName`, `clanRank`, `money`, `maxMoney`,
@@ -92,9 +92,23 @@ counter id → number/string/`null`. Writing a value sets the `manual` origin; `
 it and reveals the API value. Derived fields (K/D, accuracy, headshot share, hours) are
 read-only and rejected in the patch.
 
-Cleanup writes one `event_log` row (`owned.clear`) whose `before` is the full inventory
-snapshot, so Rollback restores the cleared data. An empty inventory answers
-`409 NOTHING_TO_CLEAR`.
+Cleanup resets one scope and writes one `event_log` row whose `before` is the rollback
+snapshot. The scope defaults to `inventory`:
+
+| Scope | Action | `before` snapshot |
+|---|---|---|
+| `inventory` | `owned.clear` | every owned row with container overrides and fill |
+| `manualStats` | `character.stats.clear` | every `origin='manual'` stat row |
+| `character` | `character.delete` | character row, every stat row, owned rows |
+| `journal` | `journal.clear` | every event row, with ids and raw JSON |
+| `all` | `reset.all` | the character snapshot plus every event row |
+
+A scope with nothing to remove answers `409 NOTHING_TO_CLEAR`; `character` without a
+character answers `409 NO_CHARACTER`. Every scope, including `all`, can be rolled back
+from the journal: the `character.delete` and `reset.all` rollbacks refuse with
+`409 CHARACTER_EXISTS` when a character was created afterwards, rather than overwriting
+it. `character` and `all` leave the site without a character, so the next request lands
+on `/setup`.
 
 Character creation writes one `character.create` event with `before: null`. Its rollback
 deletes the character only while no gear exists; otherwise it answers

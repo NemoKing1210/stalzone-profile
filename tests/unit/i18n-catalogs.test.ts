@@ -77,9 +77,31 @@ describe('i18n catalogs', () => {
       'events.actions.ownedClear',
       'events.actions.profileClear',
       'events.actions.characterCreate',
+      'events.actions.characterStatsClear',
+      'events.actions.characterDelete',
+      'events.actions.journalClear',
+      'events.actions.resetAll',
     ]) {
       expect(en[key]).toBeTruthy();
       expect(en[key]).not.toBe(key);
+    }
+  });
+
+  it('has the reset panel copy in both locales', () => {
+    for (const key of [
+      'settings.cleanup.intro',
+      'settings.cleanup.manualStatsTitle',
+      'settings.cleanup.characterTitle',
+      'settings.cleanup.journalTitle',
+      'settings.cleanup.allTitle',
+      'settings.cleanup.confirmManualStats',
+      'settings.cleanup.confirmCharacter',
+      'settings.cleanup.confirmJournal',
+      'settings.cleanup.confirmAll',
+      'settings.cleanup.requireWord',
+    ]) {
+      expect(en[key], key).toBeTruthy();
+      expect(ru[key], key).toBeTruthy();
     }
   });
 

@@ -253,7 +253,7 @@ export const GUIDE_API: GuideApiEndpoint[] = [
   },
   { method: 'POST', path: '/api/v1/events/:id/rollback', group: 'write', descriptionKey: 'guide.api.writes.rollback' },
 
-  // Administration: scoped cleanup and source sync.
+  // Administration: scoped profile resets and source sync.
   { method: 'GET', path: '/api/v1/admin/cleanup', group: 'admin', descriptionKey: 'guide.api.admin.cleanupRead' },
   { method: 'POST', path: '/api/v1/admin/cleanup', group: 'admin', descriptionKey: 'guide.api.admin.cleanup' },
   { method: 'POST', path: '/api/v1/admin/sync', group: 'admin', descriptionKey: 'guide.api.admin.sync' },

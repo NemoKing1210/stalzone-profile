@@ -224,3 +224,58 @@ export function clearCharacterStat(
   );
   db.prepare(`UPDATE character SET updated_at = ? WHERE id = ?`).run(new Date().toISOString(), characterId);
 }
+
+export function countCharacterStats(db: Db, characterId: number, origin?: CharacterStatOrigin): number {
+  const row = origin
+    ? db
+        .prepare(`SELECT COUNT(*) AS c FROM character_stat WHERE character_id = ? AND origin = ?`)
+        .get(characterId, origin)
+    : db.prepare(`SELECT COUNT(*) AS c FROM character_stat WHERE character_id = ?`).get(characterId);
+  return (row as { c: number }).c;
+}
+
+/** Removes only manual rows and returns them for the rollback snapshot. */
+export function deleteManualStats(db: Db, characterId: number): CharacterStat[] {
+  const rows = db
+    .prepare(
+      `SELECT stat_id, value_num, value_text, origin, fetched_at
+       FROM character_stat WHERE character_id = ? AND origin = 'manual' ORDER BY stat_id`,
+    )
+    .all(characterId) as CharacterStat[];
+  if (!rows.length) return rows;
+  db.prepare(`DELETE FROM character_stat WHERE character_id = ? AND origin = 'manual'`).run(characterId);
+  db.prepare(`UPDATE character SET updated_at = ? WHERE id = ?`).run(new Date().toISOString(), characterId);
+  return rows;
+}
+
+/** Columns needed to recreate a deleted character with its original id and timestamps. */
+export interface CharacterRestoreRow {
+  id: number;
+  nick: string;
+  region: string;
+  faction: Faction | null;
+  alliance: string | null;
+  clanName: string | null;
+  clanRank: string | null;
+  money: number | null;
+  maxMoney: number | null;
+  stash: string | null;
+  profileFetchedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function restoreCharacterRow(db: Db, row: CharacterRestoreRow): void {
+  db.prepare(
+    `INSERT INTO character
+       (id, nick, region, faction, alliance, clan_name, clan_rank, money, max_money, stash,
+        profile_fetched_at, created_at, updated_at)
+     VALUES
+       (@id, @nick, @region, @faction, @alliance, @clanName, @clanRank, @money, @maxMoney, @stash,
+        @profileFetchedAt, @createdAt, @updatedAt)`,
+  ).run(row);
+}
+
+export function setCharacterUpdatedAt(db: Db, id: number, at: string): void {
+  db.prepare(`UPDATE character SET updated_at = ? WHERE id = ?`).run(at, id);
+}

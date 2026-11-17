@@ -37,6 +37,73 @@ export function characterOrThrow(db: Db): CharacterRow {
   return character;
 }
 
+/** Whole character state, including every stat origin, for a lossless reset rollback. */
+export interface CharacterDataSnapshot {
+  character: {
+    id: number;
+    nick: string;
+    region: string;
+    faction: Faction | null;
+    alliance: string | null;
+    clanName: string | null;
+    clanRank: string | null;
+    money: number | null;
+    maxMoney: number | null;
+    stash: string | null;
+    profileFetchedAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+  };
+  stats: {
+    statId: string;
+    valueNum: number | null;
+    valueText: string | null;
+    origin: 'api' | 'manual';
+    fetchedAt: string;
+  }[];
+}
+
+export function characterDataSnapshot(db: Db, row: CharacterRow): CharacterDataSnapshot {
+  return {
+    character: {
+      id: row.id,
+      nick: row.nick,
+      region: row.region,
+      faction: row.faction,
+      alliance: row.alliance,
+      clanName: row.clan_name,
+      clanRank: row.clan_rank,
+      money: row.money,
+      maxMoney: row.max_money,
+      stash: row.stash,
+      profileFetchedAt: row.profile_fetched_at,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    },
+    stats: repo.listCharacterStats(db, row.id).map((stat) => ({
+      statId: stat.stat_id,
+      valueNum: stat.value_num,
+      valueText: stat.value_text,
+      origin: stat.origin,
+      fetchedAt: stat.fetched_at,
+    })),
+  };
+}
+
+/** Recreates a character with its original id and every stat row. Holds no transaction. */
+export function restoreCharacterDataTx(db: Db, snapshot: CharacterDataSnapshot): void {
+  if (!snapshot?.character) return;
+  if (repo.getCharacter(db)) throw new WriteError(409, 'CHARACTER_EXISTS', 'A character already exists');
+
+  repo.restoreCharacterRow(db, snapshot.character);
+  for (const stat of snapshot.stats ?? []) {
+    const value = stat.valueNum ?? stat.valueText;
+    if (value == null) continue;
+    repo.setCharacterStat(db, snapshot.character.id, stat.statId, value, stat.origin, stat.fetchedAt);
+  }
+  repo.setCharacterUpdatedAt(db, snapshot.character.id, snapshot.character.updatedAt);
+}
+
 export function characterSnapshot(db: Db, row: CharacterRow): CharacterSnapshot {
   const effective = repo.characterStatMap(db, row.id);
   const stats: Record<string, number | string> = {};

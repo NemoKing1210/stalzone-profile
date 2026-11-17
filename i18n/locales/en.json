@@ -337,13 +337,13 @@
   "settings": {
     "pageTitle": "Settings",
     "title": "Settings",
-    "subtitle": "Appearance, sources, data, journal and cleanup",
+    "subtitle": "Appearance, sources, data, journal and resets",
     "tabs": {
       "appearance": "Appearance",
       "sources": "Sources",
       "data": "Data",
       "journal": "Journal",
-      "cleanup": "Cleanup"
+      "cleanup": "Resets"
     },
     "appearanceTitle": "Appearance",
     "appearanceText": "The accent changes selection, active sections, focus and primary buttons. Positive, negative and warning colours do not change.",
@@ -473,16 +473,38 @@
     "accessBetween": " (scrypt) or ",
     "accessAfter": " for local development. Secrets are not stored in the repository.",
     "cleanup": {
-      "intro": "Remove profile data from the interface. Every action is written to the change log and can be rolled back there.",
+      "intro": "Reset profile data by scope. Every action is written to the journal and can be undone there; a full reset also clears the journal, and even that can be undone.",
       "inventoryTitle": "Inventory",
       "inventoryText": "Every item you own, including container fills, in all categories.",
       "inventoryCount": "{records} records · {copies} copies",
       "clearInventory": "Clear inventory",
+      "manualStatsTitle": "Manual stats",
+      "manualStatsText": "Values you entered yourself. API values stay and become visible again.",
+      "manualStatsCount": "Values: {records}",
+      "clearManualStats": "Reset manual stats",
+      "characterTitle": "Character",
+      "characterText": "The character, their gear and every stat. A reset opens the setup wizard.",
+      "characterCount": "Nick: {nick}",
+      "characterMissing": "No character",
+      "clearCharacter": "Reset character",
+      "journalTitle": "Journal",
+      "journalText": "The change history. The cleanup itself stays in the journal and can be undone there.",
+      "journalCount": "Events: {events}",
+      "clearJournal": "Clear journal",
+      "allTitle": "Full reset",
+      "allText": "The character, gear, stats and the whole change history. Catalog, prices and source settings stay.",
+      "allCount": "Records: {records} · events: {events}",
+      "resetAll": "Start over",
       "countsUnavailable": "Counts unavailable",
       "countsRetry": "Retry",
-      "confirmTitle": "Clear data",
+      "confirmTitle": "Reset data",
       "confirmInventory": "Delete all {records} inventory records ({copies} copies)? The action is written to the journal and can be rolled back.",
-      "exportHint": "Export the profile before cleanup:",
+      "confirmManualStats": "Delete the manual stat values ({records})? API values stay. The action can be rolled back in the journal.",
+      "confirmCharacter": "Delete the character \"{nick}\", their gear ({records} records) and every stat? The setup wizard will open. The action can be rolled back in the journal.",
+      "confirmJournal": "Delete all {events} journal events? The cleanup itself stays in the journal and can be rolled back.",
+      "confirmAll": "Delete the character, gear, stats and the whole change history? The setup wizard will open. Catalog and prices stay. Type {word} to confirm.",
+      "requireWord": "RESET",
+      "exportHint": "Export the profile before a reset:",
       "exportLink": "Download JSON",
       "journalHint": "You can undo this in the Journal tab."
     },
@@ -561,6 +583,10 @@
       "contentPut": "Block changed",
       "ownedClear": "Inventory cleared",
       "profileClear": "All data cleared",
+      "characterStatsClear": "Manual stats cleared",
+      "characterDelete": "Character deleted",
+      "journalClear": "Journal cleared",
+      "resetAll": "Full reset",
       "rollback": "Rollback"
     },
     "rollbackAria": "Roll back event {id}",
@@ -697,13 +723,13 @@
       },
       "settings": {
         "title": "Settings",
-        "summary": "Appearance, sources, data, journal and cleanup.",
+        "summary": "Appearance, sources, data, journal and resets.",
         "caps": {
           "appearance": "Five accent presets stored per browser; semantic colours never change.",
           "sources": "A reference for every source with status, freshness, counts and origin, plus a manual sync and an auto-update schedule.",
           "data": "Download the typed JSON export, see freshness and learn how backups work.",
           "journal": "Every write is listed with actor and note; each event can be rolled back.",
-          "cleanup": "Clear the inventory in one journalled transaction."
+          "cleanup": "Reset inventory, manual stats, character, journal or everything in one journalled transaction."
         }
       },
       "changelog": {
@@ -831,8 +857,8 @@
         "rollback": "Restore an entity from an event snapshot and log the rollback."
       },
       "admin": {
-        "cleanupRead": "Count owned records and copies before a cleanup.",
-        "cleanup": "Clear the inventory; one journal entry keeps the full snapshot.",
+        "cleanupRead": "Count owned records, manual stats, the character and journal events.",
+        "cleanup": "Reset one scope: inventory, manual stats, character, journal or all; one journal entry keeps the snapshot.",
         "sync": "Run a source sync; all covers catalog sources, profile stays opt-in.",
         "syncRead": "Read source diagnostics and the auto-update schedule.",
         "syncSchedule": "Update the auto-update schedule; one journal entry makes it rollbackable."

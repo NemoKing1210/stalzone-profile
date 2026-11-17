@@ -12,7 +12,12 @@ export const WriteOptionsSchema = z.object({
   dryRun: z.boolean().default(false),
 });
 
+/** Which profile data a cleanup removes. `all` also clears the journal. */
+export const CleanupScopeSchema = z.enum(['inventory', 'manualStats', 'character', 'journal', 'all']);
+export type CleanupScope = z.infer<typeof CleanupScopeSchema>;
+
 export const CleanupRequestSchema = z.object({
+  scope: CleanupScopeSchema.default('inventory'),
   dryRun: z.boolean().default(false),
 });
 export type CleanupRequest = z.infer<typeof CleanupRequestSchema>;

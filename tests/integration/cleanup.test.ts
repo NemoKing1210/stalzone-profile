@@ -4,19 +4,33 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   cleanupCounts,
+  clearByScope,
+  clearJournal,
+  clearManualStats,
   clearOwned,
   closeDb,
+  deleteCharacterProfile,
   ensureDefaultSources,
+  eventCount,
+  getCharacter,
+  listCharacterStats,
   listEvents,
   listOwned,
   logEvent,
   migrate,
   openDb,
+  resetAll,
   rollbackEvent,
   WriteError,
   type Db,
 } from '@profile/core';
-import { replaceContainerSlots, upsertCharacter, upsertItem, upsertOwned } from '@profile/core/testing';
+import {
+  replaceContainerSlots,
+  setCharacterStat,
+  upsertCharacter,
+  upsertItem,
+  upsertOwned,
+} from '@profile/core/testing';
 
 const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
 
@@ -73,15 +87,27 @@ afterEach(() => {
 });
 
 describe('cleanup counts', () => {
-  it('counts every owned kind and sums qty separately from rows', () => {
-    const counts = cleanupCounts(db);
-    expect(counts).toEqual({ owned: { records: 6, copies: 8 } });
+  it('counts every scope and sums qty separately from rows', () => {
+    setCharacterStat(db, characterId, 'kil', 12, 'manual');
+    setCharacterStat(db, characterId, 'dea', 4, 'api');
+    logEvent(db, { actor: 'owner', action: 'test.event', entity: 'test' });
+    expect(cleanupCounts(db)).toEqual({
+      owned: { records: 6, copies: 8 },
+      manualStats: { records: 1 },
+      character: { present: true, nick: 'tester' },
+      journal: { events: 1 },
+    });
   });
 
-  it('returns zero owned counts when there is no character', () => {
+  it('returns zero counts when there is no character', () => {
     db.prepare(`DELETE FROM owned_item`).run();
     db.prepare(`DELETE FROM character`).run();
-    expect(cleanupCounts(db).owned).toEqual({ records: 0, copies: 0 });
+    expect(cleanupCounts(db)).toEqual({
+      owned: { records: 0, copies: 0 },
+      manualStats: { records: 0 },
+      character: { present: false, nick: null },
+      journal: { events: 0 },
+    });
   });
 });
 
@@ -161,5 +187,239 @@ describe('cleanup writes', () => {
       expect(error).toBeInstanceOf(WriteError);
       expect((error as WriteError).code).toBe('NO_CHARACTER');
     }
+  });
+});
+
+describe('cleanup dispatcher', () => {
+  it('routes a scope to the matching reset', () => {
+    expect(clearByScope(db, 'inventory', true).diff.human).toBe('Inventory cleared: 6 records, 8 copies');
+    setCharacterStat(db, characterId, 'kil', 1, 'manual');
+    expect(clearByScope(db, 'manualStats', true).diff.human).toBe('Manual stats cleared: 1 value');
+  });
+});
+
+describe('manual stat cleanup', () => {
+  beforeEach(() => {
+    setCharacterStat(db, characterId, 'kil', 12, 'manual');
+    setCharacterStat(db, characterId, 'kil', 7, 'api');
+    setCharacterStat(db, characterId, 'dea', 3, 'manual');
+  });
+
+  it('dry-runs without writing rows or events', () => {
+    const statsBefore = listCharacterStats(db, characterId);
+    const eventsBefore = eventCount(db);
+    const result = clearManualStats(db, true);
+
+    expect(result).toMatchObject({ dryRun: true, diff: { after: null } });
+    expect(result.eventId).toBeUndefined();
+    expect(result.diff.human).toBe('Manual stats cleared: 2 values');
+    expect(listCharacterStats(db, characterId)).toEqual(statsBefore);
+    expect(eventCount(db)).toBe(eventsBefore);
+  });
+
+  it('removes only manual rows and rollback restores them', () => {
+    const statsBefore = listCharacterStats(db, characterId);
+    const result = clearManualStats(db, false);
+
+    expect(listCharacterStats(db, characterId)).toEqual([
+      expect.objectContaining({ stat_id: 'kil', origin: 'api', value_num: 7 }),
+    ]);
+    expect(listEvents(db)[0]).toMatchObject({ action: 'character.stats.clear', entity: 'character' });
+
+    rollbackEvent(db, result.eventId!, false);
+    expect(listCharacterStats(db, characterId)).toEqual(statsBefore);
+  });
+
+  it('rejects a scope with no manual stats', () => {
+    clearManualStats(db, false);
+    const eventsBefore = eventCount(db);
+    expect(() => clearManualStats(db, false)).toThrowError(WriteError);
+    expect(eventCount(db)).toBe(eventsBefore);
+  });
+});
+
+describe('character reset', () => {
+  beforeEach(() => {
+    setCharacterStat(db, characterId, 'kil', 12, 'manual');
+    setCharacterStat(db, characterId, 'kil', 7, 'api');
+    setCharacterStat(db, characterId, 'dea', 3, 'api');
+  });
+
+  it('dry-runs without deleting the character, gear or stats', () => {
+    const result = deleteCharacterProfile(db, true);
+
+    expect(result).toMatchObject({ dryRun: true });
+    expect(result.eventId).toBeUndefined();
+    expect(getCharacter(db)?.id).toBe(characterId);
+    expect(db.prepare(`SELECT COUNT(*) AS c FROM owned_item`).get()).toEqual({ c: 6 });
+    expect(db.prepare(`SELECT COUNT(*) AS c FROM character_stat`).get()).toEqual({ c: 3 });
+    expect(eventCount(db)).toBe(0);
+  });
+
+  it('deletes the character, owned rows and stats with one event', () => {
+    const result = deleteCharacterProfile(db, false);
+
+    expect(getCharacter(db)).toBeNull();
+    expect(db.prepare(`SELECT COUNT(*) AS c FROM owned_item`).get()).toEqual({ c: 0 });
+    expect(db.prepare(`SELECT COUNT(*) AS c FROM container_slot`).get()).toEqual({ c: 0 });
+    expect(db.prepare(`SELECT COUNT(*) AS c FROM character_stat`).get()).toEqual({ c: 0 });
+    expect(result.eventId).toBeDefined();
+    expect(listEvents(db)[0]).toMatchObject({
+      action: 'character.delete',
+      entity: 'character',
+      entity_id: String(characterId),
+    });
+  });
+
+  it('rollback restores identity, both stat origins, owned rows and container fills', () => {
+    const statsBefore = listCharacterStats(db, characterId);
+    const slotsBefore = db.prepare(`SELECT * FROM container_slot ORDER BY container_owned_id, slot`).all();
+    const result = deleteCharacterProfile(db, false);
+
+    rollbackEvent(db, result.eventId!, false);
+
+    expect(getCharacter(db)).toMatchObject({ id: characterId, nick: 'tester', region: 'ru' });
+    expect(listCharacterStats(db, characterId)).toEqual(statsBefore);
+    expect(listOwned(db, characterId)).toHaveLength(6);
+    expect(db.prepare(`SELECT * FROM container_slot ORDER BY container_owned_id, slot`).all()).toHaveLength(
+      slotsBefore.length,
+    );
+  });
+
+  it('refuses to roll back over a character created after the reset', () => {
+    const result = deleteCharacterProfile(db, false);
+    upsertCharacter(db, { nick: 'other', region: 'eu' });
+
+    try {
+      rollbackEvent(db, result.eventId!, false);
+      throw new Error('expected WriteError');
+    } catch (error) {
+      expect(error).toBeInstanceOf(WriteError);
+      expect((error as WriteError).code).toBe('CHARACTER_EXISTS');
+    }
+    expect(getCharacter(db)).toMatchObject({ nick: 'other', region: 'eu' });
+  });
+
+  it('rejects a profile with no character', () => {
+    db.prepare(`DELETE FROM owned_item`).run();
+    db.prepare(`DELETE FROM character`).run();
+    try {
+      deleteCharacterProfile(db, false);
+      throw new Error('expected WriteError');
+    } catch (error) {
+      expect(error).toBeInstanceOf(WriteError);
+      expect((error as WriteError).code).toBe('NO_CHARACTER');
+    }
+  });
+});
+
+describe('journal reset', () => {
+  function seedEvents(): void {
+    logEvent(db, { actor: 'owner', action: 'owned.create', entity: 'owned', entityId: 1, before: null, after: { id: 1 } });
+    logEvent(db, {
+      actor: 'owner',
+      action: 'owned.update',
+      entity: 'owned',
+      entityId: 1,
+      before: { id: 1 },
+      after: { id: 1, qty: 2 },
+    });
+    logEvent(db, {
+      actor: 'owner',
+      action: 'character.update',
+      entity: 'character',
+      entityId: characterId,
+      before: { nick: 'tester' },
+      after: { nick: 'tester' },
+    });
+  }
+
+  function eventsWithoutRollback(): unknown[] {
+    return db
+      .prepare(
+        `SELECT id, at, actor, action, entity, entity_id, before, after, note
+         FROM event_log WHERE action != 'rollback' ORDER BY id`,
+      )
+      .all();
+  }
+
+  it('dry-runs without deleting events', () => {
+    seedEvents();
+    const result = clearJournal(db, true);
+
+    expect(result).toMatchObject({ dryRun: true, diff: { after: null } });
+    expect(result.eventId).toBeUndefined();
+    expect(eventCount(db)).toBe(3);
+  });
+
+  it('clears the journal, leaves one event and rollback restores the exact rows', () => {
+    seedEvents();
+    const before = eventsWithoutRollback();
+    const result = clearJournal(db, false);
+
+    expect(eventCount(db)).toBe(1);
+    expect(listEvents(db)[0]).toMatchObject({ action: 'journal.clear', entity: 'journal', entity_id: 'all' });
+
+    rollbackEvent(db, result.eventId!, false);
+
+    expect(eventsWithoutRollback()).toEqual(before);
+    expect(listEvents(db)[0]).toMatchObject({ action: 'rollback' });
+  });
+
+  it('rejects an empty journal', () => {
+    expect(() => clearJournal(db, false)).toThrowError(WriteError);
+  });
+});
+
+describe('full reset', () => {
+  function seedEvents(): void {
+    logEvent(db, { actor: 'owner', action: 'owned.create', entity: 'owned', entityId: 1, before: null, after: { id: 1 } });
+    logEvent(db, { actor: 'owner', action: 'character.update', entity: 'character', entityId: characterId, before: {}, after: {} });
+  }
+
+  it('dry-runs without deleting the profile or the journal', () => {
+    setCharacterStat(db, characterId, 'kil', 12, 'manual');
+    seedEvents();
+    const result = resetAll(db, true);
+
+    expect(result).toMatchObject({ dryRun: true, diff: { after: null } });
+    expect(getCharacter(db)?.id).toBe(characterId);
+    expect(eventCount(db)).toBe(2);
+    expect(db.prepare(`SELECT COUNT(*) AS c FROM owned_item`).get()).toEqual({ c: 6 });
+  });
+
+  it('clears the character and the journal, and rollback restores both', () => {
+    setCharacterStat(db, characterId, 'kil', 12, 'manual');
+    setCharacterStat(db, characterId, 'dea', 3, 'api');
+    seedEvents();
+    const statsBefore = listCharacterStats(db, characterId);
+    const eventsBefore = db.prepare(`SELECT id, at, actor, action, entity, entity_id, before, after, note FROM event_log ORDER BY id`).all();
+    const result = resetAll(db, false);
+
+    expect(getCharacter(db)).toBeNull();
+    expect(db.prepare(`SELECT COUNT(*) AS c FROM owned_item`).get()).toEqual({ c: 0 });
+    expect(db.prepare(`SELECT COUNT(*) AS c FROM character_stat`).get()).toEqual({ c: 0 });
+    expect(eventCount(db)).toBe(1);
+    expect(listEvents(db)[0]).toMatchObject({ action: 'reset.all', entity: 'profile', entity_id: 'all' });
+
+    rollbackEvent(db, result.eventId!, false);
+
+    expect(getCharacter(db)).toMatchObject({ id: characterId, nick: 'tester', region: 'ru' });
+    expect(listOwned(db, characterId)).toHaveLength(6);
+    expect(listCharacterStats(db, characterId)).toEqual(statsBefore);
+    expect(
+      db
+        .prepare(
+          `SELECT id, at, actor, action, entity, entity_id, before, after, note
+           FROM event_log WHERE action != 'rollback' ORDER BY id`,
+        )
+        .all(),
+    ).toEqual(eventsBefore);
+  });
+
+  it('rejects an empty profile and journal', () => {
+    db.prepare(`DELETE FROM owned_item`).run();
+    db.prepare(`DELETE FROM character`).run();
+    expect(() => resetAll(db, false)).toThrowError(WriteError);
   });
 });

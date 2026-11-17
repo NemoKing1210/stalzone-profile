@@ -85,6 +85,21 @@ owns itself.
 - `event_log.before/after` are the rollback contract; the format may change only in a
   backward-compatible way, with a rollback test.
 
+## Profile resets
+
+Cleanup exposes five scopes: `inventory`, `manualStats`, `character`, `journal` and `all`.
+Each writes one `event_log` row and stores what it removed in `before`:
+
+- `character.delete` and `reset.all` snapshot the character row, every `character_stat`
+  row with its origin, and every owned row with container overrides and fill. The
+  character is recreated with its original id and timestamps on rollback.
+- `journal.clear` snapshots every event row with its id and raw `before`/`after` strings;
+  rollback replaces the journal with that snapshot.
+- `reset.all` stores both snapshots, so even a full reset can be undone.
+- Reference data (`item`, `price_quote`, `icon`, `source`, `sync_schedule`) is never part
+  of a reset. A `character` or `all` reset leaves the database without a character, the
+  same state as a fresh install, and the wizard returns.
+
 ## Derived reads
 
 Pages and MCP never read stored display values. `packages/core/src/modules/read-model/payload.ts`

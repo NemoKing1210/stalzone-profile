@@ -31,6 +31,10 @@ const ACTION_KEYS: Record<string, string> = {
   'owned.clear': 'ownedClear',
   'profile.clear': 'profileClear',
   'dossier.clear': 'profileClear',
+  'character.stats.clear': 'characterStatsClear',
+  'character.delete': 'characterDelete',
+  'journal.clear': 'journalClear',
+  'reset.all': 'resetAll',
   rollback: 'rollback',
 };
 

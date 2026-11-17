@@ -86,3 +86,35 @@ export function parseEventJson(value: string | null): unknown {
 export function eventCount(db: Db): number {
   return (db.prepare(`SELECT COUNT(*) AS c FROM event_log`).get() as { c: number }).c;
 }
+
+/** Raw rows as stored: `before`/`after` stay JSON strings for a lossless snapshot. */
+export interface EventSnapshotRow {
+  id: number;
+  at: string;
+  actor: string;
+  action: string;
+  entity: string | null;
+  entity_id: string | null;
+  before: string | null;
+  after: string | null;
+  note: string | null;
+}
+
+export function snapshotEvents(db: Db): EventSnapshotRow[] {
+  return db
+    .prepare(
+      `SELECT id, at, actor, action, entity, entity_id, before, after, note
+       FROM event_log ORDER BY id`,
+    )
+    .all() as EventSnapshotRow[];
+}
+
+/** Replaces the whole journal with a snapshot, restoring original ids. */
+export function replaceEvents(db: Db, rows: EventSnapshotRow[]): void {
+  db.prepare(`DELETE FROM event_log`).run();
+  const insert = db.prepare(
+    `INSERT INTO event_log (id, at, actor, action, entity, entity_id, before, after, note)
+     VALUES (@id, @at, @actor, @action, @entity, @entity_id, @before, @after, @note)`,
+  );
+  for (const row of rows) insert.run(row);
+}

@@ -9,6 +9,13 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- Settings → Resets replaces the single inventory cleanup with five scoped resets:
+  inventory, manual stats, character, journal and full reset. Each one is one journalled
+  transaction and can be rolled back from the Journal tab, including the full reset that
+  also clears the history. The panel shows live counts per scope, disables empty scopes,
+  returns to `/setup` after a character or full reset, and asks the owner to type the
+  confirmation word before the full reset. `POST /api/v1/admin/cleanup` now takes a
+  `scope` (defaulting to `inventory`) and `GET` reports counts for every scope.
 - The site has a favicon: the brand radiation trefoil in the game green on the ink tile,
   shipped as a 16/32/48 px `public/favicon.ico` and declared in the document head. It lives
   at the existing public path, so it renders on `/login` and `/setup` too.
