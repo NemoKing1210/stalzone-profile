@@ -43,4 +43,23 @@ describe('core public surface', () => {
       expect(testing).not.toHaveProperty(name);
     },
   );
+
+  it('publishes every module by name and no deep wildcard', () => {
+    const pkg = JSON.parse(
+      fs.readFileSync(path.join(process.cwd(), 'packages/core/package.json'), 'utf8'),
+    ) as { exports: Record<string, string> };
+    expect(pkg.exports).not.toHaveProperty('./modules/*');
+    const modules = fs
+      .readdirSync(path.join(process.cwd(), 'packages/core/src/modules'), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name);
+    expect(modules.length).toBeGreaterThan(0);
+    for (const name of modules) {
+      expect(pkg.exports[`./modules/${name}`]).toBe(`./src/modules/${name}/index.ts`);
+    }
+  });
+
+  it('keeps no compatibility shims beside the catalog calculator', () => {
+    expect(fs.existsSync(path.join(process.cwd(), 'packages/core/src/calc'))).toBe(false);
+  });
 });

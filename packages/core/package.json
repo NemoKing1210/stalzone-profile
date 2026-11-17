@@ -22,7 +22,6 @@
     "./modules/setup": "./src/modules/setup/index.ts",
     "./modules/maintenance": "./src/modules/maintenance/index.ts",
     "./modules/read-model": "./src/modules/read-model/index.ts",
-    "./modules/*": "./src/modules/*.ts",
     "./testing": "./src/testing/index.ts"
   },
   "dependencies": {
