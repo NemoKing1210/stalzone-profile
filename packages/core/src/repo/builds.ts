@@ -72,6 +72,10 @@ export function getBuildById(db: Db, id: number): BuildRow | null {
   return (db.prepare(`SELECT * FROM build WHERE id = ?`).get(id) as BuildRow | undefined) ?? null;
 }
 
+export function countBuilds(db: Db): number {
+  return (db.prepare(`SELECT COUNT(*) AS c FROM build`).get() as { c: number }).c;
+}
+
 export function listBuilds(db: Db): BuildRow[] {
   return db.prepare(`SELECT * FROM build ORDER BY position, id`).all() as BuildRow[];
 }

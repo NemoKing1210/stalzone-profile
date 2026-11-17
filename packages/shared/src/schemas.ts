@@ -18,6 +18,15 @@ export const WriteOptionsSchema = z.object({
   dryRun: z.boolean().default(false),
 });
 
+export const CleanupScopeSchema = z.enum(['owned', 'builds', 'all']);
+export type CleanupScope = z.infer<typeof CleanupScopeSchema>;
+
+export const CleanupRequestSchema = z.object({
+  scope: CleanupScopeSchema,
+  dryRun: z.boolean().default(false),
+});
+export type CleanupRequest = z.infer<typeof CleanupRequestSchema>;
+
 /* ------------------------------------------------------------------ */
 /* Site/API write schemas (camelCase, dryRun defaults to false)        */
 /* ------------------------------------------------------------------ */

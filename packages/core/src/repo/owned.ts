@@ -182,6 +182,12 @@ const JOIN_COLS = `
   i.rank AS item_rank, i.slot AS item_slot, i.weight AS item_weight, i.icon_path AS item_icon,
   i.raw AS item_raw, i.exbo_id AS exbo_id`;
 
+export function ownedCounts(db: Db, characterId: number): { records: number; copies: number } {
+  return db
+    .prepare(`SELECT COUNT(*) AS records, COALESCE(SUM(qty), 0) AS copies FROM owned WHERE character_id = ?`)
+    .get(characterId) as { records: number; copies: number };
+}
+
 export function listOwned(db: Db, characterId: number, kind?: string): OwnedJoined[] {
   const where = kind ? `WHERE o.character_id = ? AND o.kind = ?` : `WHERE o.character_id = ?`;
   const params = kind ? [characterId, kind] : [characterId];

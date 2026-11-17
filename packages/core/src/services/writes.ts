@@ -131,6 +131,21 @@ function ownedSnapshot(row: OwnedRow, itemName?: string) {
 }
 
 
+/* ------------------------------ cleanup counts ------------------------------ */
+
+export interface CleanupCounts {
+  owned: { records: number; copies: number };
+  builds: number;
+}
+
+export function cleanupCounts(db: Db): CleanupCounts {
+  const character = repo.getCharacter(db);
+  return {
+    owned: character ? repo.ownedCounts(db, character.id) : { records: 0, copies: 0 },
+    builds: repo.countBuilds(db),
+  };
+}
+
 /* ------------------------------ character ------------------------------ */
 
 const CHARACTER_FIELDS = [
@@ -561,6 +576,94 @@ export function putContentBlock(db: Db, input: ContentBlockInput): WriteResult {
   return { dryRun: false, diff: { before, after, human }, eventId };
 }
 
+/* ------------------------------ cleanup ------------------------------ */
+
+function ownedCleanupSnapshot(db: Db, row: ReturnType<typeof repo.listOwned>[number]) {
+  const snapshot: Record<string, unknown> = ownedSnapshot(row, row.item_name);
+  if (row.kind === 'container') snapshot.fill = containerFillSnapshot(db, row.id);
+  return snapshot;
+}
+
+export function clearOwned(db: Db, dryRun: boolean): WriteResult {
+  const character = characterOrThrow(db);
+  const rows = repo.listOwned(db, character.id);
+  if (!rows.length) throw new WriteError(409, 'NOTHING_TO_CLEAR', 'Nothing to clear');
+
+  const before = rows.map((row) => ownedCleanupSnapshot(db, row));
+  const copies = rows.reduce((sum, row) => sum + row.qty, 0);
+  const human = `Inventory cleared: ${rows.length} records, ${copies} copies`;
+
+  if (dryRun) return { dryRun: true, diff: { before, after: null, human } };
+
+  let eventId: number | undefined;
+  db.transaction(() => {
+    for (const row of rows) repo.deleteOwned(db, row.id);
+    eventId = repo.logEvent(db, {
+      actor: 'owner',
+      action: 'owned.clear',
+      entity: 'owned',
+      entityId: 'all',
+      before,
+      after: null,
+    });
+  })();
+  return { dryRun: false, diff: { before, after: null, human }, eventId };
+}
+
+export function clearBuilds(db: Db, dryRun: boolean): WriteResult {
+  const builds = repo.listBuilds(db);
+  if (!builds.length) throw new WriteError(409, 'NOTHING_TO_CLEAR', 'Nothing to clear');
+
+  const before = builds.map((build) => buildSnapshot(db, build.slug)).filter(Boolean);
+  const human = `Builds cleared: ${builds.length}`;
+
+  if (dryRun) return { dryRun: true, diff: { before, after: null, human } };
+
+  let eventId: number | undefined;
+  db.transaction(() => {
+    for (const build of builds) repo.deleteBuild(db, build.slug);
+    eventId = repo.logEvent(db, {
+      actor: 'owner',
+      action: 'build.clear',
+      entity: 'build',
+      entityId: 'all',
+      before,
+      after: null,
+    });
+  })();
+  return { dryRun: false, diff: { before, after: null, human }, eventId };
+}
+
+export function clearAll(db: Db, dryRun: boolean): WriteResult {
+  const character = repo.getCharacter(db);
+  const ownedRows = character ? repo.listOwned(db, character.id) : [];
+  const builds = repo.listBuilds(db);
+  if (!ownedRows.length && !builds.length) throw new WriteError(409, 'NOTHING_TO_CLEAR', 'Nothing to clear');
+
+  const before = {
+    owned: ownedRows.map((row) => ownedCleanupSnapshot(db, row)),
+    builds: builds.map((build) => buildSnapshot(db, build.slug)).filter(Boolean),
+  };
+  const human = `All data cleared: ${ownedRows.length} inventory records, ${builds.length} builds`;
+
+  if (dryRun) return { dryRun: true, diff: { before, after: null, human } };
+
+  let eventId: number | undefined;
+  db.transaction(() => {
+    for (const row of ownedRows) repo.deleteOwned(db, row.id);
+    for (const build of builds) repo.deleteBuild(db, build.slug);
+    eventId = repo.logEvent(db, {
+      actor: 'owner',
+      action: 'dossier.clear',
+      entity: 'dossier',
+      entityId: 'all',
+      before,
+      after: null,
+    });
+  })();
+  return { dryRun: false, diff: { before, after: null, human }, eventId };
+}
+
 /* ------------------------------ rollback ------------------------------ */
 
 export function rollbackEvent(db: Db, eventId: number, dryRun: boolean): WriteResult {
@@ -601,35 +704,20 @@ function restoreSnapshot(db: Db, action: string, before: any, after: any): void 
       return;
     }
     case 'owned.delete': {
-      if (before) {
-        const restoredId = repo.upsertOwned(db, {
-          characterId: characterOrThrow(db).id,
-          itemId: before.itemId,
-          kind: before.kind,
-          level: before.level,
-          quality: before.quality,
-          skinItemId: before.skinItemId,
-          qty: before.qty,
-          note: before.note,
-          role: before.role,
-          slot: before.slot,
-          displayName: before.name,
-          extra: before.extra ?? undefined,
-        });
-        const fill = before.fill as { asOf?: string | null; artifacts?: any[] } | null | undefined;
-        if (fill?.artifacts?.length) {
-          repo.replaceContainerFill(
-            db,
-            restoredId,
-            fill.artifacts.map((artifact) => ({
-              itemId: artifact.itemId,
-              level: artifact.level,
-              quality: artifact.quality,
-            })),
-            fill.asOf ?? new Date().toISOString(),
-          );
-        }
-      }
+      restoreOwnedSnapshot(db, before);
+      return;
+    }
+    case 'owned.clear': {
+      for (const snapshot of (before as any[]) ?? []) restoreOwnedSnapshot(db, snapshot);
+      return;
+    }
+    case 'build.clear': {
+      for (const snapshot of (before as any[]) ?? []) if (snapshot) repo.saveBuild(db, snapshot);
+      return;
+    }
+    case 'dossier.clear': {
+      for (const snapshot of (before?.owned as any[]) ?? []) restoreOwnedSnapshot(db, snapshot);
+      for (const snapshot of (before?.builds as any[]) ?? []) if (snapshot) repo.saveBuild(db, snapshot);
       return;
     }
     case 'container.fill': {
@@ -670,6 +758,37 @@ function restoreSnapshot(db: Db, action: string, before: any, after: any): void 
     }
     default:
       throw new WriteError(400, 'NOT_ROLLBACKABLE', `Event "${action}" cannot be rolled back`);
+  }
+}
+
+function restoreOwnedSnapshot(db: Db, snapshot: any): void {
+  if (!snapshot) return;
+  const restoredId = repo.upsertOwned(db, {
+    characterId: characterOrThrow(db).id,
+    itemId: snapshot.itemId,
+    kind: snapshot.kind,
+    level: snapshot.level,
+    quality: snapshot.quality,
+    skinItemId: snapshot.skinItemId,
+    qty: snapshot.qty,
+    note: snapshot.note,
+    role: snapshot.role,
+    slot: snapshot.slot,
+    displayName: snapshot.name,
+    extra: snapshot.extra ?? undefined,
+  });
+  const fill = snapshot.fill as { asOf?: string | null; artifacts?: any[] } | null | undefined;
+  if (fill?.artifacts?.length) {
+    repo.replaceContainerFill(
+      db,
+      restoredId,
+      fill.artifacts.map((artifact) => ({
+        itemId: artifact.itemId,
+        level: artifact.level,
+        quality: artifact.quality,
+      })),
+      fill.asOf ?? new Date().toISOString(),
+    );
   }
 }
 
