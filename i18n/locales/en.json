@@ -312,6 +312,23 @@
     "rawData": "Raw card data",
     "noLot": "no lot"
   },
+  "catalogNotice": {
+    "title": "The item catalog is not downloaded",
+    "text": "Download public game data before adding gear.",
+    "action": "Open setup"
+  },
+  "owned": {
+    "addTitle": "Add to the dossier",
+    "addDescription": "Pick a catalog item and its parameters.",
+    "item": "Item",
+    "searchItem": "Search the catalog",
+    "add": "Add",
+    "catalogRequired": "Download the item catalog before adding gear.",
+    "catalogRequiredAction": "Open setup",
+    "created": "Added",
+    "fillNext": "Fill the container slots",
+    "noItems": "Nothing found in the catalog."
+  },
   "settings": {
     "pageTitle": "Settings",
     "title": "Settings",

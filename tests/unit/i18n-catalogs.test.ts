@@ -79,6 +79,20 @@ describe('i18n catalogs', () => {
     }
   });
 
+  it('has the add-owned and catalog-notice copy in both locales', () => {
+    for (const key of [
+      'owned.addTitle',
+      'owned.item',
+      'owned.add',
+      'owned.catalogRequired',
+      'catalogNotice.title',
+      'catalogNotice.action',
+    ]) {
+      expect(en[key], key).toBeTruthy();
+      expect(ru[key], key).toBeTruthy();
+    }
+  });
+
   it('registers the new API error codes', () => {
     for (const code of ['CHARACTER_EXISTS', 'CHARACTER_NOT_EMPTY', 'STALZONE_API_NOT_CONFIGURED']) {
       expect(API_ERROR_CODES.has(code), code).toBe(true);

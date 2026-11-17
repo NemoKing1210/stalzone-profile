@@ -41,6 +41,7 @@ const filters = useFilters('weapons', {
   dir: 'desc',
 });
 const sorting = usePersistentSorting(filters);
+const addOpen = ref(false);
 const selected = ref<WeaponRow | null>(null);
 const dialogOpen = ref(false);
 const editTarget = ref<OwnedEditTarget | null>(null);
@@ -282,7 +283,11 @@ function startEdit(row: WeaponRow): void {
           {{ t('weapons.summary', { shown: filteredRows.length, total: rows.length }) }}
         </p>
       </div>
+
+      <UButton icon="i-lucide-plus" :label="t('owned.add')" @click="addOpen = true" />
     </div>
+
+    <CatalogNotice />
 
     <DossierPane class="min-w-0" flush :label="t('weapons.title')" :hint="`${filteredRows.length} / ${rows.length}`">
       <template #header>
@@ -418,5 +423,6 @@ function startEdit(row: WeaponRow): void {
     </UModal>
 
     <EditOwnedModal v-model:open="editOpen" :target="editTarget" />
+    <AddOwnedModal v-model:open="addOpen" kind="weapon" />
   </section>
 </template>
