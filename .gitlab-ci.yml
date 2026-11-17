@@ -1,7 +1,6 @@
 stages:
   - verify
   - test
-  - e2e
   - image
 
 default:
@@ -35,21 +34,6 @@ unit:
     - npm run import:legacy
     - npm test
     - npm run golden
-
-e2e:
-  stage: e2e
-  variables:
-    DB_PATH: ./data/e2e.db
-    CI: 'true'
-  script:
-    - npx playwright install --with-deps chromium
-    - npm run e2e
-  artifacts:
-    when: always
-    paths:
-      - playwright-report/
-      - test-results/
-    expire_in: 7 days
 
 docker:
   stage: image

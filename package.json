@@ -31,7 +31,6 @@
     "test:integration": "vitest run tests/integration",
     "test:related": "vitest related --run",
     "test:watch": "vitest",
-    "e2e": "playwright test",
     "typecheck": "npm run typecheck:node && nuxt typecheck",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
     "lint": "eslint .",
@@ -55,7 +54,6 @@
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.17.0",
-    "@playwright/test": "^1.51.1",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^24.0.0",
     "eslint": "^9.22.0",

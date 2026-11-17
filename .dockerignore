@@ -6,8 +6,6 @@ coverage
 .vitest
 data
 snapshots
-test-results
-playwright-report
 .git
 .gitlab-ci.yml
 .superpowers

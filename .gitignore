@@ -10,8 +10,6 @@ public/icons/
 *.db-wal
 *.db-shm
 snapshots/
-test-results/
-playwright-report/
 .env
 .env.*
 !.env.example
