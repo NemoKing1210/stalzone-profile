@@ -37,6 +37,10 @@ export default defineNuxtConfig({
     allowedHosts: devAllowedHosts,
   },
   app: {
+    // Route changes use the muted fade/2px settle defined in `main.css` (DESIGN §4.5).
+    // `out-in` prevents two screens from occupying <main> at once, and `appear: false`
+    // keeps the first paint static so SSR hydration does not animate the entry screen.
+    pageTransition: { name: 'page', mode: 'out-in', appear: false },
     head: {
       htmlAttrs: { 'data-accent': 'green' },
       title: 'Stalzone Profile',

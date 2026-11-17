@@ -159,6 +159,45 @@
     outline-offset: 2px;
   }
 
+  /* Tailwind v4's preflight leaves buttons on the browser's default arrow, and Nuxt UI does
+     not set a cursor of its own. Every interactive control must read as clickable, while a
+     disabled one must not (DESIGN §6.1). Utilities still win over this base layer. */
+  a[href]:not([aria-disabled='true']),
+  button:not(:disabled),
+  summary,
+  select:not(:disabled),
+  input:where([type='button'], [type='submit'], [type='reset'], [type='checkbox'], [type='radio'], [type='file']):not(
+      :disabled
+    ),
+  label[for],
+  [role='button']:not([aria-disabled='true']),
+  [role='link']:not([aria-disabled='true']),
+  [role='tab']:not([aria-disabled='true']),
+  [role='menuitem']:not([aria-disabled='true']),
+  [role='menuitemcheckbox']:not([aria-disabled='true']),
+  [role='menuitemradio']:not([aria-disabled='true']),
+  [role='option']:not([aria-disabled='true']),
+  [role='treeitem']:not([aria-disabled='true']),
+  [role='switch']:not([aria-disabled='true']),
+  [role='checkbox']:not([aria-disabled='true']),
+  [role='radio']:not([aria-disabled='true']) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  select:disabled,
+  input:where(
+      [type='button'],
+      [type='submit'],
+      [type='reset'],
+      [type='checkbox'],
+      [type='radio'],
+      [type='file']
+    ):disabled,
+  [aria-disabled='true'] {
+    cursor: not-allowed;
+  }
+
   ::selection {
     background: color-mix(in srgb, var(--sz-accent) 35%, transparent);
   }
@@ -317,6 +356,33 @@
   --color-zone-800: #80807a;
   --color-zone-900: #5e5e59;
   --color-zone-950: #3d3d39;
+}
+
+/* Route changes: the screen settles upward by 2px while the shell stays still. Durations
+   and easing follow DESIGN §4.5 (120ms out, 200ms in, ease-out, transform ≤2px, no bounce).
+   Nuxt applies these classes to the page root inside <main>; `out-in` means only one
+   screen is present at a time, so the shell never reflows around a cross-fade. The global
+   reduced-motion rule above collapses both durations. */
+.page-enter-active {
+  transition:
+    opacity 200ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.page-leave-active {
+  transition:
+    opacity 120ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 120ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(2px);
+}
+
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-2px);
 }
 
 @media (prefers-reduced-motion: reduce) {
