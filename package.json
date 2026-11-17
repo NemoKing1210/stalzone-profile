@@ -24,6 +24,7 @@
     "export:json": "tsx scripts/cli.ts export",
     "golden": "tsx scripts/golden.ts",
     "sync": "tsx scripts/cli.ts sync",
+    "logs": "tsx scripts/cli.ts logs",
     "backup": "tsx scripts/cli.ts backup",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",

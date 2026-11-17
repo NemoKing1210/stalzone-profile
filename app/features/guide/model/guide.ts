@@ -175,6 +175,20 @@ export const GUIDE_SITE: GuideSitePage[] = [
       'guide.site.settings.caps.data',
       'guide.site.settings.caps.journal',
       'guide.site.settings.caps.cleanup',
+      'guide.site.settings.caps.logging',
+    ],
+  },
+  {
+    id: 'logs',
+    route: '/logs',
+    icon: 'i-lucide-bug',
+    kind: 'system',
+    titleKey: 'guide.site.logs.title',
+    summaryKey: 'guide.site.logs.summary',
+    capabilityKeys: [
+      'guide.site.logs.caps.filters',
+      'guide.site.logs.caps.entries',
+      'guide.site.logs.caps.purge',
     ],
   },
   {
@@ -256,11 +270,16 @@ export const GUIDE_API: GuideApiEndpoint[] = [
   { method: 'GET', path: '/api/v1/prices', group: 'read', descriptionKey: 'guide.api.reads.prices' },
   { method: 'GET', path: '/api/v1/sources', group: 'read', descriptionKey: 'guide.api.reads.sources' },
   { method: 'GET', path: '/api/v1/events', group: 'read', descriptionKey: 'guide.api.reads.events' },
+  { method: 'GET', path: '/api/v1/logs', group: 'read', descriptionKey: 'guide.api.reads.logs' },
+  { method: 'GET', path: '/api/v1/logs/config', group: 'read', descriptionKey: 'guide.api.reads.logsConfig' },
+  { method: 'GET', path: '/api/v1/logs/stats', group: 'read', descriptionKey: 'guide.api.reads.logsStats' },
   { method: 'GET', path: '/api/v1/admin/export', group: 'read', descriptionKey: 'guide.api.reads.export' },
 
   // Writes: dry-run by default at the MCP edge, `dryRun` optional in the body.
   { method: 'POST', path: '/api/v1/character', group: 'write', descriptionKey: 'guide.api.writes.characterCreate' },
   { method: 'PATCH', path: '/api/v1/character', group: 'write', descriptionKey: 'guide.api.writes.characterPatch' },
+  { method: 'DELETE', path: '/api/v1/logs', group: 'write', descriptionKey: 'guide.api.writes.logsPurge' },
+  { method: 'POST', path: '/api/v1/logs/client', group: 'write', descriptionKey: 'guide.api.writes.logsClient' },
   {
     method: 'POST',
     path: '/api/v1/inventory/items',
@@ -331,6 +350,8 @@ export const GUIDE_API: GuideApiEndpoint[] = [
 
   // Administration: scoped profile resets and source sync.
   { method: 'GET', path: '/api/v1/admin/cleanup', group: 'admin', descriptionKey: 'guide.api.admin.cleanupRead' },
+  { method: 'GET', path: '/api/v1/admin/logging', group: 'admin', descriptionKey: 'guide.api.admin.loggingRead' },
+  { method: 'PATCH', path: '/api/v1/admin/logging', group: 'admin', descriptionKey: 'guide.api.admin.logging' },
   { method: 'POST', path: '/api/v1/admin/cleanup', group: 'admin', descriptionKey: 'guide.api.admin.cleanup' },
   { method: 'POST', path: '/api/v1/admin/sync', group: 'admin', descriptionKey: 'guide.api.admin.sync' },
   { method: 'GET', path: '/api/v1/admin/sync', group: 'admin', descriptionKey: 'guide.api.admin.syncRead' },
@@ -359,6 +380,9 @@ export const GUIDE_MCP: GuideMcpTool[] = [
   { name: 'get_prices', access: 'read', descriptionKey: 'guide.mcp.tools.get_prices' },
   { name: 'sources_status', access: 'read', descriptionKey: 'guide.mcp.tools.sources_status' },
   { name: 'export_profile_json', access: 'read', descriptionKey: 'guide.mcp.tools.export_profile_json' },
+  { name: 'list_logs', access: 'read', descriptionKey: 'guide.mcp.tools.list_logs' },
+  { name: 'log_stats', access: 'read', descriptionKey: 'guide.mcp.tools.log_stats' },
+  { name: 'get_logging', access: 'read', descriptionKey: 'guide.mcp.tools.get_logging' },
   { name: 'add_inventory_item', access: 'write', descriptionKey: 'guide.mcp.tools.add_inventory_item' },
   {
     name: 'update_inventory_item',
@@ -381,6 +405,8 @@ export const GUIDE_MCP: GuideMcpTool[] = [
   { name: 'sync_source', access: 'write', descriptionKey: 'guide.mcp.tools.sync_source' },
   { name: 'rebuild_site', access: 'write', descriptionKey: 'guide.mcp.tools.rebuild_site' },
   { name: 'rollback_event', access: 'write', descriptionKey: 'guide.mcp.tools.rollback_event' },
+  { name: 'update_logging', access: 'write', descriptionKey: 'guide.mcp.tools.update_logging' },
+  { name: 'clear_logs', access: 'write', descriptionKey: 'guide.mcp.tools.clear_logs' },
 ];
 
 export const GUIDE_CLI: GuideCliCommand[] = [
@@ -400,6 +426,12 @@ export const GUIDE_CLI: GuideCliCommand[] = [
   { display: 'npm run sync [source|all]', script: 'sync', group: 'data', descriptionKey: 'guide.cli.commands.sync' },
   { display: 'npm run export:json', script: 'export:json', group: 'data', descriptionKey: 'guide.cli.commands.export' },
   { display: 'npm run backup', script: 'backup', group: 'data', descriptionKey: 'guide.cli.commands.backup' },
+  {
+    display: 'npm run logs -- --level=error --since=24h',
+    script: 'logs',
+    group: 'data',
+    descriptionKey: 'guide.cli.commands.logs',
+  },
   {
     display: "npm run hash-password -- 'password'",
     script: 'hash-password',

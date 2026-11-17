@@ -208,6 +208,10 @@ only if the migrations are non-destructive. A backup always exists before an upg
 | Profile sync reports `STALZONE_API_NOT_CONFIGURED` | set both client credentials (Nuxt names for the site, plain names for the CLI) |
 | Profile sync reports a 401/403 | rotate/check the client credentials; manual counters stay untouched |
 | `SQLITE_BUSY` | do not open the database with a third-party editor; WAL is already enabled |
+| A feature misbehaves | open `/logs`, filter by level `error` or the request id from `x-request-id`; from a terminal `npm run logs -- --level=error --since=24h` |
+| A category needs detail | raise it to `debug` in Settings → Logging (or `update_logging`), reproduce, then set it back to `inherit` |
+| The log grows too fast | check `GET /api/v1/logs/stats`; lower `max_rows` or `retention_days` in Settings → Logging; the server trims hourly |
+| Browser errors are missing | Settings → Logging: `enabled` and `captureClient` must be on, and the `client` level must allow the entry |
 | The site is empty after deploy | the volume is new: sign in, run `/setup`, or `node dist/cli.js sync` and add the character through the API |
 
 Logs:
@@ -216,6 +220,18 @@ Logs:
 docker compose -f deploy/docker-compose.yml logs -f app
 docker compose -f deploy/docker-compose.yml logs -f caddy
 ```
+
+The diagnostic log is separate from container output and survives a restart because it
+lives in SQLite (`log_entry`):
+
+```bash
+npm run logs -- --level=error --since=24h        # or --stats, --category=sync, --json
+```
+
+The same rows are in the `/logs` page and behind the `list_logs`/`log_stats` MCP tools.
+Retention runs in the server process hourly; rows older than `retention_days` go first, then
+the oldest rows beyond `max_rows`. A manual purge is previewed and audited as `log.clear`,
+which cannot be rolled back — take a backup first if the history matters.
 
 ## 7. Security
 

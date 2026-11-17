@@ -1,4 +1,4 @@
-import { runDueBundles, tryRunExclusive } from '@profile/core';
+import { getLogger, runDueBundles, tryRunExclusive } from '@profile/core';
 import { useDb } from '../utils/db';
 import { serverSyncOptions } from '../utils/sync-options';
 
@@ -29,7 +29,7 @@ export default defineNitroPlugin(() => {
     try {
       await tryRunExclusive(() => runDueBundles(db, serverSyncOptions()));
     } catch (error) {
-      console.error('[sync-scheduler] tick failed', error);
+      getLogger(db, 'app').error('sync scheduler tick failed', {}, error);
     }
   }
 

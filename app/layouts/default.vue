@@ -82,6 +82,14 @@ async function logout(): Promise<void> {
             :aria-label="t('nav.settings')"
           />
           <UButton
+            to="/logs"
+            icon="i-lucide-bug"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            :aria-label="t('nav.logs')"
+          />
+          <UButton
             icon="i-lucide-log-out"
             color="neutral"
             variant="ghost"

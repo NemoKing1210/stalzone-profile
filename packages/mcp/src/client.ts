@@ -5,7 +5,13 @@ import type {
   InventoryItemPatch,
   InventoryItemRead,
   InventoryRead,
+  LoggingSettings,
+  LoggingSettingsUpdate,
+  LogQuery,
+  LogQueryResult,
+  LogStats,
   PlacementTarget,
+  PurgeLogsInput,
   StorageCreate,
   StoragePatch,
   StorageRead,
@@ -33,17 +39,22 @@ import {
   latestPricesForNames,
   listItemEffects,
   listSourceReads,
+  logStats as readLogStats,
   moveInventoryItem,
   planArtifactBuild,
+  purgeLogs as clearStoredLogs,
+  queryLogs as readStoredLogs,
   rollbackEvent as restoreEvent,
   runExclusive,
   runSync,
   searchItemSummaries,
   searchItems,
+  readLoggingSettings,
   setContainerFill,
   setItemLayout,
   setWeaponModule,
   updateInventoryItem,
+  updateLoggingSettings as writeLoggingSettings,
   updateStorage,
   type Db,
   type ItemRow,
@@ -148,6 +159,11 @@ export interface ProfileClient {
   syncSource(source: string, force: boolean): Promise<Json>;
   rebuildSite(): Promise<Json>;
   rollbackEvent(eventId: number, dryRun: boolean): Promise<WriteResult>;
+  listLogs(query: LogQuery): Promise<LogQueryResult>;
+  logStats(windowHours?: number): Promise<LogStats>;
+  getLogging(): Promise<LoggingSettings>;
+  updateLogging(input: LoggingSettingsUpdate): Promise<WriteResult>;
+  clearLogs(input: PurgeLogsInput): Promise<WriteResult>;
   close?(): Promise<void>;
 }
 
@@ -426,6 +442,34 @@ export function localClient(db: Db, syncOptions: LocalClientOptions = {}): Profi
         return writeError(error);
       }
     },
+
+    async listLogs(query) {
+      return readStoredLogs(db, query);
+    },
+
+    async logStats(windowHours = 24) {
+      return readLogStats(db, windowHours);
+    },
+
+    async getLogging() {
+      return readLoggingSettings(db);
+    },
+
+    async updateLogging(input) {
+      try {
+        return writeLoggingSettings(db, input);
+      } catch (error) {
+        return writeError(error);
+      }
+    },
+
+    async clearLogs(input) {
+      try {
+        return clearStoredLogs(db, input);
+      } catch (error) {
+        return writeError(error);
+      }
+    },
   };
 }
 
@@ -605,6 +649,21 @@ export function httpClient(baseUrl: string, token: string): ProfileClient {
         dry_run: dryRun,
         confirm: true,
       })) as unknown as WriteResult;
+    },
+    async listLogs(query) {
+      return (await call('list_logs', toSnakeDeep(query) as Record<string, unknown>)) as unknown as LogQueryResult;
+    },
+    async logStats(windowHours = 24) {
+      return (await call('log_stats', { window_hours: windowHours })) as unknown as LogStats;
+    },
+    async getLogging() {
+      return (await call('get_logging')) as unknown as LoggingSettings;
+    },
+    async updateLogging(input) {
+      return (await call('update_logging', writeArgs(input))) as unknown as WriteResult;
+    },
+    async clearLogs(input) {
+      return (await call('clear_logs', writeArgs(input))) as unknown as WriteResult;
     },
     async close() {
       if (!connection) return;

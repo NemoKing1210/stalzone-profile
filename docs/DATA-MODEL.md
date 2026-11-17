@@ -33,6 +33,14 @@ only through new migrations in `db/migrations/`.
 | `item_layout` | optional catalog-wide grid override: width, height, weight for an `item` |
 | `event_log` | write journal: `before`/`after` snapshots for rollback |
 
+### Diagnostics (not profile data)
+
+| Table | Purpose |
+|---|---|
+| `log_setting` | exactly one row: enabled, minimum level, retention days, row cap, browser capture flags and stdout mirror |
+| `log_level` | optional per-category override (`http`, `sync`, `mcp`, `db`, `app`, `client`); an absent row inherits the minimum |
+| `log_entry` | diagnostic entries: level, category, source, message, redacted JSON context, stack, request id, fingerprint, duration; indexes cover time, level, category, fingerprint and request id |
+
 Migrations: `0001_init.sql` is the typed baseline. On 2026-11-17 the owner approved a second
 reset for the inventory redesign: because the project is not deployed, the baseline and
 migrations may be rewritten in place until the first deployment. After that, every change is
@@ -47,7 +55,8 @@ copies the old `owned_*` rows into it and drops the old tables together with
 `character.stash` (the stash becomes a `storage` row). An event written before `0006`
 references tables that no longer exist, so `rollbackEvent` answers
 `EVENT_NOT_ROLLBACKABLE` for the legacy actions (`owned.*`, `container.fill`,
-`profile.clear`, `dossier.clear`) instead of failing halfway.
+`profile.clear`, `dossier.clear`) instead of failing halfway. `0007_logging.sql` adds the
+three STRICT diagnostic tables and seeds the single `log_setting` row.
 
 ## Source authority
 
@@ -107,6 +116,27 @@ owns itself.
   `(name_norm, quality_norm, bonus)`, newest by `(fetched_at, id)`.
 - `event_log.before/after` are the rollback contract; the format may change only in a
   backward-compatible way, with a rollback test.
+
+## Diagnostic log
+
+The diagnostic log is telemetry, not a business record. `event_log` stays the audit
+journal: business writes still go through their module's `write.ts` and every one lands
+there. `log_entry` rows are observations written by the logging writer; they never mutate
+profile state, so they are exempt from the "data changes only through services" rule and do
+not need an `event_log` partner. The two audited exceptions are the logging settings write
+(`logging.settings.update`) and a purge (`log.clear`).
+
+- Classification: `debug`/`info`/`warn`/`error`; `warn` means a source is stale or a request
+  is slow or rejected, `error` means a run crashed. Never invent data or log a value as zero
+  when it is missing.
+- Retention: the server sweeps hourly — rows older than `retention_days` and, beyond
+  `max_rows`, the oldest rows. Retention writes no `event_log` row; it adds one summary
+  entry with the counts when logging is enabled.
+- Purge: `log.clear` deletes the filtered set in one transaction and is deliberately not
+  rollbackable (`NON_ROLLBACKABLE_ACTIONS`). A filtered purge without any predicate is
+  rejected as `LOG_FILTER_REQUIRED`; clearing everything needs `scope: "all"`.
+- Secrets never enter a row: the writer redacts secret-looking keys, bearer tokens and URL
+  query strings before truncation and fingerprinting.
 
 ## Profile resets
 

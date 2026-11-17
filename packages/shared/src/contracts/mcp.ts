@@ -8,6 +8,7 @@ import {
   StorageReadSchema,
 } from './inventory.js';
 import { ProfileExportSchema, PayloadCharacterSchema, PayloadMetaSchema } from './payload.js';
+import { LoggingSettingsSchema, LogQueryResultSchema, LogStatsSchema } from './logging.js';
 
 /** The MCP price row omits the database ids that the HTTP route includes. */
 export const McpPriceRowSchema = z.object({
@@ -54,4 +55,7 @@ export const READ_OUTPUT_SCHEMAS: Record<string, z.ZodTypeAny> = {
   get_prices: z.object({ prices: z.record(z.string(), z.array(McpPriceRowSchema)) }),
   sources_status: z.object({ sources: SourcesReadSchema }),
   export_profile_json: z.object({ profile: ProfileExportSchema }),
+  list_logs: LogQueryResultSchema,
+  log_stats: LogStatsSchema,
+  get_logging: LoggingSettingsSchema,
 };

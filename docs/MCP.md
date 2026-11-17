@@ -1,7 +1,7 @@
 # MCP server
 
-One tool registry serves both stdio and HTTP — results never diverge. There are 26 tools:
-12 read and 14 write/maintenance.
+One tool registry serves both stdio and HTTP — results never diverge. There are 31 tools:
+15 read and 16 write/maintenance.
 
 ## Connecting
 
@@ -52,7 +52,11 @@ Client config:
   command.
 - `rollback_event` restores an entity from the `event_log` snapshot. An event written
   before the inventory redesign (`owned.*`, `container.fill`, `profile.clear`,
-  `dossier.clear`) answers `EVENT_NOT_ROLLBACKABLE`.
+  `dossier.clear`) answers `EVENT_NOT_ROLLBACKABLE`; so do `rollback` and `log.clear`
+  themselves.
+- `clear_logs` follows the same gate: it previews by default, and a real purge needs
+  `dry_run: false` + `confirm: true`. The purge is audited as `log.clear` and cannot be
+  rolled back.
 
 Tool errors: `{ isError: true, content: [{ text: "{\"error\":{\"code\",\"message\"}}" }] }`.
 
@@ -74,6 +78,9 @@ The `profile://schema` resource provides tool descriptions and the write rules.
 | `get_prices` | `names[]`, `quality?` | latest prices for each combination |
 | `sources_status` | — | source status, `lastOkAt`, `lastError` |
 | `export_profile_json` | — | the typed profile JSON (the same shape as `GET /api/v1/admin/export`) |
+| `list_logs` | `levels?`, `categories?`, `sources?`, `since?`, `until?`, `text?`, `request_id?`, `fingerprint?`, `min_duration_ms?`, `before?`, `limit?` | `LogQueryResult`: entries, repeat groups and the next cursor |
+| `log_stats` | `window_hours?` (default 24) | counts by level/category/source, storage size, queue and settings |
+| `get_logging` | — | `LoggingSettings` with effective per-category levels |
 
 ## Write and maintenance tools
 
@@ -88,6 +95,8 @@ The `profile://schema` resource provides tool descriptions and the write rules.
 | `delete_storage` | `storage_id`, `move_to_storage_id?`, `dry_run?` |
 | `auto_arrange_storage` | `storage_id`, `dry_run?` |
 | `set_container_artifacts` | `container_item_id`, `slots[]` (instance ids or `null`), `dry_run?` |
+| `update_logging` | `enabled`, `min_level`, `retention_days`, `max_rows`, `capture_client`, `client_console`, `mirror_stdout`, `levels`, `dry_run?` |
+| `clear_logs` | `scope` (`all` or `filtered`), `filter?`, `dry_run?` |
 | `set_weapon_module` | `weapon_item_id`, `slot`, `attachment_item_id?` (`null` removes), `allow_unverified?`, `dry_run?` |
 | `set_item_layout` | `item_id` (catalog), `width`, `height`, `weight?`, `dry_run?` |
 | `sync_source` | `source`: `exbo \| exbo_base \| wiki \| motifs \| scpmodel \| icons \| profile`, `force?`, `confirm`. Resolves `ICONS_DIR` and the STALZONE credentials the same way the CLI does. The realm is not a tool argument: like the CLI and the admin route, a sync binds the default `ru` realm |

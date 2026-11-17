@@ -9,6 +9,15 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- A diagnostic logging module: a SQLite-backed `log_entry` table with configurable minimum
+  level, per-category overrides, retention days and a row cap. It records HTTP requests,
+  sync runs, MCP calls, CLI commands, database boot lines and browser errors, with request
+  ids, repeat grouping by fingerprint and redaction before storage. The `/logs` page lists,
+  filters, groups, paginates and previews a purge; Settings → Logging edits the settings.
+  REST gains `/api/v1/logs`, `/logs/stats`, `/logs/config`, `DELETE /logs` and
+  `/api/v1/admin/logging`; MCP gains `list_logs`, `log_stats`, `get_logging`,
+  `update_logging` and `clear_logs`; the CLI gains `npm run logs`. Diagnostics are separate
+  from the `event_log` audit journal, and `log.clear` is not rollbackable.
 - The profile has a full inventory: a cell grid with the item's own size and weight, one
   inventory plus any number of named stashes, the game's equipment slots (primary,
   secondary, melee, armor, backpack/container, quick slots 1–4), containers with artifact

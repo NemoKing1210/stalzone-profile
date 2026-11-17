@@ -54,6 +54,7 @@ terminal.
 | Topic                                              | Document                               |
 | -------------------------------------------------- | -------------------------------------- |
 | First launch, Docker, backups, upgrades, incidents | [Runbook](docs/RUNBOOK.md)             |
+| Reading the diagnostic log (`/logs`, `npm run logs`) | [Runbook §6](docs/RUNBOOK.md#6-troubleshooting) |
 | Environment variables and secrets                  | [Configuration](docs/CONFIGURATION.md) |
 | Components, packages, read and write flows         | [Architecture](docs/ARCHITECTURE.md)   |
 | REST routes, payloads and errors                   | [API](docs/API.md)                     |

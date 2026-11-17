@@ -59,6 +59,7 @@ is the truth until the file is fixed in the same change.
 | MCP smoke                         | `npm run smoke:mcp`                                                          |
 | Source sync                       | `npm run sync [exbo_base\|wiki\|motifs\|scpmodel\|icons\|profile] [-- --force]` |
 | Backup                            | `npm run backup`                                                             |
+| Diagnostic log                    | `npm run logs [-- --level=error --since=24h --category=sync --stats --json]`  |
 | Password hash                     | `npm run hash-password -- 'password'`                                        |
 
 `db:reset` deletes the file at `DB_PATH` (and `-wal`/`-shm`). Before running it, make sure
@@ -107,6 +108,9 @@ When unsure, widen: a missed test is a correctness bug; an extra suite only cost
 | `packages/core/src/modules/inventory/**`                  | `npm test -- tests/integration/inventory-storage.test.ts tests/integration/inventory-move.test.ts tests/integration/inventory-read.test.ts tests/integration/cleanup-inventory.test.ts tests/integration/payload.test.ts` |
 | `packages/core/src/modules/read-model/**`                | `npm test -- tests/integration/import.test.ts tests/integration/db.test.ts tests/integration/payload.test.ts tests/integration/read-model.test.ts` |
 | `packages/core/src/modules/sync/**`                      | `npm test -- tests/integration/sync.test.ts tests/integration/prices.test.ts`                                                           |
+| `packages/core/src/modules/logging/**`, `platform/logging/**` | `npm test -- tests/integration/logging.test.ts tests/integration/logging-writer.test.ts tests/unit/logging-*.test.ts`                |
+| `server/plugins/logging.ts`, `server/api/v1/logs*`, `server/utils/{http-log,client-log,log,log-limit}.ts` | `npm test -- tests/unit/http-log.test.ts tests/unit/client-log.test.ts tests/unit/log-limit.test.ts`                          |
+| `app/plugins/log.client.ts`, `app/features/logs/**`      | `npm test -- tests/unit/app/logs`; `npm run typecheck`                                                                                  |
 | `packages/core/src/modules/{maintenance,setup}/**`        | `npm test -- tests/integration/cleanup.test.ts tests/integration/maintenance-atomicity.test.ts tests/integration/setup.test.ts`         |
 | `packages/sources/**`                                    | `npm test -- tests/integration/sync.test.ts tests/integration/prices.test.ts` (fake `fetchImpl` only)                                   |
 | `packages/mcp/**`                                        | `npm test -- tests/integration/mcp.test.ts`; `npm run smoke:mcp` before Tier 3 if read tools changed                                    |
@@ -145,8 +149,9 @@ Rules that keep the tiers honest:
 | ---------------------------- | ------------------------------------------------------------------------ |
 | `packages/shared`            | contracts (zod), `norm`, formatting, ranks, hashes                       |
 | `packages/core/src/platform` | config, opening SQLite, migrations, journal, security                    |
-| `packages/core/src/modules`  | bounded contexts: catalog, identity, inventory, maintenance, read-model, |
-|                              | setup, sync — each with its own `index.ts` public API                    |
+| `packages/core/src/modules`  | bounded contexts: catalog, identity, inventory, logging, maintenance,    |
+|                              | read-model, setup, sync — each with its own `index.ts` public API        |
+| `packages/core/src/platform/logging` | writer, levels, redaction, fingerprints, settings cache, boot lines |
 | `packages/core/src/modules/inventory` | storages, gear instances, placements, container data, weapon modules, loadout |
 | `packages/core/src/modules/catalog/calc` | DPS/TTK and artifact formulas — the only source of numbers  |
 | `packages/sources`           | pure source adapters: fetch + parse, **no DB writes**                    |
@@ -174,7 +179,10 @@ is engineering default, not law.
 1. **Data changes only through services.** Do not edit `profile.db`, `payload.json` or the
    export by hand. Writes go only through the API, MCP or CLI, and always through the owning
    domain module's `write.ts` (`modules/<name>/write.ts`) with an `event_log` entry in the
-   same transaction. HTTP routes and MCP never write SQL themselves.
+   same transaction. HTTP routes and MCP never write SQL themselves. The diagnostic log is
+   the one exception, by owner decision: `log_entry` rows are telemetry written by the
+   logging writer, never profile state and never a substitute for an audit event; the
+   audited actions remain `logging.settings.update` and `log.clear`.
 2. **`before`/`after` in `event_log` are the rollback contract.** Change the format only in
    a backward-compatible way and cover rollback with a test.
 3. **No invented numbers.** No lot means `null` → "no lot"; no stat means `null` → "no data".
@@ -300,6 +308,39 @@ are a reference, not marketing copy.
 - Before saying "done" for a change, Tier 2 (the affected suites) must be green. Before
   push/PR/merge, run Tier 3 (the full gate) — see **Verification tiers**. Say which tier you
   ran; targeted tests are not a full check.
+
+## Reading logs
+
+The diagnostic log answers "what went wrong", the audit journal answers "what changed".
+Use `log_entry` for defects and `event_log` for business writes; never put a defect into the
+audit journal or a profile change into the log.
+
+| Entry | Level |
+|---|---|
+| per-source parse steps, HTTP fetch details | `debug` |
+| run start/finish, source ok, duration, slow request (> 1 s) | `info` |
+| source stale, lock skipped, 4xx other than 401/404 | `warn` |
+| run crashed, unhandled error, 5xx | `error` |
+
+How to read it:
+
+- `npm run logs -- --level=error --since=24h` (also `--category=sync`, `--text=`,
+  `--request-id=`, `--stats`, `--json`).
+- MCP `list_logs` and `log_stats`; the `/logs` page for filters, repeat groups and a
+  previewed purge.
+- A request carries `x-request-id`; a sync run and each MCP call carry their own id in
+  the context.
+
+Rules:
+
+- Never log secrets, request bodies, headers, cookies, `.env` values, DB rows or file
+  contents. The writer redacts secret-looking keys, bearer tokens and URL query strings,
+  but the call site is still responsible for not passing them.
+- Raise one category to `debug` through `update_logging` or Settings → Logging, reproduce,
+  then set it back to `inherit`. Do not leave debug levels on.
+- `log.clear` and `rollback` are not rollbackable. Purging is audited but final.
+- Retention is automatic (hourly, age + row cap); a manual purge is a separate owner
+  action. Never delete rows with SQL.
 
 ## Gotchas
 

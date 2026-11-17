@@ -7,6 +7,7 @@ export * from './platform/config.js';
 export * from './platform/db/index.js';
 export * from './platform/db/migrate.js';
 export * from './platform/journal/index.js';
+export * from './platform/logging/index.js';
 export * from './platform/security.js';
 
 /* ------------------------------- catalog ------------------------------- */
@@ -105,6 +106,7 @@ export { ensureDefaultSources, getSource, listSources, SOURCE_IDS } from './modu
 
 /* --------------------------- application modules ----------------------- */
 
+export * from './modules/logging/index.js';
 export * from './modules/setup/index.js';
 export * from './modules/maintenance/index.js';
 export * from './modules/read-model/index.js';

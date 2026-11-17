@@ -3,6 +3,9 @@ import { z } from 'zod';
 import { ItemKindSchema } from '@profile/shared';
 import {
   AddInventoryItemInputSchema,
+  LOG_CATEGORIES,
+  LOG_LEVELS,
+  LOG_SOURCES,
   AutoArrangeStorageInputSchema,
   CompareItemsInputSchema,
   CreateStorageInputSchema,
@@ -26,7 +29,9 @@ import {
   type UpdateInventoryItemInput,
   type UpdateStorageInput,
 } from '@profile/shared/contracts';
+import type { Logger } from '@profile/core';
 import { McpClientError, type ProfileClient } from './client.js';
+import { instrumentClient } from './logging.js';
 
 type Json = Record<string, unknown>;
 
@@ -72,6 +77,65 @@ const SyncSourceInputSchema = z.object({
   confirm: z.boolean().default(false),
 });
 
+const ListLogsInputSchema = z.object({
+  levels: z.array(z.enum(LOG_LEVELS)).optional(),
+  categories: z.array(z.enum(LOG_CATEGORIES)).optional(),
+  sources: z.array(z.enum(LOG_SOURCES)).optional(),
+  since: z.string().datetime().optional(),
+  until: z.string().datetime().optional(),
+  text: z.string().min(1).max(200).optional(),
+  request_id: z.string().min(1).max(200).optional(),
+  fingerprint: z.string().regex(/^[0-9a-f]{40}$/).optional(),
+  min_duration_ms: z.number().int().min(0).optional(),
+  before: z.number().int().positive().optional(),
+  limit: z.number().int().min(1).max(200).default(50),
+});
+
+const LogStatsInputSchema = z.object({
+  window_hours: z.number().int().min(1).max(720).default(24),
+});
+
+const LogLevelSettingSchema = z.enum([...LOG_LEVELS, 'off', 'inherit']);
+
+const UpdateLoggingInputSchema = z.object({
+  enabled: z.boolean(),
+  min_level: z.enum(LOG_LEVELS),
+  retention_days: z.number().int().min(1).max(365),
+  max_rows: z.number().int().min(1_000).max(2_000_000),
+  capture_client: z.boolean(),
+  client_console: z.boolean(),
+  mirror_stdout: z.boolean(),
+  levels: z.object({
+    http: LogLevelSettingSchema,
+    sync: LogLevelSettingSchema,
+    mcp: LogLevelSettingSchema,
+    db: LogLevelSettingSchema,
+    app: LogLevelSettingSchema,
+    client: LogLevelSettingSchema,
+  }),
+  dry_run: z.boolean().default(true),
+  confirm: z.boolean().default(false),
+});
+
+const PurgeFilterInputSchema = z.object({
+  levels: z.array(z.enum(LOG_LEVELS)).optional(),
+  categories: z.array(z.enum(LOG_CATEGORIES)).optional(),
+  sources: z.array(z.enum(LOG_SOURCES)).optional(),
+  since: z.string().datetime().optional(),
+  until: z.string().datetime().optional(),
+  text: z.string().min(1).max(200).optional(),
+  request_id: z.string().min(1).max(200).optional(),
+  fingerprint: z.string().regex(/^[0-9a-f]{40}$/).optional(),
+  min_duration_ms: z.number().int().min(0).optional(),
+});
+
+const ClearLogsInputSchema = z.object({
+  scope: z.enum(['all', 'filtered']),
+  filter: PurgeFilterInputSchema.optional(),
+  dry_run: z.boolean().default(true),
+  confirm: z.boolean().default(false),
+});
+
 const RollbackInputSchema = z.object({
   event_id: z.number().int().positive(),
   dry_run: z.boolean().default(true),
@@ -92,6 +156,9 @@ export const READ_TOOLS: { name: string; args: Record<string, unknown> }[] = [
   { name: 'get_prices', args: { names: ['АК-12'] } },
   { name: 'sources_status', args: {} },
   { name: 'export_profile_json', args: {} },
+  { name: 'list_logs', args: { limit: 5 } },
+  { name: 'log_stats', args: { window_hours: 24 } },
+  { name: 'get_logging', args: {} },
 ];
 
 /** Loose zod shape of every read tool result, so the smoke fails loudly on malformed output. */
@@ -124,6 +191,11 @@ const TOOL_DOCS: Record<string, string> = {
     sync_source: 'Run a source sync (exbo_base, wiki, motifs, scpmodel, icons, profile); requires confirm',
     rebuild_site: 'Site rebuild happens on deploy; MCP only reports the command',
     rollback_event: 'Roll back a journal event (dry_run by default)',
+    list_logs: 'Diagnostic log entries with filters and repeat groups',
+    log_stats: 'Log counts by level, category and source, plus storage size',
+    get_logging: 'Logging settings and effective per-category levels',
+    update_logging: 'Change logging settings (dry_run by default)',
+    clear_logs: 'Delete logs by filter or entirely (dry_run by default)',
 };
 
 function ok(data: unknown) {
@@ -244,13 +316,15 @@ function registerWriteTool(
 export interface ProfileServerOptions {
   writesPerMinute?: number;
   limiter?: WriteLimiter;
+  logger?: Logger;
 }
 
 /** The single tool registry behind stdio and `/mcp`; transports only carry messages. */
 export function createProfileServer(
-  client: ProfileClient,
+  profileClient: ProfileClient,
   options: ProfileServerOptions = {},
 ): McpServer {
+  const client = options.logger ? instrumentClient(profileClient, options.logger) : profileClient;
   const server = new McpServer(
     { name: 'stalzone-profile', version: '0.1.0' },
     { instructions: 'Personal STALZONE profile. Reads are open; writes default to dry_run and require confirm.' },
@@ -411,6 +485,56 @@ export function createProfileServer(
     async () => {
       try {
         return ok({ profile: await client.exportProfileJson() });
+      } catch (error) {
+        return errorResult(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    'list_logs',
+    { description: TOOL_DOCS.list_logs, inputSchema: ListLogsInputSchema },
+    async (args) => {
+      try {
+        return ok(
+          await client.listLogs({
+            levels: args.levels,
+            categories: args.categories,
+            sources: args.sources,
+            since: args.since,
+            until: args.until,
+            text: args.text,
+            requestId: args.request_id,
+            fingerprint: args.fingerprint,
+            minDurationMs: args.min_duration_ms,
+            before: args.before,
+            limit: args.limit,
+          }),
+        );
+      } catch (error) {
+        return errorResult(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    'log_stats',
+    { description: TOOL_DOCS.log_stats, inputSchema: LogStatsInputSchema },
+    async (args) => {
+      try {
+        return ok(await client.logStats(args.window_hours));
+      } catch (error) {
+        return errorResult(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    'get_logging',
+    { description: TOOL_DOCS.get_logging, inputSchema: z.object({}) },
+    async () => {
+      try {
+        return ok(await client.getLogging());
       } catch (error) {
         return errorResult(error);
       }
@@ -624,6 +748,61 @@ export function createProfileServer(
       }
     },
   );
+
+  registerWriteTool(server, limiter, 'update_logging', UpdateLoggingInputSchema, async (raw, dryRun) => {
+    const args = raw as unknown as {
+      enabled: boolean;
+      min_level: 'debug' | 'info' | 'warn' | 'error';
+      retention_days: number;
+      max_rows: number;
+      capture_client: boolean;
+      client_console: boolean;
+      mirror_stdout: boolean;
+      levels: Record<string, 'debug' | 'info' | 'warn' | 'error' | 'off' | 'inherit'>;
+    };
+    return client.updateLogging({
+      enabled: args.enabled,
+      minLevel: args.min_level,
+      retentionDays: args.retention_days,
+      maxRows: args.max_rows,
+      captureClient: args.capture_client,
+      clientConsole: args.client_console,
+      mirrorStdout: args.mirror_stdout,
+      levels: args.levels as Parameters<ProfileClient['updateLogging']>[0]['levels'],
+      dryRun,
+    });
+  });
+
+  registerWriteTool(server, limiter, 'clear_logs', ClearLogsInputSchema, async (raw, dryRun) => {
+    const args = raw as unknown as {
+      scope: 'all' | 'filtered';
+      filter?: {
+        levels?: ('debug' | 'info' | 'warn' | 'error')[];
+        categories?: ('http' | 'sync' | 'mcp' | 'db' | 'app' | 'client')[];
+        sources?: ('server' | 'mcp' | 'cli' | 'client')[];
+        since?: string;
+        until?: string;
+        text?: string;
+        request_id?: string;
+        fingerprint?: string;
+        min_duration_ms?: number;
+      };
+    };
+    const filter = args.filter
+      ? {
+          levels: args.filter.levels,
+          categories: args.filter.categories,
+          sources: args.filter.sources,
+          since: args.filter.since,
+          until: args.filter.until,
+          text: args.filter.text,
+          requestId: args.filter.request_id,
+          fingerprint: args.filter.fingerprint,
+          minDurationMs: args.filter.min_duration_ms,
+        }
+      : undefined;
+    return client.clearLogs({ scope: args.scope, filter, dryRun });
+  });
 
   server.registerResource(
     'schema',

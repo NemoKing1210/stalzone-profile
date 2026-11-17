@@ -31,9 +31,10 @@ Mutations (`POST/PATCH/PUT/DELETE`) require this host's `Origin` or
 | 401 | `UNAUTHORIZED` / `INVALID_PASSWORD` | no session / wrong password |
 | 403 | `ORIGIN_REQUIRED`, `ORIGIN_MISMATCH` | a mutation from a foreign origin |
 | 404 | `NOT_FOUND`, `ITEM_NOT_FOUND`, `STORAGE_NOT_FOUND`, `DETAIL_NOT_FOUND` | the entity or derived card does not exist |
+| 413 | `CLIENT_LOG_BATCH_TOO_LARGE` | a browser log batch is over 32 KiB |
 | 409 | `NO_CHARACTER`, `NOTHING_TO_CLEAR`, `EVENT_NOT_ROLLBACKABLE` and domain conflicts | no character / the cleanup scope is empty / the event predates the inventory redesign / `SLOT_OCCUPIED`, `OUT_OF_BOUNDS`, `CONTAINER_FULL`, `CONTAINER_SLOTS_IN_USE`, `INCOMPATIBLE_ATTACHMENT`, `STORAGE_TOO_SMALL`, `STORAGE_NAME_TAKEN`, `LAYOUT_CONFLICT` |
-| 422 | domain write errors | e.g. `INVALID_PLACEMENT`, `NOT_A_CONTAINER`, `NOT_AN_ARTIFACT`, `NOT_A_WEAPON` |
-| 429 | `RATE_LIMITED` | too many sign-in attempts |
+| 422 | domain write errors | e.g. `INVALID_PLACEMENT`, `NOT_A_CONTAINER`, `NOT_AN_ARTIFACT`, `NOT_A_WEAPON`, `INVALID_LOGGING_SETTINGS`, `INVALID_LOG_PURGE`, `LOG_FILTER_REQUIRED` |
+| 429 | `RATE_LIMITED`, `CLIENT_LOG_RATE_LIMITED` | too many sign-in attempts / more than 120 browser log entries per minute from one address |
 
 Messages are English. The web UI localizes known codes with `useApiError`; clients that
 need user-facing text should do the same or show the message as-is.
@@ -59,6 +60,10 @@ need user-facing text should do the same or show the message as-is.
 | GET | `/api/v1/events?limit=` | change journal |
 | GET | `/api/v1/admin/export` | the typed profile JSON (attachment) |
 | GET | `/api/v1/admin/cleanup` | counts for every reset scope: `inventory` (`items`, `storages`, `placements`), `manualStats`, `character`, `journal` |
+| GET | `/api/v1/logs?levels=&categories=&sources=&since=&until=&text=&requestId=&fingerprint=&minDurationMs=&before=&limit=` | `LogQueryResult`: newest-first entries, repeat groups, `nextBefore` cursor; lists are comma-separated |
+| GET | `/api/v1/logs/stats?windowHours=` | `LogStats`: counts by level/category/source, oldest/newest, approximate bytes, queue and settings (`windowHours` 1..720, default 24) |
+| GET | `/api/v1/logs/config` | `ClientLogConfig`: `{ enabled, captureClient, clientConsole, levels }` for the browser plugin |
+| GET | `/api/v1/admin/logging` | `LoggingSettings`: stored scalars, effective levels and overrides |
 
 ## Writes
 
@@ -92,6 +97,8 @@ text is English.
 | PATCH | `/api/v1/character` | `CharacterPatchSchema` |
 | POST | `/api/v1/events/:id/rollback` | `{ dryRun? }` |
 | POST | `/api/v1/admin/cleanup` | `{ scope?: inventory \| manualStats \| character \| journal \| all, dryRun? }` |
+| DELETE | `/api/v1/logs` | `PurgeLogsSchema`: `{ scope: all \| filtered, filter?, dryRun? }`; the preview reports the affected count, the write records `log.clear` |
+| PATCH | `/api/v1/admin/logging` | `LoggingSettingsUpdateSchema`: `enabled`, `minLevel`, `retentionDays` (1..365), `maxRows` (1000..2 000 000), `captureClient`, `clientConsole`, `mirrorStdout`, `levels` (`inherit` or a level), `dryRun` |
 
 `CharacterPatchSchema` accepts identity fields (`nick`, `region`, `faction` — one of the
 four faction slugs or `null`, `alliance`, `clanName`, `clanRank`, `money`, `maxMoney`)
@@ -125,6 +132,26 @@ default storages created with the character do not block the rollback.
 
 An event written before the inventory redesign references dropped tables; rolling it back
 answers `409 EVENT_NOT_ROLLBACKABLE` and writes nothing.
+
+## Logs
+
+`POST /api/v1/logs/client` accepts `ClientLogBatchSchema` — an envelope of up to 50 browser
+entries and at most 32 KiB of JSON per request, rate-limited to 120 entries per minute per
+address. The server forces `source: "client"` and `category: "client"`, validates each entry
+alone, drops invalid ones and answers `202` with `{ accepted, rejected }` when anything was
+stored, `204` when nothing was accepted, `413 CLIENT_LOG_BATCH_TOO_LARGE` when the payload is
+over budget, and `429 CLIENT_LOG_RATE_LIMITED` when the budget is exhausted. Logging
+`enabled`/`captureClient` and the `client` level all gate the write.
+
+`GET /api/v1/logs` returns `entries` (newest first, `limit` 1..200, default 50), `groups`
+(repeats grouped by fingerprint over the whole filtered set, sample message included),
+`nextBefore` and `hasMore` for the cursor. `levels`, `categories` and `sources` accept a
+comma-separated list; `since`/`until` are ISO datetimes (`since` inclusive, `until`
+exclusive).
+
+A purge is audited once as `log.clear` and is not rollbackable. A filtered purge with no
+predicate answers `422 LOG_FILTER_REQUIRED`; `scope: "all"` is the explicit way to clear
+everything.
 
 ## Sync
 

@@ -3,7 +3,7 @@ import { CleanupPanel } from '~/features/cleanup';
 import { EventLog } from '~/features/events';
 import { SettingsPage } from '~/features/settings';
 
-const TAB_IDS = ['appearance', 'sources', 'data', 'journal', 'cleanup'] as const;
+const TAB_IDS = ['appearance', 'sources', 'data', 'journal', 'cleanup', 'logging'] as const;
 const route = useRoute();
 const router = useRouter();
 const requested = typeof route.query.tab === 'string' ? route.query.tab : '';

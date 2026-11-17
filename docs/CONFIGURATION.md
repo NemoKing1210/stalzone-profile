@@ -30,6 +30,8 @@ in the shell win over the file. Docker deployments do not read `.env` directly:
 | `NUXT_STALZONE_CLIENT_SECRET` | —                              | Runtime override for the Nuxt server; Docker sets this one                         |
 | `STALZONE_API_URL`            | `https://eapi.stalzone.com`    | Profile API endpoint                                                               |
 | `STALZONE_TOKEN_URL`          | `https://exbo.net/oauth/token` | OAuth token endpoint                                                               |
+| `LOG_BOOT_LEVEL`              | `warn`                         | Pre-database boot lines: `debug`, `info`, `warn`, `error` or `off`                 |
+| `LOG_BOOT_STDOUT`             | `1`                            | `0` silences boot lines on stdout/stderr                                           |
 
 MCP clients may also use:
 
@@ -37,6 +39,19 @@ MCP clients may also use:
 | ----------------- | ---------------- | ------------------------------------------------------------------- |
 | `PROFILE_API_URL` | —                | Make `npm run mcp` talk to a running server instead of local SQLite |
 | `MCP_TOKEN`       | `NUXT_MCP_TOKEN` | Bearer token for the stdio-over-HTTP client                         |
+
+## Diagnostic log
+
+Runtime logging settings are database state, not environment variables: `log_setting` and
+`log_level` hold the switch, minimum level, retention, row cap, browser capture flags and
+per-category overrides. Change them in Settings → Logging, with `PATCH
+/api/v1/admin/logging` or with the `update_logging` MCP tool; every process that opens the
+same database reads the same settings (cached for five seconds).
+
+`LOG_BOOT_LEVEL` and `LOG_BOOT_STDOUT` only control lines written before the database is
+available — a failed migration, a missing directory — because there is nowhere to store them
+yet. Logs themselves are read with `npm run logs`, the MCP tools `list_logs`/`log_stats`
+and the `/logs` page.
 
 ## Password and sessions
 

@@ -47,7 +47,8 @@
     "settings": "Settings",
     "logout": "Sign out",
     "footer": "Personal STALZONE profile. Data is updated manually; prices are read-only.",
-    "currentSection": "Current section: {path}"
+    "currentSection": "Current section: {path}",
+    "logs": "Diagnostic log"
   },
   "accents": {
     "green": "Zone green",
@@ -93,7 +94,12 @@
     "CHARACTER_EXISTS": "A character already exists",
     "CHARACTER_NOT_EMPTY": "The character has gear; remove it before rolling back",
     "STALZONE_API_NOT_CONFIGURED": "The STALZONE profile API is not configured",
-    "SYNC_IN_PROGRESS": "A sync is already running. Try again when it finishes."
+    "SYNC_IN_PROGRESS": "A sync is already running. Try again when it finishes.",
+    "LOG_FILTER_REQUIRED": "Choose at least one filter, or clear every log",
+    "INVALID_LOG_PURGE": "Invalid log purge request",
+    "INVALID_LOGGING_SETTINGS": "Invalid logging settings",
+    "CLIENT_LOG_RATE_LIMITED": "Too many client log entries. Try again in a minute.",
+    "CLIENT_LOG_BATCH_TOO_LARGE": "The client log batch is too large"
   },
   "auth": {
     "subtitle": "Personal profile. Password sign-in.",
@@ -484,7 +490,8 @@
       "sources": "Sources",
       "data": "Data",
       "journal": "Journal",
-      "cleanup": "Resets"
+      "cleanup": "Resets",
+      "logging": "Logging"
     },
     "appearanceTitle": "Appearance",
     "appearanceText": "The accent changes selection, active sections, focus and primary buttons. Positive, negative and warning colours do not change.",
@@ -656,6 +663,23 @@
       "sourceUnavailableDescription": "The last successful snapshot was kept",
       "syncFailed": "Sync did not start",
       "syncFailedDescription": "Check the connection and try again"
+    },
+    "logging": {
+      "title": "Logging",
+      "text": "One diagnostic log for the server, MCP, CLI and browser. Settings live in the database, so they apply to every process that opens it; the server also runs retention hourly.",
+      "enabled": "Logging on",
+      "captureClient": "Capture browser errors",
+      "clientConsole": "Capture browser console",
+      "mirrorStdout": "Mirror to stdout",
+      "minLevel": "Minimum level",
+      "retentionDays": "Retention, days",
+      "maxRows": "Row cap",
+      "categories": "Per-category levels",
+      "inherit": "Inherit",
+      "off": "Off",
+      "errorNote": "Errors still reach stderr when logging is off. Purging logs cannot be rolled back.",
+      "openLogs": "Open the log",
+      "save": "Save"
     }
   },
   "setup": {
@@ -879,7 +903,8 @@
           "sources": "A reference for every source with status, freshness, counts and origin, plus a manual sync and an auto-update schedule.",
           "data": "Download the typed JSON export, see freshness and learn how backups work.",
           "journal": "Every write is listed with actor and note; each event can be rolled back.",
-          "cleanup": "Reset inventory, manual stats, character, journal or everything in one journalled transaction."
+          "cleanup": "Reset inventory, manual stats, character, journal or everything in one journalled transaction.",
+          "logging": "Logging: level, retention, row cap, browser capture and per-category overrides."
         }
       },
       "changelog": {
@@ -916,6 +941,15 @@
           "password": "Password sign-in with an HttpOnly session cookie.",
           "rateLimit": "Failed attempts are limited per socket address.",
           "locale": "Switch between English and Russian before signing in."
+        }
+      },
+      "logs": {
+        "title": "Diagnostic log",
+        "summary": "Browse, filter and purge server, MCP, CLI and browser logs, and see repeat groups.",
+        "caps": {
+          "filters": "Filter by level, category, source, window, text, request id or fingerprint.",
+          "entries": "Open an entry for its redacted context and stack; load older pages by cursor.",
+          "purge": "Preview and purge by filter or entirely; the audit event is not rollbackable."
         }
       }
     },
@@ -996,7 +1030,10 @@
         "prices": "Latest auction prices for a list of item names.",
         "sources": "Source status, last success, last attempt and age.",
         "events": "The change journal, newest first.",
-        "export": "The typed profile JSON as a download."
+        "export": "The typed profile JSON as a download.",
+        "logs": "Diagnostic log entries, newest first, with repeat groups.",
+        "logsConfig": "What the browser may capture: enabled, capture flag and effective levels.",
+        "logsStats": "Counts by level, category and source, storage size and process queue."
       },
       "writes": {
         "characterCreate": "Create the single character; a second create is rejected.",
@@ -1012,14 +1049,18 @@
         "containerFill": "Replace a container's artifact fill from instance ids.",
         "weaponModule": "Install, replace or remove a weapon module; unknown compatibility needs an explicit unverified install.",
         "itemLayout": "Override a catalog item's grid size and weight; a change that breaks placed items is rejected.",
-        "rollback": "Restore an entity from an event snapshot and log the rollback."
+        "rollback": "Restore an entity from an event snapshot and log the rollback.",
+        "logsPurge": "Delete logs by filter or entirely; the journal event is not rollbackable.",
+        "logsClient": "Accept a browser error batch; each entry is validated, forced to client/client and rate-limited."
       },
       "admin": {
         "cleanupRead": "Count owned records, manual stats, the character and journal events.",
         "cleanup": "Reset one scope: inventory, manual stats, character, journal or all; one journal entry keeps the snapshot.",
         "sync": "Run a source sync; all covers catalog sources, profile stays opt-in.",
         "syncRead": "Read source diagnostics and the auto-update schedule.",
-        "syncSchedule": "Update the auto-update schedule; one journal entry makes it rollbackable."
+        "syncSchedule": "Update the auto-update schedule; one journal entry makes it rollbackable.",
+        "loggingRead": "Current logging settings and effective per-category levels.",
+        "logging": "Update logging: on/off, minimum level, retention, row cap and per-category levels."
       }
     },
     "mcp": {
@@ -1058,7 +1099,12 @@
         "auto_arrange_storage": "Pack loose items into a storage by first fit.",
         "sync_source": "Run a source sync; requires confirm.",
         "rebuild_site": "Reports the deploy command; MCP does not rebuild the site.",
-        "rollback_event": "Roll back a journal event."
+        "rollback_event": "Roll back a journal event.",
+        "list_logs": "Diagnostic entries with filters, cursor and repeat groups.",
+        "log_stats": "Counts by level, category and source, storage size and queue state.",
+        "get_logging": "Current settings and effective per-category levels.",
+        "update_logging": "Change logging level, retention, cap and category overrides.",
+        "clear_logs": "Delete logs by filter or entirely; the journal entry is not rollbackable."
       }
     },
     "cli": {
@@ -1093,7 +1139,8 @@
         "lint": "Run ESLint, including boundaries.",
         "boundaries": "Check the dependency direction with dependency-cruiser.",
         "check": "Typecheck, lint, boundaries and every test.",
-        "golden": "Compare the public fixture with the calculator baseline; expect 0 mismatches."
+        "golden": "Compare the public fixture with the calculator baseline; expect 0 mismatches.",
+        "logs": "Print recent diagnostic logs; filter by level, category, text and time, or show --stats."
       }
     },
     "sources": {
@@ -1243,5 +1290,85 @@
     "loading": "Loading…",
     "error": "The track could not be played.",
     "position": "Track {index} of {count}"
+  },
+  "logs": {
+    "title": "Diagnostic log",
+    "subtitle": "Server, MCP, CLI and browser events in one place. Fixes start here: filter to a level or request id, open an entry, and follow its stack.",
+    "settings": "Settings",
+    "autoRefresh": "Auto",
+    "refresh": "Refresh",
+    "loadMore": "Load more",
+    "error": "Could not load the log.",
+    "retry": "Retry",
+    "loading": "Loading...",
+    "emptyTitle": "No entries",
+    "emptyText": "Nothing matches these filters. Widen the window or lower the level; sync and MCP entries appear after they run.",
+    "reset": "Reset filters",
+    "levels": {
+      "debug": "Debug",
+      "info": "Info",
+      "warn": "Warn",
+      "error": "Error"
+    },
+    "categories": {
+      "http": "HTTP",
+      "sync": "Sync",
+      "mcp": "MCP",
+      "db": "DB",
+      "app": "App",
+      "client": "Client"
+    },
+    "sources": {
+      "server": "Server",
+      "mcp": "MCP",
+      "cli": "CLI",
+      "client": "Client"
+    },
+    "windows": {
+      "1h": "Last hour",
+      "24h": "Last 24 hours",
+      "7d": "Last 7 days",
+      "all": "All time"
+    },
+    "filters": {
+      "levels": "Levels",
+      "categories": "Categories",
+      "sources": "Sources",
+      "text": "Search the message",
+      "requestId": "Request or run id",
+      "fingerprint": "Fingerprint",
+      "clearFingerprint": "Clear the fingerprint filter"
+    },
+    "columns": {
+      "at": "Time",
+      "level": "Level",
+      "category": "Category",
+      "source": "Source",
+      "message": "Message",
+      "duration": "Duration"
+    },
+    "stats": {
+      "storage": "Storage: {size}",
+      "oldest": "Oldest: {at}",
+      "newest": "Newest: {at}"
+    },
+    "detail": {
+      "at": "Timestamp",
+      "source": "Source",
+      "requestId": "Request id",
+      "fingerprint": "Fingerprint",
+      "duration": "Duration",
+      "context": "Context",
+      "stack": "Stack"
+    },
+    "purge": {
+      "action": "Purge",
+      "title": "Delete logs",
+      "text": "Preview first: the diff reports how many entries the filter matches. Purging is audited but cannot be rolled back.",
+      "note": "A filtered purge keeps entries outside the filter. The audit event stays in the journal.",
+      "confirm": "Delete",
+      "all": "Everything",
+      "filtered": "Only the current filter"
+    }
   }
 }

@@ -1,4 +1,4 @@
-import type { CleanupScope } from '@profile/shared/contracts';
+import { NON_ROLLBACKABLE_ACTIONS, type CleanupScope, type LoggingSettings } from '@profile/shared/contracts';
 import type { Db } from '../../platform/db/index.js';
 import {
   eventCount,
@@ -43,6 +43,7 @@ import {
   updateStorageTx,
 } from '../inventory/index.js';
 import { writeSyncScheduleRow } from '../sync/index.js';
+import { restoreLoggingSettingsTx } from '../logging/index.js';
 
 export interface CleanupCounts {
   inventory: { items: number; storages: number; placements: number };
@@ -260,6 +261,9 @@ export function resetAll(db: Db, dryRun: boolean): WriteResult {
 export function rollbackEvent(db: Db, eventId: number, dryRun: boolean): WriteResult {
   const event = getEvent(db, eventId);
   if (!event) throw new WriteError(404, 'EVENT_NOT_FOUND', 'Event not found');
+  if ((NON_ROLLBACKABLE_ACTIONS as readonly string[]).includes(event.action)) {
+    throw new WriteError(409, 'EVENT_NOT_ROLLBACKABLE', `Event #${eventId} (${event.action}) cannot be rolled back`);
+  }
 
   const before = parseEventJson(event.after);
   const after = parseEventJson(event.before);
@@ -399,6 +403,10 @@ function restoreSnapshot(
           profileEveryMin: Number(target.profileEveryMin),
         });
       }
+      return;
+    }
+    case 'logging.settings.update': {
+      if (target) restoreLoggingSettingsTx(db, target as LoggingSettings);
       return;
     }
     case 'character.create': {

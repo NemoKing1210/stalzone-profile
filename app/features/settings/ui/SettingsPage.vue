@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ProfilePane } from '~/shared/ui';
 import { DEFAULT_ACCENT } from '~/shared/lib/accents';
+import LoggingSettingsPanel from './LoggingSettingsPanel.vue';
 import SourcesSection from './SourcesSection.vue';
 
 const { t } = useI18n();
@@ -25,6 +26,7 @@ const tabItems = computed(() => [
   { label: t('settings.tabs.data'), icon: 'i-lucide-database', value: 'data' },
   { label: t('settings.tabs.journal'), icon: 'i-lucide-history', value: 'journal' },
   { label: t('settings.tabs.cleanup'), icon: 'i-lucide-trash-2', value: 'cleanup' },
+  { label: t('settings.tabs.logging'), icon: 'i-lucide-bug', value: 'logging' },
 ]);
 </script>
 
@@ -183,6 +185,10 @@ const tabItems = computed(() => [
 
         <div v-else-if="item.value === 'cleanup'">
           <slot name="cleanup" />
+        </div>
+
+        <div v-else-if="item.value === 'logging'">
+          <LoggingSettingsPanel />
         </div>
       </template>
     </UTabs>

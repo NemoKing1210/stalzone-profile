@@ -8,3 +8,4 @@ export * from './api.js';
 export * from './payload.js';
 export * from './mcp.js';
 export * from './sync.js';
+export * from './logging.js';

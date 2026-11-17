@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { NON_ROLLBACKABLE_ACTIONS } from '@profile/shared/contracts';
 import { ConfirmActionModal, ProfilePane } from '~/shared/ui';
 
 import type { EventRow } from '~/shared/types/profile';
@@ -112,7 +113,7 @@ async function rollback(): Promise<void> {
         </template>
         <template #actions-cell="{ row }">
           <UButton
-            v-if="row.original.action !== 'rollback'"
+            v-if="!NON_ROLLBACKABLE_ACTIONS.includes(row.original.action as never)"
             icon="i-lucide-undo-2"
             color="neutral"
             variant="ghost"

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { norm, sha1 } from '@profile/shared';
@@ -13,6 +14,7 @@ import {
   type StalzoneApiOptions,
 } from '@profile/sources';
 import type { Db } from '../../../platform/db/index.js';
+import { getLogger } from '../../../platform/logging/index.js';
 import * as repo from '../../catalog/index.js';
 import * as identity from '../../identity/index.js';
 import * as inventoryRepo from '../../inventory/repo/index.js';
@@ -525,6 +527,10 @@ export async function runSync(db: Db, source: string, options: SyncOptions = {})
 
   sourceRepo.ensureSource(db, normalized);
   sourceRepo.markSourceTry(db, normalized);
+  const runId = randomUUID();
+  const log = getLogger(db, 'sync', { requestId: runId });
+  const startedAt = Date.now();
+  log.debug('sync start', { source: normalized });
 
   try {
     let result: SyncResult;
@@ -552,9 +558,16 @@ export async function runSync(db: Db, source: string, options: SyncOptions = {})
     // failed); freshness must follow the status, not the presence of `fetchedAt`.
     if (result.status === 'stale') sourceRepo.markSourceStale(db, normalized, result.error ?? null);
     else if (result.fetchedAt) sourceRepo.markSourceOk(db, normalized, { at: result.fetchedAt });
+    const durationMs = Date.now() - startedAt;
+    if (result.status === 'stale') {
+      log.warn(`sync ${normalized} stale`, { source: normalized, error: result.error ?? null }, undefined, durationMs);
+    } else {
+      log.info(`sync ${normalized} ok`, { source: normalized, items: result.items }, undefined, durationMs);
+    }
     return result;
   } catch (error) {
     const message = sourceError(error);
+    log.error(`sync ${normalized} failed`, { source: normalized }, error);
     sourceRepo.markSourceStale(db, normalized, message);
     return {
       source: normalized,

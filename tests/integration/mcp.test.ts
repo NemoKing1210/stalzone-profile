@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { closeDb, migrate, openDb, runExclusive, type Db } from '@profile/core';
+import { closeDb, enqueueLog, flushLogs, migrate, openDb, runExclusive, type Db } from '@profile/core';
 import {
   READ_OUTPUT_SCHEMAS,
   READ_TOOLS,
@@ -39,6 +39,8 @@ const EXPECTED_WRITE_TOOLS = [
   'sync_source',
   'rebuild_site',
   'rollback_event',
+  'update_logging',
+  'clear_logs',
 ];
 const EXPECTED_READ_TOOLS = [
   'get_character',
@@ -53,6 +55,9 @@ const EXPECTED_READ_TOOLS = [
   'get_prices',
   'sources_status',
   'export_profile_json',
+  'list_logs',
+  'log_stats',
+  'get_logging',
 ];
 
 beforeAll(async () => {
@@ -382,5 +387,18 @@ describe('MCP local sync options', () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe('MCP logging', () => {
+  it('reads and clears logs through MCP, with dry_run by default', async () => {
+    enqueueLog(db, { level: 'error', category: 'app', message: 'mcp visible', at: new Date().toISOString() });
+    flushLogs(db);
+    const listed = await callTool('list_logs', { text: 'mcp visible' });
+    expect((listed.structuredContent as any).entries).toHaveLength(1);
+    const dry = await callTool('clear_logs', { scope: 'all' });
+    expect((dry.structuredContent as any).dryRun).toBe(true);
+    const applied = await callTool('clear_logs', { scope: 'all', dry_run: false, confirm: true });
+    expect((applied.structuredContent as any).dryRun).toBe(false);
   });
 });

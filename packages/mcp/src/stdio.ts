@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { getLogger, initLogging, shutdownLogging, type Db, type Logger } from '@profile/core';
 import { loadConfig } from '@profile/core/config';
 import { openDb } from '@profile/core/db';
 import { migrate } from '@profile/core/db/migrate';
@@ -10,6 +11,8 @@ const apiUrl = process.env.PROFILE_API_URL?.trim();
 const token = (process.env.MCP_TOKEN ?? process.env.NUXT_MCP_TOKEN ?? '').trim();
 
 let client: ProfileClient;
+let db: Db | null = null;
+let logger: Logger | null = null;
 
 if (apiUrl) {
   if (!token) {
@@ -18,8 +21,10 @@ if (apiUrl) {
   client = httpClient(apiUrl, token);
 } else {
   const cfg = loadConfig();
-  const db = openDb(cfg.dbPath);
+  db = openDb(cfg.dbPath);
   migrate(db, cfg.migrationsDir);
+  initLogging(db, { source: 'mcp', processHooks: true });
+  logger = getLogger(db, 'mcp', { source: 'mcp' });
   client = localClient(db, {
     iconsDir: cfg.iconsDir,
     profileApi:
@@ -34,7 +39,7 @@ if (apiUrl) {
   });
 }
 
-const server = createProfileServer(client);
+const server = createProfileServer(client, logger ? { logger } : {});
 const transport = new StdioServerTransport();
 
 await server.connect(transport);
@@ -43,6 +48,7 @@ console.error(`[mcp] stalzone-profile ready (${apiUrl ? `http ${apiUrl}` : 'loca
 async function shutdown(): Promise<void> {
   await client.close?.();
   await server.close();
+  if (db) shutdownLogging(db);
   process.exit(0);
 }
 

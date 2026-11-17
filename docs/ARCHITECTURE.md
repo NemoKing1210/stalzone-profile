@@ -142,6 +142,43 @@ One tool registry (`packages/mcp/src/registry.ts`) serves both transports:
 Writes: `dry_run` by default, `confirm: true` is mandatory, no more than 30 changes per
 minute. The `profile://schema` resource describes the tools and the write rules.
 
+## Diagnostic logging
+
+```
+logger.info(msg, context, cause?)            packages/core/src/platform/logging
+      │  filter by enabled + effective level for the category
+      ▼
+sanitize: redact secrets/URLs → truncate → fingerprint
+      │
+      ▼
+in-memory queue (drops debug, then info; at the hard cap even warn/error)
+      │  flush outside a transaction, batched; in a transaction it defers
+      ▼
+log_entry                                  retention: hourly, age + row cap
+```
+
+The writer is synchronous, never throws and never joins a business transaction: inside one
+it schedules a retry, and if SQLite is unavailable it falls back to stderr. `warn`/`error`
+flush immediately, everything else within a second or at 200 queued entries; process hooks
+flush on exit. A timer is never postponed by a later entry, so sustained info traffic cannot
+starve an error flush.
+
+Ownership is per process, because SQLite has one writer and one file:
+
+| Process | Writes | Source |
+|---|---|---|
+| Nitro server | HTTP requests, sync runs, DB boot, retention summaries | `server` |
+| stdio MCP, local DB | tool calls through the instrumented client | `mcp` |
+| CLI scripts | migration lines and the commands they run | `cli` |
+| Browser | error/unhandled-rejection/console batches via `POST /api/v1/logs/client` | `client` |
+| stdio MCP over HTTP | nothing locally; the server logs the HTTP request | — |
+
+Request ids tie a request together: Nitro sets `x-request-id` and `event.context.requestId`,
+a sync run and each MCP call get their own UUID, and the browser batch keeps the client's
+`requestId` when it has one. The `/logs` page, the REST routes, the five MCP log tools and
+`npm run logs` all read the same `queryLogs`/`logStats` services, so their filters and
+counts cannot drift.
+
 ## Sources and freshness
 
 | id | Source | What it updates |
