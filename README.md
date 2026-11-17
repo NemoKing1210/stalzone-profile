@@ -2,7 +2,7 @@
 
 <h1>STALZONE Profile</h1>
 
-<p><strong>A personal STALZONE dossier</strong> — gear, containers, builds and auction prices,<br>
+<p><strong>A personal STALZONE dossier</strong> — gear, containers and auction prices,<br>
 backed by one SQLite database and exposed through a Nuxt site, a REST API and MCP.</p>
 
 <p>

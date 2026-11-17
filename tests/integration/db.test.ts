@@ -29,9 +29,6 @@ describe('baseline schema', () => {
       .filter((name) => !name.startsWith('sqlite_'));
     expect(tables).toEqual([
       '_migration',
-      'build',
-      'build_metric',
-      'build_slot',
       'character',
       'character_stat',
       'container_slot',
@@ -57,6 +54,9 @@ describe('baseline schema', () => {
       'price_snapshot',
       'owned',
       'container_fill',
+      'build',
+      'build_metric',
+      'build_slot',
     ]) {
       expect(tableExists(db, name)).toBe(false);
     }

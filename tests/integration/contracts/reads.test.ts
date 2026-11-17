@@ -2,10 +2,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { closeDb, openDb, artifactSources, latestPricesForNames, migrate, type Db, getCharacter, listOwnedReads, latestPriceReadsForNames, searchItemSummaries, buildPayload, listEvents, logEvent } from '@dossier/core';
+import { closeDb, openDb, artifactSources, latestPricesForNames, migrate, type Db, getCharacter, listOwnedReads, latestPriceReadsForNames, searchItemSummaries, listEvents, logEvent } from '@dossier/core';
 import {
   ArtifactSourceSchema,
-  BuildReadSchema,
   EventReadSchema,
   ItemSummarySchema,
   OwnedReadSchema,
@@ -45,11 +44,7 @@ describe('module read contracts', () => {
     for (const row of owned) expect(() => OwnedReadSchema.parse(row)).not.toThrow();
   });
 
-  it('parses builds, event rows, prices and artifact sources', () => {
-    const payload = buildPayload(db);
-    expect(payload.builds.items.length).toBeGreaterThan(0);
-    for (const build of payload.builds.items) expect(() => BuildReadSchema.parse(build)).not.toThrow();
-
+  it('parses event rows, prices and artifact sources', () => {
     logEvent(db, { actor: 'owner', action: 'test', entity: 'owned', entityId: 1, after: { a: 1 } });
     expect(() => EventReadSchema.parse(eventJson(listEvents(db)[0]!))).not.toThrow();
 

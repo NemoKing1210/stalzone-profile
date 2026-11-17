@@ -32,6 +32,5 @@ export const CleanupCountsSchema = z.object({
     records: z.number().int(),
     copies: z.number().int(),
   }),
-  builds: z.number().int(),
 });
 export type CleanupCounts = z.infer<typeof CleanupCountsSchema>;

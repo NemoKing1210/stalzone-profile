@@ -41,43 +41,6 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
       "type": "гравитационный",
     },
   ],
-  "builds": {
-    "items": [
-      {
-        "budget": null,
-        "container": null,
-        "eff": null,
-        "goal": null,
-        "id": "speed",
-        "metrics": [
-          {
-            "l": "DPS",
-            "s": null,
-            "v": "550",
-          },
-        ],
-        "rows": [
-          {
-            "bonus": null,
-            "eff": null,
-            "lots": null,
-            "minus": null,
-            "name": "Нервяк",
-            "price": 1000,
-            "q": null,
-            "rank": "default",
-            "why": null,
-          },
-        ],
-        "short": null,
-        "slots": null,
-        "tag": null,
-        "title": "Скорость",
-        "total": null,
-        "verdict": null,
-      },
-    ],
-  },
   "catalog": {
     "armor": [
       {

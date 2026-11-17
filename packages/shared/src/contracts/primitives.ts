@@ -30,8 +30,5 @@ export const FACTIONS = ['rise', 'frontier', 'mercenaries', 'covenant'] as const
 export const FactionSchema = z.enum(FACTIONS);
 export type Faction = (typeof FACTIONS)[number];
 
-export const CleanupScopeSchema = z.enum(['owned', 'builds', 'all']);
-export type CleanupScope = z.infer<typeof CleanupScopeSchema>;
-
 export const SyncSourceSchema = z.enum(['exbo_base', 'wiki', 'motifs', 'scpmodel', 'icons', 'profile', 'all']);
 export type SyncSource = z.infer<typeof SyncSourceSchema>;

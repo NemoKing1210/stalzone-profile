@@ -2,25 +2,19 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { BuildInputSchema } from '@dossier/shared';
 import {
-  allBuildSlots,
+  cleanupCounts,
+  clearOwned,
   closeDb,
   ensureDefaultSources,
-  listBuildMetrics,
-  listBuilds,
   listEvents,
   listOwned,
+  logEvent,
   migrate,
   openDb,
-  type Db,
-  cleanupCounts,
-  clearAll,
-  clearBuilds,
-  clearOwned,
   rollbackEvent,
-  saveBuild,
   WriteError,
+  type Db,
 } from '@dossier/core';
 import { replaceContainerSlots, upsertCharacter, upsertItem, upsertOwned } from '@dossier/core/testing';
 
@@ -33,19 +27,6 @@ const ids: Record<string, number> = {};
 
 function item(name: string, kind: string): number {
   return upsertItem(db, { sourceId: 'local', externalId: `test:${kind}:${name}`, name, kind });
-}
-
-function build(slug: string): void {
-  saveBuild(
-    db,
-    BuildInputSchema.parse({
-      slug,
-      title: `Сборка ${slug}`,
-      metrics: [{ l: 'DPS', v: '550' }],
-      rows: [{ name: 'Нервяк', quality: 'Редкий', price: 1000, why: 'тест' }],
-      dryRun: false,
-    }),
-  );
 }
 
 beforeEach(() => {
@@ -84,9 +65,6 @@ beforeEach(() => {
   upsertOwned(db, { characterId, itemId: ids.ak12, kind: 'weapon', level: 15, qty: 1 });
   upsertOwned(db, { characterId, itemId: ids.akm, kind: 'weapon', level: 5, qty: 1 });
   upsertOwned(db, { characterId, itemId: ids.kunitsa, kind: 'armor', level: 10, qty: 1 });
-
-  build('build-a');
-  build('build-b');
 });
 
 afterEach(() => {
@@ -97,15 +75,13 @@ afterEach(() => {
 describe('cleanup counts', () => {
   it('counts every owned kind and sums qty separately from rows', () => {
     const counts = cleanupCounts(db);
-    expect(counts.owned).toEqual({ records: 6, copies: 8 });
-    expect(counts.builds).toBe(2);
+    expect(counts).toEqual({ owned: { records: 6, copies: 8 } });
   });
 
   it('returns zero owned counts when there is no character', () => {
     db.prepare(`DELETE FROM owned_item`).run();
     db.prepare(`DELETE FROM character`).run();
     expect(cleanupCounts(db).owned).toEqual({ records: 0, copies: 0 });
-    expect(cleanupCounts(db).builds).toBe(2);
   });
 });
 
@@ -136,28 +112,20 @@ describe('cleanup writes', () => {
     expect(db.prepare(`SELECT * FROM container_slot`).all()).toHaveLength(slotsBefore.length);
   });
 
-  it('clears builds and rollback restores metrics and slots', () => {
-    const result = clearBuilds(db, false);
-    expect(listBuilds(db)).toHaveLength(0);
-    expect(listEvents(db)[0]).toMatchObject({ action: 'build.clear', entity: 'build' });
+  it('rolls back the inventory part of a legacy dossier.clear snapshot', () => {
+    const before = clearOwned(db, true).diff.before as unknown[];
+    db.prepare(`DELETE FROM owned_item`).run();
+    const eventId = logEvent(db, {
+      actor: 'owner',
+      action: 'dossier.clear',
+      entity: 'dossier',
+      entityId: 'all',
+      before: { owned: before, builds: [] },
+      after: null,
+    });
 
-    rollbackEvent(db, result.eventId!, false);
-    expect(listBuilds(db)).toHaveLength(2);
-    const restored = listBuilds(db)[0]!;
-    expect(allBuildSlots(db)[restored.id]?.length).toBeGreaterThan(0);
-    expect(listBuildMetrics(db, restored.id)).toHaveLength(1);
-  });
-
-  it('stores build metrics and rolls a cleared dossier back', () => {
-    const result = clearAll(db, false);
-    expect(listOwned(db, characterId)).toHaveLength(0);
-    expect(listBuilds(db)).toHaveLength(0);
-    expect(listEvents(db)[0]).toMatchObject({ action: 'dossier.clear', entity: 'dossier' });
-
-    rollbackEvent(db, result.eventId!, false);
+    rollbackEvent(db, eventId, false);
     expect(listOwned(db, characterId)).toHaveLength(6);
-    expect(listBuilds(db)).toHaveLength(2);
-    expect(listBuildMetrics(db, listBuilds(db)[0]!.id)).toHaveLength(1);
   });
 
   it('rejects an empty scope without writing', () => {

@@ -24,25 +24,15 @@ import {
   restoreOwnedTx,
   updateOwnedTx,
 } from '../inventory/index.js';
-import {
-  buildSnapshot,
-  clearBuildsTx,
-  countBuilds,
-  deleteBuildTx,
-  listBuilds,
-  restoreBuildTx,
-} from '../builds/index.js';
 
 export interface CleanupCounts {
   owned: { records: number; copies: number };
-  builds: number;
 }
 
 export function cleanupCounts(db: Db): CleanupCounts {
   const character = getCharacter(db);
   return {
     owned: character ? ownedCounts(db, character.id) : { records: 0, copies: 0 },
-    builds: countBuilds(db),
   };
 }
 
@@ -66,60 +56,6 @@ export function clearOwned(db: Db, dryRun: boolean): WriteResult {
       actor: 'owner',
       action: 'owned.clear',
       entity: 'owned',
-      entityId: 'all',
-      before,
-      after: null,
-    });
-  });
-  return { dryRun: false, diff: { before, after: null, human }, eventId };
-}
-
-export function clearBuilds(db: Db, dryRun: boolean): WriteResult {
-  const builds = listBuilds(db);
-  if (!builds.length) throw new WriteError(409, 'NOTHING_TO_CLEAR', 'Nothing to clear');
-
-  const before = builds.map((build) => buildSnapshot(db, build.slug)).filter(Boolean);
-  const human = `Builds cleared: ${builds.length}`;
-
-  if (dryRun) return { dryRun: true, diff: { before, after: null, human } };
-
-  let eventId: number | undefined;
-  withTransaction(db, () => {
-    clearBuildsTx(db);
-    eventId = logEvent(db, {
-      actor: 'owner',
-      action: 'build.clear',
-      entity: 'build',
-      entityId: 'all',
-      before,
-      after: null,
-    });
-  });
-  return { dryRun: false, diff: { before, after: null, human }, eventId };
-}
-
-export function clearAll(db: Db, dryRun: boolean): WriteResult {
-  const character = getCharacter(db);
-  const ownedRows = character ? listOwned(db, character.id) : [];
-  const builds = listBuilds(db);
-  if (!ownedRows.length && !builds.length) throw new WriteError(409, 'NOTHING_TO_CLEAR', 'Nothing to clear');
-
-  const before = {
-    owned: ownedRows.map((row) => ownedCleanupSnapshot(db, row)),
-    builds: builds.map((build) => buildSnapshot(db, build.slug)).filter(Boolean),
-  };
-  const human = `All data cleared: ${ownedRows.length} inventory records, ${builds.length} builds`;
-
-  if (dryRun) return { dryRun: true, diff: { before, after: null, human } };
-
-  let eventId: number | undefined;
-  withTransaction(db, () => {
-    if (character) clearOwnedTx(db, character.id);
-    clearBuildsTx(db);
-    eventId = logEvent(db, {
-      actor: 'owner',
-      action: 'dossier.clear',
-      entity: 'dossier',
       entityId: 'all',
       before,
       after: null,
@@ -181,27 +117,15 @@ function restoreSnapshot(
       for (const snapshot of (target as any[]) ?? []) restoreOwnedTx(db, snapshot, characterId);
       return;
     }
-    case 'build.clear': {
-      for (const snapshot of (target as any[]) ?? []) restoreBuildTx(db, snapshot);
-      return;
-    }
     case 'dossier.clear': {
+      // Legacy event from before builds were removed: only its inventory part can
+      // still be restored, because the build tables no longer exist.
       const characterId = characterOrThrow(db).id;
       for (const snapshot of (target?.owned as any[]) ?? []) restoreOwnedTx(db, snapshot, characterId);
-      for (const snapshot of (target?.builds as any[]) ?? []) restoreBuildTx(db, snapshot);
       return;
     }
     case 'container.fill': {
       restoreContainerFillTx(db, target);
-      return;
-    }
-    case 'build.save': {
-      if (target) restoreBuildTx(db, target);
-      else if (produced?.slug) deleteBuildTx(db, produced.slug);
-      return;
-    }
-    case 'build.delete': {
-      restoreBuildTx(db, target);
       return;
     }
     case 'character.create': {
@@ -211,7 +135,7 @@ function restoreSnapshot(
         throw new WriteError(
           409,
           'CHARACTER_NOT_EMPTY',
-          'Character has gear or builds; remove them before rolling back its creation',
+          'Character has gear; remove it before rolling back its creation',
         );
       }
       deleteCharacter(db, id);

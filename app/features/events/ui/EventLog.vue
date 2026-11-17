@@ -27,11 +27,8 @@ const ACTION_KEYS: Record<string, string> = {
   'owned.update': 'ownedUpdate',
   'owned.delete': 'ownedDelete',
   'container.fill': 'containerFill',
-  'build.save': 'buildSave',
-  'build.delete': 'buildDelete',
   'content.put': 'contentPut',
   'owned.clear': 'ownedClear',
-  'build.clear': 'buildClear',
   'dossier.clear': 'dossierClear',
   rollback: 'rollback',
 };

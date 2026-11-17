@@ -33,5 +33,6 @@ describe('read model', () => {
     const exported = exportDossierJson(db);
     expect(exported).not.toHaveProperty('icons');
     expect(exported).not.toHaveProperty('freshness');
+    expect(exported).not.toHaveProperty('builds');
   });
 });

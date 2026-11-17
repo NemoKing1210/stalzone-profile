@@ -96,10 +96,6 @@ export {
   ownedCounts,
 } from './modules/inventory/repo/owned.js';
 
-/* -------------------------------- builds ------------------------------- */
-
-export * from './modules/builds/index.js';
-
 /* --------------------------------- sync -------------------------------- */
 
 export * from './modules/sync/service/normalize.js';

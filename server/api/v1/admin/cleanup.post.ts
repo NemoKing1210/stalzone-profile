@@ -1,5 +1,5 @@
 import { CleanupRequestSchema } from '@dossier/shared/contracts';
-import { clearAll, clearBuilds, clearOwned } from '@dossier/core';
+import { clearOwned } from '@dossier/core';
 import { useDb } from '../../../utils/db';
 import { validationError } from '../../../utils/errors';
 import { requireOrigin } from '../../../utils/auth';
@@ -13,8 +13,6 @@ export default defineEventHandler(async (event) => {
   if (!parsed.success) return validationError(event, parsed.error);
 
   const db = useDb();
-  const { scope, dryRun } = parsed.data;
-  return handleWrite(event, () =>
-    scope === 'owned' ? clearOwned(db, dryRun) : scope === 'builds' ? clearBuilds(db, dryRun) : clearAll(db, dryRun),
-  );
+  const { dryRun } = parsed.data;
+  return handleWrite(event, () => clearOwned(db, dryRun));
 });

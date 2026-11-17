@@ -43,7 +43,6 @@ const liveStats = computed(() => {
   return [
     { key: 'owned', label: t('guide.live.owned'), value: owned == null ? '—' : num(owned) },
     { key: 'catalog', label: t('guide.live.catalog'), value: catalogItems.value == null ? '—' : num(catalogItems.value) },
-    { key: 'builds', label: t('guide.live.builds'), value: data == null ? '—' : num(data.builds.items.length) },
     {
       key: 'updated',
       label: t('guide.live.updated'),

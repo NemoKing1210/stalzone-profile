@@ -8,7 +8,6 @@ import {
   buildPayload,
   compareWeapons,
   createOwned,
-  deleteBuild as removeBuild,
   deleteOwned,
   exportDossierJson,
   findItemByKindName,
@@ -27,7 +26,6 @@ import {
   planArtifactBuild,
   rollbackEvent as restoreEvent,
   runSync,
-  saveBuild as persistBuild,
   searchItemSummaries,
   searchItems,
   setContainerFill,
@@ -79,33 +77,6 @@ export interface ContainerFillInput {
   dryRun: boolean;
 }
 
-export interface BuildWriteInput {
-  slug: string;
-  title: string;
-  short?: string | null;
-  tag?: string | null;
-  goal?: string | null;
-  container?: string | null;
-  slots?: number | null;
-  eff?: number | null;
-  budget?: number | null;
-  total?: number | null;
-  verdict?: string | null;
-  metrics?: { l: string; v: string; s?: string | null }[] | null;
-  rows: {
-    name?: string | null;
-    quality?: string | null;
-    rank?: string | null;
-    price?: number | null;
-    lots?: number | null;
-    eff?: string | null;
-    bonus?: string | null;
-    minus?: string | null;
-    why?: string | null;
-  }[];
-  dryRun: boolean;
-}
-
 /** Everything the MCP tools need from a dossier, whether it lives in this process or behind HTTP. */
 export interface DossierClient {
   getCharacter(): Promise<Json>;
@@ -120,8 +91,6 @@ export interface DossierClient {
   compareItems(a: string, b: string, level: number): Promise<Json[]>;
   listOwned(kind?: string | null): Promise<Json[]>;
   listContainers(): Promise<Json[]>;
-  listBuilds(): Promise<Json>;
-  getBuild(slug: string): Promise<Json | null>;
   planArtifactBuild(input: PlanInput): Promise<Json>;
   getPrices(names: string[], quality?: string | null): Promise<Json>;
   sourcesStatus(): Promise<Json[]>;
@@ -129,8 +98,6 @@ export interface DossierClient {
   upsertOwnedItem(input: OwnedWriteInput): Promise<WriteResult>;
   removeOwnedItem(input: RemoveOwnedInput): Promise<WriteResult>;
   setContainerArtifacts(input: ContainerFillInput): Promise<WriteResult>;
-  saveBuild(input: BuildWriteInput): Promise<WriteResult>;
-  deleteBuild(slug: string, dryRun: boolean): Promise<WriteResult>;
   syncSource(source: string, force: boolean): Promise<Json>;
   rebuildSite(): Promise<Json>;
   rollbackEvent(eventId: number, dryRun: boolean): Promise<WriteResult>;
@@ -259,17 +226,6 @@ export function localClient(db: Db, syncOptions: LocalClientOptions = {}): Dossi
       return buildPayload(db).containers as Json[];
     },
 
-    async listBuilds() {
-      return buildPayload(db).builds as Json;
-    },
-
-    async getBuild(slug) {
-      const build = (buildPayload(db).builds as { items?: Json[] }).items?.find(
-        (item) => item.id === slug,
-      );
-      return build ?? null;
-    },
-
     async planArtifactBuild(input) {
       const artifacts = artifactSources(db) as Parameters<typeof planArtifactBuild>[1]['artifacts'];
       const latest = latestPriceFetchedAt(db);
@@ -352,37 +308,6 @@ export function localClient(db: Db, syncOptions: LocalClientOptions = {}): Dossi
           asOf: input.asOf ?? null,
           dryRun: input.dryRun,
         });
-      } catch (error) {
-        return writeError(error);
-      }
-    },
-
-    async saveBuild(input) {
-      try {
-        return persistBuild(db, {
-          slug: input.slug,
-          title: input.title,
-          short: input.short ?? null,
-          tag: input.tag ?? null,
-          goal: input.goal ?? null,
-          container: input.container ?? null,
-          slots: input.slots ?? null,
-          eff: input.eff ?? null,
-          budget: input.budget ?? null,
-          total: input.total ?? null,
-          metrics: input.metrics ?? null,
-          verdict: input.verdict ?? null,
-          rows: input.rows,
-          dryRun: input.dryRun,
-        });
-      } catch (error) {
-        return writeError(error);
-      }
-    },
-
-    async deleteBuild(slug, dryRun) {
-      try {
-        return removeBuild(db, slug, dryRun);
       } catch (error) {
         return writeError(error);
       }
@@ -495,12 +420,6 @@ export function httpClient(baseUrl: string, token: string): DossierClient {
     async listContainers() {
       return (await call('list_containers')).items as Json[];
     },
-    async listBuilds() {
-      return (await call('list_builds')).builds as Json;
-    },
-    async getBuild(slug) {
-      return ((await call('get_build', { slug })).build ?? null) as Json | null;
-    },
     async planArtifactBuild(input) {
       return (await call('plan_artifact_build', input as Record<string, unknown>)).plan as Json;
     },
@@ -521,12 +440,6 @@ export function httpClient(baseUrl: string, token: string): DossierClient {
     },
     async setContainerArtifacts(input) {
       return (await call('set_container_artifacts', toSnakeWrite(input))) as unknown as WriteResult;
-    },
-    async saveBuild(input) {
-      return (await call('save_build', toSnakeWrite(input))) as unknown as WriteResult;
-    },
-    async deleteBuild(slug, dryRun) {
-      return (await call('delete_build', { slug, dry_run: dryRun })) as unknown as WriteResult;
     },
     async syncSource(source, force) {
       return (await call('sync_source', { source, force, confirm: true })).result as Json;

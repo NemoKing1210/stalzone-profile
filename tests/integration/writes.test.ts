@@ -3,7 +3,6 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
-  BuildInputSchema,
   CharacterPatchSchema,
   ContainerFillSchema,
   OwnedCreateSchema,
@@ -13,7 +12,6 @@ import {
   buildPayload,
   closeDb,
   ensureDefaultSources,
-  getBuild,
   getCharacter,
   getOwned,
   listContainerSlots,
@@ -23,11 +21,9 @@ import {
   openDb,
   type Db,
   createOwned,
-  deleteBuild,
   deleteOwned,
   patchCharacter,
   rollbackEvent,
-  saveBuild,
   setContainerFill,
   updateOwned,
   WriteError,
@@ -360,47 +356,6 @@ describe('setContainerFill', () => {
       expect(error).toBeInstanceOf(WriteError);
       expect((error as WriteError).code).toBe('OWNED_NOT_FOUND');
     }
-  });
-});
-
-describe('builds', () => {
-  const build = () =>
-    BuildInputSchema.parse({
-      slug: 'test-build',
-      title: 'Тестовая сборка',
-      container: 'Рюкзак',
-      total: 12345,
-      metrics: [{ l: 'DPS', v: '550' }],
-      rows: [{ name: 'Нервяк', quality: 'Редкий', price: 1000, why: 'тест' }],
-      dryRun: false,
-    });
-
-  it('saves, deletes and restores through rollback', () => {
-    const saved = saveBuild(db, build());
-    expect(saved.eventId).toBeTypeOf('number');
-    expect(getBuild(db, 'test-build')).toMatchObject({ title: 'Тестовая сборка' });
-    expect(repo.listBuildMetrics(db, getBuild(db, 'test-build')!.id)).toHaveLength(1);
-    const slots = db.prepare(`SELECT * FROM build_slot`).all() as { item_id: number | null }[];
-    expect(slots[0].item_id).toBe(ids.nervyak);
-
-    const removed = deleteBuild(db, 'test-build', false);
-    expect(getBuild(db, 'test-build')).toBeNull();
-
-    rollbackEvent(db, removed.eventId!, false);
-    expect(getBuild(db, 'test-build')).toMatchObject({ title: 'Тестовая сборка' });
-    expect(repo.listBuildMetrics(db, getBuild(db, 'test-build')!.id)).toHaveLength(1);
-    expect(listEvents(db)[0].action).toBe('rollback');
-  });
-
-  it('does not delete on dry run', () => {
-    saveBuild(db, build());
-    const result = deleteBuild(db, 'test-build', true);
-    expect(result.dryRun).toBe(true);
-    expect(getBuild(db, 'test-build')).not.toBeNull();
-  });
-
-  it('reports a missing build as 404', () => {
-    expect(() => deleteBuild(db, 'nope', false)).toThrowError(WriteError);
   });
 });
 

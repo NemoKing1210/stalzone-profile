@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { closeDb, migrate, openDb, type Db, clearAll, rollbackEvent, listEvents } from '@dossier/core';
+import { closeDb, migrate, openDb, type Db, clearOwned, rollbackEvent, listEvents } from '@dossier/core';
 import { seedCatalog } from '../fixtures/seed';
 
 const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
@@ -22,9 +22,9 @@ afterEach(() => {
 });
 
 describe('maintenance atomicity', () => {
-  it('writes exactly one event for clearAll and restores it in one rollback', () => {
+  it('writes exactly one event for clearOwned and restores it in one rollback', () => {
     const before = listEvents(db).length;
-    const cleared = clearAll(db, false);
+    const cleared = clearOwned(db, false);
     expect(listEvents(db).length).toBe(before + 1);
     const rolled = rollbackEvent(db, cleared.eventId!, false);
     expect(rolled.dryRun).toBe(false);

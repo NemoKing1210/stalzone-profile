@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   CharacterCreateSchema,
-  CleanupScopeSchema,
   OwnedCreateSchema,
   SyncSourceSchema,
 } from '@dossier/shared/contracts';
@@ -14,9 +13,8 @@ describe('write contracts', () => {
     expect(CharacterCreateSchema.safeParse({ nick: '', region: 'ru' }).success).toBe(false);
     expect(CharacterCreateSchema.safeParse({ nick: 'T', region: 'global' }).success).toBe(false);
   });
-  it('accepts owned kinds and cleanup scopes', () => {
+  it('accepts owned kinds', () => {
     expect(OwnedCreateSchema.safeParse({ name: 'AK', kind: 'weapon', level: 15 }).success).toBe(true);
-    expect(CleanupScopeSchema.parse('all')).toBe('all');
   });
   it('includes icons and profile as sync sources', () => {
     expect(SyncSourceSchema.parse('icons')).toBe('icons');

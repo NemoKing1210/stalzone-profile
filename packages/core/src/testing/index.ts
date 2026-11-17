@@ -17,11 +17,5 @@ export { clearCharacterStat, setCharacterStat, upsertCharacter } from '../module
 export { replaceContainerSlots, upsertOwned, upsertOwnedContainer } from '../modules/inventory/index.js';
 export { ensureDefaultSources, ensureSource, markSourceOk } from '../modules/sync/index.js';
 
-/**
- * `saveBuild` in the builds public API is the logging write service; fixtures
- * need the raw upsert, which is why this one comes straight from the repository.
- */
-export { saveBuild as seedBuild } from '../modules/builds/repo/builds.js';
-
 /** Raw owned delete without the write service's options and journal entry. */
 export { deleteOwned as deleteOwnedRow } from '../modules/inventory/repo/owned.js';

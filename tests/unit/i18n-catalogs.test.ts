@@ -68,14 +68,13 @@ describe('i18n catalogs', () => {
     for (const code of codes) expect(API_ERROR_CODES.has(code), code).toBe(true);
   });
 
-  it('names the exact counts in the clear-all confirmation', () => {
-    expect(params(en['settings.cleanup.confirmAll']!)).toEqual(['copies', 'count', 'records']);
+  it('names the exact counts in the inventory confirmation', () => {
+    expect(params(en['settings.cleanup.confirmInventory']!)).toEqual(['copies', 'records']);
   });
 
   it('names the cleanup actions in the journal', () => {
     for (const key of [
       'events.actions.ownedClear',
-      'events.actions.buildClear',
       'events.actions.dossierClear',
       'events.actions.characterCreate',
     ]) {

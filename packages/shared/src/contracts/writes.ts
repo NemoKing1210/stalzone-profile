@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import {
-  CleanupScopeSchema,
   FactionSchema,
   ItemKindSchema,
   OwnedKindSchema,
@@ -14,7 +13,6 @@ export const WriteOptionsSchema = z.object({
 });
 
 export const CleanupRequestSchema = z.object({
-  scope: CleanupScopeSchema,
   dryRun: z.boolean().default(false),
 });
 export type CleanupRequest = z.infer<typeof CleanupRequestSchema>;
@@ -110,37 +108,6 @@ export const ContainerFillSchema = WriteOptionsSchema.extend({
 });
 
 export type ContainerFill = z.infer<typeof ContainerFillSchema>;
-
-export const BuildSlotSchema = z.object({
-  name: z.string().nullish(),
-  label: z.string().nullish(),
-  quality: z.string().nullish(),
-  rank: z.string().nullish(),
-  price: z.number().int().nonnegative().nullish(),
-  lots: z.number().int().nonnegative().nullish(),
-  eff: z.string().nullish(),
-  bonus: z.string().nullish(),
-  minus: z.string().nullish(),
-  why: z.string().nullish(),
-});
-
-export const BuildInputSchema = WriteOptionsSchema.extend({
-  slug: z.string().min(1).regex(/^[a-z0-9][a-z0-9-]*$/i, 'slug: latin letters, digits, hyphen'),
-  title: z.string().min(1).max(200),
-  short: z.string().max(100).nullish(),
-  tag: z.string().max(100).nullish(),
-  goal: z.string().max(1000).nullish(),
-  container: z.string().max(200).nullish(),
-  slots: z.number().int().nonnegative().nullish(),
-  eff: z.number().nullish(),
-  budget: z.number().int().nonnegative().nullish(),
-  total: z.number().int().nonnegative().nullish(),
-  metrics: z.array(z.object({ l: z.string(), v: z.string(), s: z.string().nullish() })).nullish(),
-  verdict: z.string().max(2000).nullish(),
-  rows: z.array(BuildSlotSchema).default([]),
-});
-
-export type BuildInput = z.infer<typeof BuildInputSchema>;
 
 export const LoginSchema = z.object({
   password: z.string().min(1).max(256),

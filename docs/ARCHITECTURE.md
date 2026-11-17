@@ -36,7 +36,7 @@ no second database.
 | `packages/shared` | contracts (zod schemas), `norm`, formatting, ranks |
 | `packages/core` | platform (config, DB, journal, security) and domain modules; no compatibility shims |
 | `packages/sources` | pure source adapters: fetch + parse, no DB writes |
-| `packages/mcp` | registry of 20 tools (12 read, 8 write), local client, stdio and HTTP transports |
+| `packages/mcp` | registry of 16 tools (10 read, 6 write), local client, stdio and HTTP transports |
 | `app` | Nuxt UI slices: `shared → entities → features → pages`, plus layouts, plugins and middleware |
 | `server` | Nitro routes, session, origin check, `/mcp`, `/api/v1/admin/*` |
 
@@ -54,7 +54,6 @@ orchestrate several domains are `maintenance` (journal-based rollback), `read-mo
 | `catalog` | items, stats, effects, prices, icons, the DPS/TTK and artifact formulas |
 | `identity` | character and its stats, including the `stat_definition` reference surface |
 | `inventory` | owned rows, container overrides, fill |
-| `builds` | saved builds and their artifacts |
 | `sync` | source adapters binding, freshness rows, profile statistics |
 | `setup` | the first-run state |
 | `maintenance` | atomic cleanup and rollback through `event_log` |
@@ -72,7 +71,7 @@ HTTP: it imports no `@dossier/core`, and `@dossier/shared` only through `/contra
 1. A page calls `useDossier()` → `GET /api/v1/payload` or `/api/v1/meta`.
 2. The route gets the shared `Db` from `server/utils/db.ts` (WAL, one migration per process).
 3. `buildPayload` (`packages/core/src/modules/read-model/payload.ts`) assembles typed rows:
-   character with derived fields, gear, catalog, derived `details[key]` cards, builds, icons
+   character with derived fields, gear, catalog, derived `details[key]` cards, icons
    and freshness, reading through each module's public read API.
 4. DPS/TTK numbers come from one formula
    (`packages/core/src/modules/catalog/calc/weapons.ts`) using raw damage and rate of fire;

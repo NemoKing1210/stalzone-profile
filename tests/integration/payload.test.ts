@@ -29,7 +29,6 @@ describe('buildPayload contract', () => {
     expect(Object.keys(payload).sort()).toEqual([
       'armor',
       'artifacts',
-      'builds',
       'catalog',
       'character',
       'containers',
@@ -91,7 +90,7 @@ describe('buildPayload contract', () => {
     });
   });
 
-  it('builds the catalog, details and build sections from typed rows', () => {
+  it('builds the catalog and details sections from typed rows', () => {
     expect(payload.catalog.weapons.map((w) => w.name)).toEqual(['АК-12', 'KS-1']);
     expect(payload.catalog.weapons.find((w) => w.name === 'АК-12')).toMatchObject({
       dmg15: 55,
@@ -99,11 +98,6 @@ describe('buildPayload contract', () => {
       ttk15: 1,
     });
     expect(payload.details['art:Нервяк']).toMatchObject({ kind: 'artifact', name: 'Нервяк', effects: 'Скорость' });
-    expect(payload.builds.items[0]).toMatchObject({
-      id: 'speed',
-      metrics: [{ l: 'DPS', v: '550', s: null }],
-      total: null,
-    });
   });
 
   it('exports the new dossier shape without legacy sections', () => {
@@ -111,7 +105,6 @@ describe('buildPayload contract', () => {
     expect(Object.keys(exported).sort()).toEqual([
       'armor',
       'artifacts',
-      'builds',
       'catalog',
       'character',
       'containers',

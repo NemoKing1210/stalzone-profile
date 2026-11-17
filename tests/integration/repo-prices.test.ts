@@ -10,7 +10,7 @@ let dir: string;
 let db: Db;
 
 beforeEach(() => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dossier-builds-'));
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dossier-prices-'));
   db = openDb(path.join(dir, 'test.db'));
   migrate(db, path.join(process.cwd(), 'db', 'migrations'));
   repo.ensureDefaultSources(db);
@@ -21,23 +21,7 @@ afterEach(() => {
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-describe('builds and prices', () => {
-  it('stores metrics in build_metric and replaces them on save', () => {
-    seed.seedBuild(db, {
-      slug: 'speed',
-      title: 'Скорость',
-      metrics: [{ l: 'DPS', v: '100', s: null }],
-      rows: [{ label: 'Нервяк', price: 1000 }],
-    });
-    const build = repo.getBuild(db, 'speed')!;
-    expect(repo.listBuildMetrics(db, build.id)).toEqual([
-      { build_id: build.id, position: 0, label: 'DPS', value: '100', sub: null },
-    ]);
-    seed.seedBuild(db, { slug: 'speed', title: 'Скорость', metrics: [{ l: 'TTK', v: '1.0', s: 'сек' }], rows: [] });
-    expect(repo.listBuildMetrics(db, build.id).map((m) => m.label)).toEqual(['TTK']);
-    expect(repo.listBuildSlots(db, build.id)).toEqual([]);
-  });
-
+describe('prices', () => {
   it('reads the newest price per name, quality and bonus', () => {
     repo.ensureDefaultSources(db);
     seed.insertPriceQuote(db, {

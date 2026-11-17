@@ -17,6 +17,5 @@ export function exportDossierJson(db: Db, characterId?: number): DossierExport {
     artifacts: payload.artifacts,
     catalog: payload.catalog,
     details: payload.details,
-    builds: payload.builds,
   };
 }

@@ -1,7 +1,7 @@
 # MCP server
 
-One tool registry serves both stdio and HTTP — results never diverge. There are 20 tools:
-12 read and 8 write/maintenance.
+One tool registry serves both stdio and HTTP — results never diverge. There are 16 tools:
+10 read and 6 write/maintenance.
 
 ## Connecting
 
@@ -66,8 +66,6 @@ The `dossier://schema` resource provides tool descriptions and the write rules.
 | `compare_items` | `a`, `b`, `level` | DPS/TTK and stats of two items |
 | `list_owned` | `kind?` | gear with `ownedId`, `qty`, qualities and container override |
 | `list_containers` | — | containers and their fill |
-| `list_builds` | — | builds with metrics and rows |
-| `get_build` | `slug` | one build |
 | `plan_artifact_build` | preset/effects, slots, budget, mode, quality, unique, requireLot | an artifact plan by price |
 | `get_prices` | `names[]`, `quality?` | latest prices for each combination |
 | `sources_status` | — | source status, `lastOkAt`, `lastError` |
@@ -80,8 +78,6 @@ The `dossier://schema` resource provides tool descriptions and the write rules.
 | `upsert_owned_item` | `name`, `kind`, `level`, `skin?`, `quality?`, `note?`, `role?`, `dry_run?` |
 | `remove_owned_item` | `name`, `kind`, `level?`, `dry_run?` |
 | `set_container_artifacts` | `container`, `artifacts[]`, `as_of?`, `dry_run?` |
-| `save_build` | `slug`, `title`, `rows[]`, the remaining build fields, `dry_run?` |
-| `delete_build` | `slug`, `dry_run?` |
 | `sync_source` | `source`: `exbo \| exbo_base \| wiki \| motifs \| scpmodel \| icons \| profile`, `force?`, `confirm`. Resolves `ICONS_DIR`, the realm and the STALZONE credentials the same way the CLI does |
 | `rollback_event` | `event_id`, `dry_run?` |
 | `rebuild_site` | — |

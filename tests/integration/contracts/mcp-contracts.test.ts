@@ -33,8 +33,6 @@ describe('MCP read output contracts', () => {
       compare_items: { items: await client.compareItems('АК-12', 'KS-1', 15) },
       list_owned: { items: await client.listOwned(null) },
       list_containers: { items: await client.listContainers() },
-      list_builds: { builds: await client.listBuilds() },
-      get_build: { build: await client.getBuild('speed') },
       plan_artifact_build: { plan: await client.planArtifactBuild({ preset: 'speed', slots: 3 }) },
       get_prices: { prices: await client.getPrices(['АК-12']) },
       sources_status: { sources: await client.sourcesStatus() },

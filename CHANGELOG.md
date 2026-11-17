@@ -47,6 +47,17 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 - `server/utils/serialize.ts` keeps only the event adapter: the test-only `itemJson`
   wrapper and the unused `findAnyDetailsCard` export are removed.
 
+### Removed
+
+- Saved builds are gone from the dossier. The project now keeps only item-centred
+  entities: the `build`, `build_metric` and `build_slot` tables are dropped by
+  `0003_drop_builds.sql`; the builds module, `GET/POST/DELETE /api/v1/builds`, the
+  `list_builds`, `get_build`, `save_build` and `delete_build` MCP tools, the payload
+  `builds` section and the export field are removed. Cleanup keeps only the inventory
+  action (`POST /api/v1/admin/cleanup` takes `{ dryRun? }`), and `CHARACTER_NOT_EMPTY`
+  now checks gear alone. Historical journal rows that mention builds stay readable but
+  cannot be rolled back.
+
 ## [2026-11-17] — Contract-first modular monolith: core modules and app slices
 
 ### Added

@@ -26,8 +26,6 @@ const EXPECTED_WRITE_TOOLS = [
   'upsert_owned_item',
   'remove_owned_item',
   'set_container_artifacts',
-  'save_build',
-  'delete_build',
   'sync_source',
   'rebuild_site',
   'rollback_event',
@@ -39,8 +37,6 @@ const EXPECTED_READ_TOOLS = [
   'compare_items',
   'list_owned',
   'list_containers',
-  'list_builds',
-  'get_build',
   'plan_artifact_build',
   'get_prices',
   'sources_status',
@@ -242,9 +238,9 @@ describe('MCP HTTP transport', () => {
     const inProcess = await localClient(db).getItem({ name: 'АК-12' });
     expect(overHttp).toEqual(inProcess);
 
-    const buildsOverHttp = await remote.listBuilds();
-    const buildsInProcess = await localClient(db).listBuilds();
-    expect(buildsOverHttp).toEqual(buildsInProcess);
+    const containersOverHttp = await remote.listContainers();
+    const containersInProcess = await localClient(db).listContainers();
+    expect(containersOverHttp).toEqual(containersInProcess);
   });
 
   it('rejects requests without the bearer token', async () => {

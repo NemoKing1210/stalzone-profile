@@ -3,7 +3,6 @@ export * from './writes.js';
 export * from './catalog.js';
 export * from './identity.js';
 export * from './inventory.js';
-export * from './builds.js';
 export * from './journal.js';
 export * from './api.js';
 export * from './payload.js';

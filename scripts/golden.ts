@@ -22,12 +22,6 @@ interface GoldenArmor {
   prot?: Record<string, number>;
 }
 
-interface GoldenBuild {
-  id: string;
-  total: number | null;
-  rows: number;
-}
-
 interface GoldenContainer {
   name: string;
   slots: number;
@@ -38,7 +32,6 @@ interface GoldenContainer {
 interface Golden {
   weapons: GoldenWeapon[];
   armor: GoldenArmor[];
-  builds: GoldenBuild[];
   containers: GoldenContainer[];
 }
 
@@ -110,16 +103,6 @@ function main(): void {
       }
     }
 
-    for (const expected of fixture.builds) {
-      const actual = payload.builds.items.find((b: Json) => b.id === expected.id) as Json | undefined;
-      if (!actual) {
-        mismatches.push(`build ${expected.id}: missing`);
-        continue;
-      }
-      cmp(`${expected.id}.total`, actual.total, expected.total, 0);
-      cmp(`${expected.id}.rows`, actual.rows?.length, expected.rows, 0);
-    }
-
     for (const expected of fixture.containers) {
       const actual = payload.containers.find((c: Json) => c.name === expected.name) as Json | undefined;
       if (!actual) {
@@ -142,7 +125,6 @@ function main(): void {
           details: Object.keys(payload.details).length,
           catalogWeapons: payload.catalog.weapons.length,
           catalogArmor: payload.catalog.armor.length,
-          builds: payload.builds.items.length,
           mismatches: mismatches.length,
           legacyDeltas: [],
         },

@@ -26,7 +26,6 @@ import {
 } from '../catalog/index.js';
 import { getCharacter, getCharacterRead, listCharacterStats } from '../identity/index.js';
 import { allContainerSlots, getOwnedContainer, listOwned, type ContainerSlotRow, type OwnedJoined } from '../inventory/index.js';
-import { allBuildMetrics, allBuildSlots, listBuilds } from '../builds/index.js';
 import { listSources } from '../sync/index.js';
 
 type Json = Record<string, any>;
@@ -229,48 +228,6 @@ function expandOwned(rows: OwnedJoined[]): OwnedJoined[] {
   return out;
 }
 
-function buildsOf(
-  ctx: CatalogContext,
-  builds: ReturnType<typeof listBuilds>,
-  slots: ReturnType<typeof allBuildSlots>,
-  metrics: ReturnType<typeof allBuildMetrics>,
-): { items: Json[] } {
-  const items = builds.map((build) => {
-    const container = build.container_item_id ? (ctx.items.get(build.container_item_id) ?? null) : null;
-    const rows = (slots[build.id] ?? []).map((row) => ({
-      name: row.item_name ?? row.label ?? '—',
-      q: row.quality ?? null,
-      price: row.price ?? null,
-      lots: row.lots ?? null,
-      eff: row.eff ?? null,
-      bonus: row.bonus ?? null,
-      minus: row.minus ?? null,
-      why: row.why ?? null,
-      rank: rankKey(row.item_rank ?? row.rank) ?? row.rank ?? 'default',
-    }));
-    return {
-      id: build.slug,
-      short: build.short,
-      tag: build.tag,
-      title: build.title,
-      goal: build.goal,
-      container: container?.name ?? null,
-      slots: build.slots,
-      eff: build.eff,
-      budget: build.budget,
-      total: build.total,
-      metrics: (metrics[build.id] ?? []).map((metric) => ({
-        l: metric.label,
-        v: metric.value,
-        s: metric.sub,
-      })),
-      rows,
-      verdict: build.verdict,
-    };
-  });
-  return { items };
-}
-
 /** The character section is the identity read model without its surrogate id. */
 function characterPayload(db: Db, characterId?: number): Json {
   const read = getCharacterRead(db, characterId);
@@ -316,20 +273,13 @@ export function buildPayload(db: Db, characterId?: number): Payload {
       artifacts: [],
       catalog: { weapons: [], armor: [], meta: { updated: null, source: '', items: 0 } },
       details: {},
-      builds: { items: [] },
       icons: {},
       freshness: freshness(sources, latestPrice, currentCharacterUpdatedAt),
     } as Payload;
   }
 
   const owned = expandOwned(listOwned(db, character.id));
-  const builds = listBuilds(db);
-  const itemIds = [
-    ...new Set([
-      ...owned.map((row) => row.item_id),
-      ...builds.map((build) => build.container_item_id).filter((id): id is number => id != null),
-    ]),
-  ];
+  const itemIds = [...new Set(owned.map((row) => row.item_id))];
   const ctx: CatalogContext = {
     items: itemsByIds(db, itemIds),
     stats: statsByItemIds(db, itemIds),
@@ -358,7 +308,6 @@ export function buildPayload(db: Db, characterId?: number): Payload {
       meta,
     },
     details: buildDetails(db),
-    builds: buildsOf(ctx, builds, allBuildSlots(db), allBuildMetrics(db)),
     icons: iconMap(db),
     freshness: freshness(sources, latestPrice, currentCharacterUpdatedAt),
   } as Payload;

@@ -44,47 +44,9 @@ const GetItemInputSchema = z
     message: 'Provide id or name',
   });
 
-const GetBuildInputSchema = z.object({ slug: z.string().min(1) });
-
 const GetPricesInputSchema = z.object({
   names: z.union([z.string().min(1), z.array(z.string().min(1)).min(1).max(100)]),
   quality: z.string().nullish(),
-});
-
-const BuildSlotInputSchema = z.object({
-  name: z.string().nullish(),
-  quality: z.string().nullish(),
-  rank: z.string().nullish(),
-  price: z.number().int().nonnegative().nullish(),
-  lots: z.number().int().nonnegative().nullish(),
-  eff: z.string().nullish(),
-  bonus: z.string().nullish(),
-  minus: z.string().nullish(),
-  why: z.string().nullish(),
-});
-
-const SaveBuildInputSchema = z.object({
-  slug: z.string().min(1).regex(/^[a-z0-9][a-z0-9-]*$/i),
-  title: z.string().min(1).max(200),
-  short: z.string().max(100).nullish(),
-  tag: z.string().max(100).nullish(),
-  goal: z.string().max(1000).nullish(),
-  container: z.string().max(200).nullish(),
-  slots: z.number().int().nonnegative().nullish(),
-  eff: z.number().nullish(),
-  budget: z.number().int().nonnegative().nullish(),
-  total: z.number().int().nonnegative().nullish(),
-  verdict: z.string().max(2000).nullish(),
-  metrics: z.array(z.object({ l: z.string(), v: z.string(), s: z.string().nullish() })).nullish(),
-  rows: z.array(BuildSlotInputSchema).default([]),
-  dry_run: z.boolean().default(true),
-  confirm: z.boolean().default(false),
-});
-
-const DeleteBuildInputSchema = z.object({
-  slug: z.string().min(1),
-  dry_run: z.boolean().default(true),
-  confirm: z.boolean().default(false),
 });
 
 const SyncSourceInputSchema = z.object({
@@ -107,8 +69,6 @@ export const READ_TOOLS: { name: string; args: Record<string, unknown> }[] = [
   { name: 'compare_items', args: { a: 'АК-12', b: 'KS-1', level: 15 } },
   { name: 'list_owned', args: {} },
   { name: 'list_containers', args: {} },
-  { name: 'list_builds', args: {} },
-  { name: 'get_build', args: { slug: 'speed' } },
   { name: 'plan_artifact_build', args: { preset: 'speed', slots: 3 } },
   { name: 'get_prices', args: { names: ['АК-12'] } },
   { name: 'sources_status', args: {} },
@@ -125,8 +85,6 @@ const TOOL_DOCS: Record<string, string> = {
     compare_items: 'Compare two weapons by DPS and TTK at a refinement level',
     list_owned: 'Items owned by the character',
     list_containers: 'Containers with their current fill',
-    list_builds: 'Builds, the current loadout and what to avoid',
-    get_build: 'A single build by slug',
     plan_artifact_build: 'Pick artifacts for an effect preset, slots and budget',
     get_prices: 'Latest auction prices by item name',
     sources_status: 'Data source state and freshness',
@@ -134,8 +92,6 @@ const TOOL_DOCS: Record<string, string> = {
     upsert_owned_item: 'Add or update a character item (dry_run by default)',
     remove_owned_item: 'Remove one copy of an item (dry_run by default)',
     set_container_artifacts: 'Replace a container fill (dry_run by default)',
-    save_build: 'Create or update a build (dry_run by default)',
-    delete_build: 'Delete a build (dry_run by default)',
     sync_source: 'Run a source sync (exbo_base, wiki, motifs, scpmodel, icons, profile); requires confirm',
     rebuild_site: 'Site rebuild happens on deploy; MCP only reports the command',
     rollback_event: 'Roll back a journal event (dry_run by default)',
@@ -263,32 +219,6 @@ export function createDossierServer(
   );
 
   server.registerTool(
-    'list_builds',
-    { description: TOOL_DOCS.list_builds, inputSchema: z.object({}) },
-    async () => {
-      try {
-        return ok({ builds: await client.listBuilds() });
-      } catch (error) {
-        return errorResult(error);
-      }
-    },
-  );
-
-  server.registerTool(
-    'get_build',
-    { description: TOOL_DOCS.get_build, inputSchema: GetBuildInputSchema },
-    async (args) => {
-      try {
-        const build = await client.getBuild(args.slug);
-        if (!build) return fail('BUILD_NOT_FOUND', 'Build not found');
-        return ok({ build });
-      } catch (error) {
-        return errorResult(error);
-      }
-    },
-  );
-
-  server.registerTool(
     'plan_artifact_build',
     { description: TOOL_DOCS.plan_artifact_build, inputSchema: PlanArtifactBuildInputSchema },
     async (args) => {
@@ -404,55 +334,6 @@ export function createDossierServer(
             dryRun,
           }),
         );
-      } catch (error) {
-        return errorResult(error);
-      }
-    },
-  );
-
-  server.registerTool(
-    'save_build',
-    { description: TOOL_DOCS.save_build, inputSchema: SaveBuildInputSchema },
-    async (args) => {
-      const dryRun = args.dry_run ?? true;
-      const gate = confirmation(dryRun, args.confirm ?? false);
-      if (gate) return gate;
-      if (!dryRun && !limiter.take()) return fail('RATE_LIMITED', 'No more than 30 writes per minute');
-      try {
-        return ok(
-          await client.saveBuild({
-            slug: args.slug,
-            title: args.title,
-            short: args.short,
-            tag: args.tag,
-            goal: args.goal,
-            container: args.container,
-            slots: args.slots,
-            eff: args.eff,
-            budget: args.budget,
-            total: args.total,
-            verdict: args.verdict,
-            metrics: args.metrics,
-            rows: args.rows,
-            dryRun,
-          }),
-        );
-      } catch (error) {
-        return errorResult(error);
-      }
-    },
-  );
-
-  server.registerTool(
-    'delete_build',
-    { description: TOOL_DOCS.delete_build, inputSchema: DeleteBuildInputSchema },
-    async (args) => {
-      const dryRun = args.dry_run ?? true;
-      const gate = confirmation(dryRun, args.confirm ?? false);
-      if (gate) return gate;
-      if (!dryRun && !limiter.take()) return fail('RATE_LIMITED', 'No more than 30 writes per minute');
-      try {
-        return ok(await client.deleteBuild(args.slug, dryRun));
       } catch (error) {
         return errorResult(error);
       }

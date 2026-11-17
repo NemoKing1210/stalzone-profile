@@ -126,12 +126,10 @@ export function findCharacterByName(db: Db, nick: string, region = 'ru'): Charac
   );
 }
 
-/** True when gear or builds exist; deleting the character would cascade-destroy them. */
+/** True when gear exists; deleting the character would cascade-destroy it. */
 export function characterHasDossier(db: Db, id: number): boolean {
   const row = db
-    .prepare(
-      `SELECT (SELECT COUNT(*) FROM owned_item WHERE character_id = @id) + (SELECT COUNT(*) FROM build) AS c`,
-    )
+    .prepare(`SELECT COUNT(*) AS c FROM owned_item WHERE character_id = @id`)
     .get({ id }) as { c: number };
   return row.c > 0;
 }

@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { BuildReadSchema } from './builds.js';
 import { CatalogItemSchema, ItemCardSchema } from './catalog.js';
 import { ContainerReadSchema } from './inventory.js';
 import { SourceStatusSchema } from './api.js';
@@ -76,7 +75,6 @@ export const PayloadSchema = z.object({
     meta: CatalogMetaSchema,
   }),
   details: z.record(z.string(), ItemCardSchema),
-  builds: z.object({ items: z.array(BuildReadSchema) }),
   icons: z.record(z.string(), z.string()),
   freshness: FreshnessSchema,
 });

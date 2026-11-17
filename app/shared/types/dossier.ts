@@ -160,32 +160,6 @@ export interface CatalogEntry {
   [key: string]: unknown;
 }
 
-export interface BuildPayload {
-  id: string;
-  title: string;
-  short: string | null;
-  tag: string | null;
-  goal: string | null;
-  container: string | null;
-  slots: number | null;
-  eff: number | null;
-  budget: number | null;
-  total: number | null;
-  metrics: { l: string; v: string; s?: string | null }[];
-  rows: {
-    name: string;
-    q: string | null;
-    price: number | null;
-    lots: number | null;
-    eff: string | null;
-    bonus: string | null;
-    minus: string | null;
-    why: string | null;
-    rank: string | null;
-  }[];
-  verdict: string | null;
-}
-
 export interface DossierPayload {
   meta: Record<string, unknown>;
   character: DossierCharacter;
@@ -195,7 +169,6 @@ export interface DossierPayload {
   artifacts: ArtifactPayload[];
   catalog: { weapons: CatalogEntry[]; armor: CatalogEntry[]; meta: Record<string, unknown> };
   details: Record<string, unknown>;
-  builds: { items: BuildPayload[] };
   icons: Record<string, string>;
   freshness: Freshness;
 }

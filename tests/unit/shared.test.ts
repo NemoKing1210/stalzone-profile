@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BuildInputSchema,
   CharacterCreateSchema,
   CharacterPatchSchema,
   CleanupRequestSchema,
@@ -175,17 +174,10 @@ describe('container fill', () => {
   });
 });
 
-describe('build input', () => {
-  it('accepts a latin slug and rejects a cyrillic one', () => {
-    expect(BuildInputSchema.parse({ slug: 'speed-run', title: 'Скорость' }).rows).toEqual([]);
-    expect(BuildInputSchema.safeParse({ slug: 'скорость', title: 'Скорость' }).success).toBe(false);
-  });
-});
-
 describe('cleanup request', () => {
   it('parses cleanup requests with a default dry run', () => {
-    expect(CleanupRequestSchema.parse({ scope: 'owned' })).toEqual({ scope: 'owned', dryRun: false });
-    expect(CleanupRequestSchema.safeParse({ scope: 'everything' }).success).toBe(false);
+    expect(CleanupRequestSchema.parse({})).toEqual({ dryRun: false });
+    expect(CleanupRequestSchema.parse({ dryRun: true })).toEqual({ dryRun: true });
   });
 });
 

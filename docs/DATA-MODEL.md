@@ -27,16 +27,16 @@ only through new migrations in `db/migrations/`.
 | `owned_item` | gear: unique by item/level/quality/skin, copies collapse into `qty` |
 | `owned_container` | per-container override of type, shield, bonus, protection, slots, efficiency |
 | `container_slot` | artifact fill of a container as of `as_of` |
-| `build` | build header and totals |
-| `build_metric` | ordered metric rows (`label`, `value`, `sub`) |
-| `build_slot` | ordered build rows, either an item reference or a free label |
 | `event_log` | write journal: `before`/`after` snapshots for rollback |
 
 Migrations: `0001_init.sql` is the typed baseline (replaced once on 2026-11-17 as an
 owner-approved reset; that exception is closed). Every later change is a new
 `NNNN_*.sql` file. `0002_character_faction.sql` turns `faction` into an enum
 (`rise`, `frontier`, `mercenaries`, `covenant`), keeps it nullable, normalizes legacy
-free-text values to `NULL` and drops `playstyle`.
+free-text values to `NULL` and drops `playstyle`. `0003_drop_builds.sql` drops the
+`build`, `build_metric` and `build_slot` tables: the dossier now stores only item-centred
+entities. Historical `event_log` rows that mention builds remain readable but can no
+longer be restored.
 
 ## Key invariants
 

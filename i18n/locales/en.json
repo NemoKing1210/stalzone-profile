@@ -81,7 +81,6 @@
     "OWNED_NOT_FOUND": "Entry not found",
     "OWNED_CONFLICT": "This entry already exists — change its quantity instead",
     "NOT_A_CONTAINER": "This entry is not a container",
-    "BUILD_NOT_FOUND": "Build not found",
     "DETAIL_NOT_FOUND": "Card not found",
     "ITEM_NOT_FOUND": "Item not found",
     "EVENT_NOT_FOUND": "Event not found",
@@ -90,7 +89,7 @@
     "DB_UNAVAILABLE": "The database is unavailable",
     "NO_CHARACTER": "No character in the database — create it through the editor or the API",
     "CHARACTER_EXISTS": "A character already exists",
-    "CHARACTER_NOT_EMPTY": "The character has gear or builds; remove them before rolling back",
+    "CHARACTER_NOT_EMPTY": "The character has gear; remove it before rolling back",
     "STALZONE_API_NOT_CONFIGURED": "The STALZONE profile API is not configured"
   },
   "auth": {
@@ -361,7 +360,7 @@
     "emptyTitle": "No sources registered",
     "emptyDescription": "Run migrations to create source records.",
     "exportTitle": "Dossier export",
-    "exportText": "JSON in the source dossier format: character, gear, catalog, cards, builds and recommendations.",
+    "exportText": "JSON in the source dossier format: character, gear, catalog and cards.",
     "downloadJson": "Download JSON",
     "backupsTitle": "Backups",
     "backupsBefore": "SQLite lives in a single file. A backup is taken with ",
@@ -382,20 +381,10 @@
       "inventoryText": "Every item you own, including container fills, in all categories.",
       "inventoryCount": "{records} records · {copies} copies",
       "clearInventory": "Clear inventory",
-      "buildsTitle": "Builds",
-      "buildsText": "Saved builds and their slots.",
-      "buildsCount": "{count} builds",
-      "clearBuilds": "Clear builds",
-      "allTitle": "All data",
-      "allText": "Inventory and builds in one action. The catalog, prices, sources and the journal stay.",
-      "allCount": "{records} records · {copies} copies · {count} builds",
-      "clearAll": "Clear all data",
       "countsUnavailable": "Counts unavailable",
       "countsRetry": "Retry",
       "confirmTitle": "Clear data",
       "confirmInventory": "Delete all {records} inventory records ({copies} copies)? The action is written to the journal and can be rolled back.",
-      "confirmBuilds": "Delete all {count} builds? The action is written to the journal and can be rolled back.",
-      "confirmAll": "Delete all {records} inventory records ({copies} copies) and {count} builds? The action is one journal entry and can be rolled back in one step.",
       "exportHint": "Export the dossier before cleanup:",
       "exportLink": "Download JSON",
       "journalHint": "You can undo this in the Journal tab."
@@ -472,11 +461,8 @@
       "ownedUpdate": "Item changed",
       "ownedDelete": "Item deleted",
       "containerFill": "Container fill",
-      "buildSave": "Build saved",
-      "buildDelete": "Build deleted",
       "contentPut": "Block changed",
       "ownedClear": "Inventory cleared",
-      "buildClear": "Builds cleared",
       "dossierClear": "All data cleared",
       "rollback": "Rollback"
     },
@@ -524,7 +510,6 @@
       "title": "Your dossier right now",
       "owned": "Owned items",
       "catalog": "Catalog items",
-      "builds": "Builds",
       "updated": "Last data update"
     },
     "sections": {
@@ -621,7 +606,7 @@
           "sources": "Source status, last success, last attempt, error text and a manual sync per source.",
           "data": "Download the typed JSON export, see freshness and learn how backups work.",
           "journal": "Every write is listed with actor and note; each event can be rolled back.",
-          "cleanup": "Clear inventory, builds or the whole dossier in one journalled transaction."
+          "cleanup": "Clear the inventory in one journalled transaction."
         }
       },
       "changelog": {
@@ -725,7 +710,7 @@
       "reads": {
         "healthz": "Liveness probe for the process and the database.",
         "setup": "First-run state: whether a character exists, catalog size and source status.",
-        "payload": "The whole dossier in one response: character, gear, catalog, derived cards, builds, icons and freshness.",
+        "payload": "The whole dossier in one response: character, gear, catalog, derived cards, icons and freshness.",
         "meta": "Compact metadata: character update, catalog state and freshness.",
         "character": "The character with its derived fields (K/D, accuracy, headshot, hours, arrival).",
         "items": "Search the catalog by text, kind, rank and slot.",
@@ -734,8 +719,6 @@
         "catalog": "The weapon and armor catalog.",
         "owned": "The character's gear, optionally filtered by kind.",
         "containers": "Containers with their current artifact fill.",
-        "builds": "Saved builds with metrics and rows.",
-        "build": "One build by slug.",
         "prices": "Latest auction prices for a list of item names.",
         "sources": "Source status, last success, last attempt and age.",
         "events": "The change journal, newest first.",
@@ -748,13 +731,11 @@
         "ownedPatch": "Change level, quality, skin, note, role or a container override.",
         "ownedDelete": "Remove one copy or a given quantity.",
         "containerFill": "Replace a container's artifact fill and its date.",
-        "buildSave": "Create or update a build and its rows.",
-        "buildDelete": "Delete a build by slug.",
         "rollback": "Restore an entity from an event snapshot and log the rollback."
       },
       "admin": {
-        "cleanupRead": "Count owned records, copies and builds before a cleanup.",
-        "cleanup": "Clear inventory, builds or everything; one journal entry keeps a full snapshot.",
+        "cleanupRead": "Count owned records and copies before a cleanup.",
+        "cleanup": "Clear the inventory; one journal entry keeps the full snapshot.",
         "sync": "Run a source sync; all covers catalog sources, profile stays opt-in."
       }
     },
@@ -775,8 +756,6 @@
         "compare_items": "Compare two weapons by DPS and TTK at a refinement level.",
         "list_owned": "Items owned by the character.",
         "list_containers": "Containers with their current fill.",
-        "list_builds": "Builds, the current loadout and what to avoid.",
-        "get_build": "A single build by slug.",
         "plan_artifact_build": "Pick artifacts for an effect preset, slots and budget.",
         "get_prices": "Latest auction prices by item name.",
         "sources_status": "Source state and freshness.",
@@ -784,8 +763,6 @@
         "upsert_owned_item": "Add one copy of an item or update its fields.",
         "remove_owned_item": "Remove one copy of an item.",
         "set_container_artifacts": "Replace a container fill.",
-        "save_build": "Create or update a build.",
-        "delete_build": "Delete a build.",
         "sync_source": "Run a source sync; requires confirm.",
         "rebuild_site": "Reports the deploy command; MCP does not rebuild the site.",
         "rollback_event": "Roll back a journal event."

@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { ConfirmActionModal, DossierPane } from '~/shared/ui';
 
-import type { CleanupCounts, CleanupScope } from '@dossier/shared/contracts';
+import type { CleanupCounts } from '@dossier/shared/contracts';
 import { cleanupCountsView } from '../model/cleanupCounts';
 
 const { t } = useI18n();
 const { write, busy: writeBusy } = useWrite();
-
-type Scope = CleanupScope;
 
 const {
   data: counts,
@@ -21,52 +19,24 @@ onMounted(() => refreshCounts());
 
 const view = computed(() => cleanupCountsView(countsStatus.value, counts.value));
 
-const scope = ref<Scope | null>(null);
-const confirmOpen = computed({
-  get: () => scope.value !== null,
-  set: (value: boolean) => {
-    if (!value) scope.value = null;
-  },
-});
+const confirmOpen = ref(false);
 
-const confirmation = computed(() => {
-  switch (scope.value) {
-    case 'owned':
-      return {
-        label: t('settings.cleanup.clearInventory'),
-        description: t('settings.cleanup.confirmInventory', {
-          records: view.value.records,
-          copies: view.value.copies,
-        }),
-      };
-    case 'builds':
-      return {
-        label: t('settings.cleanup.clearBuilds'),
-        description: t('settings.cleanup.confirmBuilds', { count: view.value.builds }),
-      };
-    default:
-      return {
-        label: t('settings.cleanup.clearAll'),
-        description: t('settings.cleanup.confirmAll', {
-          records: view.value.records,
-          copies: view.value.copies,
-          count: view.value.builds,
-        }),
-      };
-  }
-});
+const confirmation = computed(() => ({
+  label: t('settings.cleanup.clearInventory'),
+  description: t('settings.cleanup.confirmInventory', {
+    records: view.value.records,
+    copies: view.value.copies,
+  }),
+}));
 
 async function clear(): Promise<void> {
-  const current = scope.value;
-  if (!current) return;
-
   const result = await write('/api/v1/admin/cleanup', {
     method: 'POST',
-    body: { scope: current, dryRun: false },
+    body: { dryRun: false },
   });
   if (!result) return;
 
-  scope.value = null;
+  confirmOpen.value = false;
   await refreshCounts();
 }
 </script>
@@ -90,7 +60,7 @@ async function clear(): Promise<void> {
       </div>
     </div>
 
-    <DossierPane :title="t('settings.cleanup.inventoryTitle')" dense>
+    <DossierPane :title="t('settings.cleanup.inventoryTitle')" dense class="border-[var(--sz-danger)]">
       <p class="text-[12.5px] text-[var(--sz-text-muted)]">{{ t('settings.cleanup.inventoryText') }}</p>
       <p class="mt-2 text-[12.5px] tabular-nums">
         {{
@@ -102,48 +72,10 @@ async function clear(): Promise<void> {
       <div class="mt-3">
         <UButton
           color="error"
-          variant="outline"
           size="sm"
           :label="t('settings.cleanup.clearInventory')"
           :disabled="!view.known || view.records === 0"
-          @click="scope = 'owned'"
-        />
-      </div>
-    </DossierPane>
-
-    <DossierPane :title="t('settings.cleanup.buildsTitle')" dense>
-      <p class="text-[12.5px] text-[var(--sz-text-muted)]">{{ t('settings.cleanup.buildsText') }}</p>
-      <p class="mt-2 text-[12.5px] tabular-nums">
-        {{ view.known ? t('settings.cleanup.buildsCount', { count: view.builds }) : '—' }}
-      </p>
-      <div class="mt-3">
-        <UButton
-          color="error"
-          variant="outline"
-          size="sm"
-          :label="t('settings.cleanup.clearBuilds')"
-          :disabled="!view.known || view.builds === 0"
-          @click="scope = 'builds'"
-        />
-      </div>
-    </DossierPane>
-
-    <DossierPane :title="t('settings.cleanup.allTitle')" dense class="border-[var(--sz-danger)]">
-      <p class="text-[12.5px] text-[var(--sz-text-muted)]">{{ t('settings.cleanup.allText') }}</p>
-      <p class="mt-2 text-[12.5px] tabular-nums">
-        {{
-          view.known
-            ? t('settings.cleanup.allCount', { records: view.records, copies: view.copies, count: view.builds })
-            : '—'
-        }}
-      </p>
-      <div class="mt-3">
-        <UButton
-          color="error"
-          size="sm"
-          :label="t('settings.cleanup.clearAll')"
-          :disabled="!view.known || (view.records === 0 && view.builds === 0)"
-          @click="scope = 'all'"
+          @click="confirmOpen = true"
         />
       </div>
     </DossierPane>

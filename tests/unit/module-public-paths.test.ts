@@ -2,14 +2,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import * as inventory from '@dossier/core/modules/inventory';
-import * as builds from '@dossier/core/modules/builds';
 
-describe('inventory and builds public APIs', () => {
+describe('inventory public API', () => {
   it('exposes the read and write primitives', () => {
     expect(typeof inventory.listOwned).toBe('function');
     expect(typeof inventory.allContainerSlots).toBe('function');
-    expect(typeof builds.listBuilds).toBe('function');
-    expect(typeof builds.saveBuild).toBe('function');
   });
 
   it('does not import core repositories from the MCP client', () => {

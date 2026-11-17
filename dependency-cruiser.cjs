@@ -84,16 +84,9 @@ module.exports = {
     {
       name: 'inventory-upstream-only',
       severity: 'error',
-      comment: 'inventory may import platform, shared, catalog and identity; never builds/sync/maintenance/read-model/setup.',
+      comment: 'inventory may import platform, shared, catalog and identity; never sync/maintenance/read-model/setup.',
       from: { path: '^packages/core/src/modules/inventory/' },
       to: { path: '^packages/core/src/modules/(?!inventory/|catalog/|identity/)' },
-    },
-    {
-      name: 'builds-upstream-only',
-      severity: 'error',
-      comment: 'builds may import platform, shared and catalog; never another downstream module.',
-      from: { path: '^packages/core/src/modules/builds/' },
-      to: { path: '^packages/core/src/modules/(?!builds/|catalog/)' },
     },
     {
       name: 'sync-upstream-only',
@@ -106,9 +99,9 @@ module.exports = {
       name: 'domain-modules-no-application-modules',
       severity: 'error',
       comment: 'Domain modules never import application modules (maintenance/read-model/setup); those compose the domain.',
-      from: { path: '^packages/core/src/modules/(catalog|identity|inventory|builds|sync)/' },
+      from: { path: '^packages/core/src/modules/(catalog|identity|inventory|sync)/' },
       to: {
-        path: '^packages/core/src/modules/(?!catalog/|identity/|inventory/|builds/|sync/)[^/]+/',
+        path: '^packages/core/src/modules/(?!catalog/|identity/|inventory/|sync/)[^/]+/',
       },
     },
 

@@ -184,12 +184,6 @@
       "asOf": "2026-01-01T00:00:00.000Z"
     }
   ],
-  "build": {
-    "slug": "speed",
-    "title": "Скорость",
-    "metrics": [{ "l": "DPS", "v": "550", "s": null }],
-    "rows": [{ "label": "Нервяк", "price": 1000 }]
-  },
   "prices": [
     {
       "name": "АК-12",

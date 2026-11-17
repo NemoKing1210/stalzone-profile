@@ -28,7 +28,6 @@ interface Fixture {
   characterStats?: { statId: string; valueNum?: number | null; valueText?: string | null; origin?: 'api' | 'manual' }[];
   owned?: Json[];
   containerSlots?: Json[];
-  build?: Json;
   prices?: Json[];
 }
 
@@ -134,8 +133,6 @@ export function seedCatalog(db: Db): void {
       );
     }
 
-    if (data.build) seed.seedBuild(db, data.build as never);
-    for (const price of data.prices ?? []) seed.insertPriceQuote(db, price as never);
-  });
+    for (const price of data.prices ?? []) seed.insertPriceQuote(db, price as never);  });
   run();
 }

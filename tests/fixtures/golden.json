@@ -5,6 +5,5 @@
   "armor": [
     { "name": "Куница", "armor": 62, "armor15": 70, "prot": { "tear": 20 } }
   ],
-  "builds": [{ "id": "speed", "total": null, "rows": 1 }],
   "containers": [{ "name": "Рюкзак", "slots": 4, "eff": 80, "slotEq": 3.2 }]
 }

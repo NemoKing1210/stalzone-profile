@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { SourcesReadSchema } from './api.js';
-import { BuildReadSchema } from './builds.js';
 import { ItemCardSchema, ItemEffectSchema, ItemStatSchema, ItemSummarySchema } from './catalog.js';
 import { ContainerOverrideSchema, ContainerReadSchema } from './inventory.js';
 import { DossierExportSchema, PayloadCharacterSchema, PayloadMetaSchema } from './payload.js';
@@ -64,8 +63,6 @@ export const READ_OUTPUT_SCHEMAS: Record<string, z.ZodTypeAny> = {
   compare_items: z.object({ items: z.array(z.object({ found: z.boolean() }).loose()) }),
   list_owned: z.object({ items: z.array(McpOwnedReadSchema) }),
   list_containers: z.object({ items: z.array(ContainerReadSchema) }),
-  list_builds: z.object({ builds: z.object({ items: z.array(BuildReadSchema) }) }),
-  get_build: z.object({ build: BuildReadSchema.nullable() }),
   plan_artifact_build: z.object({ plan: PlanResultSchema }),
   get_prices: z.object({ prices: z.record(z.string(), z.array(McpPriceRowSchema)) }),
   sources_status: z.object({ sources: SourcesReadSchema }),

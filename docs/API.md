@@ -44,7 +44,7 @@ need user-facing text should do the same or show the message as-is.
 |---|---|---|
 | GET | `/api/v1/healthz` | `{ ok: true, db: "ok" }`, public |
 | GET | `/api/v1/setup` | `{ needsSetup, catalogItems, defaultRegion, profileApiConfigured, sources }` |
-| GET | `/api/v1/payload` | the whole dossier: character, gear, catalog, derived cards, builds, icons, freshness. `catalog.meta.items` counts every catalog row (weapons, armor, motifs, artifacts, containers), not only weapons and armor |
+| GET | `/api/v1/payload` | the whole dossier: character, gear, catalog, derived cards, icons, freshness. `catalog.meta.items` counts every catalog row (weapons, armor, motifs, artifacts, containers), not only weapons and armor |
 | GET | `/api/v1/meta` | `{ meta, catalogMeta, freshness }` — described by `MetaRead` in `@dossier/shared/contracts` and pinned by `tests/integration/contracts/payload-contract.test.ts` |
 | GET | `/api/v1/character` | character with derived fields (`kd`, `accuracy`, `headshot`, `hours`, `arrived`) |
 | GET | `/api/v1/items?q=&kind=&rank=&slot=&limit=` | item search |
@@ -53,13 +53,11 @@ need user-facing text should do the same or show the message as-is.
 | GET | `/api/v1/catalog` | weapon and armor catalog |
 | GET | `/api/v1/owned?kind=` | the character's gear with its container override |
 | GET | `/api/v1/containers` | containers with their fill |
-| GET | `/api/v1/builds` | builds with metrics and rows |
-| GET | `/api/v1/builds/:slug` | one build |
 | GET | `/api/v1/prices?names=A,B` | `price_latest` by name |
 | GET | `/api/v1/sources` | source statuses and age |
 | GET | `/api/v1/events?limit=` | change journal |
 | GET | `/api/v1/admin/export` | the typed dossier JSON (attachment) |
-| GET | `/api/v1/admin/cleanup` | owned records/copies and build count |
+| GET | `/api/v1/admin/cleanup` | owned records and copies |
 
 ## Writes
 
@@ -83,11 +81,9 @@ text is English.
 | PATCH | `/api/v1/owned/:id` | `OwnedPatchSchema` (optionally `container` override or `null` to clear) |
 | DELETE | `/api/v1/owned/:id?qty=` | — (removes one copy or `qty`) |
 | PUT | `/api/v1/containers/:id/fill` | `{ artifacts: [{ name, level, quality? }], asOf?, dryRun? }` |
-| POST | `/api/v1/builds` | `BuildInputSchema` |
-| DELETE | `/api/v1/builds/:slug?dryRun=` | — |
 | PATCH | `/api/v1/character` | `CharacterPatchSchema` |
 | POST | `/api/v1/events/:id/rollback` | `{ dryRun? }` |
-| POST | `/api/v1/admin/cleanup` | `{ scope: "owned" \| "builds" \| "all", dryRun? }` |
+| POST | `/api/v1/admin/cleanup` | `{ dryRun? }` |
 
 `CharacterPatchSchema` accepts identity fields (`nick`, `region`, `faction` — one of the
 four faction slugs or `null`, `alliance`, `clanName`, `clanRank`, `money`, `maxMoney`,
@@ -96,12 +92,12 @@ counter id → number/string/`null`. Writing a value sets the `manual` origin; `
 it and reveals the API value. Derived fields (K/D, accuracy, headshot share, hours) are
 read-only and rejected in the patch.
 
-Each cleanup scope writes one `event_log` row (`owned.clear`, `build.clear`,
-`dossier.clear`) whose `before` is the full snapshot, so Rollback restores the cleared
-data. An empty scope answers `409 NOTHING_TO_CLEAR`.
+Cleanup writes one `event_log` row (`owned.clear`) whose `before` is the full inventory
+snapshot, so Rollback restores the cleared data. An empty inventory answers
+`409 NOTHING_TO_CLEAR`.
 
 Character creation writes one `character.create` event with `before: null`. Its rollback
-deletes the character only while no gear or build exists; otherwise it answers
+deletes the character only while no gear exists; otherwise it answers
 `409 CHARACTER_NOT_EMPTY`, because deleting the row would cascade the dossier away.
 
 ## Sync
