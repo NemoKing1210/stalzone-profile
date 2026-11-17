@@ -8,7 +8,7 @@ import {
   PlanArtifactBuildInputSchema,
   RemoveOwnedInputSchema,
   SetContainerArtifactsInputSchema,
-} from '@dossier/shared/schemas';
+} from '@dossier/shared/contracts';
 import { McpClientError, type DossierClient } from './client.js';
 
 type Json = Record<string, unknown>;
@@ -116,36 +116,7 @@ export const READ_TOOLS: { name: string; args: Record<string, unknown> }[] = [
 ];
 
 /** Loose zod shape of every read tool result, so the smoke fails loudly on malformed output. */
-export const READ_OUTPUT_SCHEMAS: Record<string, z.ZodTypeAny> = {
-  get_character: z.object({ character: z.record(z.string(), z.unknown()).nullable() }),
-  find_items: z.object({ items: z.array(z.record(z.string(), z.unknown())) }),
-  get_item: z.object({
-    item: z
-      .object({
-        name: z.string(),
-        stats: z.array(z.record(z.string(), z.unknown())),
-        effects: z.array(z.record(z.string(), z.unknown())),
-        icon: z.string().nullable(),
-        card: z.record(z.string(), z.unknown()),
-      })
-      .loose(),
-  }),
-  compare_items: z.object({ items: z.array(z.object({ found: z.boolean() }).loose()) }),
-  list_owned: z.object({ items: z.array(z.record(z.string(), z.unknown())) }),
-  list_containers: z.object({ items: z.array(z.record(z.string(), z.unknown())) }),
-  list_builds: z.object({
-    builds: z.object({ items: z.array(z.record(z.string(), z.unknown())) }),
-  }),
-  get_build: z.object({ build: z.record(z.string(), z.unknown()) }),
-  plan_artifact_build: z.object({
-    plan: z.object({ picked: z.array(z.record(z.string(), z.unknown())) }),
-  }),
-  get_prices: z.object({ prices: z.record(z.string(), z.array(z.record(z.string(), z.unknown()))) }),
-  sources_status: z.object({
-    sources: z.array(z.object({ id: z.string(), status: z.string() }).loose()),
-  }),
-  export_dossier_json: z.object({ dossier: z.record(z.string(), z.unknown()) }),
-};
+export { READ_OUTPUT_SCHEMAS } from '@dossier/shared/contracts';
 
 const TOOL_DOCS: Record<string, string> = {
     get_character: 'Character profile and stats from the dossier',

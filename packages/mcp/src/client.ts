@@ -1,23 +1,45 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { norm } from '@dossier/shared';
-import type { Db } from '@dossier/core/db';
-import * as repo from '@dossier/core/repo';
-import { artifactSources, buildPayload, compareWeapons } from '@dossier/core/services/payload';
-import { buildItemCard } from '@dossier/core/services/catalog-view';
-import { exportDossierJson } from '@dossier/core/services/export';
 import {
+  WriteError,
+  artifactSources,
+  buildItemCard,
+  buildPayload,
+  compareWeapons,
   createOwned,
   deleteBuild as removeBuild,
   deleteOwned,
+  exportDossierJson,
+  findItemByKindName,
+  getCharacter,
+  getIcon,
+  getItemById,
+  getOwnedContainer,
+  itemStats,
+  itemSummary,
+  latestPriceFetchedAt,
+  latestPriceRows,
+  latestPricesForNames,
+  listItemEffects,
+  listOwned,
+  listSourceReads,
+  planArtifactBuild,
   rollbackEvent as restoreEvent,
+  runSync,
   saveBuild as persistBuild,
+  searchItemSummaries,
+  searchItems,
   setContainerFill,
-  WriteError,
+  type Db,
+  type ItemRow,
+  type OwnedJoined,
+  type PlanInput,
+  type PriceQuote,
+  type PriceRow,
+  type SyncOptions,
   type WriteResult,
-} from '@dossier/core/services/writes';
-import { planArtifactBuild, type PlanInput, type PriceQuote } from '@dossier/core/calc';
-import { runSync, type SyncOptions } from '@dossier/core/services/sync';
+} from '@dossier/core';
 
 type Json = Record<string, unknown>;
 
@@ -115,28 +137,8 @@ export interface DossierClient {
   close?(): Promise<void>;
 }
 
-function iconOf(db: Db, item: repo.ItemRow): string | null {
-  return repo.getIcon(db, item.id)?.path ?? null;
-}
-
-function itemSummary(db: Db, item: repo.ItemRow): Json {
-  return {
-    id: item.id,
-    externalId: item.external_id,
-    name: item.name,
-    nameEn: item.name_en,
-    kind: item.kind,
-    category: item.category,
-    rank: item.rank,
-    slot: item.slot,
-    weight: item.weight,
-    cosmetic: !!item.is_cosmetic,
-    icon: iconOf(db, item),
-  };
-}
-
-function ownedJson(db: Db, row: repo.OwnedJoined): Json {
-  const container = repo.getOwnedContainer(db, row.id);
+function ownedJson(db: Db, row: OwnedJoined): Json {
+  const container = getOwnedContainer(db, row.id);
   return {
     ownedId: row.id,
     itemId: row.item_id,
@@ -165,7 +167,7 @@ function ownedJson(db: Db, row: repo.OwnedJoined): Json {
   };
 }
 
-function priceQuote(row: repo.PriceRow | undefined): PriceQuote | null {
+function priceQuote(row: PriceRow | undefined): PriceQuote | null {
   if (!row) return null;
   return {
     price: row.lot_price ?? row.current_price ?? row.last_trade ?? null,
@@ -176,7 +178,7 @@ function priceQuote(row: repo.PriceRow | undefined): PriceQuote | null {
   };
 }
 
-function priceJson(row: repo.PriceRow): Json {
+function priceJson(row: PriceRow): Json {
   return {
     name: row.name,
     quality: row.quality,
@@ -212,35 +214,33 @@ export function localClient(db: Db, syncOptions: LocalClientOptions = {}): Dossi
     },
 
     async findItems(query) {
-      return repo
-        .searchItems(db, {
-          q: query.q ?? null,
-          kind: query.kind ?? null,
-          rank: query.rank ?? null,
-          slot: query.slot ?? null,
-          limit: query.limit ?? 20,
-        })
-        .map((item) => itemSummary(db, item));
+      return searchItemSummaries(db, {
+        q: query.q ?? null,
+        kind: query.kind ?? null,
+        rank: query.rank ?? null,
+        slot: query.slot ?? null,
+        limit: query.limit ?? 20,
+      });
     },
 
     async getItem(query) {
-      let item: repo.ItemRow | null = null;
-      if (query.id != null) item = repo.getItemById(db, query.id);
+      let item: ItemRow | null = null;
+      if (query.id != null) item = getItemById(db, query.id);
       else if (query.name) {
         const kind = query.kind ?? 'weapon';
         item =
-          repo.findItemByKindName(db, kind, query.name) ??
-          repo.findItemByKindName(db, 'armor', query.name) ??
-          repo.findItemByKindName(db, 'container', query.name) ??
-          repo.findItemByKindName(db, 'artifact', query.name) ??
-          repo.searchItems(db, { q: query.name, limit: 1 })[0] ??
+          findItemByKindName(db, kind, query.name) ??
+          findItemByKindName(db, 'armor', query.name) ??
+          findItemByKindName(db, 'container', query.name) ??
+          findItemByKindName(db, 'artifact', query.name) ??
+          searchItems(db, { q: query.name, limit: 1 })[0] ??
           null;
       }
       if (!item) return null;
       return {
-        ...itemSummary(db, item),
-        stats: repo.itemStats(db, item.id),
-        effects: repo.listItemEffects(db, item.id),
+        ...itemSummary(item, getIcon(db, item.id)?.path ?? null),
+        stats: itemStats(db, item.id),
+        effects: listItemEffects(db, item.id),
         card: buildItemCard(db, item),
       };
     },
@@ -250,9 +250,9 @@ export function localClient(db: Db, syncOptions: LocalClientOptions = {}): Dossi
     },
 
     async listOwned(kind) {
-      const character = repo.getCharacter(db);
+      const character = getCharacter(db);
       if (!character) return [];
-      return repo.listOwned(db, character.id, kind ?? undefined).map((row) => ownedJson(db, row));
+      return listOwned(db, character.id, kind ?? undefined).map((row) => ownedJson(db, row));
     },
 
     async listContainers() {
@@ -272,11 +272,11 @@ export function localClient(db: Db, syncOptions: LocalClientOptions = {}): Dossi
 
     async planArtifactBuild(input) {
       const artifacts = artifactSources(db) as Parameters<typeof planArtifactBuild>[1]['artifacts'];
-      const latest = repo.latestPriceFetchedAt(db);
+      const latest = latestPriceFetchedAt(db);
       const age = latest ? Math.max(0, Math.round((Date.now() - new Date(latest).getTime()) / 60000)) : 0;
       return planArtifactBuild(input, {
         artifacts,
-        price: (name, quality) => priceQuote(repo.latestPriceRows(db, name, quality ?? null)[0]),
+        price: (name, quality) => priceQuote(latestPriceRows(db, name, quality ?? null)[0]),
         pricesAgeMin: () => age,
       }) as unknown as Json;
     },
@@ -284,11 +284,11 @@ export function localClient(db: Db, syncOptions: LocalClientOptions = {}): Dossi
     async getPrices(names, quality) {
       if (quality) {
         return Object.fromEntries(
-          names.map((name) => [name, repo.latestPriceRows(db, name, quality).map(priceJson)]),
+          names.map((name) => [name, latestPriceRows(db, name, quality).map(priceJson)]),
         );
       }
       return Object.fromEntries(
-        Object.entries(repo.latestPricesForNames(db, names)).map(([name, rows]) => [
+        Object.entries(latestPricesForNames(db, names)).map(([name, rows]) => [
           name,
           rows.map(priceJson),
         ]),
@@ -296,13 +296,7 @@ export function localClient(db: Db, syncOptions: LocalClientOptions = {}): Dossi
     },
 
     async sourcesStatus() {
-      return repo.listSources(db).map((source) => ({
-        id: source.id,
-        status: source.status,
-        lastOkAt: source.last_ok_at,
-        lastTryAt: source.last_try_at,
-        lastError: source.last_error,
-      }));
+      return listSourceReads(db);
     },
 
     async exportDossierJson() {
@@ -328,11 +322,9 @@ export function localClient(db: Db, syncOptions: LocalClientOptions = {}): Dossi
     },
 
     async removeOwnedItem(input) {
-      const character = repo.getCharacter(db);
+      const character = getCharacter(db);
       if (!character) throw new McpClientError('NO_CHARACTER', 'No character in the dossier');
-      const target = repo
-        .listOwned(db, character.id, input.kind)
-        .find(
+      const target = listOwned(db, character.id, input.kind).find(
           (row) =>
             norm(row.display_name ?? row.item_name) === norm(input.name) &&
             (input.level == null || row.level === input.level),
