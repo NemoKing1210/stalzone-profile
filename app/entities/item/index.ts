@@ -3,4 +3,4 @@ export { default as ItemCard } from './ui/ItemCard.vue';
 export { default as RankBadge } from './ui/RankBadge.vue';
 export { default as RarityName } from './ui/RarityName.vue';
 export { ALL_RANKS, rankOptions } from './model/rankOptions';
-export { findAnyDetailsCard, findDetailsCard } from './model/details';
+export { findDetailsCard } from './model/details';
