@@ -70,7 +70,7 @@
 ## 2026-11-15 — first reproducible version
 
 - Repository skeleton: npm workspaces, Nuxt 4 + Nuxt UI, TypeScript strict, ESLint,
-  Vitest, Playwright, tsup.
+  Vitest, tsup.
 - Shared zod schemas for the API and MCP, name normalization, ranks, formatting.
 - SQLite schema: sources, items and stats, gear with `qty`, containers, builds, price
   history, content, icons, event log.

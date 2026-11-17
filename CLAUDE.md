@@ -12,7 +12,7 @@ Claude working in this repository.
 - Do not say "done", "fixed" or "passes" until you have run the command and read its
   output. Verification is tiered in `AGENTS.md` (**Verification tiers**): Tier 1 focuses the
   test you are changing, Tier 2 runs the affected suites before a commit, Tier 3 runs the
-  full gate (`npm run check` plus E2E/golden/build as applicable) before push/PR/merge.
+  full gate (`npm run check` plus golden/build as applicable) before push/PR/merge.
   Name the tier and the commands you actually ran.
 - Start a multi-file task with a plan and get it agreed when behavior, the DB schema or
   the API/MCP contract changes.

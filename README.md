@@ -175,7 +175,6 @@ Writes default to `dry_run`; a real write needs `confirm: true` and is limited t
 npm run check      # typecheck + lint + unit/integration
 npm run golden     # parity with the legacy dossier: 0 mismatches
 npm run build
-npm run e2e        # Playwright: build, server, all scenarios
 npm run smoke:mcp  # all read-only MCP tools against the current database
 ```
 
