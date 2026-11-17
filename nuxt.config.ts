@@ -62,6 +62,10 @@ export default defineNuxtConfig({
     loginRateMax: 5,
     loginWindowMs: 60_000,
     trustProxy: '',
+    stalzoneClientId: '',
+    stalzoneClientSecret: '',
+    stalzoneApiUrl: 'https://eapi.stalzone.com',
+    stalzoneTokenUrl: 'https://exbo.net/oauth/token',
     public: {
       appName: 'Stalzone Profile',
     },

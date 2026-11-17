@@ -15,7 +15,7 @@ export interface SourceRow {
   updated_at: string;
 }
 
-export const SOURCE_IDS = ['exbo_base', 'wiki', 'scpmodel', 'motifs', 'local'] as const;
+export const SOURCE_IDS = ['exbo_base', 'wiki', 'scpmodel', 'motifs', 'icons', 'profile', 'local'] as const;
 export type SourceId = (typeof SOURCE_IDS)[number];
 
 const DEFAULT_KINDS: Record<string, string> = {
@@ -23,6 +23,8 @@ const DEFAULT_KINDS: Record<string, string> = {
   wiki: 'reference',
   motifs: 'reference',
   scpmodel: 'market',
+  icons: 'icons',
+  profile: 'profile',
   local: 'local',
 };
 

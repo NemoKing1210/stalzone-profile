@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { migrate, openDb, type Db } from '@dossier/core';
+import { ensureDefaultSources, migrate, openDb, type Db } from '@dossier/core';
 
 let instance: Db | null = null;
 
@@ -15,5 +15,7 @@ export function useDb(): Db {
   const migrationsDir = path.resolve(process.cwd(), 'db', 'migrations');
   instance = openDb(dbPath);
   migrate(instance, migrationsDir);
+  // Sources are reference data, not user data: a fresh DB must list them before the first sync.
+  ensureDefaultSources(instance);
   return instance;
 }
