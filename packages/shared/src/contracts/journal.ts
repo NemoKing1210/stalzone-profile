@@ -33,10 +33,6 @@ export const CleanupCountsSchema = z.object({
     storages: z.number().int(),
     placements: z.number().int(),
   }),
-  owned: z.object({
-    records: z.number().int(),
-    copies: z.number().int(),
-  }),
   manualStats: z.object({
     records: z.number().int(),
   }),

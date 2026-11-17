@@ -391,18 +391,9 @@ export const PlanArtifactBuildInputSchema = z.object({
 
 export type PlanArtifactBuildInput = z.infer<typeof PlanArtifactBuildInputSchema>;
 
-export const SyncInputSchema = z.object({
-  force: z.boolean().default(false),
-});
-
 export const SyncRequestSchema = z.object({
   source: SyncSourceSchema.default('all'),
   force: z.boolean().default(false),
 });
 
 export type SyncRequest = z.infer<typeof SyncRequestSchema>;
-
-export const RollbackInputSchema = z.object({
-  event_id: z.number().int().positive(),
-  confirm: z.boolean().default(false),
-});

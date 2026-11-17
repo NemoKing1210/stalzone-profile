@@ -31,7 +31,6 @@ export {
   itemsByIds,
   kindFromCategory,
   listItems,
-  rawOf,
   searchItems,
   statValue,
   statsByItemIds,
