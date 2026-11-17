@@ -125,6 +125,14 @@ describe('buildPayload contract', () => {
     expect(exported.weapons[0]).not.toHaveProperty('raw');
   });
 
+  it('counts every catalog kind in meta.items, not only weapons and armor', () => {
+    const shown = payload.weapons.length + payload.armor.length;
+    expect(payload.catalog.meta.items).toBeGreaterThan(shown);
+    expect(payload.catalog.meta.items).toBe(
+      (db.prepare(`SELECT COUNT(*) AS c FROM item`).get() as { c: number }).c,
+    );
+  });
+
   it('returns empty sections and a null character for an empty database', () => {
     const empty = openDb(path.join(dir, 'empty.db'));
     try {

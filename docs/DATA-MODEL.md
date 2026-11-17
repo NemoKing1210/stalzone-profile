@@ -10,12 +10,12 @@ only through new migrations in `db/migrations/`.
 
 | Table | Purpose |
 |---|---|
-| `source` | source status and freshness (`exbo_base`, `wiki`, `motifs`, `scpmodel`, `local`) |
+| `source` | source status and freshness (`exbo_base`, `wiki`, `motifs`, `scpmodel`, `icons`, `profile`, `local`) |
 | `stat_definition` | stat ids with category, value type and labels |
 | `item` | normalized catalog: one row per external item, `kind` in weapon/armor/container/artifact/attachment/ammo/motif/other |
 | `item_stat` | numeric/text stats by `stat_id` and refinement level 0…15, with optional ranges |
 | `item_effect` | ordered effect labels of artifacts and other items |
-| `icon` | one icon per item (`/icons/<sha1>.webp`, files in `ICONS_DIR`) |
+| `icon` | one icon per item: `path` is `/icons/<sha1>.<ext>` (`png` downloaded from EXBO, `webp` from an admin import), files in `ICONS_DIR`; `item` has no icon column |
 | `price_quote` | auction price history; view `price_latest` — newest by name+quality+bonus |
 
 ### Dossier data (the owner)
@@ -47,6 +47,9 @@ owner-approved reset; that exception is closed). Every later change is a new
 - `character_stat` is keyed `(character_id, stat_id, origin)`. A manual value wins in
   display; clearing the manual row reveals the API value again. Raw counters are the only
   editable stats — K/D, accuracy, headshot share and hours are derived at read time.
+  The `profile` sync owns only `origin='api'` rows: it deletes and rewrites them on every
+  success, while manual rows are never touched. Playtime arrives as seconds or an
+  ISO-8601 duration and is stored as hours.
 - `price_latest` is computed, not stored: `ROW_NUMBER()` over
   `(name_norm, quality_norm, bonus)`, newest by `(fetched_at, id)`.
 - `event_log.before/after` are the rollback contract; the format may change only in a

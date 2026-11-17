@@ -3,6 +3,7 @@ import { runSync, runSyncAll } from '@dossier/core/services/sync';
 import { useDb } from '../../../utils/db';
 import { validationError } from '../../../utils/errors';
 import { requireOrigin } from '../../../utils/auth';
+import { serverSyncOptions } from '../../../utils/sync-options';
 
 export default defineEventHandler(async (event) => {
   const originError = requireOrigin(event);
@@ -13,6 +14,7 @@ export default defineEventHandler(async (event) => {
 
   const db = useDb();
   const { source, force } = parsed.data;
-  if (source === 'all') return { results: await runSyncAll(db, { force }) };
-  return { results: [await runSync(db, source, { force })] };
+  const options = { ...serverSyncOptions(), force };
+  if (source === 'all') return { results: await runSyncAll(db, options) };
+  return { results: [await runSync(db, source, options)] };
 });

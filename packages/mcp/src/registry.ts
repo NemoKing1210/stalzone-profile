@@ -88,7 +88,7 @@ const DeleteBuildInputSchema = z.object({
 });
 
 const SyncSourceInputSchema = z.object({
-  source: z.enum(['exbo', 'wiki', 'motifs', 'scpmodel']),
+  source: z.enum(['exbo', 'exbo_base', 'wiki', 'motifs', 'scpmodel', 'icons', 'profile']),
   force: z.boolean().default(false),
   confirm: z.boolean().default(false),
 });
@@ -165,7 +165,7 @@ const TOOL_DOCS: Record<string, string> = {
     set_container_artifacts: 'Replace a container fill (dry_run by default)',
     save_build: 'Create or update a build (dry_run by default)',
     delete_build: 'Delete a build (dry_run by default)',
-    sync_source: 'Run a source sync; requires confirm',
+    sync_source: 'Run a source sync (exbo_base, wiki, motifs, scpmodel, icons, profile); requires confirm',
     rebuild_site: 'Site rebuild happens on deploy; MCP only reports the command',
     rollback_event: 'Roll back a journal event (dry_run by default)',
 };

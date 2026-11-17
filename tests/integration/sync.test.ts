@@ -365,8 +365,235 @@ describe('scpmodel sync', () => {
   });
 });
 
-describe('removed source', () => {
-  it('rejects the removed profile source', async () => {
-    await expect(runSync(db, 'profile')).rejects.toThrow(/unknown source/);
+describe('unknown source', () => {
+  it('rejects a source that no adapter serves', async () => {
+    await expect(runSync(db, 'seeds')).rejects.toThrow(/unknown source/);
+  });
+});
+
+describe('icons sync', () => {
+  const cacheDir = () => path.join(dir, 'cache');
+
+  function exboFetch(icon: () => Promise<Response>, realm = 'ru'): (url: string) => Promise<Response> {
+    return async (url: string) => {
+      if (url.endsWith('/commits/main')) {
+        return jsonResponse({ sha: 'abc123', commit: { committer: { date: '2026-11-14T10:00:00Z' } } });
+      }
+      if (url.includes('/git/trees/main')) {
+        return jsonResponse({ tree: [{ path: `${realm}/items/weapon/wg53.json` }] });
+      }
+      if (url.endsWith(`/${realm}/stats.json`)) return jsonResponse([]);
+      if (url.includes('/icons/')) return icon();
+      if (url.includes('raw.githubusercontent.com')) return jsonResponse(EXBO_ITEM);
+      throw new Error(`unexpected url ${url}`);
+    };
+  }
+
+  it('downloads icons once and skips existing files on the next run', async () => {
+    const iconsDir = path.join(dir, 'icons');
+    const calls = { icon: 0 };
+    const fetchImpl = exboFetch(async () => {
+      calls.icon += 1;
+      return new Response(new Uint8Array([137, 80, 78, 71]), { status: 200 });
+    });
+    await runSync(db, 'exbo_base', { fetchImpl, cacheDir: cacheDir() });
+
+    const first = await runSync(db, 'icons', { fetchImpl, cacheDir: cacheDir(), iconsDir });
+    expect(first).toMatchObject({ source: 'icons', status: 'ok', icons: 1 });
+
+    const item = repo.findItemByKindName(db, 'weapon', 'АК-12')!;
+    const icon = repo.getIcon(db, item.id)!;
+    expect(icon.mime).toBe('image/png');
+    expect(icon.path).toMatch(/^\/icons\/[a-f0-9]{40}\.png$/);
+    expect(fs.existsSync(path.join(iconsDir, path.basename(icon.path)))).toBe(true);
+
+    const second = await runSync(db, 'icons', { fetchImpl, cacheDir: cacheDir(), iconsDir });
+    expect(second).toMatchObject({ status: 'ok', icons: 0 });
+    expect(calls.icon).toBe(1);
+  });
+
+  it('downloads an icon again when its file disappeared', async () => {
+    const iconsDir = path.join(dir, 'icons');
+    const calls = { icon: 0 };
+    const fetchImpl = exboFetch(async () => {
+      calls.icon += 1;
+      return new Response(new Uint8Array([137, 80, 78, 71]), { status: 200 });
+    });
+    await runSync(db, 'exbo_base', { fetchImpl, cacheDir: cacheDir() });
+    await runSync(db, 'icons', { fetchImpl, cacheDir: cacheDir(), iconsDir });
+
+    const item = repo.findItemByKindName(db, 'weapon', 'АК-12')!;
+    const file = path.join(iconsDir, path.basename(repo.getIcon(db, item.id)!.path));
+    fs.rmSync(file);
+
+    const again = await runSync(db, 'icons', { fetchImpl, cacheDir: cacheDir(), iconsDir });
+    expect(again).toMatchObject({ status: 'ok', icons: 1 });
+    expect(calls.icon).toBe(2);
+    expect(fs.existsSync(file)).toBe(true);
+  });
+
+  it('refuses to report an empty catalog as a successful icon sync', async () => {
+    const fetchImpl = exboFetch(async () => new Response(new Uint8Array([137, 80, 78, 71]), { status: 200 }));
+
+    const result = await runSync(db, 'icons', { fetchImpl, cacheDir: cacheDir(), iconsDir: path.join(dir, 'icons') });
+
+    expect(result).toMatchObject({ source: 'icons', status: 'stale', icons: 0 });
+    expect(result.error).toContain('exbo_base');
+  });
+
+  it('downloads icons for an EU catalog into the EU realm', async () => {
+    const iconsDir = path.join(dir, 'icons');
+    const fetchImpl = exboFetch(async () => new Response(new Uint8Array([137, 80, 78, 71]), { status: 200 }), 'eu');
+    await runSync(db, 'exbo_base', { fetchImpl, cacheDir: cacheDir(), realm: 'eu' });
+
+    const result = await runSync(db, 'icons', { fetchImpl, cacheDir: cacheDir(), iconsDir, realm: 'eu' });
+
+    expect(result).toMatchObject({ source: 'icons', status: 'ok', icons: 1 });
+  });
+
+  it('reports stale when every icon download fails', async () => {
+    const fetchImpl = exboFetch(async () => new Response('no', { status: 404 }));
+    await runSync(db, 'exbo_base', { fetchImpl, cacheDir: cacheDir() });
+
+    const result = await runSync(db, 'icons', {
+      fetchImpl,
+      cacheDir: cacheDir(),
+      iconsDir: path.join(dir, 'icons'),
+    });
+    expect(result).toMatchObject({ source: 'icons', status: 'stale', icons: 0, failed: 1 });
+    expect(repo.getIcon(db, repo.findItemByKindName(db, 'weapon', 'АК-12')!.id)).toBeNull();
+  });
+});
+
+describe('profile sync', () => {
+  const profileApi = {
+    clientId: 'id',
+    clientSecret: 'secret',
+    apiUrl: 'https://api.test',
+    tokenUrl: 'https://auth.test/oauth/token',
+  };
+
+  function profileFetch(profiles: unknown[]): { fetchImpl: (url: string) => Promise<Response>; calls: { token: number; profile: number } } {
+    const calls = { token: 0, profile: 0 };
+    return {
+      calls,
+      fetchImpl: async (url: string) => {
+        if (url === profileApi.tokenUrl) {
+          calls.token += 1;
+          return jsonResponse({ access_token: 'token', expires_in: 3600 });
+        }
+        if (url.includes('/character/by-name/')) {
+          calls.profile += 1;
+          return jsonResponse(profiles[Math.min(calls.profile - 1, profiles.length - 1)]);
+        }
+        throw new Error(`unexpected url ${url}`);
+      },
+    };
+  }
+
+  it('writes API stats, keeps manual overrides and drops removed stats', async () => {
+    const characterId = repo.upsertCharacter(db, { nick: 'Nemo_King', region: 'ru' });
+    repo.setCharacterStat(db, characterId, 'kil', 99, 'manual');
+
+    const full = {
+      username: 'Nemo_King',
+      alliance: 'Duty',
+      clan: { info: { name: 'Clan' }, member: { rank: 'Officer' } },
+      stats: [
+        { id: 'kil', type: 'INTEGER', value: 10 },
+        { id: 'dea', type: 'INTEGER', value: 4 },
+        { id: 'pla-tim', type: 'DURATION', value: 'PT100H' },
+        { id: 'reg-tim', type: 'DATE', value: '2024-01-02' },
+      ],
+    };
+    const withoutDea = { ...full, stats: full.stats.filter((stat) => stat.id !== 'dea') };
+    const { fetchImpl, calls } = profileFetch([full, withoutDea]);
+
+    const first = await runSync(db, 'profile', { fetchImpl, profileApi });
+    expect(first).toMatchObject({ source: 'profile', status: 'ok' });
+
+    const stats = repo.characterStatMap(db, characterId);
+    expect(stats.kil).toMatchObject({ value_num: 99, origin: 'manual' });
+    expect(stats.dea).toMatchObject({ value_num: 4, origin: 'api' });
+    expect(stats['pla-tim']).toMatchObject({ value_num: 100, origin: 'api' });
+    expect(stats['reg-tim']).toMatchObject({ value_text: '2024-01-02', origin: 'api' });
+    expect(repo.getCharacter(db)).toMatchObject({
+      clan_name: 'Clan',
+      clan_rank: 'Officer',
+      alliance: 'Duty',
+    });
+    expect(repo.getCharacter(db)?.profile_fetched_at).toBeTruthy();
+
+    await runSync(db, 'profile', { fetchImpl, profileApi });
+    expect(calls.token).toBe(2);
+    expect(calls.profile).toBe(2);
+    const after = repo.characterStatMap(db, characterId);
+    expect(after.dea).toBeUndefined();
+    expect(after.kil).toMatchObject({ value_num: 99, origin: 'manual' });
+  });
+
+  it('sends OAuth client credentials and an uppercase, encoded profile request', async () => {
+    const nick = 'Nemo King/Тест';
+    repo.upsertCharacter(db, { nick, region: 'eu' });
+    const seen: { url: string; init?: RequestInit }[] = [];
+    const fetchImpl = async (url: string, init?: RequestInit) => {
+      seen.push({ url, init });
+      if (url === profileApi.tokenUrl) return jsonResponse({ access_token: 'tok', expires_in: 3600 });
+      return jsonResponse({ username: nick, stats: [] });
+    };
+
+    await runSync(db, 'profile', { fetchImpl, profileApi });
+
+    expect(seen).toHaveLength(2);
+    const [token, profile] = seen;
+    expect(token.url).toBe(profileApi.tokenUrl);
+    expect(token.init?.method).toBe('POST');
+    expect((token.init?.headers as Record<string, string>)['content-type']).toBe(
+      'application/x-www-form-urlencoded',
+    );
+    const body = new URLSearchParams(String(token.init?.body));
+    expect(body.get('client_id')).toBe('id');
+    expect(body.get('client_secret')).toBe('secret');
+    expect(body.get('grant_type')).toBe('client_credentials');
+    expect(body.get('scope')).toBe('');
+
+    expect(profile.url).toBe(
+      `https://api.test/EU/character/by-name/${encodeURIComponent(nick)}/profile`,
+    );
+    expect((profile.init?.headers as Record<string, string>).authorization).toBe('Bearer tok');
+  });
+
+  it('keeps the previous API rows when a 2xx profile response has no stats array', async () => {
+    const characterId = repo.upsertCharacter(db, { nick: 'Nemo_King', region: 'ru' });
+    const full = {
+      username: 'Nemo_King',
+      stats: [
+        { id: 'kil', type: 'INTEGER', value: 10 },
+        { id: 'dea', type: 'INTEGER', value: 4 },
+      ],
+    };
+    const { fetchImpl } = profileFetch([full, { username: 'Nemo_King' }]);
+
+    await runSync(db, 'profile', { fetchImpl, profileApi });
+    expect(repo.characterStatMap(db, characterId).dea).toMatchObject({ value_num: 4, origin: 'api' });
+
+    const degraded = await runSync(db, 'profile', { fetchImpl, profileApi });
+    expect(degraded).toMatchObject({ source: 'profile', status: 'stale' });
+    expect(repo.characterStatMap(db, characterId).dea).toMatchObject({ value_num: 4, origin: 'api' });
+    expect(repo.characterStatMap(db, characterId).kil).toMatchObject({ value_num: 10, origin: 'api' });
+  });
+
+  it('reports stale without credentials or a character', async () => {
+    repo.upsertCharacter(db, { nick: 'Nemo_King', region: 'ru' });
+    const noCreds = await runSync(db, 'profile', { fetchImpl: async () => jsonResponse({}) });
+    expect(noCreds).toMatchObject({ status: 'stale', error: 'STALZONE_API_NOT_CONFIGURED' });
+
+    db.prepare(`DELETE FROM character`).run();
+    const noCharacter = await runSync(db, 'profile', {
+      fetchImpl: async () => jsonResponse({}),
+      profileApi,
+    });
+    expect(noCharacter.status).toBe('stale');
+    expect(repo.getCharacter(db)).toBeNull();
   });
 });

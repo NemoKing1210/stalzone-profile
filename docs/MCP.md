@@ -82,7 +82,7 @@ The `dossier://schema` resource provides tool descriptions and the write rules.
 | `set_container_artifacts` | `container`, `artifacts[]`, `as_of?`, `dry_run?` |
 | `save_build` | `slug`, `title`, `rows[]`, the remaining build fields, `dry_run?` |
 | `delete_build` | `slug`, `dry_run?` |
-| `sync_source` | `source`: `exbo \| wiki \| motifs \| scpmodel`, `force?`, `confirm` |
+| `sync_source` | `source`: `exbo \| exbo_base \| wiki \| motifs \| scpmodel \| icons \| profile`, `force?`, `confirm`. Resolves `ICONS_DIR`, the realm and the STALZONE credentials the same way the CLI does |
 | `rollback_event` | `event_id`, `dry_run?` |
 | `rebuild_site` | — |
 

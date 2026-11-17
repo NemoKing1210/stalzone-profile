@@ -1,5 +1,8 @@
+import { getCharacter } from '@dossier/core';
 import { apiError } from '../utils/errors';
 import { isAuthenticated } from '../utils/auth';
+import { useDb } from '../utils/db';
+import { shouldLeaveSetup, shouldRedirectToSetup } from '../utils/setup-redirect';
 
 const PUBLIC_PATHS = new Set(['/login', '/api/auth/login', '/api/v1/healthz', '/mcp']);
 
@@ -11,7 +14,18 @@ export default defineEventHandler((event) => {
   // Framework assets, payloads and icons are not private data.
   if (path.startsWith('/_') || path.startsWith('/icons/') || path === '/favicon.ico') return;
 
-  if (isAuthenticated(event)) return;
+  if (isAuthenticated(event)) {
+    // Only a browser navigation can be redirected; API and asset requests must answer as themselves.
+    const accept = getRequestHeader(event, 'accept') ?? '';
+    if (event.method === 'GET' && accept.toLowerCase().includes('text/html') && !path.startsWith('/api/')) {
+      const hasCharacter = getCharacter(useDb()) !== null;
+      if (shouldRedirectToSetup({ method: event.method, path, accept, authenticated: true, hasCharacter })) {
+        return sendRedirect(event, '/setup', 302);
+      }
+      if (shouldLeaveSetup({ path, hasCharacter })) return sendRedirect(event, '/', 302);
+    }
+    return;
+  }
 
   if (path.startsWith('/api/')) {
     return apiError(event, 401, 'UNAUTHORIZED', 'Authentication required');

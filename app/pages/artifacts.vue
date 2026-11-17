@@ -18,6 +18,7 @@ const filters = useFilters('artifacts', {
   dir: 'asc',
 });
 const sorting = usePersistentSorting(filters);
+const addOpen = ref(false);
 
 const artifacts = computed(() => payload.value?.artifacts ?? []);
 const rankItems = computed(() => rankOptions(t));
@@ -154,7 +155,11 @@ function startEdit(artifact: ArtifactPayload): void {
           {{ t('artifacts.summary', { shown: filteredRows.length, total: artifacts.length }) }}
         </p>
       </div>
+
+      <UButton icon="i-lucide-plus" :label="t('owned.add')" @click="addOpen = true" />
     </div>
+
+    <CatalogNotice />
 
     <DossierPane
       class="min-w-0"
@@ -277,5 +282,6 @@ function startEdit(artifact: ArtifactPayload): void {
     </UModal>
 
     <EditOwnedModal v-model:open="editOpen" :target="editTarget" />
+    <AddOwnedModal v-model:open="addOpen" kind="artifact" />
   </section>
 </template>

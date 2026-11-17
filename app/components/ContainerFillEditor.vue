@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ContainerFillSchema } from '@dossier/shared/schemas';
-import type { ContainerPayload } from '~/composables/useDossier';
+import type { FillTarget } from '~/types/dossier';
 import type { WriteResult } from '~/composables/useWrite';
 
 const open = defineModel<boolean>('open', { default: false });
-const props = defineProps<{ container: ContainerPayload | null }>();
+const props = defineProps<{ container: FillTarget | null }>();
 const emit = defineEmits<{ saved: [] }>();
 
 const { write, busy } = useWrite();

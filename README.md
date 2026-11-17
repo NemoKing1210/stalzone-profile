@@ -18,14 +18,17 @@ Node.js 24 (22 minimum) and npm are required.
 ```bash
 npm ci
 npm run db:migrate        # SQLite schema
-npm run sync              # public catalog: EXBO, wiki, motifs, prices
 npm run dev               # http://stalzone-profile.local
 ```
 
-The database starts empty apart from migrations and sources. The catalog comes from
-`npm run sync`. Character creation is phase 2 (onboarding): until it lands, a fresh
-database has no character row, so the site renders empty and the API answers
-`NO_CHARACTER`. Do not reset a database you still need until phase 2 ships.
+The database starts empty apart from migrations and sources. Sign in, and the site sends
+you to `/setup`: enter the nickname and region, download the public catalog (EXBO,
+stalzone.wiki, motifs, prices, icons) and, when the official profile API is configured,
+load the public statistics. Then add gear from the inventory pages or through the API/MCP.
+
+The wizard can be skipped: gear is still editable, but the catalog must be downloaded
+before items can be added. `npm run sync` does the same from the terminal. A reset
+database is empty again, so do not reset one you still need.
 
 For the local domain add one line to `hosts` (administrator rights required):
 
@@ -56,7 +59,7 @@ server uses an ephemeral secret and warns in the log: every restart resets all s
 | Variable | Default | Purpose |
 |---|---|---|
 | `DB_PATH` | `./data/dossier.db` | SQLite file (in Docker — `/data/dossier.db`) |
-| `ICONS_DIR` | `./public/icons` | `.webp` icon directory (in Docker — `/data/icons`) |
+| `ICONS_DIR` | `./public/icons` | icon directory (downloaded `.png`, rendered `.webp`; in Docker — `/data/icons`) |
 | `DEV_HOST` | `127.0.0.1` | dev-server address; the local domain makes the console print it |
 | `DEV_PORT` | `80` | dev-server port |
 | `NUXT_PASSWORD_HASH` | — | scrypt hash of the site password |
@@ -68,6 +71,12 @@ server uses an ephemeral secret and warns in the log: every restart resets all s
 | `NUXT_TRUST_PROXY` | — | `1` trusts `X-Forwarded-For` (only behind Caddy/proxy) |
 | `REALM` | `ru` | source region |
 | `SNAPSHOTS_DIR` | `./snapshots` | backup directory |
+| `STALZONE_CLIENT_ID` | — | official STALZONE API client id; one pair serves the dev server, CLI and MCP |
+| `STALZONE_CLIENT_SECRET` | — | official STALZONE API client secret; both it and the id are needed |
+| `NUXT_STALZONE_CLIENT_ID` | — | runtime override for the Nuxt server (`/setup`, `/settings`); Docker sets this one |
+| `NUXT_STALZONE_CLIENT_SECRET` | — | — |
+| `STALZONE_API_URL` | `https://eapi.stalzone.com` | profile API endpoint |
+| `STALZONE_TOKEN_URL` | `https://exbo.net/oauth/token` | OAuth token endpoint |
 
 The full template is `.env.example`.
 
@@ -120,10 +129,13 @@ Restore: stop the application, put the copy in place of `DB_PATH` (and remove
 ## Source sync
 
 ```bash
-npm run sync                # all sources
-npm run sync wiki           # one: exbo_base | wiki | motifs | scpmodel
+npm run sync                # catalog sources: exbo_base, wiki, motifs, scpmodel, icons
+npm run sync wiki           # one: exbo_base | wiki | motifs | scpmodel | icons | profile
 npm run sync scpmodel -- --force
 ```
+
+`profile` is never part of `all`: it needs `STALZONE_CLIENT_ID`/`STALZONE_CLIENT_SECRET`
+and replaces only the API-owned statistics.
 
 The same is available through buttons in `/settings` and the `sync_source` MCP tool.
 A source failure marks it `stale`: the previous snapshot stays, and the UI shows its age

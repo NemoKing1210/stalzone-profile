@@ -10,3 +10,5 @@ export * from './services/password.js';
 export * from './services/session.js';
 export * from './services/security.js';
 export * from './services/sync.js';
+export * from './services/setup.js';
+export * from './services/profile.js';

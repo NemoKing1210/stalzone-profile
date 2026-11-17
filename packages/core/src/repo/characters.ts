@@ -130,6 +130,20 @@ export function findCharacterByName(db: Db, nick: string, region = 'ru'): Charac
   );
 }
 
+/** True when gear or builds exist; deleting the character would cascade-destroy them. */
+export function characterHasDossier(db: Db, id: number): boolean {
+  const row = db
+    .prepare(
+      `SELECT (SELECT COUNT(*) FROM owned_item WHERE character_id = @id) + (SELECT COUNT(*) FROM build) AS c`,
+    )
+    .get({ id }) as { c: number };
+  return row.c > 0;
+}
+
+export function deleteCharacter(db: Db, id: number): void {
+  db.prepare(`DELETE FROM character WHERE id = ?`).run(id);
+}
+
 export function updateCharacterById(db: Db, id: number, patch: CharacterColumnPatch): void {
   const sets: string[] = [];
   const params: Record<string, unknown> = { id, updated_at: new Date().toISOString() };

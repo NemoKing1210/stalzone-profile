@@ -1,21 +1,28 @@
+import fs from 'node:fs';
 import path from 'node:path';
-import { norm } from '@dossier/shared';
+import { norm, sha1 } from '@dossier/shared';
 import {
   exboAdapter,
+  fetchStalzoneProfile,
   motifsAdapter,
   scpmodelAdapter,
   wikiAdapter,
   type FetchLike,
   type MotifRow,
   type PriceRow,
+  type StalzoneApiOptions,
 } from '@dossier/sources';
 import type { Db } from '../db/index.js';
 import * as repo from '../repo/index.js';
-import { exboStats, localExboId, ttkStats, wikiEffects, wikiStats } from './normalize.js';
+import { ensureDir } from '../config.js';
+import { exboStats, localExboId, remoteIcon, ttkStats, wikiEffects, wikiStats } from './normalize.js';
+import { mapProfileStats } from './profile.js';
 
 type Json = Record<string, any>;
 
-export const SYNC_SOURCES = ['exbo_base', 'wiki', 'motifs', 'scpmodel'] as const;
+/** Sources `all` runs: public catalog data. `profile` is opt-in and never implicit. */
+export const CATALOG_SOURCES = ['exbo_base', 'wiki', 'motifs', 'scpmodel', 'icons'] as const;
+export const SYNC_SOURCES = [...CATALOG_SOURCES, 'profile'] as const;
 export type SyncSource = (typeof SYNC_SOURCES)[number];
 
 export type SyncStatus = 'ok' | 'stale';
@@ -29,6 +36,10 @@ export interface SyncResult {
   error?: string;
   ageMin?: number;
   cached?: boolean;
+  /** Icons written by the `icons` source. */
+  icons?: number;
+  /** Per-file icon failures; they do not fail the source. */
+  failed?: number;
 }
 
 export interface SyncOptions {
@@ -37,6 +48,8 @@ export interface SyncOptions {
   fetchImpl?: FetchLike;
   realm?: string;
   now?: number;
+  iconsDir?: string;
+  profileApi?: StalzoneApiOptions;
 }
 
 /** Aliases used by MCP clients and the CLI. */
@@ -57,7 +70,7 @@ export function pricesAgeMin(db: Db, now = Date.now()): number {
 }
 
 export function runSyncAll(db: Db, options: SyncOptions = {}): Promise<SyncResult[]> {
-  return SYNC_SOURCES.reduce<Promise<SyncResult[]>>(async (previous, source) => {
+  return CATALOG_SOURCES.reduce<Promise<SyncResult[]>>(async (previous, source) => {
     const results = await previous;
     results.push(await runSync(db, source, options));
     return results;
@@ -169,6 +182,8 @@ function syncExbo(db: Db, options: SyncOptions): Promise<SyncResult> {
           const kind = repo.kindFromCategory(record.cat);
           const itemId = repo.upsertItem(db, {
             sourceId: 'exbo_base',
+            // The icons source looks items up by the same realm; keep both sides in step.
+            realm: options.realm ?? 'ru',
             externalId: record.id,
             name: record.ru ?? record.id,
             nameEn: record.en,
@@ -259,6 +274,140 @@ async function syncMotifs(db: Db, options: SyncOptions): Promise<SyncResult> {
   };
 }
 
+/** Runs `worker` over `items` with at most `limit` in flight. */
+async function mapLimit<T>(items: T[], limit: number, worker: (item: T) => Promise<void>): Promise<void> {
+  let next = 0;
+  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const item = items[next++]!;
+      await worker(item);
+    }
+  });
+  await Promise.all(runners);
+}
+
+const ICON_KINDS = new Set(['weapon', 'armor', 'artifact', 'container']);
+
+/**
+ * Downloads item icons from the EXBO repository snapshot. Existing files and
+ * icon rows are skipped; a single failed file is counted, never fatal.
+ */
+async function syncIcons(db: Db, options: SyncOptions): Promise<SyncResult> {
+  const realm = options.realm ?? 'ru';
+  const snapshot = await exboAdapter.fetch({
+    cacheDir: cacheDir(options),
+    force: options.force,
+    realm: options.realm,
+    fetchImpl: options.fetchImpl,
+  });
+  const dir = ensureDir(options.iconsDir ?? path.resolve(process.cwd(), 'public', 'icons'));
+  const fetchImpl = options.fetchImpl ?? ((url: string, init?: RequestInit) => fetch(url, init));
+
+  const targets: { itemId: number; url: string }[] = [];
+  let known = 0;
+  for (const record of snapshot.items) {
+    const item = repo.getItemByExternalId(db, record.id, realm);
+    if (!item || !ICON_KINDS.has(item.kind)) continue;
+    known += 1;
+    const existing = repo.getIcon(db, item.id);
+    // A row without its file is a dangling path: download again instead of trusting the row.
+    if (existing && fs.existsSync(path.join(dir, path.basename(existing.path)))) continue;
+    const url = remoteIcon(record, realm);
+    if (url) targets.push({ itemId: item.id, url });
+  }
+
+  let icons = 0;
+  let failed = 0;
+  await mapLimit(targets, 8, async ({ itemId, url }) => {
+    const digest = sha1(url);
+    const file = `${digest}.png`;
+    try {
+      const full = path.join(dir, file);
+      if (!fs.existsSync(full)) {
+        const response = await fetchImpl(url);
+        if (response.status !== 200) throw new Error(`HTTP ${response.status}`);
+        fs.writeFileSync(full, Buffer.from(await response.arrayBuffer()));
+      }
+      repo.upsertIcon(db, { itemId, path: `/icons/${file}`, mime: 'image/png', sha1: digest, sourceId: 'icons' });
+      icons += 1;
+    } catch {
+      failed += 1;
+    }
+  });
+
+  const fetchedAt = new Date().toISOString();
+  if (known === 0) {
+    return {
+      source: 'icons',
+      status: 'stale',
+      items: 0,
+      icons,
+      failed,
+      fetchedAt,
+      error: 'no catalog items to match; sync exbo_base first',
+    };
+  }
+  if (targets.length > 0 && icons === 0) {
+    return {
+      source: 'icons',
+      status: 'stale',
+      items: 0,
+      icons,
+      failed,
+      fetchedAt,
+      error: 'every icon download failed',
+    };
+  }
+  return { source: 'icons', status: 'ok', items: icons, icons, failed, fetchedAt };
+}
+
+/**
+ * Replaces only the API-owned statistics and keeps manual overrides. A stat
+ * present in the previous pull but missing now disappears instead of going stale.
+ */
+async function syncProfile(db: Db, options: SyncOptions): Promise<SyncResult> {
+  const api = options.profileApi;
+  if (!api?.clientId || !api.clientSecret) throw new Error('STALZONE_API_NOT_CONFIGURED');
+
+  const character = repo.getCharacter(db);
+  if (!character) throw new Error('no character to sync a profile for');
+  if (character.region === 'global') throw new Error('the profile API does not serve the global region');
+
+  const profile = await fetchStalzoneProfile({
+    ...api,
+    nick: character.nick,
+    region: character.region,
+    fetchImpl: options.fetchImpl ?? ((url, init) => fetch(url, init)),
+  });
+  const { numeric, text } = mapProfileStats(profile.stats);
+  const fetchedAt = new Date().toISOString();
+
+  db.transaction(() => {
+    for (const stat of repo.listCharacterStats(db, character.id)) {
+      if (stat.origin === 'api') repo.clearCharacterStat(db, character.id, stat.stat_id, 'api');
+    }
+    for (const [statId, value] of Object.entries(numeric)) {
+      repo.setCharacterStat(db, character.id, statId, value, 'api', fetchedAt);
+    }
+    for (const [statId, value] of Object.entries(text)) {
+      repo.setCharacterStat(db, character.id, statId, value, 'api', fetchedAt);
+    }
+    repo.updateCharacterById(db, character.id, {
+      alliance: profile.alliance,
+      clan_name: profile.clan?.name ?? null,
+      clan_rank: profile.clan?.rank ?? null,
+      profile_fetched_at: fetchedAt,
+    });
+  })();
+
+  return {
+    source: 'profile',
+    status: 'ok',
+    items: Object.keys(numeric).length + Object.keys(text).length,
+    fetchedAt,
+  };
+}
+
 function priceInput(db: Db, row: PriceRow): repo.PriceQuoteInput {
   const item = row.exboId ? repo.getItemByExternalId(db, row.exboId) : null;
   return {
@@ -325,6 +474,12 @@ export async function runSync(db: Db, source: string, options: SyncOptions = {})
         break;
       case 'scpmodel':
         result = await syncPrices(db, options);
+        break;
+      case 'icons':
+        result = await syncIcons(db, options);
+        break;
+      case 'profile':
+        result = await syncProfile(db, options);
         break;
     }
     if (result.fetchedAt) repo.markSourceOk(db, normalized, { at: result.fetchedAt });

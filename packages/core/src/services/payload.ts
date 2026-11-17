@@ -325,7 +325,7 @@ export function buildPayload(db: Db, characterId?: number): Payload {
 
   return {
     meta: {
-      ...catalogMeta(db, catalogWeapons.length + catalogArmor.length),
+      ...catalogMeta(db, repo.countItems(db)),
       region: character.region,
       statsFetched: newest(stats.map((stat) => stat.fetched_at)),
     },
@@ -337,7 +337,7 @@ export function buildPayload(db: Db, characterId?: number): Payload {
     catalog: {
       weapons: catalogWeapons,
       armor: catalogArmor,
-      meta: catalogMeta(db, catalogWeapons.length + catalogArmor.length),
+      meta: catalogMeta(db, repo.countItems(db)),
     },
     details: buildDetails(db),
     builds: buildsOf(db),

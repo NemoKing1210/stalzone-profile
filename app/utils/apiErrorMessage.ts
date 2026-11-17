@@ -21,6 +21,9 @@ export const API_ERROR_CODES = new Set([
   'NOTHING_TO_CLEAR',
   'DB_UNAVAILABLE',
   'NO_CHARACTER',
+  'CHARACTER_EXISTS',
+  'CHARACTER_NOT_EMPTY',
+  'STALZONE_API_NOT_CONFIGURED',
 ]);
 
 type Translate = (key: string) => string;

@@ -25,6 +25,14 @@ export interface OwnedEditTarget {
   container?: ContainerOverride | null;
 }
 
+/** The subset ContainerFillEditor needs; a full ContainerPayload satisfies it. */
+export interface FillTarget {
+  ownedId: number;
+  name: string;
+  artifacts: { name: string; lvl: number }[];
+  artifactsAsOf: string | null;
+}
+
 export interface EventRow {
   id: number;
   at: string;

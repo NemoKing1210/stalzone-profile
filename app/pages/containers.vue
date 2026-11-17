@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ContainerPayload } from '~/composables/useDossier';
-import type { OwnedEditTarget } from '~/types/dossier';
+import type { FillTarget, OwnedEditTarget } from '~/types/dossier';
 import { groupRows } from '~/utils/groupRows';
 
 const { t } = useI18n();
@@ -39,6 +39,7 @@ const filters = useFilters('containers', {
   dir: 'asc',
 });
 const sorting = usePersistentSorting(filters);
+const addOpen = ref(false);
 
 const rows = computed<ContainerRow[]>(() =>
   (payload.value?.containers ?? []).map((container, index) => ({
@@ -142,7 +143,7 @@ const emptyText = computed(() => (rows.value.length ? t('filters.noMatch') : t('
 const selected = ref<ContainerPayload | null>(null);
 const dialogOpen = ref(false);
 const editTarget = ref<OwnedEditTarget | null>(null);
-const fillTarget = ref<ContainerPayload | null>(null);
+const fillTarget = ref<FillTarget | null>(null);
 const artifactTarget = ref<{ name: string; level: number } | null>(null);
 
 const editOpen = computed({
@@ -163,6 +164,11 @@ const artifactOpen = computed({
     if (!value) artifactTarget.value = null;
   },
 });
+
+/** A container just added to the dossier opens straight into the fill editor. */
+function onContainerCreated(created: { ownedId: number; name: string }): void {
+  fillTarget.value = { ownedId: created.ownedId, name: created.name, artifacts: [], artifactsAsOf: null };
+}
 const details = computed(() => payload.value?.details ?? {});
 const artifactCard = computed(() =>
   artifactTarget.value ? findDetailsCard(details.value, 'art', artifactTarget.value.name) : null,
@@ -214,7 +220,12 @@ function startEdit(container: ContainerPayload): void {
 function startFill(container: ContainerPayload): void {
   if (container.ownedId == null) return;
   dialogOpen.value = false;
-  fillTarget.value = container;
+  fillTarget.value = {
+    ownedId: container.ownedId,
+    name: container.name,
+    artifacts: container.artifacts,
+    artifactsAsOf: container.artifactsAsOf,
+  };
 }
 </script>
 
@@ -227,7 +238,11 @@ function startFill(container: ContainerPayload): void {
           {{ t('containers.summary', { count: rows.length }) }}
         </p>
       </div>
+
+      <UButton icon="i-lucide-plus" :label="t('owned.add')" @click="addOpen = true" />
     </div>
+
+    <CatalogNotice />
 
     <DossierPane
       class="min-w-0"
@@ -373,5 +388,6 @@ function startFill(container: ContainerPayload): void {
 
     <EditOwnedModal v-model:open="editOpen" :target="editTarget" />
     <ContainerFillEditor v-model:open="fillOpen" :container="fillTarget" />
+    <AddOwnedModal v-model:open="addOpen" kind="container" @created="onContainerCreated" />
   </section>
 </template>

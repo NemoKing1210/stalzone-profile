@@ -59,10 +59,56 @@ describe('i18n catalogs', () => {
   });
 
   it('names the cleanup actions in the journal', () => {
-    for (const key of ['events.actions.ownedClear', 'events.actions.buildClear', 'events.actions.dossierClear']) {
+    for (const key of [
+      'events.actions.ownedClear',
+      'events.actions.buildClear',
+      'events.actions.dossierClear',
+      'events.actions.characterCreate',
+    ]) {
       expect(en[key]).toBeTruthy();
       expect(en[key]).not.toBe(key);
     }
+  });
+
+  it('has the setup wizard copy in both locales', () => {
+    for (const key of [
+      'setup.title',
+      'setup.create',
+      'setup.catalogIntro',
+      'setup.skipCatalog',
+      'setup.profileSettings',
+      'setup.finish',
+      'setup.step',
+    ]) {
+      expect(en[key], key).toBeTruthy();
+      expect(ru[key], key).toBeTruthy();
+    }
+  });
+
+  it('has the add-owned and catalog-notice copy in both locales', () => {
+    for (const key of [
+      'owned.addTitle',
+      'owned.item',
+      'owned.add',
+      'owned.catalogRequired',
+      'catalogNotice.title',
+      'catalogNotice.action',
+    ]) {
+      expect(en[key], key).toBeTruthy();
+      expect(ru[key], key).toBeTruthy();
+    }
+  });
+
+  it('registers the new API error codes', () => {
+    for (const code of ['CHARACTER_EXISTS', 'CHARACTER_NOT_EMPTY', 'STALZONE_API_NOT_CONFIGURED']) {
+      expect(API_ERROR_CODES.has(code), code).toBe(true);
+    }
+  });
+
+  it('names the achievement counter as a count, not points', () => {
+    expect(en['forms.stat.ach-gai']).toMatch(/achievement/i);
+    expect(en['forms.stat.ach-gai']).not.toMatch(/points/i);
+    expect(ru['forms.stat.ach-gai']).toMatch(/достижен/i);
   });
 
   it('gives every rank a name instead of a missing-value label', () => {

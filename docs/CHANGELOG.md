@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-11-17 — Seedless onboarding: setup wizard, gear entry, icons, optional profile API
+
+- First run: sign in → `/setup` redirect → nickname/region → catalog download. The
+  middleware never redirects API calls, `/_*`, `/icons/*` or non-HTML requests.
+- `POST /api/v1/character` creates the single character, logs `character.create` and
+  refuses its rollback once gear or builds exist (`CHARACTER_NOT_EMPTY`).
+- Inventory pages add gear from the catalog through `AddOwnedModal`; an empty catalog
+  shows a notice and a link back to `/setup`. A container opens its fill editor right
+  after it is added.
+- New `icons` source downloads `<sha1>.png` from the EXBO repository into `ICONS_DIR`;
+  `/icons/:file` serves both `.png` and `.webp`. Per-file failures are counted, not fatal.
+- New optional `profile` source fills public statistics from the official STALZONE API
+  (OAuth client credentials). It rewrites only `origin='api'` rows, keeps manual
+  overrides, stores playtime as hours and drops counters missing from the response.
+- `sync_source` (MCP) and `npm run sync` accept `icons` and `profile`; `all` stays
+  catalog-only. `GET /api/v1/setup` reports first-run state.
+- No schema change; the calculator and the golden fixture are untouched.
+
 ## 2026-11-17 — Typed database baseline, seedless catalog and reset
 
 - `0001_init.sql` is replaced by a typed baseline: reference tables (`source`,

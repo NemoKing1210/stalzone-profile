@@ -38,13 +38,14 @@ This file holds rules, not a copy of the documentation.
 | CLI/MCP build                     | `npm run build:cli` → `dist/cli.js`, `dist/mcp-stdio.js`                     |
 | MCP stdio                         | `npm run mcp` (local DB) or `DOSSIER_API_URL=… MCP_TOKEN=… npm run mcp`      |
 | MCP smoke                         | `npm run smoke:mcp`                                                          |
-| Source sync                       | `npm run sync [exbo_base\|wiki\|motifs\|scpmodel] [-- --force]`              |
+| Source sync                       | `npm run sync [exbo_base\|wiki\|motifs\|scpmodel\|icons\|profile] [-- --force]` |
 | Backup                            | `npm run backup`                                                             |
 | Password hash                     | `npm run hash-password -- 'password'`                                        |
 
 `db:reset` deletes the file at `DB_PATH` (and `-wal`/`-shm`). Before running it, make sure
 `DB_PATH` points at a local or test database, not the working one. A reset database has no
-character until phase 2 onboarding exists, so the API answers `NO_CHARACTER` until then.
+character, so an authenticated browser lands on `/setup` and the API answers `NO_CHARACTER`
+until the wizard (or `POST /api/v1/character`) creates one.
 
 ## Verification tiers
 
