@@ -1,10 +1,18 @@
 import { ALL_RANKS } from '~/entities/item/model/rankOptions';
+import { findDetailsCard } from '~/entities/item/model/details';
 
+import {
+  buildInventoryIndex,
+  cardText,
+  cardValue,
+  locationOf,
+  type InstanceLocationRow,
+  type InstanceRow,
+} from '../instances';
 import type { InventoryColumn, InventoryKind } from '../types';
 
-export interface ArmorRow {
+export interface ArmorRow extends InstanceRow, InstanceLocationRow {
   key: string;
-  ownedId: number | null;
   qty: number;
   quality: string | null;
   skin: string | null;
@@ -18,6 +26,15 @@ export interface ArmorRow {
   weight: number | null;
   icon: string | null;
 }
+
+const EMPTY_LOCATION: Omit<InstanceLocationRow, 'location'> = {
+  storageId: null,
+  storageName: null,
+  parentName: null,
+  equipmentSlot: null,
+  moduleSlot: null,
+  slotIndex: null,
+};
 
 export const armorKind: InventoryKind<ArmorRow> = {
   key: 'armor',
@@ -42,7 +59,11 @@ export const armorKind: InventoryKind<ArmorRow> = {
     if (mode === 'catalog') {
       return (payload.catalog?.armor ?? []).map((entry, index) => ({
         key: `catalog-${index}-${entry.name}`,
-        ownedId: null,
+        instanceId: null,
+        item: null,
+        placement: null,
+        location: null,
+        ...EMPTY_LOCATION,
         qty: 1,
         quality: null,
         skin: null,
@@ -57,22 +78,33 @@ export const armorKind: InventoryKind<ArmorRow> = {
         icon: entry.icon ?? null,
       }));
     }
-    return (payload.armor ?? []).map((armor, index) => ({
-      key: `owned-${index}-${armor.name}`,
-      ownedId: armor.ownedId ?? null,
-      qty: armor.qty ?? 1,
-      quality: armor.quality ?? null,
-      skin: armor.skin ?? null,
-      note: armor.note ?? null,
-      name: armor.name,
-      rank: armor.rank ?? null,
-      cls: armor.cls ?? null,
-      lvl: armor.lvl ?? null,
-      armor: armor.armor ?? null,
-      armor15: armor.armor15 ?? null,
-      weight: armor.weight ?? null,
-      icon: armor.icon ?? null,
-    }));
+
+    const index = buildInventoryIndex(payload.inventory);
+    return index.items
+      .filter((item) => item.kind === 'armor')
+      .map((item) => {
+        const card = findDetailsCard(payload.details, 'a', item.name);
+        return {
+          key: `instance-${item.id}`,
+          instanceId: item.id,
+          item,
+          placement: item.placement,
+          ...locationOf(item, index),
+          qty: item.qty,
+          quality: item.quality,
+          // The instance carries the skin id, not its name; the editor leaves it untouched.
+          skin: null,
+          note: item.note,
+          name: item.displayName ?? item.name,
+          rank: item.rank,
+          cls: cardText(card, 'cls') ?? item.category,
+          lvl: item.level,
+          armor: cardValue(card, 'armor15') ?? cardValue(card, 'armor'),
+          armor15: cardValue(card, 'armor15'),
+          weight: item.weight,
+          icon: item.icon,
+        };
+      });
   },
 
   columns({ catalog }): InventoryColumn<ArmorRow>[] {
@@ -89,10 +121,11 @@ export const armorKind: InventoryKind<ArmorRow> = {
         align: 'right',
         cell: (row) => (row.lvl == null ? '—' : `+${row.lvl}`),
       });
+      columns.push({ key: 'location', label: 'table.location' });
     }
     columns.push({
       key: 'armor',
-      label: catalog ? 'table.armor15' : 'table.armor',
+      label: 'table.armor',
       sortable: true,
       align: 'right',
       strong: true,
@@ -140,18 +173,21 @@ export const armorKind: InventoryKind<ArmorRow> = {
     emptyCatalog: 'armor.emptyCatalog',
   },
   editTarget: (row) =>
-    row.ownedId == null
+    row.instanceId == null || !row.item
       ? null
       : {
-          ownedId: row.ownedId,
+          instanceId: row.instanceId,
+          itemId: row.item.itemId,
           name: row.name,
           kind: 'armor',
-          level: row.lvl ?? 0,
+          level: row.item.level,
           qty: row.qty,
           quality: row.quality,
-          skin: row.skin,
+          skin: null,
           note: row.note,
           role: null,
           slot: null,
+          rarityPct: row.item.rarityPct,
+          rarityTier: row.item.rarityTier,
         },
 };

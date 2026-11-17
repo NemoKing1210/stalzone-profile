@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { CatalogItemSchema, ItemCardSchema } from './catalog.js';
-import { ContainerReadSchema } from './inventory.js';
+import { ContainerReadSchema, InventoryReadSchema } from './inventory.js';
 import { SourceStatusSchema } from './api.js';
 import { FactionSchema } from './primitives.js';
 
@@ -15,7 +15,6 @@ export const PayloadCharacterSchema = z
     clanRank: z.string().nullable().optional(),
     money: z.number().nullable().optional(),
     maxMoney: z.number().nullable().optional(),
-    stash: z.string().nullable().optional(),
     arrived: z.string().nullable().optional(),
     hours: z.number().nullable().optional(),
     kd: z.number().nullable().optional(),
@@ -74,6 +73,7 @@ export const PayloadSchema = z.object({
     armor: z.array(CatalogItemSchema),
     meta: CatalogMetaSchema,
   }),
+  inventory: InventoryReadSchema,
   details: z.record(z.string(), ItemCardSchema),
   icons: z.record(z.string(), z.string()),
   freshness: FreshnessSchema,

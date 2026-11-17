@@ -37,7 +37,7 @@ describe('app boundaries', () => {
   });
 
   it.each([
-    ['contracts', "import { OwnedPatchSchema } from '@profile/shared/contracts';"],
+    ['contracts', "import { InventoryItemPatchSchema } from '@profile/shared/contracts';"],
     ['ranks', "import { rankKey } from '@profile/shared/ranks';"],
     ['format', "import { g1 } from '@profile/shared/format';"],
   ])('allows @profile/shared/%s', async (_label, source) => {

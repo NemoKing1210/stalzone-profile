@@ -25,7 +25,15 @@ import {
   type ItemStatRow,
 } from '../catalog/index.js';
 import { getCharacter, getCharacterRead, listCharacterStats } from '../identity/index.js';
-import { allContainerSlots, getOwnedContainer, listOwned, type ContainerSlotRow, type OwnedJoined } from '../inventory/index.js';
+import {
+  getContainerData,
+  inventoryRead,
+  listInventoryItems,
+  listPlacements,
+  placementRead,
+  type InventoryItemJoined,
+  type PlacementRow,
+} from '../inventory/index.js';
 import { listSources } from '../sync/index.js';
 
 type Json = Record<string, any>;
@@ -80,7 +88,18 @@ function catalogMeta(sources: Map<string, { last_ok_at: string | null }>, items:
   };
 }
 
-function weaponPayload(ctx: CatalogContext, owned: OwnedJoined): Json {
+/** Fields every flat row shares: the instance identity and where it currently sits. */
+function instanceFields(item: InventoryItemJoined, placements: Map<number, PlacementRow>): Json {
+  const placement = placements.get(item.id) ?? null;
+  return {
+    ownedId: item.id,
+    instanceId: item.id,
+    storageId: placement?.storage_id ?? null,
+    placement: placementRead(placement),
+  };
+}
+
+function weaponPayload(ctx: CatalogContext, owned: InventoryItemJoined, placements: Map<number, PlacementRow>): Json {
   const item = ctx.items.get(owned.item_id) ?? null;
   if (!item) return { name: owned.item_name, lvl: owned.level, missing: true };
   const rows = ctx.stats.get(item.id) ?? [];
@@ -93,8 +112,8 @@ function weaponPayload(ctx: CatalogContext, owned: OwnedJoined): Json {
     null;
 
   return {
+    ...instanceFields(owned, placements),
     name: owned.display_name ?? item.name,
-    ownedId: owned.id,
     qty: owned.qty,
     note: owned.note,
     quality: owned.quality,
@@ -139,7 +158,12 @@ function armorProtection(rows: ItemStatRow[], curve: number[] | null, level: num
   return prot;
 }
 
-function armorPayload(db: Db, ctx: CatalogContext, owned: OwnedJoined): Json {
+function armorPayload(
+  db: Db,
+  ctx: CatalogContext,
+  owned: InventoryItemJoined,
+  placements: Map<number, PlacementRow>,
+): Json {
   const item = ctx.items.get(owned.item_id) ?? null;
   if (!item) return { name: owned.item_name, lvl: owned.level, missing: true };
   const rows = ctx.stats.get(item.id) ?? [];
@@ -147,8 +171,8 @@ function armorPayload(db: Db, ctx: CatalogContext, owned: OwnedJoined): Json {
   const curve = (card.curve as number[] | null) ?? null;
 
   return {
+    ...instanceFields(owned, placements),
     name: owned.display_name ?? owned.item_name,
-    ownedId: owned.id,
     qty: owned.qty,
     note: owned.note,
     quality: owned.quality,
@@ -168,22 +192,23 @@ function armorPayload(db: Db, ctx: CatalogContext, owned: OwnedJoined): Json {
 function containerPayload(
   db: Db,
   ctx: CatalogContext,
-  owned: OwnedJoined,
-  fills: Record<number, ContainerSlotRow[]>,
+  owned: InventoryItemJoined,
+  fills: Map<number, { name: string; lvl: number }[]>,
+  placements: Map<number, PlacementRow>,
 ): Json {
   const item = ctx.items.get(owned.item_id) ?? null;
   const rows = item ? (ctx.stats.get(item.id) ?? []) : [];
-  const override = getOwnedContainer(db, owned.id);
-  const fill = fills[owned.id] ?? [];
+  const override = getContainerData(db, owned.id);
+  const fill = fills.get(owned.id) ?? [];
 
   return {
+    ...instanceFields(owned, placements),
     name: owned.display_name ?? owned.item_name,
-    ownedId: owned.id,
     qty: owned.qty,
     note: owned.note,
     quality: owned.quality,
     skin: owned.skin_name,
-    type: override?.container_type ?? null,
+    type: override?.type ?? null,
     weight: item?.weight ?? itemValue(rows, 'core.tooltip.info.weight'),
     slots: override?.slots ?? itemValue(rows, 'container.slots'),
     eff: override?.eff ?? itemValue(rows, 'container.effectiveness'),
@@ -191,20 +216,25 @@ function containerPayload(
     shield: override?.shield ?? null,
     bonus: override?.bonus ?? null,
     rank: rankKey(item?.rank) ?? null,
-    artifacts: fill.map((row) => ({ name: row.artifact_name ?? row.artifact_item_id, lvl: row.level })),
-    artifactsAsOf: fill[0]?.as_of ?? null,
+    artifacts: fill,
+    artifactsAsOf: null,
     icon: iconOf(ctx, item),
   };
 }
 
-function artifactPayload(db: Db, ctx: CatalogContext, owned: OwnedJoined): Json {
+function artifactPayload(
+  db: Db,
+  ctx: CatalogContext,
+  owned: InventoryItemJoined,
+  placements: Map<number, PlacementRow>,
+): Json {
   const item = ctx.items.get(owned.item_id) ?? null;
   const effects = listItemEffects(db, owned.item_id)
     .map((effect) => effect.label)
     .join(', ');
   return {
+    ...instanceFields(owned, placements),
     name: owned.display_name ?? owned.item_name,
-    ownedId: owned.id,
     qty: owned.qty,
     note: owned.note,
     quality: owned.quality,
@@ -218,14 +248,27 @@ function artifactPayload(db: Db, ctx: CatalogContext, owned: OwnedJoined): Json 
   };
 }
 
-/** Identical ownership rows are stored once with `qty`; the profile shows one entry per copy. */
-function expandOwned(rows: OwnedJoined[]): OwnedJoined[] {
-  const out: OwnedJoined[] = [];
-  for (const row of rows) {
-    const copies = Math.max(1, Math.trunc(row.qty ?? 1));
-    for (let i = 0; i < copies; i++) out.push(row);
+/** Container slots in slot order; the flat container row mirrors the placement tree. */
+function containerFills(
+  items: InventoryItemJoined[],
+  placements: PlacementRow[],
+): Map<number, { name: string; lvl: number }[]> {
+  const byId = new Map(items.map((item) => [item.id, item]));
+  const slots = new Map<number, { slot: number; name: string; lvl: number }[]>();
+  for (const placement of placements) {
+    if (placement.location !== 'container' || placement.container_item_id == null) continue;
+    const child = byId.get(placement.item_id);
+    if (!child) continue;
+    const list = slots.get(placement.container_item_id) ?? [];
+    list.push({ slot: placement.container_slot ?? 0, name: child.display_name ?? child.item_name, lvl: child.level });
+    slots.set(placement.container_item_id, list);
   }
-  return out;
+  return new Map(
+    [...slots].map(([id, list]) => [
+      id,
+      list.sort((a, b) => a.slot - b.slot).map(({ name, lvl }) => ({ name, lvl })),
+    ]),
+  );
 }
 
 /** The character section is the identity read model without its surrogate id. */
@@ -272,14 +315,18 @@ export function buildPayload(db: Db, characterId?: number): Payload {
       containers: [],
       artifacts: [],
       catalog: { weapons: [], armor: [], meta: { updated: null, source: '', items: 0 } },
+      inventory: inventoryRead(db, characterId),
       details: {},
       icons: {},
       freshness: freshness(sources, latestPrice, currentCharacterUpdatedAt),
     } as Payload;
   }
 
-  const owned = expandOwned(listOwned(db, character.id));
-  const itemIds = [...new Set(owned.map((row) => row.item_id))];
+  // Every gear row is one instance; the flat arrays are the table view over them.
+  const instances = listInventoryItems(db, character.id);
+  const placements = new Map(listPlacements(db, character.id).map((row) => [row.item_id, row]));
+  const fills = containerFills(instances, [...placements.values()]);
+  const itemIds = [...new Set(instances.map((row) => row.item_id))];
   const ctx: CatalogContext = {
     items: itemsByIds(db, itemIds),
     stats: statsByItemIds(db, itemIds),
@@ -289,7 +336,6 @@ export function buildPayload(db: Db, characterId?: number): Payload {
   const catalogArmor = buildCatalog(db, 'armor');
   const stats = listCharacterStats(db, character.id);
   const meta = catalogMeta(sourceById, countItems(db));
-  const fills = allContainerSlots(db, character.id);
 
   return {
     meta: {
@@ -298,15 +344,20 @@ export function buildPayload(db: Db, characterId?: number): Payload {
       statsFetched: newest(stats.map((stat) => stat.fetched_at)),
     },
     character: characterPayload(db, character.id),
-    weapons: owned.filter((row) => row.kind === 'weapon').map((row) => weaponPayload(ctx, row)),
-    armor: owned.filter((row) => row.kind === 'armor').map((row) => armorPayload(db, ctx, row)),
-    containers: owned.filter((row) => row.kind === 'container').map((row) => containerPayload(db, ctx, row, fills)),
-    artifacts: owned.filter((row) => row.kind === 'artifact').map((row) => artifactPayload(db, ctx, row)),
+    weapons: instances.filter((row) => row.kind === 'weapon').map((row) => weaponPayload(ctx, row, placements)),
+    armor: instances.filter((row) => row.kind === 'armor').map((row) => armorPayload(db, ctx, row, placements)),
+    containers: instances
+      .filter((row) => row.kind === 'container')
+      .map((row) => containerPayload(db, ctx, row, fills, placements)),
+    artifacts: instances
+      .filter((row) => row.kind === 'artifact')
+      .map((row) => artifactPayload(db, ctx, row, placements)),
     catalog: {
       weapons: catalogWeapons,
       armor: catalogArmor,
       meta,
     },
+    inventory: inventoryRead(db, character.id),
     details: buildDetails(db),
     icons: iconMap(db),
     freshness: freshness(sources, latestPrice, currentCharacterUpdatedAt),

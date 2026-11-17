@@ -3,12 +3,10 @@ import {
   CharacterCreateSchema,
   CharacterPatchSchema,
   CleanupRequestSchema,
-  ContainerFillSchema,
+  ContainerFillWriteSchema,
+  InventoryItemCreateSchema,
+  InventoryItemPatchSchema,
   LoginSchema,
-  OwnedCreateSchema,
-  OwnedItemInputSchema,
-  OwnedPatchSchema,
-  RemoveOwnedInputSchema,
   SyncSourceSchema,
   dec,
   fmtMoney,
@@ -118,40 +116,36 @@ describe('sha1', () => {
   });
 });
 
-describe('owned schemas', () => {
+describe('inventory write schemas', () => {
   it('fills defaults for a create request', () => {
-    const parsed = OwnedCreateSchema.parse({ name: 'АК-12' });
+    const parsed = InventoryItemCreateSchema.parse({ name: 'АК-12' });
     expect(parsed).toMatchObject({ name: 'АК-12', kind: 'weapon', level: 0, qty: 1, dryRun: false });
   });
 
   it('rejects an out-of-range level and an empty name', () => {
-    expect(OwnedCreateSchema.safeParse({ name: 'АК-12', level: 16 }).success).toBe(false);
-    expect(OwnedCreateSchema.safeParse({ name: '' }).success).toBe(false);
+    expect(InventoryItemCreateSchema.safeParse({ name: 'АК-12', level: 16 }).success).toBe(false);
+    expect(InventoryItemCreateSchema.safeParse({ name: '' }).success).toBe(false);
   });
 
-  it('accepts only the four ownable kinds', () => {
-    for (const kind of ['attachment', 'ammo', 'motif', 'other']) {
-      expect(OwnedCreateSchema.safeParse({ name: 'АК-12', kind }).success).toBe(false);
-      expect(OwnedItemInputSchema.safeParse({ name: 'АК-12', kind }).success).toBe(false);
-      expect(RemoveOwnedInputSchema.safeParse({ name: 'АК-12', kind }).success).toBe(false);
+  it('accepts every inventory kind and rejects a catalog-only motif', () => {
+    for (const kind of ['weapon', 'armor', 'container', 'artifact', 'attachment', 'ammo', 'other']) {
+      expect(InventoryItemCreateSchema.safeParse({ name: 'АК-12', kind }).success, kind).toBe(true);
     }
-    for (const kind of ['weapon', 'armor', 'container', 'artifact']) {
-      expect(OwnedCreateSchema.safeParse({ name: 'АК-12', kind }).success).toBe(true);
-    }
+    expect(InventoryItemCreateSchema.safeParse({ name: 'АК-12', kind: 'motif' }).success).toBe(false);
   });
 
   it('requires a real change in a patch', () => {
-    expect(OwnedPatchSchema.parse({ level: 5 })).toMatchObject({ level: 5 });
-    expect(OwnedPatchSchema.safeParse({}).success).toBe(false);
-    expect(OwnedPatchSchema.safeParse({ dryRun: true }).success).toBe(false);
+    expect(InventoryItemPatchSchema.parse({ level: 5 })).toMatchObject({ level: 5 });
+    expect(InventoryItemPatchSchema.safeParse({}).success).toBe(false);
+    expect(InventoryItemPatchSchema.safeParse({ dryRun: true }).success).toBe(false);
   });
 
-  it('accepts a container override on create and patch', () => {
+  it('accepts container data on create and patch', () => {
     expect(
-      OwnedCreateSchema.parse({ name: 'Рюкзак', kind: 'container', container: { slots: 4, eff: 80 } }).container,
+      InventoryItemCreateSchema.parse({ name: 'Рюкзак', kind: 'container', container: { slots: 4, eff: 80 } }).container,
     ).toMatchObject({ slots: 4, eff: 80 });
-    expect(OwnedPatchSchema.parse({ container: { slots: 6 } }).container).toMatchObject({ slots: 6 });
-    expect(OwnedPatchSchema.parse({ container: null }).container).toBeNull();
+    expect(InventoryItemPatchSchema.parse({ container: { slots: 6 } }).container).toMatchObject({ slots: 6 });
+    expect(InventoryItemPatchSchema.parse({ container: null }).container).toBeNull();
   });
 });
 
@@ -167,10 +161,10 @@ describe('character patch', () => {
 });
 
 describe('container fill', () => {
-  it('accepts an empty fill and rejects more than 20 artifacts', () => {
-    expect(ContainerFillSchema.parse({ artifacts: [] }).artifacts).toEqual([]);
-    const tooMany = Array.from({ length: 21 }, () => ({ name: 'Осколок' }));
-    expect(ContainerFillSchema.safeParse({ artifacts: tooMany }).success).toBe(false);
+  it('accepts an empty fill and rejects more than 20 slots', () => {
+    expect(ContainerFillWriteSchema.parse({ slots: [] }).slots).toEqual([]);
+    const tooMany = Array.from({ length: 21 }, (_, index) => index + 1);
+    expect(ContainerFillWriteSchema.safeParse({ slots: tooMany }).success).toBe(false);
   });
 });
 

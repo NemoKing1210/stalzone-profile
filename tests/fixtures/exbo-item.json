@@ -1,0 +1,35 @@
+{
+  "id": "att-gauss-scope",
+  "category": "attachment/scope",
+  "color": "RANK_MASTER",
+  "name": {
+    "key": "item.wpn.gauss.name",
+    "lines": { "ru": "Прицел «Гаусс»", "en": "Gauss scope" }
+  },
+  "infoBlocks": [
+    {
+      "type": "list",
+      "elements": [
+        {
+          "type": "item",
+          "name": {
+            "key": "item.wpn.gauss.name",
+            "lines": { "ru": "Гаусс-винтовка" }
+          }
+        },
+        {
+          "type": "item",
+          "text": {
+            "key": "item.wpn.ak12.name",
+            "lines": { "ru": "АК-12" }
+          }
+        },
+        {
+          "type": "numeric",
+          "name": { "key": "scope.zoom", "lines": { "ru": "Кратность" } },
+          "value": 4
+        }
+      ]
+    }
+  ]
+}

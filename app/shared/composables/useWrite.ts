@@ -11,6 +11,12 @@ interface ApiErrorData {
   error?: { code?: string; message?: string; details?: { suggestions?: string[] } };
 }
 
+/** The last failed write, so a caller can offer a targeted retry (for example an unverified install). */
+export interface WriteErrorInfo {
+  code?: string;
+  message?: string;
+}
+
 /** Single write path for the edit forms: toast, diff and payload refresh in one place. */
 export function useWrite() {
   const toast = useToast();
@@ -18,9 +24,11 @@ export function useWrite() {
   const { t } = useI18n();
   const { message: apiMessage } = useApiError();
   const busy = ref(false);
+  const lastError = ref<WriteErrorInfo | null>(null);
 
   async function write<T = WriteResult>(url: string, options: WriteOptions): Promise<T | null> {
     busy.value = true;
+    lastError.value = null;
     try {
       const result = await $fetch<T>(url, {
         method: options.method,
@@ -47,6 +55,7 @@ export function useWrite() {
       return result;
     } catch (error) {
       const data = (error as { data?: ApiErrorData }).data;
+      lastError.value = { code: data?.error?.code, message: data?.error?.message };
       const suggestions = data?.error?.details?.suggestions;
       const message = apiMessage(data?.error?.code, data?.error?.message);
       toast.add({
@@ -63,5 +72,5 @@ export function useWrite() {
     }
   }
 
-  return { write, busy };
+  return { write, busy, lastError };
 }

@@ -38,7 +38,6 @@ const form = reactive({
   clanRank: null as string | null | undefined,
   money: null as number | null,
   maxMoney: null as number | null,
-  stash: null as string | null | undefined,
   stats: emptyStats(),
   dryRun: false,
 });
@@ -77,7 +76,6 @@ function reset(): void {
   form.clanRank = character.clanRank ?? null;
   form.money = character.money ?? null;
   form.maxMoney = character.maxMoney ?? null;
-  form.stash = character.stash ?? null;
   form.stats = emptyStats();
   for (const field of STAT_FIELDS) form.stats[field] = character.stats?.[field] ?? null;
   form.dryRun = false;
@@ -96,7 +94,6 @@ async function submit(): Promise<void> {
       clanRank: form.clanRank ?? null,
       money: form.money,
       maxMoney: form.maxMoney,
-      stash: form.stash ?? null,
       stats: toCharacterStatsPatch(form.stats),
       dryRun: form.dryRun,
     },
@@ -186,9 +183,6 @@ async function submit(): Promise<void> {
 
         <div class="space-y-3 border-t border-[var(--sz-border)] pt-3">
           <p class="sz-caps text-[var(--sz-text-muted)]">{{ t('forms.sectionNotes') }}</p>
-          <UFormField :label="t('forms.stash')" name="stash">
-            <UInput v-model.nullable="form.stash" class="w-full" />
-          </UFormField>
         </div>
 
         <UFormField name="dryRun">

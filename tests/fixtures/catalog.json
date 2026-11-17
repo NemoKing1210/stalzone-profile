@@ -165,7 +165,7 @@
     { "statId": "ach-gai", "valueNum": 42, "origin": "api" },
     { "statId": "reg-tim", "valueText": "2024-06-01", "origin": "api" }
   ],
-  "owned": [
+  "inventory": [
     { "itemExternalId": "ak-12", "kind": "weapon", "level": 15, "qty": 1 },
     { "itemExternalId": "kunitsa", "kind": "armor", "level": 10, "qty": 1 },
     {
@@ -177,11 +177,10 @@
     },
     { "itemExternalId": "art-1", "kind": "artifact", "level": 15, "qty": 1 }
   ],
-  "containerSlots": [
+  "containerFills": [
     {
       "containerItemExternalId": "backpack-1",
-      "slots": [{ "itemExternalId": "art-1", "level": 15 }],
-      "asOf": "2026-01-01T00:00:00.000Z"
+      "slots": [{ "itemExternalId": "art-1", "level": 15 }]
     }
   ],
   "prices": [

@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ConfirmActionModal } from '~/shared/ui';
-
-import { OwnedPatchSchema } from '@profile/shared/contracts';
-import type { OwnedEditTarget } from '~/shared/types/profile';
+import type { RarityTier } from '@profile/shared/contracts';
+import { RarityTierSchema } from '@profile/shared/contracts';
+import type { InstanceEditTarget } from '~/shared/types/profile';
 import type { WriteResult } from '~/shared/composables/useWrite';
 
+import { ConfirmActionModal } from '~/shared/ui';
+
 const open = defineModel<boolean>('open', { default: false });
-const props = defineProps<{ target: OwnedEditTarget | null }>();
+const props = defineProps<{ target: InstanceEditTarget | null }>();
 const emit = defineEmits<{ saved: []; deleted: [] }>();
 
 const { write, busy } = useWrite();
@@ -20,8 +21,13 @@ const form = reactive({
   note: null as string | null | undefined,
   role: null as string | null | undefined,
   slot: null as string | null | undefined,
+  rarity: null as number | null,
+  rarityTier: 'none' as RarityTier | 'none',
+  layoutWidth: null as number | null,
+  layoutHeight: null as number | null,
+  layoutWeight: null as number | null,
   container: {
-    containerType: null as string | null | undefined,
+    type: null as string | null | undefined,
     shield: null as number | null,
     bonus: null as string | null | undefined,
     protection: null as number | null,
@@ -41,6 +47,11 @@ const { data: motifs } = useFetch<{ name: string }[]>('/api/v1/items', {
 });
 const skinItems = computed(() => (motifs.value ?? []).map((motif) => motif.name));
 
+const tierItems = computed(() => [
+  { label: t('forms.rarityTierNone'), value: 'none' },
+  ...RarityTierSchema.options.map((tier) => ({ label: t(`items.rarityTier.${tier}`), value: tier })),
+]);
+
 watch(open, (value) => {
   if (value) reset();
 });
@@ -57,12 +68,17 @@ function reset(): void {
   form.level = target.level;
   form.qty = target.qty;
   form.quality = target.quality;
-  form.skin = target.skin ?? undefined;
+  form.skin = undefined;
   form.note = target.note;
   form.role = target.role;
   form.slot = target.slot;
+  form.rarity = target.rarityPct;
+  form.rarityTier = target.rarityTier ?? 'none';
+  form.layoutWidth = null;
+  form.layoutHeight = null;
+  form.layoutWeight = null;
   form.container = {
-    containerType: target.container?.containerType ?? null,
+    type: target.container?.type ?? null,
     shield: target.container?.shield ?? null,
     bonus: target.container?.bonus ?? null,
     protection: target.container?.protection ?? null,
@@ -73,28 +89,86 @@ function reset(): void {
   lastResult.value = null;
 }
 
+const isArtifact = computed(() => props.target?.kind === 'artifact');
+const isContainer = computed(() => props.target?.kind === 'container');
+
+const layoutPair = computed(() => {
+  const width = form.layoutWidth;
+  const height = form.layoutHeight;
+  if (width == null && height == null) return { valid: true, value: null };
+  if (width == null || height == null || width < 1 || height < 1) return { valid: false, value: null };
+  return { valid: true, value: { width, height } };
+});
+
+function instancePatch(target: InstanceEditTarget): Record<string, unknown> {
+  const patch: Record<string, unknown> = {};
+  if (form.level !== target.level) patch.level = form.level;
+  if (form.qty !== target.qty) patch.qty = form.qty;
+  const quality = form.quality ?? null;
+  if (quality !== target.quality) patch.quality = quality;
+  const note = form.note ?? null;
+  if (note !== target.note) patch.note = note;
+  if ((form.role ?? null) !== target.role) patch.role = form.role ?? null;
+  if ((form.slot ?? null) !== target.slot) patch.slot = form.slot ?? null;
+  // The read shape carries the skin id, not its name: send a skin only when one is chosen.
+  if (form.skin) patch.skin = form.skin;
+  if (isArtifact.value) {
+    if (form.rarity !== target.rarityPct) patch.rarityPct = form.rarity;
+    const tier = form.rarityTier === 'none' ? null : form.rarityTier;
+    if (tier !== target.rarityTier) patch.rarityTier = tier;
+  }
+  if (isContainer.value) {
+    const current = target.container;
+    const next = { ...form.container };
+    const changed =
+      next.type !== (current?.type ?? null) ||
+      next.shield !== (current?.shield ?? null) ||
+      next.bonus !== (current?.bonus ?? null) ||
+      next.protection !== (current?.protection ?? null) ||
+      next.slots !== (current?.slots ?? null) ||
+      next.eff !== (current?.eff ?? null);
+    if (changed) patch.container = next;
+  }
+  return patch;
+}
+
+const hasChanges = computed(() => {
+  const target = props.target;
+  if (!target) return false;
+  return Object.keys(instancePatch(target)).length > 0 || layoutPair.value.value !== null;
+});
+
 async function submit(): Promise<void> {
   const target = props.target;
   if (!target) return;
 
-  const result = await write<WriteResult>(`/api/v1/owned/${target.ownedId}`, {
-    method: 'PATCH',
-    body: {
-      level: form.level,
-      qty: form.qty,
-      quality: form.quality ?? null,
-      skin: form.skin ?? null,
-      note: form.note ?? null,
-      role: form.role ?? null,
-      slot: form.slot ?? null,
-      ...(target.kind === 'container' ? { container: { ...form.container } } : {}),
-      dryRun: form.dryRun,
-    },
-  });
-  if (!result) return;
+  let wrote = false;
+  const patch = instancePatch(target);
+  if (Object.keys(patch).length) {
+    const result = await write<WriteResult>(`/api/v1/inventory/items/${target.instanceId}`, {
+      method: 'PATCH',
+      body: { ...patch, dryRun: form.dryRun },
+    });
+    if (!result) return;
+    lastResult.value = result;
+    if (result.dryRun) return;
+    wrote = true;
+  }
 
-  lastResult.value = result;
-  if (!result.dryRun) {
+  const layout = layoutPair.value.value;
+  if (layout) {
+    const result = await write<WriteResult>(`/api/v1/items/${target.itemId}/layout`, {
+      method: 'PATCH',
+      body: {
+        ...layout,
+        ...(form.layoutWeight == null ? {} : { weight: form.layoutWeight }),
+      },
+    });
+    if (!result) return;
+    wrote = true;
+  }
+
+  if (wrote) {
     open.value = false;
     emit('saved');
   }
@@ -104,9 +178,9 @@ async function remove(): Promise<void> {
   const target = props.target;
   if (!target) return;
 
-  const result = await write<WriteResult>(`/api/v1/owned/${target.ownedId}`, {
+  const result = await write<WriteResult>(`/api/v1/inventory/items/${target.instanceId}`, {
     method: 'DELETE',
-    body: { qty: form.qty, dryRun: false },
+    body: { qty: form.qty },
   });
   if (!result) return;
 
@@ -119,7 +193,7 @@ async function remove(): Promise<void> {
 <template>
   <UModal v-model:open="open" :title="t('items.editTitle')" :description="props.target?.name" scrollable>
     <template #body>
-      <UForm :schema="OwnedPatchSchema" :state="form" class="space-y-4" @submit="submit">
+      <UForm :state="form" class="space-y-4" @submit="submit">
         <div class="grid gap-3 sm:grid-cols-2">
           <UFormField :label="t('forms.level')" name="level">
             <UInputNumber v-model="form.level" :min="0" :max="15" class="w-full" />
@@ -129,6 +203,12 @@ async function remove(): Promise<void> {
           </UFormField>
           <UFormField :label="t('forms.quality')" name="quality">
             <UInput v-model.nullable="form.quality" :placeholder="t('forms.qualityPlaceholder')" class="w-full" />
+          </UFormField>
+          <UFormField v-if="isArtifact" :label="t('forms.rarity')" name="rarity">
+            <UInputNumber v-model="form.rarity" :min="0" :max="175" class="w-full" />
+          </UFormField>
+          <UFormField v-if="isArtifact" :label="t('forms.rarityTier')" name="rarityTier">
+            <USelect v-model="form.rarityTier" :items="tierItems" class="w-full" />
           </UFormField>
           <UFormField :label="t('forms.skin')" name="skin">
             <USelectMenu
@@ -152,11 +232,30 @@ async function remove(): Promise<void> {
           <UTextarea v-model.nullable="form.note" :rows="2" class="w-full" />
         </UFormField>
 
-        <div v-if="props.target?.kind === 'container'" class="space-y-3 border-t border-[var(--sz-border)] pt-3">
+        <div class="space-y-3 border-t border-[var(--sz-border)] pt-3">
+          <p class="sz-caps text-[var(--sz-text-muted)]">{{ t('forms.layoutOverride') }}</p>
+          <div class="grid gap-3 sm:grid-cols-3">
+            <UFormField :label="t('forms.layoutWidth')" name="layoutWidth">
+              <UInputNumber v-model="form.layoutWidth" :min="1" :max="20" class="w-full" />
+            </UFormField>
+            <UFormField :label="t('forms.layoutHeight')" name="layoutHeight">
+              <UInputNumber v-model="form.layoutHeight" :min="1" :max="20" class="w-full" />
+            </UFormField>
+            <UFormField :label="t('forms.layoutWeight')" name="layoutWeight">
+              <UInputNumber v-model="form.layoutWeight" :min="0" class="w-full" />
+            </UFormField>
+          </div>
+          <p class="text-[11px] text-[var(--sz-text-dim)]">{{ t('forms.layoutHint') }}</p>
+          <p v-if="!layoutPair.valid" class="text-[11px] text-[var(--sz-error-text)]">
+            {{ t('forms.layoutPairError') }}
+          </p>
+        </div>
+
+        <div v-if="isContainer" class="space-y-3 border-t border-[var(--sz-border)] pt-3">
           <p class="sz-caps text-[var(--sz-text-muted)]">{{ t('forms.containerOverride') }}</p>
           <div class="grid gap-3 sm:grid-cols-2">
-            <UFormField :label="t('forms.containerType')" name="container.containerType">
-              <UInput v-model.nullable="form.container.containerType" class="w-full" />
+            <UFormField :label="t('forms.containerType')" name="container.type">
+              <UInput v-model.nullable="form.container.type" class="w-full" />
             </UFormField>
             <UFormField :label="t('table.slots')" name="container.slots">
               <UInputNumber v-model="form.container.slots" :min="0" class="w-full" />
@@ -202,6 +301,7 @@ async function remove(): Promise<void> {
             <UButton type="button" color="neutral" variant="ghost" :label="t('common.cancel')" @click="open = false" />
             <UButton
               type="submit"
+              :disabled="!hasChanges || !layoutPair.valid"
               :loading="busy"
               :label="form.dryRun ? t('common.check') : t('common.save')"
             />

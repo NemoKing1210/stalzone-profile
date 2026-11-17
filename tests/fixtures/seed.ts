@@ -26,8 +26,23 @@ interface Fixture {
   }[];
   character?: Json;
   characterStats?: { statId: string; valueNum?: number | null; valueText?: string | null; origin?: 'api' | 'manual' }[];
-  owned?: Json[];
-  containerSlots?: Json[];
+  inventory?: {
+    itemExternalId: string;
+    kind: string;
+    level?: number;
+    quality?: string | null;
+    qty?: number;
+    skinExternalId?: string | null;
+    container?: {
+      containerType?: string | null;
+      shield?: number | null;
+      bonus?: string | null;
+      protection?: number | null;
+      slots?: number | null;
+      eff?: number | null;
+    } | null;
+  }[];
+  containerFills?: { containerItemExternalId: string; slots: { itemExternalId: string; level?: number; quality?: string | null }[] }[];
   prices?: Json[];
 }
 
@@ -101,36 +116,64 @@ export function seedCatalog(db: Db): void {
       seed.setCharacterStat(db, characterId, stat.statId, value, stat.origin ?? 'api');
     }
 
-    const ownedIds = new Map<string, number>();
-    for (const owned of data.owned ?? []) {
-      const itemId = itemIds.get(String(owned.itemExternalId));
-      if (!itemId) continue;
-      const ownedId = seed.upsertOwned(db, {
-        characterId,
-        itemId,
-        kind: owned.kind,
-        level: owned.level ?? 0,
-        qty: owned.qty ?? 1,
-        quality: owned.quality ?? null,
-        skinItemId: owned.skinExternalId ? (itemIds.get(String(owned.skinExternalId)) ?? null) : null,
-        container: owned.container ?? null,
-      });
-      ownedIds.set(String(owned.itemExternalId), ownedId);
+    const existingInventory = seed.getInventoryStorage(db, characterId);
+    if (!existingInventory) {
+      seed.insertStorage(db, { characterId, kind: 'inventory', name: 'Inventory', width: 8, height: 8 });
+    }
+    const hasStash = seed.listStorages(db, characterId).some((storage) => storage.kind === 'stash');
+    if (!hasStash) {
+      seed.insertStorage(db, { characterId, kind: 'stash', name: 'Stash', width: 8, height: 12, sortOrder: 0 });
     }
 
-    for (const fill of data.containerSlots ?? []) {
-      const ownedId = ownedIds.get(String(fill.containerItemExternalId));
-      if (!ownedId) continue;
-      seed.replaceContainerSlots(
-        db,
-        ownedId,
-        (fill.slots ?? []).map((slot: Json) => ({
-          itemId: itemIds.get(String(slot.itemExternalId))!,
+    const instanceIds = new Map<string, number>();
+    for (const entry of data.inventory ?? []) {
+      const itemId = itemIds.get(String(entry.itemExternalId));
+      if (!itemId) continue;
+      const instanceId = seed.insertInventoryItem(db, {
+        characterId,
+        itemId,
+        kind: entry.kind,
+        level: entry.level ?? 0,
+        quality: entry.quality ?? null,
+        qty: entry.qty ?? 1,
+        skinItemId: entry.skinExternalId ? (itemIds.get(String(entry.skinExternalId)) ?? null) : null,
+      });
+      if (entry.container) {
+        seed.upsertContainerData(db, instanceId, {
+          type: entry.container.containerType ?? null,
+          shield: entry.container.shield ?? null,
+          bonus: entry.container.bonus ?? null,
+          protection: entry.container.protection ?? null,
+          slots: entry.container.slots ?? null,
+          eff: entry.container.eff ?? null,
+        });
+      }
+      seed.upsertPlacement(db, { itemId: instanceId, characterId, location: 'loose' });
+      instanceIds.set(String(entry.itemExternalId), instanceId);
+    }
+
+    // A fill row is its own instance, exactly as the data migration creates it.
+    for (const fill of data.containerFills ?? []) {
+      const containerId = instanceIds.get(String(fill.containerItemExternalId));
+      if (!containerId) continue;
+      (fill.slots ?? []).forEach((slot, index) => {
+        const artifactItemId = itemIds.get(String(slot.itemExternalId));
+        if (!artifactItemId) return;
+        const artifactId = seed.insertInventoryItem(db, {
+          characterId,
+          itemId: artifactItemId,
+          kind: 'artifact',
           level: slot.level ?? 0,
           quality: slot.quality ?? null,
-        })),
-        String(fill.asOf),
-      );
+        });
+        seed.upsertPlacement(db, {
+          itemId: artifactId,
+          characterId,
+          location: 'container',
+          containerItemId: containerId,
+          containerSlot: index,
+        });
+      });
     }
 
     for (const price of data.prices ?? []) seed.insertPriceQuote(db, price as never);  });

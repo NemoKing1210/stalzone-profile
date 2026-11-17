@@ -1,10 +1,18 @@
 import { ALL_RANKS } from '~/entities/item/model/rankOptions';
+import { findDetailsCard } from '~/entities/item/model/details';
 
+import {
+  buildInventoryIndex,
+  cardText,
+  cardValue,
+  locationOf,
+  type InstanceLocationRow,
+  type InstanceRow,
+} from '../instances';
 import type { InventoryKind } from '../types';
 
-export interface ContainerRow {
+export interface ContainerRow extends InstanceRow, InstanceLocationRow {
   key: string;
-  ownedId: number | null;
   qty: number;
   quality: string | null;
   skin: string | null;
@@ -22,6 +30,12 @@ export interface ContainerRow {
   icon: string | null;
   artifacts: { name: string; lvl: number }[];
   artifactsAsOf: string | null;
+}
+
+/** `card.prot` may be a per-type record; the table column shows only a scalar value. */
+function protection(card: Record<string, unknown> | null): number | null {
+  const value = card?.prot;
+  return typeof value === 'number' ? value : null;
 }
 
 export const containersKind: InventoryKind<ContainerRow> = {
@@ -44,33 +58,49 @@ export const containersKind: InventoryKind<ContainerRow> = {
 
   toRows(payload) {
     if (!payload) return [];
-    return (payload.containers ?? []).map((container, index) => ({
-      key: `owned-${index}-${container.name}`,
-      ownedId: container.ownedId ?? null,
-      qty: container.qty ?? 1,
-      quality: container.quality ?? null,
-      skin: container.skin ?? null,
-      note: container.note ?? null,
-      name: container.name,
-      rank: container.rank ?? null,
-      type: container.type ?? null,
-      weight: container.weight ?? null,
-      slots: container.slots ?? null,
-      eff: container.eff ?? null,
-      fill: container.artifacts.length,
-      prot: container.prot ?? null,
-      shield: container.shield ?? null,
-      bonus: container.bonus ?? null,
-      icon: container.icon ?? null,
-      artifacts: container.artifacts,
-      artifactsAsOf: container.artifactsAsOf,
-    }));
+    const index = buildInventoryIndex(payload.inventory);
+    return index.items
+      .filter((item) => item.kind === 'container')
+      .map((item) => {
+        const card = findDetailsCard(payload.details, 'c', item.name);
+        const data = item.container;
+        const artifacts = (item.artifacts ?? []).map((artifact) => ({
+          name: artifact.displayName ?? artifact.name,
+          lvl: artifact.level,
+        }));
+        return {
+          key: `instance-${item.id}`,
+          instanceId: item.id,
+          item,
+          placement: item.placement,
+          ...locationOf(item, index),
+          qty: item.qty,
+          quality: item.quality,
+          // The instance carries the skin id, not its name; the editor leaves it untouched.
+          skin: null,
+          note: item.note,
+          name: item.displayName ?? item.name,
+          rank: item.rank,
+          type: data?.type ?? cardText(card, 'type') ?? item.category,
+          weight: item.weight,
+          slots: data?.slots ?? cardValue(card, 'slots'),
+          eff: data?.eff ?? cardValue(card, 'eff'),
+          fill: artifacts.length,
+          prot: data?.protection ?? protection(card),
+          shield: data?.shield ?? cardValue(card, 'shield'),
+          bonus: data?.bonus ?? cardText(card, 'bonus'),
+          icon: item.icon,
+          artifacts,
+          artifactsAsOf: null,
+        };
+      });
   },
 
   columns: () => [
     { key: 'name', label: 'table.name', sortable: true, strong: true, wide: true },
     { key: 'type', label: 'table.type' },
     { key: 'rank', label: 'table.rank' },
+    { key: 'location', label: 'table.location' },
     {
       key: 'slots',
       label: 'table.slots',
@@ -117,35 +147,32 @@ export const containersKind: InventoryKind<ContainerRow> = {
     emptyCatalog: 'containers.emptyDescription',
   },
   editTarget: (row) =>
-    row.ownedId == null
+    row.instanceId == null || !row.item
       ? null
       : {
-          ownedId: row.ownedId,
+          instanceId: row.instanceId,
+          itemId: row.item.itemId,
           name: row.name,
           kind: 'container',
-          level: 0,
+          level: row.item.level,
           qty: row.qty,
           quality: row.quality,
-          skin: row.skin,
+          skin: null,
           note: row.note,
           role: null,
           slot: null,
-          container: {
-            containerType: row.type,
-            shield: row.shield,
-            bonus: row.bonus,
-            protection: row.prot,
-            slots: row.slots,
-            eff: row.eff,
-          },
+          rarityPct: row.item.rarityPct,
+          rarityTier: row.item.rarityTier,
+          container: row.item.container
+            ? {
+                type: row.item.container.type,
+                shield: row.item.container.shield,
+                bonus: row.item.container.bonus,
+                protection: row.item.container.protection,
+                slots: row.item.container.slots,
+                eff: row.item.container.eff,
+              }
+            : null,
         },
-  fillTarget: (row) =>
-    row.ownedId == null
-      ? null
-      : {
-          ownedId: row.ownedId,
-          name: row.name,
-          artifacts: row.artifacts,
-          artifactsAsOf: row.artifactsAsOf,
-        },
+  fillTarget: (row) => (row.item?.kind === 'container' ? { container: row.item } : null),
 };

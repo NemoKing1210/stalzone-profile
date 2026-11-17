@@ -51,9 +51,11 @@ function apiEndpoints(): string[] {
 }
 
 function mcpToolNames(): string[] {
-  return [...readText('packages/mcp/src/registry.ts').matchAll(/registerTool\(\s*'([a-z_]+)'/g)]
-    .map((match) => match[1]!)
-    .sort();
+  const text = readText('packages/mcp/src/registry.ts');
+  return [
+    ...[...text.matchAll(/registerTool\(\s*'([a-z_]+)'/g)].map((match) => match[1]!),
+    ...[...text.matchAll(/registerWriteTool\(\s*server,\s*limiter,\s*'([a-z_]+)'/g)].map((match) => match[1]!),
+  ].sort();
 }
 
 function mcpReadToolNames(): string[] {

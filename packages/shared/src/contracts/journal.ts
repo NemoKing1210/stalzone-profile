@@ -28,6 +28,11 @@ export const WriteResultSchema = z.object({
 export type WriteResult = z.infer<typeof WriteResultSchema>;
 
 export const CleanupCountsSchema = z.object({
+  inventory: z.object({
+    items: z.number().int(),
+    storages: z.number().int(),
+    placements: z.number().int(),
+  }),
   owned: z.object({
     records: z.number().int(),
     copies: z.number().int(),

@@ -35,6 +35,7 @@ describe('buildPayload contract', () => {
       'details',
       'freshness',
       'icons',
+      'inventory',
       'meta',
       'weapons',
     ]);
@@ -86,7 +87,7 @@ describe('buildPayload contract', () => {
       prot: 10,
       type: 'Рюкзак',
       artifacts: [{ name: 'Нервяк', lvl: 15 }],
-      artifactsAsOf: '2026-01-01T00:00:00.000Z',
+      artifactsAsOf: null,
     });
   });
 
@@ -109,6 +110,7 @@ describe('buildPayload contract', () => {
       'character',
       'containers',
       'details',
+      'inventory',
       'meta',
       'weapons',
     ]);

@@ -19,6 +19,15 @@ the document for the area you touch:
 
 This file holds rules, not a copy of the documentation.
 
+## Project status (2026-11-17)
+
+The project is not deployed. Backward compatibility for the database, REST API and MCP
+contracts is not required until the first deployment. The owner approved a full
+inventory/equipment/stash redesign: the schema baseline and migrations may be rewritten in
+place, and the old `owned_item` model may be replaced. After the first deployment this
+freedom ends — schema changes only add new migrations, and public contracts change
+compatibly.
+
 Two kinds of rules live here. **Hard invariants** are owner-level boundaries: breaking one
 is a bug even when the tests are green, and changing one needs an explicit owner decision.
 **Engineering defaults** are the repository's normal way of working: follow them unless the
@@ -36,7 +45,7 @@ is the truth until the file is fixed in the same change.
 | Rebuild the local DB from scratch | `npm run db:reset && npm run db:migrate && npm run sync`                     |
 | Unit + integration                | `npm test` (`npm run test:integration` — integration only)                   |
 | Unit tests only                   | `npm run test:unit`                                                          |
-| Focused tests                     | `npm test -- tests/integration/writes.test.ts` (list one or more paths)      |
+| Focused tests                     | `npm test -- tests/integration/inventory-move.test.ts` (list one or more paths) |
 | Tests related to changed files    | `npm run test:related -- <changed files>`                                    |
 | Typecheck packages, scripts, tests | `npm run typecheck:node`                                                    |
 | Full typecheck (server + app)     | `npm run typecheck` — `typecheck:node` plus the slow Nuxt typecheck          |
@@ -95,7 +104,7 @@ When unsure, widen: a missed test is a correctness bug; an extra suite only cost
 | `packages/shared/src/contracts/**`                       | `npm test -- tests/unit/shared.test.ts tests/integration`                                                                               |
 | `packages/shared/src/{ranks,format,norm}*`               | `npm test -- tests/unit`                                                                                                                |
 | `packages/core/src/modules/*/repo/**`                    | `npm test -- tests/integration`                                                                                                         |
-| `packages/core/src/modules/inventory/write.ts`           | `npm test -- tests/integration/writes.test.ts tests/integration/payload.test.ts`                                                        |
+| `packages/core/src/modules/inventory/**`                  | `npm test -- tests/integration/inventory-storage.test.ts tests/integration/inventory-move.test.ts tests/integration/inventory-read.test.ts tests/integration/cleanup-inventory.test.ts tests/integration/payload.test.ts` |
 | `packages/core/src/modules/read-model/**`                | `npm test -- tests/integration/import.test.ts tests/integration/db.test.ts tests/integration/payload.test.ts tests/integration/read-model.test.ts` |
 | `packages/core/src/modules/sync/**`                      | `npm test -- tests/integration/sync.test.ts tests/integration/prices.test.ts`                                                           |
 | `packages/core/src/modules/{maintenance,setup}/**`        | `npm test -- tests/integration/cleanup.test.ts tests/integration/maintenance-atomicity.test.ts tests/integration/setup.test.ts`         |
@@ -138,6 +147,7 @@ Rules that keep the tiers honest:
 | `packages/core/src/platform` | config, opening SQLite, migrations, journal, security                    |
 | `packages/core/src/modules`  | bounded contexts: catalog, identity, inventory, maintenance, read-model, |
 |                              | setup, sync — each with its own `index.ts` public API                    |
+| `packages/core/src/modules/inventory` | storages, gear instances, placements, container data, weapon modules, loadout |
 | `packages/core/src/modules/catalog/calc` | DPS/TTK and artifact formulas — the only source of numbers  |
 | `packages/sources`           | pure source adapters: fetch + parse, **no DB writes**                    |
 | `packages/mcp`               | tool registry, local client, stdio and HTTP                              |
@@ -145,7 +155,7 @@ Rules that keep the tiers honest:
 | `server/utils`               | shared `Db`, session, errors, serialization                              |
 | `app/shared`                 | cross-slice UI, composables and pure helpers                             |
 | `app/entities`               | domain presentation: item and source cards, rank badges                  |
-| `app/features`               | screens and their models: auth, character, inventory, settings, …        |
+| `app/features`               | screens and their models: auth, character, inventory (grid, equipment, containers), settings, … |
 | `app/pages`                  | thin route wrappers that mount a feature screen                          |
 | `db/migrations`              | new `NNNN_name.sql` files only                                           |
 | `tests/fixtures`             | public/synthetic catalog for tests and the golden                        |
@@ -174,12 +184,17 @@ is engineering default, not law.
    values and do not duplicate the formula. When changing numbers, run `npm run golden` and
    explain any difference. Changing displayed numbers is a separate owner decision, not a
    side effect of refactoring.
-5. **Schema changes only through new migrations.** Do not edit applied
-   `db/migrations/0001`. After a schema change update `docs/DATA-MODEL.md` and tests.
-   The baseline `0001_init.sql` was replaced once on 2026-11-17 as an owner-approved reset.
-   This exception is closed; from now on schema changes only add new `NNNN_*.sql` migrations.
-6. **Copies collapse into `qty`.** Do not expand identical copies into separate DB rows;
-   the payload expands them for display only.
+5. **Schema changes only through migrations.** After a schema change update
+   `docs/DATA-MODEL.md` and tests. On 2026-11-17 the owner approved a second reset for the
+   inventory redesign: because the project is not deployed and backward compatibility is not
+   required, the baseline and existing migrations may be rewritten in place until the first
+   deployment. After the first deployment, schema changes only add new `NNNN_*.sql`
+   migrations; never edit an applied one.
+6. **Gear is stored as instances; `qty` is for stackables.** Weapons, armor, containers,
+   artifacts and attachments are individual rows even when they look identical, because each
+   carries its own modules, fill, level, quality or placement. Stackable consumables and ammo
+   may collapse into `qty`; the payload expands them for display only. (Owner decision,
+   2026-11-17: the old collapse-everything rule blocked per-instance modules and placement.)
 7. **Authorization is never weakened.** Public paths are only `/login`, `/api/auth/login`,
    `/api/v1/healthz`, `/mcp`, `/_*`, `/icons/*`, `/favicon.ico`. Mutations require their own
    `Origin` or a bearer token. Secrets live only in env.
@@ -242,7 +257,7 @@ are a reference, not marketing copy.
 
 | Changing          | Do not forget                                                                                                                                                          |
 | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| DB schema         | new `NNNN_name.sql` migration, `docs/DATA-MODEL.md`, repo, import tests                                                                                                |
+| DB schema         | new `NNNN_name.sql` migration (`0005`/`0006` were the inventory cutover), `docs/DATA-MODEL.md`, repo, migration tests                                                |
 | API field/route   | `packages/shared/src/contracts/**`, `docs/API.md`, the affected `tests/integration` suite                                                                              |
 | MCP tool          | `packages/mcp/src/registry.ts`, `docs/MCP.md`, the expected read/write lists in `tests/integration/mcp.test.ts`; for a read tool also `READ_OUTPUT_SCHEMAS` and `npm run smoke:mcp` |
 | Data source       | `docs/ARCHITECTURE.md` (source table), `core/src/modules/sync`, `tests/integration/sync.test.ts`                                                                       |

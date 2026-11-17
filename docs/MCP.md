@@ -1,7 +1,7 @@
 # MCP server
 
-One tool registry serves both stdio and HTTP — results never diverge. There are 16 tools:
-10 read and 6 write/maintenance.
+One tool registry serves both stdio and HTTP — results never diverge. There are 26 tools:
+12 read and 14 write/maintenance.
 
 ## Connecting
 
@@ -50,7 +50,9 @@ Client config:
 - `sync_source` also requires `confirm: true`.
 - `rebuild_site` does not rebuild the site: it returns `NOT_SUPPORTED` with the deploy
   command.
-- `rollback_event` restores an entity from the `event_log` snapshot.
+- `rollback_event` restores an entity from the `event_log` snapshot. An event written
+  before the inventory redesign (`owned.*`, `container.fill`, `profile.clear`,
+  `dossier.clear`) answers `EVENT_NOT_ROLLBACKABLE`.
 
 Tool errors: `{ isError: true, content: [{ text: "{\"error\":{\"code\",\"message\"}}" }] }`.
 
@@ -64,8 +66,10 @@ The `profile://schema` resource provides tool descriptions and the write rules.
 | `find_items` | `q?`, `kind?`, `rank?`, `slot?`, `limit?` | a list of items |
 | `get_item` | `id` or `name` + `kind?` | item summary, `stats`, `effects`, `icon`, derived `card` |
 | `compare_items` | `a`, `b`, `level` | DPS/TTK and stats of two items |
-| `list_owned` | `kind?` | gear with `ownedId`, `qty`, qualities and container override |
-| `list_containers` | — | containers and their fill |
+| `get_inventory` | — | `InventoryRead`: storages, equipment, loose tray and the computed loadout |
+| `list_storages` | — | storages with their grid items, size and weight |
+| `list_inventory_items` | `kind?`, `location?`, `storage_id?` | flat inventory instances with placement, size and container data |
+| `list_containers` | — | container instances and their fill from instance placements |
 | `plan_artifact_build` | preset/effects, slots, budget, mode, quality, unique, requireLot | an artifact plan by price |
 | `get_prices` | `names[]`, `quality?` | latest prices for each combination |
 | `sources_status` | — | source status, `lastOkAt`, `lastError` |
@@ -75,15 +79,29 @@ The `profile://schema` resource provides tool descriptions and the write rules.
 
 | Tool | Arguments |
 |---|---|
-| `upsert_owned_item` | `name`, `kind`, `level`, `skin?`, `quality?`, `note?`, `role?`, `dry_run?` |
-| `remove_owned_item` | `name`, `kind`, `level?`, `dry_run?` |
-| `set_container_artifacts` | `container`, `artifacts[]`, `as_of?`, `dry_run?` |
+| `add_inventory_item` | `name`, `kind`, `level?`, `skin?`, `quality?`, `rarity_pct?`, `rarity_tier?`, `note?`, `role?`, `slot?`, `qty?`, `display_name?`, `container?`, `dry_run?` |
+| `update_inventory_item` | `item_id` plus any of `level`, `skin`, `quality`, `rarity_pct`, `rarity_tier`, `note`, `role`, `slot`, `qty`, `display_name`, `container` (or `null` to clear) |
+| `remove_inventory_item` | `item_id`, `qty?`, `dry_run?` |
+| `move_inventory_item` | `item_id`, `target`, `swap?`, `allow_unverified?`, `dry_run?` |
+| `create_storage` | `name`, `kind?` (`stash`), `width?`, `height?`, `max_weight?`, `sort_order?`, `dry_run?` |
+| `update_storage` | `storage_id` plus any of `name`, `width`, `height`, `max_weight`, `sort_order` |
+| `delete_storage` | `storage_id`, `move_to_storage_id?`, `dry_run?` |
+| `auto_arrange_storage` | `storage_id`, `dry_run?` |
+| `set_container_artifacts` | `container_item_id`, `slots[]` (instance ids or `null`), `dry_run?` |
+| `set_weapon_module` | `weapon_item_id`, `slot`, `attachment_item_id?` (`null` removes), `allow_unverified?`, `dry_run?` |
+| `set_item_layout` | `item_id` (catalog), `width`, `height`, `weight?`, `dry_run?` |
 | `sync_source` | `source`: `exbo \| exbo_base \| wiki \| motifs \| scpmodel \| icons \| profile`, `force?`, `confirm`. Resolves `ICONS_DIR` and the STALZONE credentials the same way the CLI does. The realm is not a tool argument: like the CLI and the admin route, a sync binds the default `ru` realm |
 | `rollback_event` | `event_id`, `dry_run?` |
 | `rebuild_site` | — |
 
-`upsert_owned_item` adds one copy, `remove_owned_item` removes one: MCP does not manage
-quantity; the site/API with `qty` does.
+`target` is a discriminated union on `location`: `grid` (`storage_id`, `x`, `y`,
+`rotated?`), `equipment` (`slot`), `container` (`container_item_id`, `slot`), `weapon_module`
+(`weapon_item_id`, `slot`, `allow_unverified?`) or `loose`.
+
+An item id that a write takes is an **inventory instance id**, not a catalog item id; the
+exception is `set_item_layout`, which changes the catalog layout shared by every instance.
+`add_inventory_item` puts the new instance in the loose tray; use `move_inventory_item` to
+place it. Quantity belongs to stackables only: gear instances always have `qty: 1`.
 
 ## Checks
 

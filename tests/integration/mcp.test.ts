@@ -16,16 +16,26 @@ import {
   writeLimiter,
 } from '@profile/mcp';
 import { seedCatalog } from '../fixtures/seed';
+import { seedInventory, type SeedInventory } from '../fixtures/inventory';
 
 let dir: string;
 let db: Db;
+let seeded: SeedInventory;
 let server: ReturnType<typeof createProfileServer>;
 let client: Client;
 
 const EXPECTED_WRITE_TOOLS = [
-  'upsert_owned_item',
-  'remove_owned_item',
+  'add_inventory_item',
+  'update_inventory_item',
+  'remove_inventory_item',
+  'move_inventory_item',
+  'create_storage',
+  'update_storage',
+  'delete_storage',
   'set_container_artifacts',
+  'set_weapon_module',
+  'set_item_layout',
+  'auto_arrange_storage',
   'sync_source',
   'rebuild_site',
   'rollback_event',
@@ -35,7 +45,9 @@ const EXPECTED_READ_TOOLS = [
   'find_items',
   'get_item',
   'compare_items',
-  'list_owned',
+  'get_inventory',
+  'list_storages',
+  'list_inventory_items',
   'list_containers',
   'plan_artifact_build',
   'get_prices',
@@ -48,6 +60,7 @@ beforeAll(async () => {
   db = openDb(path.join(dir, 'test.db'));
   migrate(db, path.join(process.cwd(), 'db', 'migrations'));
   seedCatalog(db);
+  seeded = seedInventory(db);
   server = createProfileServer(localClient(db));
   client = await connectInMemory(server);
 });
@@ -63,9 +76,8 @@ async function callTool(name: string, args: Record<string, unknown> = {}) {
   return client.callTool({ name, arguments: args });
 }
 
-async function nervyakQty(): Promise<number> {
-  const rows = await localClient(db).listOwned('artifact');
-  return Number(rows.find((row) => row.name === 'Нервяк')?.qty ?? 0);
+async function inventoryCount(): Promise<number> {
+  return (await localClient(db).listInventoryItems()).length;
 }
 
 describe('MCP registry', () => {
@@ -121,17 +133,55 @@ describe('MCP registry', () => {
   });
 });
 
+describe('MCP inventory reads and moves', () => {
+  it('returns storages, equipment and the loose tray', async () => {
+    const inventory = await localClient(db).getInventory();
+    expect(inventory.storages.map((storage) => storage.kind)).toEqual(['inventory', 'stash']);
+    expect(inventory.equipment.primary?.name).toBe('АК-12');
+    expect(inventory.equipment.container?.artifacts?.[0]?.name).toBe('Нервяк');
+    expect(inventory.loose.map((item) => item.name)).toContain('ПП-19');
+    expect(inventory.stats.carry.total.value).toBeGreaterThan(0);
+  });
+
+  it('moves a loose item onto a storage grid and rolls it back', async () => {
+    const local = localClient(db);
+    const result = await local.moveInventoryItem(seeded.instanceIds.smg!, {
+      target: { location: 'grid', storageId: seeded.storageIds.inventory, x: 0, y: 0, rotated: false },
+      dryRun: false,
+    });
+    expect(result.dryRun).toBe(false);
+    expect(typeof result.eventId).toBe('number');
+
+    const moved = (await local.listInventoryItems()).find((item) => item.id === seeded.instanceIds.smg);
+    expect(moved?.placement).toMatchObject({ location: 'grid', storageId: seeded.storageIds.inventory });
+
+    await local.moveInventoryItem(seeded.instanceIds.smg!, {
+      target: { location: 'loose' },
+      dryRun: false,
+    });
+    const restored = (await local.listInventoryItems()).find((item) => item.id === seeded.instanceIds.smg);
+    expect(restored?.placement).toEqual({ location: 'loose' });
+  });
+
+  it('includes nested artifacts and modules in the flat inventory list', async () => {
+    const local = localClient(db);
+    const nested = await local.listInventoryItems({ location: 'container' });
+    expect(nested.some((item) => item.id === seeded.instanceIds.artifact1)).toBe(true);
+    expect(nested.every((item) => item.placement.location === 'container')).toBe(true);
+  });
+});
+
 describe('MCP write safety', () => {
   it('defaults to dry_run and requires confirm for a real write', async () => {
-    const before = await nervyakQty();
+    const before = await inventoryCount();
 
-    const dry = await callTool('upsert_owned_item', { name: 'Нервяк', kind: 'artifact', level: 15 });
+    const dry = await callTool('add_inventory_item', { name: 'Пузырь', kind: 'artifact', level: 15 });
     expect(dry.isError).not.toBe(true);
     expect(dry.structuredContent).toMatchObject({ dryRun: true });
-    expect(await nervyakQty()).toBe(before);
+    expect(await inventoryCount()).toBe(before);
 
-    const unconfirmed = await callTool('upsert_owned_item', {
-      name: 'Нервяк',
+    const unconfirmed = await callTool('add_inventory_item', {
+      name: 'Пузырь',
       kind: 'artifact',
       level: 15,
       dry_run: false,
@@ -140,27 +190,31 @@ describe('MCP write safety', () => {
     expect(JSON.parse((unconfirmed.content as { text: string }[])[0].text)).toMatchObject({
       error: { code: 'CONFIRM_REQUIRED' },
     });
-    expect(await nervyakQty()).toBe(before);
+    expect(await inventoryCount()).toBe(before);
 
-    const applied = await callTool('upsert_owned_item', {
-      name: 'Нервяк',
+    const applied = await callTool('add_inventory_item', {
+      name: 'Пузырь',
       kind: 'artifact',
       level: 15,
       dry_run: false,
       confirm: true,
     });
-    const body = applied.structuredContent as { dryRun: boolean; eventId: number };
+    const body = applied.structuredContent as {
+      dryRun: boolean;
+      eventId: number;
+      diff: { after: { id: number } };
+    };
     expect(body.dryRun).toBe(false);
     expect(typeof body.eventId).toBe('number');
-    expect(await nervyakQty()).toBe(before + 1);
+    expect(await inventoryCount()).toBe(before + 1);
 
-    const restored = await callTool('rollback_event', {
-      event_id: body.eventId,
+    const restored = await callTool('remove_inventory_item', {
+      item_id: body.diff.after.id,
       dry_run: false,
       confirm: true,
     });
     expect(restored.isError).not.toBe(true);
-    expect(await nervyakQty()).toBe(before);
+    expect(await inventoryCount()).toBe(before);
   });
 
   it('requires confirm before a sync reaches the source', async () => {
@@ -205,8 +259,8 @@ describe('MCP write safety', () => {
     const limitedClient = await connectInMemory(limited);
     try {
       const result = await limitedClient.callTool({
-        name: 'upsert_owned_item',
-        arguments: { name: 'Нервяк', kind: 'artifact', level: 15, dry_run: false, confirm: true },
+        name: 'add_inventory_item',
+        arguments: { name: 'Пузырь', kind: 'artifact', level: 15, dry_run: false, confirm: true },
       });
       expect(result.isError).toBe(true);
       expect(JSON.parse((result.content as { text: string }[])[0].text)).toMatchObject({

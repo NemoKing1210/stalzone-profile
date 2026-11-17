@@ -16,6 +16,7 @@ export function exportProfileJson(db: Db, characterId?: number): ProfileExport {
     containers: payload.containers,
     artifacts: payload.artifacts,
     catalog: payload.catalog,
+    inventory: payload.inventory,
     details: payload.details,
   };
 }

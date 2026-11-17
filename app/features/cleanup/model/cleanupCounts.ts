@@ -1,5 +1,5 @@
 export interface CleanupCountsLike {
-  owned: { records: number; copies: number };
+  inventory: { items: number; storages: number; placements: number };
   manualStats: { records: number };
   character: { present: boolean; nick: string | null };
   journal: { events: number };
@@ -36,8 +36,8 @@ export function cleanupCountsView(
   if (status !== 'success' || !counts) return unknown();
   return {
     known: true,
-    records: counts.owned.records,
-    copies: counts.owned.copies,
+    records: counts.inventory.items,
+    copies: counts.inventory.placements,
     manualStats: counts.manualStats.records,
     character: counts.character,
     journal: counts.journal.events,

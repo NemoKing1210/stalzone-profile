@@ -18,6 +18,10 @@ export interface ExboItem {
   cat: string;
   ru: string | null;
   en: string | null;
+  /** Stable EXBO translation key (`item.wpn.gauss.name`); the join key for compatibility. */
+  nameKey: string | null;
+  /** Keys of the "Suitable for" item references listed in the item's info blocks. */
+  compatibleKeys: string[];
   rank: string | null;
   st: Record<string, number | number[] | string>;
   txt: string[];
@@ -47,6 +51,8 @@ export function parseExboItem(json: Json, labels: Record<string, string> = {}): 
     cat: String(json.category ?? ''),
     ru: textOf(json.name),
     en: json.name?.lines?.en ?? null,
+    nameKey: typeof json.name?.key === 'string' ? json.name.key : null,
+    compatibleKeys: [],
     rank: json.color ?? null,
     st: {},
     txt: [],
@@ -56,6 +62,13 @@ export function parseExboItem(json: Json, labels: Record<string, string> = {}): 
 
   const label = (node: Json | null | undefined) => {
     if (node?.key && node?.lines?.ru) labels[node.key] = node.lines.ru;
+  };
+
+  /** A "Suitable for" reference keeps its key even when Russian text exists. */
+  const compatible = (node: Json | null | undefined) => {
+    if (node?.key && typeof node.key === 'string' && !record.compatibleKeys.includes(node.key)) {
+      record.compatibleKeys.push(node.key);
+    }
   };
 
   const walk = (blocks: Json[] | null | undefined) => {
@@ -79,6 +92,10 @@ export function parseExboItem(json: Json, labels: Record<string, string> = {}): 
             } else if (element.type === 'text' || element.type === 'item') {
               const text = textOf(element.text || element.name);
               if (text) record.txt.push(text);
+              if (element.type === 'item') {
+                compatible(element.text);
+                compatible(element.name);
+              }
             }
           }
           break;

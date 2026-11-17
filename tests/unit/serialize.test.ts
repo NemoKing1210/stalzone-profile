@@ -1,10 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { EventReadSchema, ItemSummarySchema, OwnedReadSchema, PriceRowSchema, SourceStatusSchema } from '@profile/shared/contracts';
+import { EventReadSchema, ItemSummarySchema, PlacementReadSchema, PriceRowSchema, SourceStatusSchema } from '@profile/shared/contracts';
 import { itemSummary } from '@profile/core';
 import { eventJson } from '../../server/utils/serialize';
-import { ownedRead } from '@profile/core/modules/inventory';
+import { placementRead } from '@profile/core/modules/inventory';
 import { priceRead } from '@profile/core/modules/catalog';
 import { sourceRead } from '@profile/core/modules/sync';
 
@@ -40,29 +40,24 @@ describe('HTTP serializers', () => {
     expect(EventReadSchema.parse(event).after).toEqual({ a: 1 });
   });
 
-  it('maps module rows to owned, price and source contract DTOs', () => {
-    const owned = ownedRead(
-      {
-        id: 1,
-        item_id: 2,
-        item_name: 'AK',
-        display_name: null,
-        external_id: 'exbo-ak',
-        kind: 'weapon',
-        category: 'weapon/assault_rifle',
-        level: 1,
-        quality: null,
-        note: null,
-        role: null,
-        slot: 'основное',
-        qty: 1,
-        skin_item_id: null,
-        item_icon: '/icons/ak.webp',
-        updated_at: '2026-01-01T00:00:00.000Z',
-      } as never,
-      null,
-    );
-    expect(OwnedReadSchema.parse(owned)).toMatchObject({ id: 1, itemId: 2, icon: '/icons/ak.webp', container: null });
+  it('maps module rows to placement, price and source contract DTOs', () => {
+    const placement = placementRead({
+      item_id: 1,
+      character_id: 1,
+      location: 'equipment',
+      storage_id: null,
+      x: null,
+      y: null,
+      rotated: 0,
+      equipment_slot: 'primary',
+      container_item_id: null,
+      container_slot: null,
+      weapon_item_id: null,
+      module_slot: null,
+      verified: 0,
+      updated_at: '2026-01-01T00:00:00.000Z',
+    } as never);
+    expect(PlacementReadSchema.parse(placement)).toMatchObject({ location: 'equipment', slot: 'primary' });
 
     const price = priceRead({
       id: 3,

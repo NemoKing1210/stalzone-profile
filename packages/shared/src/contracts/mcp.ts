@@ -1,28 +1,13 @@
 import { z } from 'zod';
 import { SourcesReadSchema } from './api.js';
 import { ItemCardSchema, ItemEffectSchema, ItemStatSchema, ItemSummarySchema } from './catalog.js';
-import { ContainerOverrideSchema, ContainerReadSchema } from './inventory.js';
+import {
+  ContainerReadSchema,
+  InventoryItemReadSchema,
+  InventoryReadSchema,
+  StorageReadSchema,
+} from './inventory.js';
 import { ProfileExportSchema, PayloadCharacterSchema, PayloadMetaSchema } from './payload.js';
-
-/** The MCP owned row uses `ownedId`; the HTTP owned row uses `id`. */
-export const McpOwnedReadSchema = z.object({
-  ownedId: z.number().int(),
-  itemId: z.number().int(),
-  name: z.string(),
-  externalId: z.string(),
-  kind: z.string(),
-  level: z.number().int(),
-  quality: z.string().nullable(),
-  skinItemId: z.number().int().nullable(),
-  skinName: z.string().nullable(),
-  qty: z.number().int(),
-  note: z.string().nullable(),
-  role: z.string().nullable(),
-  slot: z.string().nullable(),
-  icon: z.string().nullable(),
-  container: ContainerOverrideSchema.nullable(),
-});
-export type McpOwnedRead = z.infer<typeof McpOwnedReadSchema>;
 
 /** The MCP price row omits the database ids that the HTTP route includes. */
 export const McpPriceRowSchema = z.object({
@@ -61,7 +46,9 @@ export const READ_OUTPUT_SCHEMAS: Record<string, z.ZodTypeAny> = {
   find_items: z.object({ items: z.array(ItemSummarySchema) }),
   get_item: z.object({ item: McpItemSchema }),
   compare_items: z.object({ items: z.array(z.object({ found: z.boolean() }).loose()) }),
-  list_owned: z.object({ items: z.array(McpOwnedReadSchema) }),
+  get_inventory: InventoryReadSchema,
+  list_storages: z.object({ storages: z.array(StorageReadSchema) }),
+  list_inventory_items: z.object({ items: z.array(InventoryItemReadSchema) }),
   list_containers: z.object({ items: z.array(ContainerReadSchema) }),
   plan_artifact_build: z.object({ plan: PlanResultSchema }),
   get_prices: z.object({ prices: z.record(z.string(), z.array(McpPriceRowSchema)) }),

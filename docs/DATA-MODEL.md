@@ -23,21 +23,31 @@ only through new migrations in `db/migrations/`.
 
 | Table | Purpose |
 |---|---|
-| `character` | identity: nick, region, faction, alliance, clan, money, stash |
+| `character` | identity: nick, region, faction, alliance, clan, money |
 | `character_stat` | raw counters per character and stat, with origin `api` or `manual` |
-| `owned_item` | gear: unique by item/level/quality/skin, copies collapse into `qty` |
-| `owned_container` | per-container override of type, shield, bonus, protection, slots, efficiency |
-| `container_slot` | artifact fill of a container as of `as_of` |
+| `storage` | the character's own grid: exactly one 8×8 `inventory` plus any number of `stash` storages (default 8×12), each with a unique normalized name |
+| `inventory_item` | one row per gear instance (weapon, armor, container, artifact, attachment, ammo, other) with level, quality, rarity, skin, note and display name; `qty > 1` only for `ammo`/`other` |
+| `item_placement` | where an instance is: `grid` (storage, x, y, rotated), `equipment` (slot), `container` (container instance, slot), `weapon_module` (weapon instance, module slot) or `loose`; one row per instance |
+| `container_data` | per-container override of type, shield, bonus, protection, slots, efficiency |
+| `attachment_compat` | EXBO/manual attachment ↔ weapon compatibility pairs |
+| `item_layout` | optional catalog-wide grid override: width, height, weight for an `item` |
 | `event_log` | write journal: `before`/`after` snapshots for rollback |
 
-Migrations: `0001_init.sql` is the typed baseline (replaced once on 2026-11-17 as an
-owner-approved reset; that exception is closed). Every later change is a new
-`NNNN_*.sql` file. `0002_character_faction.sql` turns `faction` into an enum
+Migrations: `0001_init.sql` is the typed baseline. On 2026-11-17 the owner approved a second
+reset for the inventory redesign: because the project is not deployed, the baseline and
+migrations may be rewritten in place until the first deployment. After that, every change is
+a new `NNNN_*.sql` file. `0002_character_faction.sql` turns `faction` into an enum
 (`rise`, `frontier`, `mercenaries`, `covenant`), keeps it nullable, normalizes legacy
 free-text values to `NULL` and drops `playstyle`. `0003_drop_builds.sql` drops the
 `build`, `build_metric` and `build_slot` tables: the profile now stores only item-centred
 entities. Historical `event_log` rows that mention builds remain readable but can no
-longer be restored.
+longer be restored. `0004_sync_schedule.sql` adds the single-row auto-sync schedule.
+`0005_inventory_schema.sql` adds the instance model additively; `0006_inventory_data.sql`
+copies the old `owned_*` rows into it and drops the old tables together with
+`character.stash` (the stash becomes a `storage` row). An event written before `0006`
+references tables that no longer exist, so `rollbackEvent` answers
+`EVENT_NOT_ROLLBACKABLE` for the legacy actions (`owned.*`, `container.fill`,
+`profile.clear`, `dossier.clear`) instead of failing halfway.
 
 ## Source authority
 
@@ -72,8 +82,21 @@ owns itself.
 - `item` is unique by `(realm, external_id)`; `name_norm` is lower/ё→е/without quotes.
 - `item_stat` is keyed `(item_id, stat_id, level, is_additional)`; a new EXBO stat needs a
   `stat_definition` row, not a migration.
-- `owned_item` is unique by `(character_id, item_id, level, quality, skin_item_id)`; identical
-  copies collapse into one row with `qty > 0`.
+- `inventory_item` holds one row per owned thing; only `ammo` and `other` may carry `qty > 1`.
+  A weapon, armor, container, artifact or attachment is never collapsed into another row,
+  because each carries its own modules, fill, level, quality or placement.
+- `storage` has exactly one `inventory` row per character (partial unique index) and unique
+  `(character_id, kind, name_norm)` names for stashes. The default inventory is 8×8, the
+  default stash 8×12; both are recreated by onboarding and by an inventory clear.
+- `item_placement`: exactly one row per instance. Partial unique indices make two instances
+  unable to share a grid cell origin, an equipment slot, a container slot or a weapon module
+  slot; a trigger rejects a placement whose `character_id` differs from its instance's.
+  A `grid` item also needs a free rectangle of its resolved size, checked by the write
+  service, not by a database constraint.
+- `container_data` exists only for `kind = 'container'` instances; the fill is the set of
+  `item_placement` rows whose `container_item_id` points at it and whose slot is below the
+  container's effective capacity. A fill row is its own `inventory_item`, not a reference to
+  a catalog item.
 - `character_stat` is keyed `(character_id, stat_id, origin)`. A manual value wins in
   display; clearing the manual row reveals the API value again. Raw counters are the only
   editable stats — K/D, accuracy, headshot share and hours are derived at read time.
@@ -91,8 +114,12 @@ Cleanup exposes five scopes: `inventory`, `manualStats`, `character`, `journal` 
 Each writes one `event_log` row and stores what it removed in `before`:
 
 - `character.delete` and `reset.all` snapshot the character row, every `character_stat`
-  row with its origin, and every owned row with container overrides and fill. The
-  character is recreated with its original id and timestamps on rollback.
+  row with its origin, and the whole instance inventory (storages, instances, placements,
+  container data and item layouts). The character is recreated with its original id and
+  timestamps on rollback, and the inventory rows come back under their original ids.
+- `inventory.clear` deletes every storage, instance and placement and recreates the default
+  8×8 inventory storage; its `before` snapshot holds the raw rows, so rollback restores the
+  exact previous state, including the old storage ids.
 - `journal.clear` snapshots every event row with its id and raw `before`/`after` strings;
   rollback replaces the journal with that snapshot.
 - `reset.all` stores both snapshots, so even a full reset can be undone.
@@ -110,8 +137,15 @@ time (`details[key]`, weapon/armor/artifact/container cards).
   (hours), `kil`/`dea` (K/D), `sho-hit`/`sho-fir` (accuracy), `sho-hea`/`sho-hit` (headshot
   share), `ach-gai` (achievements count). Achievement points have no stat id in phase 1 and
   are `null`.
-- Container display precedence: `owned_container` override > `container.*` item stats >
-  `null`. Fill comes from `container_slot`.
+- Container display precedence: `container_data` override > `container.*` item stats >
+  `null`. Fill comes from `item_placement` rows of the container instance; the payload has no
+  per-fill timestamp, so `artifactsAsOf` is `null`.
+- The flat `weapons`/`armor`/`containers`/`artifacts` lists in the payload are a list view
+  built from the same instances. Each row keeps `ownedId` (now the instance id) for the
+  table UI and adds `instanceId`, `storageId` and `placement`.
+- Grid size and weight resolve per item: an `item_layout` override wins over the catalog
+  weight/kind defaults, and the app's category model (`app/features/inventory/model/kinds`)
+  supplies the per-kind fallback. A pile of `qty` stackables occupies one rectangle.
 - No lot means `null` ("no lot"), no stat means `null` ("no data"). Zero, a missing value
   and an estimate never substitute for each other.
 

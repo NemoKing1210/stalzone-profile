@@ -13,7 +13,6 @@ const CHARACTER_FIELDS = [
   ['clanRank', 'clan_rank'],
   ['money', 'money'],
   ['maxMoney', 'max_money'],
-  ['stash', 'stash'],
 ] as const;
 
 export type CharacterSnapshot = {
@@ -26,7 +25,6 @@ export type CharacterSnapshot = {
   clanRank: string | null;
   money: number | null;
   maxMoney: number | null;
-  stash: string | null;
   stats: Record<string, number | string>;
   manualStats: string[];
 };
@@ -49,7 +47,6 @@ export interface CharacterDataSnapshot {
     clanRank: string | null;
     money: number | null;
     maxMoney: number | null;
-    stash: string | null;
     profileFetchedAt: string | null;
     createdAt: string;
     updatedAt: string;
@@ -75,7 +72,6 @@ export function characterDataSnapshot(db: Db, row: CharacterRow): CharacterDataS
       clanRank: row.clan_rank,
       money: row.money,
       maxMoney: row.max_money,
-      stash: row.stash,
       profileFetchedAt: row.profile_fetched_at,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -124,7 +120,6 @@ export function characterSnapshot(db: Db, row: CharacterRow): CharacterSnapshot 
     clanRank: row.clan_rank,
     money: row.money,
     maxMoney: row.max_money,
-    stash: row.stash,
     stats,
     manualStats: manualStats.sort(),
   };
@@ -151,7 +146,6 @@ export function createCharacter(db: Db, input: CharacterCreate): WriteResult {
     clanRank: input.clanRank ?? null,
     money: null,
     maxMoney: null,
-    stash: null,
     stats: {},
     manualStats: [],
   };

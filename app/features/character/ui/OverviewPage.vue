@@ -172,13 +172,6 @@ const dataState = computed(() => [
               :tone="stat.tone"
             />
           </div>
-
-          <p
-            v-if="character.stash"
-            class="mt-2 border-t border-[var(--sz-border)] pt-2 text-[12px] text-[var(--sz-text-muted)]"
-          >
-            {{ t('overview.stash', { value: character.stash }) }}
-          </p>
         </ProfilePane>
 
         <div class="order-2 min-w-0 space-y-4">

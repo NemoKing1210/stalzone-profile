@@ -1,28 +1,39 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { norm } from '@profile/shared';
+import type {
+  InventoryItemCreate,
+  InventoryItemPatch,
+  InventoryItemRead,
+  InventoryRead,
+  PlacementTarget,
+  StorageCreate,
+  StoragePatch,
+  StorageRead,
+} from '@profile/shared/contracts';
 import {
   WriteError,
   artifactSources,
+  autoArrangeStorage,
   buildItemCard,
   buildPayload,
   compareWeapons,
-  createOwned,
-  deleteOwned,
+  createInventoryItem,
+  createStorage,
+  deleteInventoryItem,
+  deleteStorage,
   exportProfileJson,
   findItemByKindName,
-  getCharacter,
   getIcon,
   getItemById,
-  getOwnedContainer,
+  inventoryRead,
   itemStats,
   itemSummary,
   latestPriceFetchedAt,
   latestPriceRows,
   latestPricesForNames,
   listItemEffects,
-  listOwned,
   listSourceReads,
+  moveInventoryItem,
   planArtifactBuild,
   rollbackEvent as restoreEvent,
   runExclusive,
@@ -30,9 +41,12 @@ import {
   searchItemSummaries,
   searchItems,
   setContainerFill,
+  setItemLayout,
+  setWeaponModule,
+  updateInventoryItem,
+  updateStorage,
   type Db,
   type ItemRow,
-  type OwnedJoined,
   type PlanInput,
   type PriceQuote,
   type PriceRow,
@@ -53,29 +67,47 @@ export class McpClientError extends Error {
   }
 }
 
-export interface OwnedWriteInput {
-  name: string;
-  kind: string;
-  level: number;
-  skin?: string | null;
-  quality?: string | null;
-  note?: string | null;
-  role?: string | null;
+export interface InventoryMoveInput {
+  target: PlacementTarget;
+  swap?: boolean;
+  allowUnverified?: boolean;
   dryRun: boolean;
 }
 
-export interface RemoveOwnedInput {
-  name: string;
-  kind: string;
-  level?: number | null;
+export interface RemoveInventoryItemInput {
+  qty?: number;
+  dryRun: boolean;
+}
+
+export interface DeleteStorageInput {
+  moveToStorageId?: number | null;
   dryRun: boolean;
 }
 
 export interface ContainerFillInput {
-  container: string;
-  artifacts: { name: string; level: number; quality?: string | null }[];
-  asOf?: string | null;
+  containerItemId: number;
+  slots: (number | null)[];
   dryRun: boolean;
+}
+
+export interface WeaponModuleInput {
+  attachmentItemId: number | null;
+  allowUnverified?: boolean;
+  dryRun: boolean;
+}
+
+export interface ItemLayoutInput {
+  itemId: number;
+  width: number;
+  height: number;
+  weight?: number | null;
+  dryRun: boolean;
+}
+
+export interface InventoryListQuery {
+  kind?: string;
+  location?: 'grid' | 'equipment' | 'container' | 'weapon_module' | 'loose';
+  storageId?: number;
 }
 
 /** Everything the MCP tools need from a profile, whether it lives in this process or behind HTTP. */
@@ -90,49 +122,33 @@ export interface ProfileClient {
   }): Promise<Json[]>;
   getItem(query: { id?: number; name?: string; kind?: string }): Promise<Json | null>;
   compareItems(a: string, b: string, level: number): Promise<Json[]>;
-  listOwned(kind?: string | null): Promise<Json[]>;
+  getInventory(): Promise<InventoryRead>;
+  listStorages(): Promise<StorageRead[]>;
+  listInventoryItems(query?: InventoryListQuery): Promise<InventoryItemRead[]>;
   listContainers(): Promise<Json[]>;
   planArtifactBuild(input: PlanInput): Promise<Json>;
   getPrices(names: string[], quality?: string | null): Promise<Json>;
   sourcesStatus(): Promise<Json[]>;
   exportProfileJson(): Promise<Json>;
-  upsertOwnedItem(input: OwnedWriteInput): Promise<WriteResult>;
-  removeOwnedItem(input: RemoveOwnedInput): Promise<WriteResult>;
+  addInventoryItem(input: InventoryItemCreate): Promise<WriteResult>;
+  updateInventoryItem(itemId: number, input: InventoryItemPatch): Promise<WriteResult>;
+  removeInventoryItem(itemId: number, input: RemoveInventoryItemInput): Promise<WriteResult>;
+  moveInventoryItem(itemId: number, input: InventoryMoveInput): Promise<WriteResult>;
+  createStorage(input: StorageCreate): Promise<WriteResult>;
+  updateStorage(storageId: number, input: StoragePatch): Promise<WriteResult>;
+  deleteStorage(storageId: number, input: DeleteStorageInput): Promise<WriteResult>;
+  autoArrangeStorage(storageId: number, dryRun: boolean): Promise<WriteResult>;
   setContainerArtifacts(input: ContainerFillInput): Promise<WriteResult>;
+  setWeaponModule(
+    weaponItemId: number,
+    slot: string,
+    input: WeaponModuleInput,
+  ): Promise<WriteResult>;
+  setItemLayout(input: ItemLayoutInput): Promise<WriteResult>;
   syncSource(source: string, force: boolean): Promise<Json>;
   rebuildSite(): Promise<Json>;
   rollbackEvent(eventId: number, dryRun: boolean): Promise<WriteResult>;
   close?(): Promise<void>;
-}
-
-function ownedJson(db: Db, row: OwnedJoined): Json {
-  const container = getOwnedContainer(db, row.id);
-  return {
-    ownedId: row.id,
-    itemId: row.item_id,
-    name: row.display_name ?? row.item_name,
-    externalId: row.external_id,
-    kind: row.kind,
-    level: row.level,
-    quality: row.quality,
-    skinItemId: row.skin_item_id,
-    skinName: row.skin_name,
-    qty: row.qty,
-    note: row.note,
-    role: row.role,
-    slot: row.slot,
-    icon: row.item_icon,
-    container: container
-      ? {
-          type: container.container_type,
-          shield: container.shield,
-          bonus: container.bonus,
-          protection: container.protection,
-          slots: container.slots,
-          eff: container.eff,
-        }
-      : null,
-  };
 }
 
 function priceQuote(row: PriceRow | undefined): PriceQuote | null {
@@ -217,10 +233,32 @@ export function localClient(db: Db, syncOptions: LocalClientOptions = {}): Profi
       return compareWeapons(db, [a, b], level) as Json[];
     },
 
-    async listOwned(kind) {
-      const character = getCharacter(db);
-      if (!character) return [];
-      return listOwned(db, character.id, kind ?? undefined).map((row) => ownedJson(db, row));
+    async getInventory() {
+      return inventoryRead(db);
+    },
+
+    async listStorages() {
+      return inventoryRead(db).storages;
+    },
+
+    async listInventoryItems(query = {}) {
+      const inventory = inventoryRead(db);
+      const all: InventoryItemRead[] = [];
+      const visit = (item: InventoryItemRead): void => {
+        all.push(item);
+        for (const child of item.artifacts ?? []) visit(child);
+        for (const child of item.modules ?? []) visit(child);
+      };
+      for (const storage of inventory.storages) storage.items.forEach(visit);
+      for (const item of Object.values(inventory.equipment)) if (item) visit(item);
+      inventory.loose.forEach(visit);
+      return all.filter(
+        (item) =>
+          (query.kind == null || item.kind === query.kind) &&
+          (query.location == null || item.placement.location === query.location) &&
+          (query.storageId == null ||
+            (item.placement.location === 'grid' && item.placement.storageId === query.storageId)),
+      );
     },
 
     async listContainers() {
@@ -260,17 +298,35 @@ export function localClient(db: Db, syncOptions: LocalClientOptions = {}): Profi
       return exportProfileJson(db) as Json;
     },
 
-    async upsertOwnedItem(input) {
+    async addInventoryItem(input) {
       try {
-        return createOwned(db, {
-          name: input.name,
-          kind: input.kind as 'weapon',
-          level: input.level,
-          skin: input.skin ?? null,
-          quality: input.quality ?? null,
-          note: input.note ?? null,
-          role: input.role ?? null,
-          qty: 1,
+        return createInventoryItem(db, input);
+      } catch (error) {
+        return writeError(error);
+      }
+    },
+
+    async updateInventoryItem(itemId, input) {
+      try {
+        return updateInventoryItem(db, itemId, input);
+      } catch (error) {
+        return writeError(error);
+      }
+    },
+
+    async removeInventoryItem(itemId, input) {
+      try {
+        return deleteInventoryItem(db, itemId, input);
+      } catch (error) {
+        return writeError(error);
+      }
+    },
+
+    async moveInventoryItem(itemId, input) {
+      try {
+        return moveInventoryItem(db, itemId, input.target, {
+          swap: input.swap,
+          allowUnverified: input.allowUnverified,
           dryRun: input.dryRun,
         });
       } catch (error) {
@@ -278,37 +334,65 @@ export function localClient(db: Db, syncOptions: LocalClientOptions = {}): Profi
       }
     },
 
-    async removeOwnedItem(input) {
-      const character = getCharacter(db);
-      if (!character) throw new McpClientError('NO_CHARACTER', 'No character in the profile');
-      const target = listOwned(db, character.id, input.kind).find(
-          (row) =>
-            norm(row.display_name ?? row.item_name) === norm(input.name) &&
-            (input.level == null || row.level === input.level),
-        );
-      if (!target) {
-        throw new McpClientError('OWNED_NOT_FOUND', `${input.name} is not in the profile for this kind`);
-      }
+    async createStorage(input) {
       try {
-        return deleteOwned(db, target.id, { dryRun: input.dryRun, qty: 1 });
+        return createStorage(db, input);
+      } catch (error) {
+        return writeError(error);
+      }
+    },
+
+    async updateStorage(storageId, input) {
+      try {
+        return updateStorage(db, storageId, input);
+      } catch (error) {
+        return writeError(error);
+      }
+    },
+
+    async deleteStorage(storageId, input) {
+      try {
+        return deleteStorage(db, storageId, input);
+      } catch (error) {
+        return writeError(error);
+      }
+    },
+
+    async autoArrangeStorage(storageId, dryRun) {
+      try {
+        return autoArrangeStorage(db, storageId, { dryRun });
       } catch (error) {
         return writeError(error);
       }
     },
 
     async setContainerArtifacts(input) {
-      const container = (buildPayload(db).containers as Json[]).find(
-        (row) => norm(String(row.name)) === norm(input.container),
-      );
-      if (!container?.ownedId) {
-        throw new McpClientError('CONTAINER_NOT_FOUND', `Container ${input.container} not found`);
-      }
       try {
-        return setContainerFill(db, Number(container.ownedId), {
-          artifacts: input.artifacts,
-          asOf: input.asOf ?? null,
+        return setContainerFill(db, input.containerItemId, input.slots, { dryRun: input.dryRun });
+      } catch (error) {
+        return writeError(error);
+      }
+    },
+
+    async setWeaponModule(weaponItemId, slot, input) {
+      try {
+        return setWeaponModule(db, weaponItemId, slot, input.attachmentItemId, {
+          allowUnverified: input.allowUnverified,
           dryRun: input.dryRun,
         });
+      } catch (error) {
+        return writeError(error);
+      }
+    },
+
+    async setItemLayout(input) {
+      try {
+        return setItemLayout(
+          db,
+          input.itemId,
+          { width: input.width, height: input.height, weight: input.weight },
+          { dryRun: input.dryRun },
+        );
       } catch (error) {
         return writeError(error);
       }
@@ -417,8 +501,16 @@ export function httpClient(baseUrl: string, token: string): ProfileClient {
     async compareItems(a, b, level) {
       return (await call('compare_items', { a, b, level })).items as Json[];
     },
-    async listOwned(kind) {
-      return (await call('list_owned', kind ? { kind } : {})).items as Json[];
+    async getInventory() {
+      return (await call('get_inventory')) as unknown as InventoryRead;
+    },
+    async listStorages() {
+      return (await call('list_storages')).storages as StorageRead[];
+    },
+    async listInventoryItems(query = {}) {
+      return (
+        await call('list_inventory_items', toSnakeDeep(query) as Record<string, unknown>)
+      ).items as InventoryItemRead[];
     },
     async listContainers() {
       return (await call('list_containers')).items as Json[];
@@ -435,14 +527,71 @@ export function httpClient(baseUrl: string, token: string): ProfileClient {
     async exportProfileJson() {
       return (await call('export_profile_json')).profile as Json;
     },
-    async upsertOwnedItem(input) {
-      return (await call('upsert_owned_item', toSnakeWrite(input))) as unknown as WriteResult;
+    async addInventoryItem(input) {
+      return (await call('add_inventory_item', writeArgs(input))) as unknown as WriteResult;
     },
-    async removeOwnedItem(input) {
-      return (await call('remove_owned_item', toSnakeWrite(input))) as unknown as WriteResult;
+    async updateInventoryItem(itemId, input) {
+      return (await call('update_inventory_item', writeArgs({ item_id: itemId, ...input }))) as unknown as WriteResult;
+    },
+    async removeInventoryItem(itemId, input) {
+      return (await call('remove_inventory_item', writeArgs({ item_id: itemId, ...input }))) as unknown as WriteResult;
+    },
+    async moveInventoryItem(itemId, input) {
+      return (await call(
+        'move_inventory_item',
+        writeArgs({ item_id: itemId, ...input }),
+      )) as unknown as WriteResult;
+    },
+    async createStorage(input) {
+      return (await call('create_storage', writeArgs(input))) as unknown as WriteResult;
+    },
+    async updateStorage(storageId, input) {
+      return (await call(
+        'update_storage',
+        writeArgs({ storage_id: storageId, ...input }),
+      )) as unknown as WriteResult;
+    },
+    async deleteStorage(storageId, input) {
+      return (await call(
+        'delete_storage',
+        writeArgs({ storage_id: storageId, ...input }),
+      )) as unknown as WriteResult;
+    },
+    async autoArrangeStorage(storageId, dryRun) {
+      return (await call(
+        'auto_arrange_storage',
+        writeArgs({ storage_id: storageId, dry_run: dryRun }),
+      )) as unknown as WriteResult;
     },
     async setContainerArtifacts(input) {
-      return (await call('set_container_artifacts', toSnakeWrite(input))) as unknown as WriteResult;
+      return (await call(
+        'set_container_artifacts',
+        writeArgs({ container_item_id: input.containerItemId, slots: input.slots, dry_run: input.dryRun }),
+      )) as unknown as WriteResult;
+    },
+    async setWeaponModule(weaponItemId, slot, input) {
+      return (await call(
+        'set_weapon_module',
+        writeArgs({
+          weapon_item_id: weaponItemId,
+          slot,
+          attachment_item_id: input.attachmentItemId,
+          allow_unverified: input.allowUnverified ?? false,
+          dry_run: input.dryRun,
+        }),
+      )) as unknown as WriteResult;
+    },
+    async setItemLayout(input) {
+      return (await call(
+        'set_item_layout',
+        writeArgs({
+          item_id: input.itemId,
+          width: input.width,
+          height: input.height,
+          weight: input.weight ?? null,
+          dry_run: input.dryRun,
+        }),
+      )) as unknown as WriteResult;
     },
     async syncSource(source, force) {
       return (await call('sync_source', { source, force, confirm: true })).result as Json;
@@ -466,10 +615,20 @@ export function httpClient(baseUrl: string, token: string): ProfileClient {
   };
 }
 
-function toSnakeWrite(input: object): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(input)) {
-    out[key === 'dryRun' ? 'dry_run' : key === 'asOf' ? 'as_of' : key] = value;
+/** Transport args for a write tool: snake_case, and confirm satisfied by the registry gate above this client. */
+function writeArgs(input: object): Record<string, unknown> {
+  return { ...(toSnakeDeep(input) as Record<string, unknown>), confirm: true };
+}
+
+function toSnakeDeep(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(toSnakeDeep);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
+        key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`),
+        toSnakeDeep(entry),
+      ]),
+    );
   }
-  return out;
+  return value;
 }

@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   CharacterCreateSchema,
-  OwnedCreateSchema,
+  InventoryItemCreateSchema,
+  StorageCreateSchema,
   SyncSourceSchema,
+  WeaponModuleWriteSchema,
 } from '@profile/shared/contracts';
 
 describe('write contracts', () => {
@@ -13,11 +15,23 @@ describe('write contracts', () => {
     expect(CharacterCreateSchema.safeParse({ nick: '', region: 'ru' }).success).toBe(false);
     expect(CharacterCreateSchema.safeParse({ nick: 'T', region: 'global' }).success).toBe(false);
   });
-  it('accepts owned kinds', () => {
-    expect(OwnedCreateSchema.safeParse({ name: 'AK', kind: 'weapon', level: 15 }).success).toBe(true);
+  it('accepts inventory kinds', () => {
+    expect(InventoryItemCreateSchema.safeParse({ name: 'AK', kind: 'weapon', level: 15 }).success).toBe(true);
   });
   it('includes icons and profile as sync sources', () => {
     expect(SyncSourceSchema.parse('icons')).toBe('icons');
     expect(SyncSourceSchema.parse('profile')).toBe('profile');
+  });
+  it('defaults the site dryRun to false for the inventory writes', () => {
+    expect(StorageCreateSchema.parse({ name: 'Stash', width: 8, height: 12 }).dryRun).toBe(false);
+    expect(InventoryItemCreateSchema.parse({ name: 'АК-12', kind: 'weapon' }).dryRun).toBe(false);
+  });
+  it('rejects a rarity outside 0..175', () => {
+    expect(() => InventoryItemCreateSchema.parse({ name: 'X', kind: 'artifact', rarityPct: 176 })).toThrow();
+  });
+  it('accepts a module install, removal and an unverified opt-in', () => {
+    expect(WeaponModuleWriteSchema.parse({ attachmentItemId: 3 }).allowUnverified).toBe(false);
+    expect(WeaponModuleWriteSchema.parse({ attachmentItemId: null, dryRun: true }).attachmentItemId).toBeNull();
+    expect(WeaponModuleWriteSchema.parse({ attachmentItemId: 3, allowUnverified: true }).allowUnverified).toBe(true);
   });
 });

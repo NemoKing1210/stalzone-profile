@@ -1,10 +1,17 @@
 import { ALL_RANKS } from '~/entities/item/model/rankOptions';
+import { findDetailsCard } from '~/entities/item/model/details';
 
+import {
+  buildInventoryIndex,
+  cardText,
+  locationOf,
+  type InstanceLocationRow,
+  type InstanceRow,
+} from '../instances';
 import type { InventoryKind } from '../types';
 
-export interface ArtifactRow {
+export interface ArtifactRow extends InstanceRow, InstanceLocationRow {
   key: string;
-  ownedId: number | null;
   qty: number;
   quality: string | null;
   skin: string | null;
@@ -38,27 +45,38 @@ export const artifactsKind: InventoryKind<ArtifactRow> = {
 
   toRows(payload) {
     if (!payload) return [];
-    return (payload.artifacts ?? []).map((artifact) => ({
-      key: `${artifact.name}-${artifact.lvl}`,
-      ownedId: artifact.ownedId ?? null,
-      qty: artifact.qty ?? 1,
-      quality: artifact.quality ?? null,
-      skin: artifact.skin ?? null,
-      note: artifact.note ?? null,
-      name: artifact.name,
-      type: artifact.type ?? null,
-      q: artifact.q ?? null,
-      lvl: artifact.lvl,
-      effects: artifact.effects ?? null,
-      rank: artifact.rank ?? null,
-      icon: artifact.icon ?? null,
-    }));
+    const index = buildInventoryIndex(payload.inventory);
+    return index.items
+      .filter((item) => item.kind === 'artifact')
+      .map((item) => {
+        const card = findDetailsCard(payload.details, 'art', item.name);
+        return {
+          key: `instance-${item.id}`,
+          instanceId: item.id,
+          item,
+          placement: item.placement,
+          ...locationOf(item, index),
+          qty: item.qty,
+          quality: item.quality,
+          // The instance carries the skin id, not its name; the editor leaves it untouched.
+          skin: null,
+          note: item.note,
+          name: item.displayName ?? item.name,
+          type: cardText(card, 'type') ?? item.category,
+          q: item.quality,
+          lvl: item.level,
+          effects: cardText(card, 'effects'),
+          rank: item.rank,
+          icon: item.icon,
+        };
+      });
   },
 
   columns: () => [
     { key: 'name', label: 'table.name', sortable: true, strong: true, wide: true },
     { key: 'type', label: 'table.type' },
     { key: 'rank', label: 'table.rank', sortable: true },
+    { key: 'location', label: 'table.location' },
     {
       key: 'lvl',
       label: 'table.level',
@@ -91,18 +109,21 @@ export const artifactsKind: InventoryKind<ArtifactRow> = {
     emptyCatalog: 'artifacts.emptyDescription',
   },
   editTarget: (row) =>
-    row.ownedId == null
+    row.instanceId == null || !row.item
       ? null
       : {
-          ownedId: row.ownedId,
+          instanceId: row.instanceId,
+          itemId: row.item.itemId,
           name: row.name,
           kind: 'artifact',
-          level: row.lvl,
+          level: row.item.level,
           qty: row.qty,
           quality: row.quality,
-          skin: row.skin,
+          skin: null,
           note: row.note,
           role: null,
           slot: null,
+          rarityPct: row.item.rarityPct,
+          rarityTier: row.item.rarityTier,
         },
 };

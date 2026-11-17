@@ -5,17 +5,16 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   cleanupCounts,
   clearByScope,
+  clearInventory,
   clearJournal,
   clearManualStats,
-  clearOwned,
   closeDb,
   deleteCharacterProfile,
-  ensureDefaultSources,
   eventCount,
   getCharacter,
+  inventoryCounts,
   listCharacterStats,
   listEvents,
-  listOwned,
   logEvent,
   migrate,
   openDb,
@@ -24,61 +23,23 @@ import {
   WriteError,
   type Db,
 } from '@profile/core';
-import {
-  replaceContainerSlots,
-  setCharacterStat,
-  upsertCharacter,
-  upsertItem,
-  upsertOwned,
-} from '@profile/core/testing';
+import { setCharacterStat, upsertCharacter } from '@profile/core/testing';
+import { seedInventory } from '../fixtures/inventory';
 
 const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
 
 let dir: string;
 let db: Db;
 let characterId: number;
-const ids: Record<string, number> = {};
 
-function item(name: string, kind: string): number {
-  return upsertItem(db, { sourceId: 'local', externalId: `test:${kind}:${name}`, name, kind });
-}
+/** The fixture: 8 instances, two storages (inventory + stash) and 8 placements. */
+const SEEDED = { items: 8, storages: 2, placements: 8 } as const;
 
 beforeEach(() => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'profile-cleanup-'));
   db = openDb(path.join(dir, 'test.db'));
   migrate(db, migrationsDir);
-  ensureDefaultSources(db);
-  characterId = upsertCharacter(db, { nick: 'tester', region: 'ru' });
-
-  ids.nervyak = item('Нервяк', 'artifact');
-  ids.korka = item('Корка', 'artifact');
-  ids.backpack = item('Рюкзак', 'container');
-  ids.ak12 = item('АК-12', 'weapon');
-  ids.akm = item('АКМ', 'weapon');
-  ids.kunitsa = item('Куница', 'armor');
-
-  upsertOwned(db, { characterId, itemId: ids.nervyak, kind: 'artifact', level: 15, qty: 3, displayName: 'Нервяк' });
-  const containerId = upsertOwned(db, {
-    characterId,
-    itemId: ids.backpack,
-    kind: 'container',
-    level: 0,
-    qty: 1,
-    displayName: 'Рюкзак',
-  });
-  replaceContainerSlots(
-    db,
-    containerId,
-    [
-      { itemId: ids.nervyak, level: 15 },
-      { itemId: ids.korka, level: 10 },
-    ],
-    '2026-01-01T00:00:00.000Z',
-  );
-  upsertOwned(db, { characterId, itemId: ids.korka, kind: 'artifact', level: 10, qty: 1 });
-  upsertOwned(db, { characterId, itemId: ids.ak12, kind: 'weapon', level: 15, qty: 1 });
-  upsertOwned(db, { characterId, itemId: ids.akm, kind: 'weapon', level: 5, qty: 1 });
-  upsertOwned(db, { characterId, itemId: ids.kunitsa, kind: 'armor', level: 10, qty: 1 });
+  characterId = seedInventory(db).characterId;
 });
 
 afterEach(() => {
@@ -87,23 +48,22 @@ afterEach(() => {
 });
 
 describe('cleanup counts', () => {
-  it('counts every scope and sums qty separately from rows', () => {
+  it('counts every scope', () => {
     setCharacterStat(db, characterId, 'kil', 12, 'manual');
     setCharacterStat(db, characterId, 'dea', 4, 'api');
     logEvent(db, { actor: 'owner', action: 'test.event', entity: 'test' });
     expect(cleanupCounts(db)).toEqual({
-      owned: { records: 6, copies: 8 },
+      inventory: SEEDED,
       manualStats: { records: 1 },
-      character: { present: true, nick: 'tester' },
+      character: { present: true, nick: 'inventory-fixture' },
       journal: { events: 1 },
     });
   });
 
   it('returns zero counts when there is no character', () => {
-    db.prepare(`DELETE FROM owned_item`).run();
     db.prepare(`DELETE FROM character`).run();
     expect(cleanupCounts(db)).toEqual({
-      owned: { records: 0, copies: 0 },
+      inventory: { items: 0, storages: 0, placements: 0 },
       manualStats: { records: 0 },
       character: { present: false, nick: null },
       journal: { events: 0 },
@@ -114,71 +74,58 @@ describe('cleanup counts', () => {
 describe('cleanup writes', () => {
   it('dry-runs inventory cleanup without writing rows or events', () => {
     const eventsBefore = listEvents(db).length;
-    const result = clearOwned(db, true);
+    const result = clearInventory(db, true);
     expect(result).toMatchObject({ dryRun: true, diff: { after: null } });
     expect(result.eventId).toBeUndefined();
-    expect(result.diff.human).toBe('Inventory cleared: 6 records, 8 copies');
-    expect((result.diff.before as unknown[]).length).toBe(6);
-    expect(listOwned(db, characterId)).toHaveLength(6);
+    expect(result.diff.human).toBe('Inventory cleared: 8 items, 2 storages');
+    expect((result.diff.before as { items: unknown[] }).items).toHaveLength(8);
+    expect(inventoryCounts(db, characterId)).toEqual(SEEDED);
     expect(listEvents(db)).toHaveLength(eventsBefore);
   });
 
-  it('clears inventory and rollback restores rows and container slots', () => {
-    const slotsBefore = db.prepare(`SELECT * FROM container_slot`).all();
-    expect(slotsBefore).toHaveLength(2);
+  it('clears the inventory, recreates the default storage and rolls back exactly', () => {
+    const before = clearInventory(db, true).diff.before;
 
-    const result = clearOwned(db, false);
-    expect(listOwned(db, characterId)).toHaveLength(0);
-    expect(db.prepare(`SELECT COUNT(*) AS c FROM container_slot`).get()).toEqual({ c: 0 });
-    const event = listEvents(db)[0]!;
-    expect(event).toMatchObject({ action: 'owned.clear', entity: 'owned', entity_id: 'all' });
+    const result = clearInventory(db, false);
+    expect(inventoryCounts(db, characterId)).toEqual({ items: 0, storages: 1, placements: 0 });
+    expect(listEvents(db)[0]).toMatchObject({ action: 'inventory.clear', entity: 'inventory', entity_id: 'all' });
 
     rollbackEvent(db, result.eventId!, false);
-    expect(listOwned(db, characterId)).toHaveLength(6);
-    expect(db.prepare(`SELECT * FROM container_slot`).all()).toHaveLength(slotsBefore.length);
-  });
-
-  it('rolls back the inventory part of a legacy profile.clear snapshot', () => {
-    const before = clearOwned(db, true).diff.before as unknown[];
-    db.prepare(`DELETE FROM owned_item`).run();
-    const eventId = logEvent(db, {
-      actor: 'owner',
-      action: 'profile.clear',
-      entity: 'profile',
-      entityId: 'all',
-      before: { owned: before, builds: [] },
-      after: null,
-    });
-
-    rollbackEvent(db, eventId, false);
-    expect(listOwned(db, characterId)).toHaveLength(6);
-  });
-
-  it('rolls back the inventory part of a legacy dossier.clear snapshot', () => {
-    const before = clearOwned(db, true).diff.before as unknown[];
-    db.prepare(`DELETE FROM owned_item`).run();
-    const eventId = logEvent(db, {
-      actor: 'owner',
-      action: 'dossier.clear',
-      entity: 'dossier',
-      entityId: 'all',
-      before: { owned: before, builds: [] },
-      after: null,
-    });
-
-    rollbackEvent(db, eventId, false);
-    expect(listOwned(db, characterId)).toHaveLength(6);
+    expect(inventoryCounts(db, characterId)).toEqual(SEEDED);
+    expect(clearInventory(db, true).diff.before).toEqual(before);
   });
 
   it('rejects an empty scope without writing', () => {
-    clearOwned(db, false);
+    clearInventory(db, false);
     const eventsBefore = listEvents(db).length;
-    expect(() => clearOwned(db, false)).toThrowError(WriteError);
+    expect(() => clearInventory(db, false)).toThrowError(WriteError);
     expect(listEvents(db)).toHaveLength(eventsBefore);
   });
 
+  it('refuses to roll back a legacy owned event instead of failing halfway', () => {
+    const eventId = logEvent(db, {
+      actor: 'owner',
+      action: 'owned.clear',
+      entity: 'owned',
+      entityId: 'all',
+      before: { owned: [{ id: 1 }] },
+      after: null,
+    });
+    const eventsBefore = listEvents(db).length;
+
+    try {
+      rollbackEvent(db, eventId, false);
+      throw new Error('expected WriteError');
+    } catch (error) {
+      expect(error).toBeInstanceOf(WriteError);
+      expect((error as WriteError).code).toBe('EVENT_NOT_ROLLBACKABLE');
+    }
+    expect(listEvents(db)).toHaveLength(eventsBefore);
+    expect(inventoryCounts(db, characterId)).toEqual(SEEDED);
+  });
+
   it('rollback fails rather than partially restores without a character', () => {
-    const result = clearOwned(db, false);
+    const result = clearInventory(db, false);
     db.prepare(`DELETE FROM character`).run();
     try {
       rollbackEvent(db, result.eventId!, false);
@@ -192,7 +139,7 @@ describe('cleanup writes', () => {
 
 describe('cleanup dispatcher', () => {
   it('routes a scope to the matching reset', () => {
-    expect(clearByScope(db, 'inventory', true).diff.human).toBe('Inventory cleared: 6 records, 8 copies');
+    expect(clearByScope(db, 'inventory', true).diff.human).toBe('Inventory cleared: 8 items, 2 storages');
     setCharacterStat(db, characterId, 'kil', 1, 'manual');
     expect(clearByScope(db, 'manualStats', true).diff.human).toBe('Manual stats cleared: 1 value');
   });
@@ -251,17 +198,18 @@ describe('character reset', () => {
     expect(result).toMatchObject({ dryRun: true });
     expect(result.eventId).toBeUndefined();
     expect(getCharacter(db)?.id).toBe(characterId);
-    expect(db.prepare(`SELECT COUNT(*) AS c FROM owned_item`).get()).toEqual({ c: 6 });
+    expect(inventoryCounts(db, characterId)).toEqual(SEEDED);
     expect(db.prepare(`SELECT COUNT(*) AS c FROM character_stat`).get()).toEqual({ c: 3 });
     expect(eventCount(db)).toBe(0);
   });
 
-  it('deletes the character, owned rows and stats with one event', () => {
+  it('deletes the character, its inventory and stats with one event', () => {
     const result = deleteCharacterProfile(db, false);
 
     expect(getCharacter(db)).toBeNull();
-    expect(db.prepare(`SELECT COUNT(*) AS c FROM owned_item`).get()).toEqual({ c: 0 });
-    expect(db.prepare(`SELECT COUNT(*) AS c FROM container_slot`).get()).toEqual({ c: 0 });
+    expect(db.prepare(`SELECT COUNT(*) AS c FROM inventory_item`).get()).toEqual({ c: 0 });
+    expect(db.prepare(`SELECT COUNT(*) AS c FROM item_placement`).get()).toEqual({ c: 0 });
+    expect(db.prepare(`SELECT COUNT(*) AS c FROM storage`).get()).toEqual({ c: 0 });
     expect(db.prepare(`SELECT COUNT(*) AS c FROM character_stat`).get()).toEqual({ c: 0 });
     expect(result.eventId).toBeDefined();
     expect(listEvents(db)[0]).toMatchObject({
@@ -271,19 +219,17 @@ describe('character reset', () => {
     });
   });
 
-  it('rollback restores identity, both stat origins, owned rows and container fills', () => {
+  it('rollback restores identity, both stat origins, instances, storages and placements', () => {
     const statsBefore = listCharacterStats(db, characterId);
-    const slotsBefore = db.prepare(`SELECT * FROM container_slot ORDER BY container_owned_id, slot`).all();
+    const inventoryBefore = clearInventory(db, true).diff.before;
     const result = deleteCharacterProfile(db, false);
 
     rollbackEvent(db, result.eventId!, false);
 
-    expect(getCharacter(db)).toMatchObject({ id: characterId, nick: 'tester', region: 'ru' });
+    expect(getCharacter(db)).toMatchObject({ id: characterId, nick: 'inventory-fixture', region: 'ru' });
     expect(listCharacterStats(db, characterId)).toEqual(statsBefore);
-    expect(listOwned(db, characterId)).toHaveLength(6);
-    expect(db.prepare(`SELECT * FROM container_slot ORDER BY container_owned_id, slot`).all()).toHaveLength(
-      slotsBefore.length,
-    );
+    expect(inventoryCounts(db, characterId)).toEqual(SEEDED);
+    expect(clearInventory(db, true).diff.before).toEqual(inventoryBefore);
   });
 
   it('refuses to roll back over a character created after the reset', () => {
@@ -301,7 +247,6 @@ describe('character reset', () => {
   });
 
   it('rejects a profile with no character', () => {
-    db.prepare(`DELETE FROM owned_item`).run();
     db.prepare(`DELETE FROM character`).run();
     try {
       deleteCharacterProfile(db, false);
@@ -315,11 +260,11 @@ describe('character reset', () => {
 
 describe('journal reset', () => {
   function seedEvents(): void {
-    logEvent(db, { actor: 'owner', action: 'owned.create', entity: 'owned', entityId: 1, before: null, after: { id: 1 } });
+    logEvent(db, { actor: 'owner', action: 'inventory.item.create', entity: 'inventory', entityId: 1, before: null, after: { id: 1 } });
     logEvent(db, {
       actor: 'owner',
-      action: 'owned.update',
-      entity: 'owned',
+      action: 'inventory.item.update',
+      entity: 'inventory',
       entityId: 1,
       before: { id: 1 },
       after: { id: 1, qty: 2 },
@@ -329,8 +274,8 @@ describe('journal reset', () => {
       action: 'character.update',
       entity: 'character',
       entityId: characterId,
-      before: { nick: 'tester' },
-      after: { nick: 'tester' },
+      before: { nick: 'inventory-fixture' },
+      after: { nick: 'inventory-fixture' },
     });
   }
 
@@ -373,7 +318,7 @@ describe('journal reset', () => {
 
 describe('full reset', () => {
   function seedEvents(): void {
-    logEvent(db, { actor: 'owner', action: 'owned.create', entity: 'owned', entityId: 1, before: null, after: { id: 1 } });
+    logEvent(db, { actor: 'owner', action: 'inventory.item.create', entity: 'inventory', entityId: 1, before: null, after: { id: 1 } });
     logEvent(db, { actor: 'owner', action: 'character.update', entity: 'character', entityId: characterId, before: {}, after: {} });
   }
 
@@ -385,7 +330,7 @@ describe('full reset', () => {
     expect(result).toMatchObject({ dryRun: true, diff: { after: null } });
     expect(getCharacter(db)?.id).toBe(characterId);
     expect(eventCount(db)).toBe(2);
-    expect(db.prepare(`SELECT COUNT(*) AS c FROM owned_item`).get()).toEqual({ c: 6 });
+    expect(inventoryCounts(db, characterId)).toEqual(SEEDED);
   });
 
   it('clears the character and the journal, and rollback restores both', () => {
@@ -393,19 +338,21 @@ describe('full reset', () => {
     setCharacterStat(db, characterId, 'dea', 3, 'api');
     seedEvents();
     const statsBefore = listCharacterStats(db, characterId);
-    const eventsBefore = db.prepare(`SELECT id, at, actor, action, entity, entity_id, before, after, note FROM event_log ORDER BY id`).all();
+    const eventsBefore = db
+      .prepare(`SELECT id, at, actor, action, entity, entity_id, before, after, note FROM event_log ORDER BY id`)
+      .all();
     const result = resetAll(db, false);
 
     expect(getCharacter(db)).toBeNull();
-    expect(db.prepare(`SELECT COUNT(*) AS c FROM owned_item`).get()).toEqual({ c: 0 });
+    expect(db.prepare(`SELECT COUNT(*) AS c FROM inventory_item`).get()).toEqual({ c: 0 });
     expect(db.prepare(`SELECT COUNT(*) AS c FROM character_stat`).get()).toEqual({ c: 0 });
     expect(eventCount(db)).toBe(1);
     expect(listEvents(db)[0]).toMatchObject({ action: 'reset.all', entity: 'profile', entity_id: 'all' });
 
     rollbackEvent(db, result.eventId!, false);
 
-    expect(getCharacter(db)).toMatchObject({ id: characterId, nick: 'tester', region: 'ru' });
-    expect(listOwned(db, characterId)).toHaveLength(6);
+    expect(getCharacter(db)).toMatchObject({ id: characterId, nick: 'inventory-fixture', region: 'ru' });
+    expect(inventoryCounts(db, characterId)).toEqual(SEEDED);
     expect(listCharacterStats(db, characterId)).toEqual(statsBefore);
     expect(
       db
@@ -418,7 +365,6 @@ describe('full reset', () => {
   });
 
   it('rejects an empty profile and journal', () => {
-    db.prepare(`DELETE FROM owned_item`).run();
     db.prepare(`DELETE FROM character`).run();
     expect(() => resetAll(db, false)).toThrowError(WriteError);
   });

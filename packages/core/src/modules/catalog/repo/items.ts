@@ -12,6 +12,7 @@ export interface ItemRow {
   name_norm: string;
   name_en: string | null;
   name_en_norm: string;
+  name_key: string | null;
   kind: string;
   category: string | null;
   rank: string | null;
@@ -29,6 +30,7 @@ export interface ItemInput {
   realm?: string;
   name: string;
   nameEn?: string | null;
+  nameKey?: string | null;
   kind?: string;
   category?: string | null;
   rank?: string | null;
@@ -111,6 +113,7 @@ export function upsertItem(db: Db, input: ItemInput): number {
     name_norm: norm(input.name),
     name_en: input.nameEn ?? null,
     name_en_norm: input.nameEn == null ? '' : norm(input.nameEn),
+    name_key: input.nameKey ?? null,
     kind,
     category: input.category ?? null,
     rank: input.rank ?? null,
@@ -127,6 +130,7 @@ export function upsertItem(db: Db, input: ItemInput): number {
         name = @name, name_norm = @name_norm,
         name_en = COALESCE(@name_en, name_en),
         name_en_norm = CASE WHEN @name_en IS NULL THEN name_en_norm ELSE @name_en_norm END,
+        name_key = COALESCE(@name_key, name_key),
         kind = COALESCE(@kind, kind),
         category = COALESCE(@category, category),
         rank = COALESCE(@rank, rank),
@@ -142,6 +146,7 @@ export function upsertItem(db: Db, input: ItemInput): number {
       name_norm: values.name_norm,
       name_en: values.name_en,
       name_en_norm: values.name_en_norm,
+      name_key: values.name_key,
       kind,
       category: values.category,
       rank: values.rank,
@@ -158,11 +163,11 @@ export function upsertItem(db: Db, input: ItemInput): number {
   const info = db
     .prepare(
       `INSERT INTO item
-        (source_id, realm, external_id, name, name_norm, name_en, name_en_norm, kind, category, rank, slot, weight,
-         is_cosmetic, base_item_id, created_at, updated_at)
+        (source_id, realm, external_id, name, name_norm, name_en, name_en_norm, name_key, kind, category, rank, slot,
+         weight, is_cosmetic, base_item_id, created_at, updated_at)
        VALUES
-        (@source_id, @realm, @external_id, @name, @name_norm, @name_en, @name_en_norm, @kind, @category, @rank, @slot,
-         @weight, @is_cosmetic, @base_item_id, @created_at, @updated_at)`,
+        (@source_id, @realm, @external_id, @name, @name_norm, @name_en, @name_en_norm, @name_key, @kind, @category,
+         @rank, @slot, @weight, @is_cosmetic, @base_item_id, @created_at, @updated_at)`,
     )
     .run({
       ...values,
@@ -233,6 +238,22 @@ export function getItemById(db: Db, id: number): ItemRow | null {
 export function getItemByExternalId(db: Db, externalId: string, realm = 'ru'): ItemRow | null {
   return (
     (db.prepare(`SELECT * FROM item WHERE realm = ? AND external_id = ?`).get(realm, externalId) as
+      | ItemRow
+      | undefined) ?? null
+  );
+}
+
+/** Resolves an EXBO translation key to the item it names; usually a weapon. */
+export function findItemByNameKey(db: Db, nameKey: string, realm = 'ru', kind?: string): ItemRow | null {
+  if (kind) {
+    return (
+      (db
+        .prepare(`SELECT * FROM item WHERE realm = ? AND name_key = ? AND kind = ? ORDER BY id LIMIT 1`)
+        .get(realm, nameKey, kind) as ItemRow | undefined) ?? null
+    );
+  }
+  return (
+    (db.prepare(`SELECT * FROM item WHERE realm = ? AND name_key = ? ORDER BY id LIMIT 1`).get(realm, nameKey) as
       | ItemRow
       | undefined) ?? null
   );
@@ -312,6 +333,14 @@ export function statValue(db: Db, itemId: number, key: string, level = 0): numbe
     .prepare(`SELECT value_num FROM item_stat WHERE item_id = ? AND stat_id = ? AND level = ? ORDER BY is_additional LIMIT 1`)
     .get(itemId, key, level) as { value_num: number | null } | undefined;
   return row?.value_num ?? null;
+}
+
+/**
+ * Exact level when the source has it, otherwise the level-0 value. Some sources store a
+ * container stat once, unscaled, so a refined instance must still see it.
+ */
+export function statValueBase(db: Db, itemId: number, key: string, level: number): number | null {
+  return statValue(db, itemId, key, level) ?? statValue(db, itemId, key, 0);
 }
 
 export function countItems(db: Db, kind?: string): number {

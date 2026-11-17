@@ -6,6 +6,7 @@ const { t } = useI18n();
 
 const sections = computed(() => [
   { label: t('nav.overview'), icon: 'i-lucide-house', to: '/' },
+  { label: t('nav.inventory'), icon: 'i-lucide-package', to: '/inventory' },
   { label: t('nav.weapons'), icon: 'i-lucide-crosshair', to: '/weapons' },
   { label: t('nav.armor'), icon: 'i-lucide-shield', to: '/armor' },
   { label: t('nav.containers'), icon: 'i-lucide-backpack', to: '/containers' },

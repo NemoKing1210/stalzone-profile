@@ -2,12 +2,13 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { closeDb, openDb, artifactSources, latestPricesForNames, migrate, type Db, getCharacter, listOwnedReads, latestPriceReadsForNames, searchItemSummaries, listEvents, logEvent } from '@profile/core';
+import { closeDb, openDb, artifactSources, latestPricesForNames, migrate, type Db, getCharacter, inventoryRead, latestPriceReadsForNames, searchItemSummaries, listEvents, logEvent } from '@profile/core';
 import {
   ArtifactSourceSchema,
   EventReadSchema,
+  InventoryItemReadSchema,
+  InventoryReadSchema,
   ItemSummarySchema,
-  OwnedReadSchema,
   PriceRowSchema,
 } from '@profile/shared/contracts';
 import { eventJson } from '../../../server/utils/serialize';
@@ -36,16 +37,20 @@ describe('module read contracts', () => {
     for (const item of items) expect(() => ItemSummarySchema.parse(item)).not.toThrow();
   });
 
-  it('parses owned rows', () => {
+  it('parses the inventory read model', () => {
     const character = getCharacter(db);
     expect(character).not.toBeNull();
-    const owned = listOwnedReads(db, character!.id);
-    expect(owned.length).toBeGreaterThan(0);
-    for (const row of owned) expect(() => OwnedReadSchema.parse(row)).not.toThrow();
+    const inventory = inventoryRead(db, character!.id);
+    expect(() => InventoryReadSchema.parse(inventory)).not.toThrow();
+    expect(inventory.storages.length).toBeGreaterThan(0);
+    const gridItems = inventory.storages.flatMap((storage) => storage.items);
+    for (const row of gridItems) expect(() => InventoryItemReadSchema.parse(row)).not.toThrow();
+    expect(inventory.loose.length).toBeGreaterThan(0);
+    for (const row of inventory.loose) expect(() => InventoryItemReadSchema.parse(row)).not.toThrow();
   });
 
   it('parses event rows, prices and artifact sources', () => {
-    logEvent(db, { actor: 'owner', action: 'test', entity: 'owned', entityId: 1, after: { a: 1 } });
+    logEvent(db, { actor: 'owner', action: 'test', entity: 'inventory', entityId: 1, after: { a: 1 } });
     expect(() => EventReadSchema.parse(eventJson(listEvents(db)[0]!))).not.toThrow();
 
     const prices = latestPricesForNames(db, ['АК-12']);

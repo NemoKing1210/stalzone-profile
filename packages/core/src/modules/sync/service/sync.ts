@@ -15,6 +15,7 @@ import {
 import type { Db } from '../../../platform/db/index.js';
 import * as repo from '../../catalog/index.js';
 import * as identity from '../../identity/index.js';
+import * as inventoryRepo from '../../inventory/repo/index.js';
 import * as sourceRepo from '../repo/sources.js';
 import { readSyncSchedule } from '../repo/schedule.js';
 import { ensureDir } from '../../../platform/config.js';
@@ -217,7 +218,9 @@ function syncExbo(db: Db, options: SyncOptions): Promise<SyncResult> {
     })
     .then((snapshot) => {
       const labels = snapshot.labels;
+      const realm = options.realm ?? 'ru';
       db.transaction(() => {
+        const itemIds = new Map<string, number>();
         for (const stat of snapshot.stats) {
           repo.upsertStatDefinition(db, {
             id: stat.id,
@@ -232,10 +235,11 @@ function syncExbo(db: Db, options: SyncOptions): Promise<SyncResult> {
           const itemId = repo.upsertItem(db, {
             sourceId: 'exbo_base',
             // The icons source looks items up by the same realm; keep both sides in step.
-            realm: options.realm ?? 'ru',
+            realm,
             externalId: record.id,
             name: record.ru ?? record.id,
             nameEn: record.en,
+            nameKey: record.nameKey,
             kind,
             category: record.cat,
             rank: record.rank,
@@ -249,7 +253,22 @@ function syncExbo(db: Db, options: SyncOptions): Promise<SyncResult> {
                 : null,
           });
           repo.replaceItemStats(db, itemId, exboStats(record, labels), 'exbo_base');
+          itemIds.set(record.id, itemId);
         }
+
+        // "Suitable for" keys resolve only against weapons; unknown keys are dropped,
+        // and a fresh EXBO edge set replaces the previous one while manual edges survive.
+        const edges: { attachmentItemId: number; weaponItemId: number }[] = [];
+        for (const record of snapshot.items) {
+          if (record.compatibleKeys.length === 0) continue;
+          const attachmentItemId = itemIds.get(record.id);
+          if (attachmentItemId == null) continue;
+          for (const key of record.compatibleKeys) {
+            const weapon = repo.findItemByNameKey(db, key, realm, 'weapon');
+            if (weapon) edges.push({ attachmentItemId, weaponItemId: weapon.id });
+          }
+        }
+        inventoryRepo.replaceExboCompat(db, edges);
       })();
       sourceRepo.markSourceOk(db, 'exbo_base', {
         at: snapshot.fetchedAt,

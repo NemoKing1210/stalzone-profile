@@ -2,17 +2,19 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { CharacterCreateSchema, OwnedCreateSchema } from '@profile/shared';
+import { CharacterCreateSchema, InventoryItemCreateSchema } from '@profile/shared';
 import {
   closeDb,
   ensureDefaultSources,
   getCharacter,
+  inventoryRead,
   listEvents,
   migrate,
   openDb,
   type Db,
   createCharacter,
-  createOwned,
+  createInventoryItem,
+  createSetupCharacter,
   rollbackEvent,
 } from '@profile/core';
 import { upsertItem } from '@profile/core/testing';
@@ -77,11 +79,38 @@ describe('createCharacter', () => {
 
     const again = createCharacter(db, CharacterCreateSchema.parse({ nick: 'Tester', region: 'ru' }));
     upsertItem(db, { sourceId: 'local', externalId: 'test:artifact:Нервяк', name: 'Нервяк', kind: 'artifact' });
-    createOwned(db, OwnedCreateSchema.parse({ name: 'Нервяк', kind: 'artifact', qty: 1, dryRun: false }));
+    createInventoryItem(db, InventoryItemCreateSchema.parse({ name: 'Нервяк', kind: 'artifact', qty: 1, dryRun: false }));
 
     expect(() => rollbackEvent(db, again.eventId!, false)).toThrowError(
       expect.objectContaining({ status: 409, code: 'CHARACTER_NOT_EMPTY' }),
     );
     expect(getCharacter(db)).toMatchObject({ nick: 'Tester' });
+  });
+});
+
+describe('createSetupCharacter', () => {
+  it('creates the character together with the default inventory and stash', () => {
+    const result = createSetupCharacter(db, CharacterCreateSchema.parse({ nick: 'Tester', region: 'ru' }));
+
+    expect(result.eventId).toBeTypeOf('number');
+    const character = getCharacter(db);
+    expect(character).toMatchObject({ nick: 'Tester' });
+
+    const inventory = inventoryRead(db, character!.id);
+    expect(inventory.storages.map((storage) => [storage.kind, storage.name, storage.width, storage.height])).toEqual([
+      ['inventory', 'Inventory', 8, 8],
+      ['stash', 'Stash', 8, 12],
+    ]);
+  });
+
+  it('does not create storages on dry run', () => {
+    const result = createSetupCharacter(
+      db,
+      CharacterCreateSchema.parse({ nick: 'Tester', region: 'ru', dryRun: true }),
+    );
+
+    expect(result.dryRun).toBe(true);
+    expect(getCharacter(db)).toBeNull();
+    expect(listEvents(db)).toHaveLength(0);
   });
 });

@@ -59,8 +59,8 @@ export function logEvent(db: Db, input: EventInput): number {
       action: input.action,
       entity: input.entity ?? null,
       entity_id: input.entityId == null ? null : String(input.entityId),
-      before: input.before === undefined ? null : JSON.stringify(input.before),
-      after: input.after === undefined ? null : JSON.stringify(input.after),
+      before: input.before == null ? null : JSON.stringify(input.before),
+      after: input.after == null ? null : JSON.stringify(input.after),
       note: input.note ?? null,
     });
   return Number(info.lastInsertRowid);

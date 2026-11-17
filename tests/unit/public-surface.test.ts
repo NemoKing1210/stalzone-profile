@@ -7,7 +7,7 @@ import * as testing from '@profile/core/testing';
 describe('core public surface', () => {
   it('exposes the application façade and testing seed surface', () => {
     expect(typeof core.buildPayload).toBe('function');
-    expect(typeof core.createOwned).toBe('function');
+    expect(typeof core.createInventoryItem).toBe('function');
     expect(typeof core.runSync).toBe('function');
     expect(typeof testing.upsertItem).toBe('function');
   });
@@ -27,8 +27,9 @@ describe('core public surface', () => {
     // Raw profile writes bypass the write services and event_log.
     'upsertCharacter',
     'setCharacterStat',
-    'upsertOwned',
-    'replaceContainerSlots',
+    'insertStorage',
+    'insertInventoryItem',
+    'upsertPlacement',
     // Raw source bookkeeping belongs to the sync module.
     'ensureSource',
   ])('keeps the raw persistence primitive %s out of the root', (name) => {
@@ -36,7 +37,7 @@ describe('core public surface', () => {
     expect(testing).toHaveProperty(name);
   });
 
-  it.each(['restoreOwnedTx', 'restoreCharacterTx', 'deleteOwnedTx', 'clearOwnedTx', 'updateOwnedById'])(
+  it.each(['restoreInventoryTx', 'restoreCharacterTx', 'deleteInventoryItemTx', 'clearInventoryTx', 'updateInventoryTx', 'restoreMoveTx'])(
     'keeps the transaction primitive %s internal to core',
     (name) => {
       expect(core).not.toHaveProperty(name);

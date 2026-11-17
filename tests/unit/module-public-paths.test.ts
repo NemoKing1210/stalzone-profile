@@ -6,8 +6,9 @@ import * as inventory from '@profile/core/modules/inventory';
 
 describe('inventory public API', () => {
   it('exposes the read and write primitives', () => {
-    expect(typeof inventory.listOwned).toBe('function');
-    expect(typeof inventory.allContainerSlots).toBe('function');
+    expect(typeof inventory.inventoryRead).toBe('function');
+    expect(typeof inventory.listPlacements).toBe('function');
+    expect(typeof inventory.createInventoryItem).toBe('function');
   });
 
   it('does not import core repositories from the MCP client', () => {

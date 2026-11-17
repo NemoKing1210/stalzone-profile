@@ -36,7 +36,7 @@ no second database.
 | `packages/shared` | contracts (zod schemas), `norm`, formatting, ranks |
 | `packages/core` | platform (config, DB, journal, security) and domain modules; no compatibility shims |
 | `packages/sources` | pure source adapters: fetch + parse, no DB writes |
-| `packages/mcp` | registry of 16 tools (10 read, 6 write), local client, stdio and HTTP transports |
+| `packages/mcp` | tool registry (read and write tools listed in `docs/MCP.md`), local client, stdio and HTTP transports |
 | `app` | Nuxt UI slices: `shared → entities → features → pages`, plus layouts, plugins and middleware |
 | `server` | Nitro routes, session, origin check, `/mcp`, `/api/v1/admin/*` |
 
@@ -53,7 +53,7 @@ orchestrate several domains are `maintenance` (journal-based rollback), `read-mo
 |---|---|
 | `catalog` | items, stats, effects, prices, icons, the DPS/TTK and artifact formulas |
 | `identity` | character and its stats, including the `stat_definition` reference surface |
-| `inventory` | owned rows, container overrides, fill |
+| `inventory` | storages, gear instances, placements, container data, weapon modules, the computed loadout |
 | `sync` | source adapters binding, freshness rows, profile statistics |
 | `setup` | the first-run state |
 | `maintenance` | scoped profile resets and rollback through `event_log` |
@@ -71,13 +71,15 @@ HTTP: it imports no `@profile/core`, and `@profile/shared` only through `/contra
 1. A page calls `useProfile()` → `GET /api/v1/payload` or `/api/v1/meta`.
 2. The route gets the shared `Db` from `server/utils/db.ts` (WAL, one migration per process).
 3. `buildPayload` (`packages/core/src/modules/read-model/payload.ts`) assembles typed rows:
-   character with derived fields, gear, catalog, derived `details[key]` cards, icons
-   and freshness, reading through each module's public read API.
+   character with derived fields, catalog, derived `details[key]` cards, icons and
+   freshness, plus the instance inventory (`inventoryRead`). The flat
+   `weapons`/`armor`/`containers`/`artifacts` lists are a table view built from the same
+   instances; each row adds `instanceId`, `storageId` and `placement` to the old card.
 4. DPS/TTK numbers come from one formula
    (`packages/core/src/modules/catalog/calc/weapons.ts`) using raw damage and rate of fire;
    no stored display value is substituted.
-5. Container values follow the precedence override > item stats > `null`; missing data is
-   `null`, never zero or an estimate.
+5. Container values follow the precedence `container_data` > item stats > `null`; missing
+   data is `null`, never zero or an estimate.
 
 ## Auto-sync scheduler
 

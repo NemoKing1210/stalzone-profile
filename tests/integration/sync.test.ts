@@ -4,6 +4,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { closeDb, ensureDefaultSources, migrate, openDb, type Db, runSync } from '@profile/core';
 import * as repo from '@profile/core';
+import { listCompatForAttachment } from '@profile/core/modules/inventory';
 import * as seed from '@profile/core/testing';
 import { exboAdapter, motifsAdapter, parseExboItem, wikiAdapter } from '@profile/sources';
 
@@ -196,6 +197,68 @@ describe('exbo_base sync', () => {
       label_en: 'Kills',
     });
     expect(repo.getSource(db, 'exbo_base')).toMatchObject({ commit_sha: 'abc', status: 'ok' });
+  });
+});
+
+describe('EXBO attachment compatibility', () => {
+  const ATTACHMENT = {
+    id: 'att-gauss',
+    category: 'attachment/scope',
+    name: { key: 'item.att.gauss.name', lines: { ru: 'Прицел Гаусс' } },
+    infoBlocks: [
+      {
+        type: 'list',
+        elements: [
+          {
+            type: 'item',
+            name: { key: 'item.wpn.gauss.name', lines: { ru: 'Гаусс-винтовка' } },
+          },
+          {
+            type: 'text',
+            text: { key: 'item.att.other.name', lines: { ru: 'Другой прицел' } },
+          },
+        ],
+      },
+    ],
+  };
+  const WEAPON = {
+    id: 'wg-gauss',
+    category: 'weapon/sniper_rifle',
+    name: { key: 'item.wpn.gauss.name', lines: { ru: 'Гаусс-винтовка' } },
+    infoBlocks: [],
+  };
+  const OTHER_ATTACHMENT = {
+    id: 'att-other',
+    category: 'attachment/scope',
+    name: { key: 'item.att.other.name', lines: { ru: 'Другой прицел' } },
+    infoBlocks: [],
+  };
+
+  it('binds "suitable for" keys to weapons and skips non-weapon targets', async () => {
+    const fetchImpl = fakeFetch({
+      'commits/main': { sha: 'compat1', commit: { committer: { date: '2026-01-01T00:00:00.000Z' } } },
+      'git/trees/main?recursive=1': {
+        tree: [
+          { path: 'ru/items/attachment/att-gauss.json' },
+          { path: 'ru/items/weapon/wg-gauss.json' },
+          { path: 'ru/items/attachment/att-other.json' },
+        ],
+      },
+      'ru/items/attachment/att-gauss.json': ATTACHMENT,
+      'ru/items/weapon/wg-gauss.json': WEAPON,
+      'ru/items/attachment/att-other.json': OTHER_ATTACHMENT,
+      'ru/stats.json': [],
+    });
+
+    await runSync(db, 'exbo_base', { fetchImpl, cacheDir: path.join(dir, 'cache') });
+
+    const weapon = repo.findItemByKindName(db, 'weapon', 'Гаусс-винтовка')!;
+    const attachment = repo.findItemByKindName(db, 'attachment', 'Прицел Гаусс')!;
+    const other = repo.findItemByKindName(db, 'attachment', 'Другой прицел')!;
+
+    expect(weapon.name_key).toBe('item.wpn.gauss.name');
+    expect(listCompatForAttachment(db, attachment.id).map((edge) => edge.weapon_item_id)).toEqual([weapon.id]);
+    expect(listCompatForAttachment(db, other.id)).toEqual([]);
   });
 });
 

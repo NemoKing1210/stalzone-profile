@@ -63,7 +63,6 @@ export type {
   CharacterStatRow,
 } from './modules/identity/repo/characters.js';
 export {
-  characterHasProfile,
   characterStatMap,
   findCharacterByName,
   getCharacter,
@@ -73,28 +72,21 @@ export {
 
 /* ------------------------------ inventory ------------------------------ */
 
-export * from './modules/inventory/service/read.js';
-export { createOwned, deleteOwned, setContainerFill, updateOwned } from './modules/inventory/write.js';
-export type {
-  ContainerInput,
-  ContainerSlotInput,
-  ContainerSlotRow,
-  OwnedContainerRow,
-  OwnedInput,
-  OwnedJoined,
-  OwnedPatch,
-  OwnedRow,
-} from './modules/inventory/repo/owned.js';
+export * from './modules/inventory/service/inventory-read.js';
 export {
-  allContainerSlots,
-  findOwned,
-  findOwnedByName,
-  getOwned,
-  getOwnedContainer,
-  listContainerSlots,
-  listOwned,
-  ownedCounts,
-} from './modules/inventory/repo/owned.js';
+  autoArrangeStorage,
+  createInventoryItem,
+  createStorage,
+  deleteInventoryItem,
+  deleteStorage,
+  moveInventoryItem,
+  setContainerFill,
+  setItemLayout,
+  setWeaponModule,
+  updateInventoryItem,
+  updateStorage,
+} from './modules/inventory/write/index.js';
+export { getItemLayout } from './modules/inventory/repo/layout.js';
 
 /* --------------------------------- sync -------------------------------- */
 

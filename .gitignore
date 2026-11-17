@@ -24,3 +24,6 @@ docs/PLAN.md
 
 # Hallmark redesign records and screenshots
 .hallmark/
+
+# Local game asset dumps used for research; never commit
+*.xeon

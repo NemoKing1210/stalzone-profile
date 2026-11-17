@@ -15,7 +15,6 @@ export interface CharacterRow {
   clan_rank: string | null;
   money: number | null;
   max_money: number | null;
-  stash: string | null;
   profile_fetched_at: string | null;
   created_at: string;
   updated_at: string;
@@ -30,7 +29,6 @@ export interface CharacterInput {
   clanRank?: string | null;
   money?: number | null;
   maxMoney?: number | null;
-  stash?: string | null;
   profileFetchedAt?: string | null;
 }
 
@@ -55,7 +53,6 @@ export type CharacterColumnPatch = Partial<
     | 'clan_rank'
     | 'money'
     | 'max_money'
-    | 'stash'
     | 'profile_fetched_at'
   >
 >;
@@ -67,7 +64,6 @@ const IDENTITY_COLUMNS = [
   'clan_rank',
   'money',
   'max_money',
-  'stash',
   'profile_fetched_at',
 ] as const;
 
@@ -83,7 +79,6 @@ export function upsertCharacter(db: Db, input: CharacterInput): number {
     clan_rank: input.clanRank ?? null,
     money: input.money ?? null,
     max_money: input.maxMoney ?? null,
-    stash: input.stash ?? null,
     profile_fetched_at: input.profileFetchedAt ?? null,
   };
   const now = new Date().toISOString();
@@ -124,14 +119,6 @@ export function findCharacterByName(db: Db, nick: string, region = 'ru'): Charac
       | CharacterRow
       | undefined) ?? null
   );
-}
-
-/** True when gear exists; deleting the character would cascade-destroy it. */
-export function characterHasProfile(db: Db, id: number): boolean {
-  const row = db
-    .prepare(`SELECT COUNT(*) AS c FROM owned_item WHERE character_id = @id`)
-    .get({ id }) as { c: number };
-  return row.c > 0;
 }
 
 export function deleteCharacter(db: Db, id: number): void {
@@ -259,7 +246,6 @@ export interface CharacterRestoreRow {
   clanRank: string | null;
   money: number | null;
   maxMoney: number | null;
-  stash: string | null;
   profileFetchedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -268,10 +254,10 @@ export interface CharacterRestoreRow {
 export function restoreCharacterRow(db: Db, row: CharacterRestoreRow): void {
   db.prepare(
     `INSERT INTO character
-       (id, nick, region, faction, alliance, clan_name, clan_rank, money, max_money, stash,
+       (id, nick, region, faction, alliance, clan_name, clan_rank, money, max_money,
         profile_fetched_at, created_at, updated_at)
      VALUES
-       (@id, @nick, @region, @faction, @alliance, @clanName, @clanRank, @money, @maxMoney, @stash,
+       (@id, @nick, @region, @faction, @alliance, @clanName, @clanRank, @money, @maxMoney,
         @profileFetchedAt, @createdAt, @updatedAt)`,
   ).run(row);
 }

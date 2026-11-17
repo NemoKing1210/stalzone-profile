@@ -22,7 +22,6 @@ export function getCharacterRead(db: Db, id?: number): CharacterRead | null {
     clanRank: character.clan_rank,
     money: character.money,
     maxMoney: character.max_money,
-    stash: character.stash,
     ...deriveCharacterFields(effective),
     stats,
   };

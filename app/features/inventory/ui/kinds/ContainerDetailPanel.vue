@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ContainerPayload } from '~/shared/types/profile';
+
 import type { ContainerRow } from '../../model/kinds/containers';
 import ContainerDetail from '../ContainerDetail.vue';
 
@@ -7,8 +9,8 @@ const emit = defineEmits<{ edit: []; fill: []; close: []; artifact: [name: strin
 
 const { t } = useI18n();
 
-/** ContainerDetail reads the payload shape; the row carries the same fields plus its key. */
-const container = computed(() => ({ ...props.row, ownedId: props.row.ownedId ?? undefined }));
+/** ContainerDetail reads the legacy container shape; the instance row carries the same fields. */
+const container = computed(() => props.row as unknown as ContainerPayload);
 
 /** The artifact card is a screen-level sibling: the container modal unmounts on close. */
 function openArtifact(name: string, level: number): void {
@@ -20,7 +22,7 @@ function openArtifact(name: string, level: number): void {
   <div>
     <ContainerDetail :container="container" @artifact="openArtifact" />
 
-    <div v-if="row.ownedId != null" class="mt-3 flex flex-wrap gap-2 border-t border-[var(--sz-border)] pt-3">
+    <div v-if="row.instanceId != null" class="mt-3 flex flex-wrap gap-2 border-t border-[var(--sz-border)] pt-3">
       <UButton
         icon="i-lucide-pencil"
         color="neutral"

@@ -29,19 +29,22 @@ describe('baseline schema', () => {
       .filter((name) => !name.startsWith('sqlite_'));
     expect(tables).toEqual([
       '_migration',
+      'attachment_compat',
       'character',
       'character_stat',
-      'container_slot',
+      'container_data',
       'event_log',
       'icon',
+      'inventory_item',
       'item',
       'item_effect',
+      'item_layout',
+      'item_placement',
       'item_stat',
-      'owned_container',
-      'owned_item',
       'price_quote',
       'source',
       'stat_definition',
+      'storage',
       'sync_schedule',
     ]);
   });
@@ -73,9 +76,58 @@ describe('baseline schema', () => {
     expect(characterColumns).not.toContain('kd');
   });
 
+  it('creates the instance inventory tables and drops the owned model', () => {
+    for (const name of [
+      'storage',
+      'inventory_item',
+      'item_placement',
+      'container_data',
+      'attachment_compat',
+      'item_layout',
+    ]) {
+      expect(tableExists(db, name)).toBe(true);
+    }
+    for (const name of ['owned_item', 'owned_container', 'container_slot']) {
+      expect(tableExists(db, name)).toBe(false);
+    }
+    const itemColumns = (db.prepare(`PRAGMA table_info(item)`).all() as { name: string }[]).map((c) => c.name);
+    expect(itemColumns).toContain('name_key');
+    const characterColumns = (db.prepare(`PRAGMA table_info(character)`).all() as { name: string }[]).map(
+      (c) => c.name,
+    );
+    expect(characterColumns).not.toContain('stash');
+  });
+
+  it('rejects a placement whose character does not match its item', () => {
+    const now = '2026-01-01T00:00:00.000Z';
+    db.prepare(`INSERT INTO source (id, kind, updated_at) VALUES ('local', 'manual', ?)`).run(now);
+    db.prepare(
+      `INSERT INTO character (id, nick, region, created_at, updated_at) VALUES (1, 'One', 'ru', ?, ?)`,
+    ).run(now, now);
+    db.prepare(
+      `INSERT INTO character (id, nick, region, created_at, updated_at) VALUES (2, 'Two', 'ru', ?, ?)`,
+    ).run(now, now);
+    db.prepare(
+      `INSERT INTO item (id, source_id, external_id, name, name_norm, kind, created_at, updated_at)
+       VALUES (1, 'local', 'w1', 'Rifle', 'rifle', 'weapon', ?, ?)`,
+    ).run(now, now);
+    db.prepare(
+      `INSERT INTO inventory_item (id, character_id, item_id, kind, created_at, updated_at)
+       VALUES (1, 1, 1, 'weapon', ?, ?)`,
+    ).run(now, now);
+    expect(() =>
+      db
+        .prepare(
+          `INSERT INTO item_placement (item_id, character_id, location, updated_at)
+           VALUES (1, 2, 'loose', ?)`,
+        )
+        .run(now),
+    ).toThrow(/placement character mismatch/);
+  });
+
   it('enables STRICT and foreign keys', () => {
     expect(db.pragma('foreign_keys', { simple: true })).toBe(1);
-    for (const table of ['item', 'character', 'owned_item', 'event_log']) {
+    for (const table of ['item', 'character', 'inventory_item', 'event_log']) {
       const sql = (
         db.prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`).get(table) as { sql: string }
       ).sql;

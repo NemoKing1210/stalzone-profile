@@ -1,9 +1,13 @@
 import { z } from 'zod';
 import {
+  EquipmentSlotSchema,
   FactionSchema,
+  InventoryKindSchema,
   ItemKindSchema,
-  OwnedKindSchema,
+  ModuleSlotSchema,
+  RarityTierSchema,
   SetupRegionSchema,
+  StorageKindSchema,
   SyncSourceSchema,
 } from './primitives.js';
 
@@ -26,48 +30,6 @@ export type CleanupRequest = z.infer<typeof CleanupRequestSchema>;
 /* Site/API write schemas (camelCase, dryRun defaults to false)        */
 /* ------------------------------------------------------------------ */
 
-export const OwnedContainerSchema = z.object({
-  containerType: z.string().min(1).max(200).nullish(),
-  shield: z.number().nullish(),
-  bonus: z.string().max(500).nullish(),
-  protection: z.number().nullish(),
-  slots: z.number().int().nonnegative().nullish(),
-  eff: z.number().nullish(),
-});
-
-export type OwnedContainerInput = z.infer<typeof OwnedContainerSchema>;
-
-export const OwnedCreateSchema = WriteOptionsSchema.extend({
-  name: z.string().min(1).max(200),
-  kind: OwnedKindSchema.default('weapon'),
-  level: z.number().int().min(0).max(15).default(0),
-  skin: z.string().min(1).max(200).nullish(),
-  quality: z.string().min(1).max(100).nullish(),
-  note: z.string().max(2000).nullish(),
-  role: z.string().max(200).nullish(),
-  slot: z.string().max(100).nullish(),
-  qty: z.number().int().min(1).max(99).default(1),
-  container: OwnedContainerSchema.optional(),
-});
-
-export type OwnedCreate = z.infer<typeof OwnedCreateSchema>;
-
-export const OwnedPatchSchema = WriteOptionsSchema.extend({
-  level: z.number().int().min(0).max(15).optional(),
-  skin: z.string().min(1).max(200).nullish(),
-  quality: z.string().min(1).max(100).nullish(),
-  note: z.string().max(2000).nullish(),
-  role: z.string().max(200).nullish(),
-  slot: z.string().max(100).nullish(),
-  qty: z.number().int().min(1).max(99).optional(),
-  displayName: z.string().min(1).max(200).nullish(),
-  container: OwnedContainerSchema.nullish(),
-}).refine((value) => Object.keys(value).some((key) => key !== 'dryRun'), {
-  message: 'At least one field must be changed',
-});
-
-export type OwnedPatch = z.infer<typeof OwnedPatchSchema>;
-
 export const CharacterPatchSchema = WriteOptionsSchema.extend({
   nick: z.string().min(1).max(64).optional(),
   region: z.enum(['ru', 'eu', 'na', 'sea', 'global']).optional(),
@@ -77,7 +39,6 @@ export const CharacterPatchSchema = WriteOptionsSchema.extend({
   clanRank: z.string().max(100).nullish(),
   money: z.number().int().min(0).nullish(),
   maxMoney: z.number().int().min(0).nullish(),
-  stash: z.string().max(500).nullish(),
   stats: z
     .record(z.string().min(1).max(200), z.union([z.number().finite(), z.string().min(1).max(500), z.null()]))
     .optional(),
@@ -99,70 +60,305 @@ export const CharacterCreateSchema = WriteOptionsSchema.extend({
 
 export type CharacterCreate = z.infer<typeof CharacterCreateSchema>;
 
-export const ContainerFillSchema = WriteOptionsSchema.extend({
-  artifacts: z
-    .array(
-      z.object({
-        name: z.string().min(1).max(200),
-        level: z.number().int().min(0).max(15).default(0),
-        quality: z.string().max(100).nullish(),
-      }),
-    )
-    .max(20),
-  asOf: z.string().min(1).nullish(),
-});
-
-export type ContainerFill = z.infer<typeof ContainerFillSchema>;
-
 export const LoginSchema = z.object({
   password: z.string().min(1).max(256),
 });
 
 /* ------------------------------------------------------------------ */
+/* Inventory instance writes (camelCase, dryRun defaults to false)     */
+/* ------------------------------------------------------------------ */
+
+export const ContainerDataWriteSchema = z.object({
+  type: z.string().min(1).max(200).nullish(),
+  shield: z.number().nullish(),
+  bonus: z.string().max(500).nullish(),
+  protection: z.number().nullish(),
+  slots: z.number().int().min(0).max(20).nullish(),
+  eff: z.number().nullish(),
+});
+export type ContainerDataWrite = z.infer<typeof ContainerDataWriteSchema>;
+
+export const PlacementTargetSchema = z.discriminatedUnion('location', [
+  z.object({
+    location: z.literal('grid'),
+    storageId: z.number().int().positive(),
+    x: z.number().int().nonnegative(),
+    y: z.number().int().nonnegative(),
+    rotated: z.boolean().default(false),
+  }),
+  z.object({
+    location: z.literal('equipment'),
+    slot: EquipmentSlotSchema,
+  }),
+  z.object({
+    location: z.literal('container'),
+    containerItemId: z.number().int().positive(),
+    slot: z.number().int().nonnegative(),
+  }),
+  z.object({
+    location: z.literal('weapon_module'),
+    weaponItemId: z.number().int().positive(),
+    slot: ModuleSlotSchema,
+    allowUnverified: z.boolean().default(false),
+  }),
+  z.object({
+    location: z.literal('loose'),
+  }),
+]);
+export type PlacementTarget = z.infer<typeof PlacementTargetSchema>;
+
+export const StorageCreateSchema = WriteOptionsSchema.extend({
+  kind: StorageKindSchema.default('stash'),
+  name: z.string().trim().min(1).max(200),
+  width: z.number().int().min(1).max(40),
+  height: z.number().int().min(1).max(80),
+  maxWeight: z.number().positive().nullish(),
+  sortOrder: z.number().int().optional(),
+});
+export type StorageCreate = z.infer<typeof StorageCreateSchema>;
+
+export const StoragePatchSchema = WriteOptionsSchema.extend({
+  name: z.string().trim().min(1).max(200).optional(),
+  width: z.number().int().min(1).max(40).optional(),
+  height: z.number().int().min(1).max(80).optional(),
+  maxWeight: z.number().positive().nullish(),
+  sortOrder: z.number().int().optional(),
+}).refine((value) => Object.keys(value).some((key) => key !== 'dryRun'), {
+  message: 'At least one field must be changed',
+});
+export type StoragePatch = z.infer<typeof StoragePatchSchema>;
+
+export const DeleteStorageSchema = WriteOptionsSchema.extend({
+  moveToStorageId: z.number().int().positive().nullish(),
+});
+export type DeleteStorage = z.infer<typeof DeleteStorageSchema>;
+
+export const InventoryItemCreateSchema = WriteOptionsSchema.extend({
+  name: z.string().min(1).max(200),
+  kind: InventoryKindSchema.default('weapon'),
+  level: z.number().int().min(0).max(15).default(0),
+  skin: z.string().min(1).max(200).nullish(),
+  quality: z.string().min(1).max(100).nullish(),
+  rarityPct: z.number().min(0).max(175).nullish(),
+  rarityTier: RarityTierSchema.nullish(),
+  note: z.string().max(2000).nullish(),
+  role: z.string().max(200).nullish(),
+  slot: z.string().max(100).nullish(),
+  qty: z.number().int().min(1).max(99).default(1),
+  displayName: z.string().min(1).max(200).nullish(),
+  container: ContainerDataWriteSchema.optional(),
+  target: PlacementTargetSchema.optional(),
+});
+export type InventoryItemCreate = z.infer<typeof InventoryItemCreateSchema>;
+
+export const InventoryItemPatchSchema = WriteOptionsSchema.extend({
+  level: z.number().int().min(0).max(15).optional(),
+  skin: z.string().min(1).max(200).nullish(),
+  quality: z.string().min(1).max(100).nullish(),
+  rarityPct: z.number().min(0).max(175).nullish(),
+  rarityTier: RarityTierSchema.nullish(),
+  note: z.string().max(2000).nullish(),
+  role: z.string().max(200).nullish(),
+  slot: z.string().max(100).nullish(),
+  qty: z.number().int().min(1).max(99).optional(),
+  displayName: z.string().min(1).max(200).nullish(),
+  container: ContainerDataWriteSchema.nullish(),
+}).refine((value) => Object.keys(value).some((key) => key !== 'dryRun'), {
+  message: 'At least one field must be changed',
+});
+export type InventoryItemPatch = z.infer<typeof InventoryItemPatchSchema>;
+
+export const DeleteInventoryItemSchema = WriteOptionsSchema.extend({
+  qty: z.number().int().min(1).max(99).optional(),
+});
+export type DeleteInventoryItem = z.infer<typeof DeleteInventoryItemSchema>;
+
+export const MoveItemSchema = WriteOptionsSchema.extend({
+  target: PlacementTargetSchema,
+  swap: z.boolean().default(false),
+  allowUnverified: z.boolean().default(false),
+});
+export type MoveItem = z.infer<typeof MoveItemSchema>;
+
+export const ContainerFillWriteSchema = WriteOptionsSchema.extend({
+  slots: z.array(z.number().int().positive().nullable()).max(20),
+});
+export type ContainerFillWrite = z.infer<typeof ContainerFillWriteSchema>;
+
+export const AutoArrangeSchema = WriteOptionsSchema;
+export type AutoArrange = z.infer<typeof AutoArrangeSchema>;
+
+export const ItemLayoutWriteSchema = WriteOptionsSchema.extend({
+  width: z.number().int().min(1).max(20),
+  height: z.number().int().min(1).max(20),
+  weight: z.number().nonnegative().nullish(),
+});
+export type ItemLayoutWrite = z.infer<typeof ItemLayoutWriteSchema>;
+
+/** `attachmentItemId: null` removes the module from the slot. */
+export const WeaponModuleWriteSchema = WriteOptionsSchema.extend({
+  attachmentItemId: z.number().int().positive().nullable(),
+  allowUnverified: z.boolean().default(false),
+});
+export type WeaponModuleWrite = z.infer<typeof WeaponModuleWriteSchema>;
+
+/* ------------------------------------------------------------------ */
 /* MCP tool schemas (snake_case, dry_run defaults to true)            */
 /* ------------------------------------------------------------------ */
 
-export const OwnedItemInputSchema = z.object({
+/* ------------------------------------------------------------------ */
+/* MCP inventory tool schemas (snake_case, dry_run defaults to true)  */
+/* ------------------------------------------------------------------ */
+
+/** Options shared by every MCP write tool. A real write needs confirm: true. */
+export const McpWriteOptionsSchema = z.object({
+  dry_run: z.boolean().default(true),
+  confirm: z.boolean().default(false),
+});
+
+export const McpContainerDataInputSchema = z.object({
+  type: z.string().min(1).max(200).nullish(),
+  shield: z.number().nullish(),
+  bonus: z.string().max(500).nullish(),
+  protection: z.number().nullish(),
+  slots: z.number().int().min(0).max(20).nullish(),
+  eff: z.number().nullish(),
+});
+export type McpContainerDataInput = z.infer<typeof McpContainerDataInputSchema>;
+
+/** Placement target in MCP spelling; the client maps it onto `PlacementTarget`. */
+export const McpPlacementTargetSchema = z.discriminatedUnion('location', [
+  z.object({
+    location: z.literal('grid'),
+    storage_id: z.number().int().positive(),
+    x: z.number().int().nonnegative(),
+    y: z.number().int().nonnegative(),
+    rotated: z.boolean().default(false),
+  }),
+  z.object({
+    location: z.literal('equipment'),
+    slot: EquipmentSlotSchema,
+  }),
+  z.object({
+    location: z.literal('container'),
+    container_item_id: z.number().int().positive(),
+    slot: z.number().int().nonnegative(),
+  }),
+  z.object({
+    location: z.literal('weapon_module'),
+    weapon_item_id: z.number().int().positive(),
+    slot: ModuleSlotSchema,
+    allow_unverified: z.boolean().default(false),
+  }),
+  z.object({
+    location: z.literal('loose'),
+  }),
+]);
+export type McpPlacementTarget = z.infer<typeof McpPlacementTargetSchema>;
+
+export const AddInventoryItemInputSchema = McpWriteOptionsSchema.extend({
   name: z.string().min(1),
-  kind: OwnedKindSchema.default('weapon'),
+  kind: InventoryKindSchema.default('weapon'),
   level: z.number().int().min(0).max(15).default(0),
   skin: z.string().min(1).nullish(),
   quality: z.string().min(1).nullish(),
+  rarity_pct: z.number().min(0).max(175).nullish(),
+  rarity_tier: RarityTierSchema.nullish(),
   note: z.string().nullish(),
   role: z.string().nullish(),
-  dry_run: z.boolean().default(true),
-  confirm: z.boolean().default(false),
+  slot: z.string().nullish(),
+  qty: z.number().int().min(1).max(99).default(1),
+  display_name: z.string().min(1).nullish(),
+  container: McpContainerDataInputSchema.nullish(),
 });
+export type AddInventoryItemInput = z.infer<typeof AddInventoryItemInputSchema>;
 
-export type OwnedItemInput = z.infer<typeof OwnedItemInputSchema>;
-
-export const RemoveOwnedInputSchema = z.object({
-  name: z.string().min(1),
-  kind: OwnedKindSchema.default('weapon'),
-  level: z.number().int().min(0).max(15).nullish(),
-  dry_run: z.boolean().default(true),
-  confirm: z.boolean().default(false),
+export const UpdateInventoryItemInputSchema = McpWriteOptionsSchema.extend({
+  item_id: z.number().int().positive(),
+  level: z.number().int().min(0).max(15).optional(),
+  skin: z.string().min(1).nullish(),
+  quality: z.string().min(1).nullish(),
+  rarity_pct: z.number().min(0).max(175).nullish(),
+  rarity_tier: RarityTierSchema.nullish(),
+  note: z.string().nullish(),
+  role: z.string().nullish(),
+  slot: z.string().nullish(),
+  qty: z.number().int().min(1).max(99).optional(),
+  display_name: z.string().min(1).nullish(),
+  container: McpContainerDataInputSchema.nullish(),
+}).refine((value) => Object.keys(value).some((key) => !['item_id', 'dry_run', 'confirm'].includes(key)), {
+  message: 'At least one field must be changed',
 });
+export type UpdateInventoryItemInput = z.infer<typeof UpdateInventoryItemInputSchema>;
 
-export type RemoveOwnedInput = z.infer<typeof RemoveOwnedInputSchema>;
-
-export const SetContainerArtifactsInputSchema = z.object({
-  container: z.string().min(1),
-  artifacts: z
-    .array(
-      z.object({
-        name: z.string().min(1),
-        level: z.number().int().min(0).max(15).default(0),
-        quality: z.string().nullish(),
-      }),
-    )
-    .max(20),
-  as_of: z.string().min(1).nullish(),
-  dry_run: z.boolean().default(true),
-  confirm: z.boolean().default(false),
+export const RemoveInventoryItemInputSchema = McpWriteOptionsSchema.extend({
+  item_id: z.number().int().positive(),
+  qty: z.number().int().min(1).max(99).optional(),
 });
+export type RemoveInventoryItemInput = z.infer<typeof RemoveInventoryItemInputSchema>;
 
+export const MoveInventoryItemInputSchema = McpWriteOptionsSchema.extend({
+  item_id: z.number().int().positive(),
+  target: McpPlacementTargetSchema,
+  swap: z.boolean().default(false),
+  allow_unverified: z.boolean().default(false),
+});
+export type MoveInventoryItemInput = z.infer<typeof MoveInventoryItemInputSchema>;
+
+export const CreateStorageInputSchema = McpWriteOptionsSchema.extend({
+  kind: StorageKindSchema.default('stash'),
+  name: z.string().trim().min(1).max(200),
+  width: z.number().int().min(1).max(40).default(8),
+  height: z.number().int().min(1).max(80).default(12),
+  max_weight: z.number().positive().nullish(),
+  sort_order: z.number().int().optional(),
+});
+export type CreateStorageInput = z.infer<typeof CreateStorageInputSchema>;
+
+export const UpdateStorageInputSchema = McpWriteOptionsSchema.extend({
+  storage_id: z.number().int().positive(),
+  name: z.string().trim().min(1).max(200).optional(),
+  width: z.number().int().min(1).max(40).optional(),
+  height: z.number().int().min(1).max(80).optional(),
+  max_weight: z.number().positive().nullish(),
+  sort_order: z.number().int().optional(),
+}).refine((value) => Object.keys(value).some((key) => !['storage_id', 'dry_run', 'confirm'].includes(key)), {
+  message: 'At least one field must be changed',
+});
+export type UpdateStorageInput = z.infer<typeof UpdateStorageInputSchema>;
+
+export const DeleteStorageInputSchema = McpWriteOptionsSchema.extend({
+  storage_id: z.number().int().positive(),
+  move_to_storage_id: z.number().int().positive().nullable().default(null),
+});
+export type DeleteStorageInput = z.infer<typeof DeleteStorageInputSchema>;
+
+export const AutoArrangeStorageInputSchema = McpWriteOptionsSchema.extend({
+  storage_id: z.number().int().positive(),
+});
+export type AutoArrangeStorageInput = z.infer<typeof AutoArrangeStorageInputSchema>;
+
+export const SetContainerArtifactsInputSchema = McpWriteOptionsSchema.extend({
+  container_item_id: z.number().int().positive(),
+  slots: z.array(z.number().int().positive().nullable()).max(20),
+});
 export type SetContainerArtifactsInput = z.infer<typeof SetContainerArtifactsInputSchema>;
+
+export const SetWeaponModuleInputSchema = McpWriteOptionsSchema.extend({
+  weapon_item_id: z.number().int().positive(),
+  slot: ModuleSlotSchema,
+  attachment_item_id: z.number().int().positive().nullable().default(null),
+  allow_unverified: z.boolean().default(false),
+});
+export type SetWeaponModuleInput = z.infer<typeof SetWeaponModuleInputSchema>;
+
+export const SetItemLayoutInputSchema = McpWriteOptionsSchema.extend({
+  item_id: z.number().int().positive(),
+  width: z.number().int().min(1).max(20),
+  height: z.number().int().min(1).max(20),
+  weight: z.number().nonnegative().nullable().default(null),
+});
+export type SetItemLayoutInput = z.infer<typeof SetItemLayoutInputSchema>;
 
 export const FindItemsQuerySchema = z.object({
   q: z.string().min(1).nullish(),

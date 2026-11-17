@@ -91,9 +91,10 @@ module.exports = {
     {
       name: 'sync-upstream-only',
       severity: 'error',
-      comment: 'sync may import platform, sources, shared, catalog and identity; never another downstream module.',
+      comment:
+        'sync may import platform, sources, shared, catalog, identity and the inventory repository (EXBO attachment compatibility); never another downstream module.',
       from: { path: '^packages/core/src/modules/sync/' },
-      to: { path: '^packages/core/src/modules/(?!sync/|catalog/|identity/)' },
+      to: { path: '^packages/core/src/modules/(?!sync/|catalog/|identity/|inventory/repo/)' },
     },
     {
       name: 'domain-modules-no-application-modules',

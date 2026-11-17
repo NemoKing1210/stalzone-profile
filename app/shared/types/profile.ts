@@ -1,11 +1,19 @@
 /** These are the API contract's shapes, not a second copy. */
-import type { EventRead, Faction, Freshness, OwnedKind } from '@profile/shared/contracts';
+import type {
+  EventRead,
+  Faction,
+  Freshness,
+  InventoryItemRead,
+  InventoryRead,
+  OwnedKind,
+  RarityTier,
+} from '@profile/shared/contracts';
 
 export type { OwnedKind };
 
 /** Manual override of a container's display values; a null field falls back to the item data. */
 export interface ContainerOverride {
-  containerType: string | null;
+  type: string | null;
   shield: number | null;
   bonus: string | null;
   protection: number | null;
@@ -13,8 +21,11 @@ export interface ContainerOverride {
   eff: number | null;
 }
 
-export interface OwnedEditTarget {
-  ownedId: number;
+/** One inventory instance as the edit modal needs it. */
+export interface InstanceEditTarget {
+  instanceId: number;
+  /** Catalog item id, the key of the layout override endpoint. */
+  itemId: number;
   name: string;
   kind: OwnedKind;
   level: number;
@@ -24,16 +35,15 @@ export interface OwnedEditTarget {
   note: string | null;
   role: string | null;
   slot: string | null;
-  /** Present only for container rows; ignored by the editor for other kinds. */
+  rarityPct: number | null;
+  rarityTier: RarityTier | null;
+  /** Present only for containers; ignored by the editor for other kinds. */
   container?: ContainerOverride | null;
 }
 
-/** The subset ContainerFillEditor needs; a full ContainerPayload satisfies it. */
-export interface FillTarget {
-  ownedId: number;
-  name: string;
-  artifacts: { name: string; lvl: number }[];
-  artifactsAsOf: string | null;
+/** The instance whose artifact fill the editor replaces. */
+export interface ContainerFillTarget {
+  container: InventoryItemRead;
 }
 
 /** `/api/v1/events` returns contract event reads; entity ids are nullable by contract. */
@@ -57,13 +67,15 @@ export interface ProfileCharacter {
   achievementPoints?: number | null;
   money?: number | null;
   maxMoney?: number | null;
-  stash?: string | null;
   stats?: Record<string, number | string>;
 }
 
 export interface WeaponPayload {
   name: string;
   ownedId?: number;
+  instanceId?: number;
+  storageId?: number | null;
+  placement?: { location: string; [key: string]: unknown };
   qty?: number;
   note?: string | null;
   quality?: string | null;
@@ -90,6 +102,9 @@ export interface WeaponPayload {
 export interface ArmorPayload {
   name: string;
   ownedId?: number;
+  instanceId?: number;
+  storageId?: number | null;
+  placement?: { location: string; [key: string]: unknown };
   qty?: number;
   note?: string | null;
   quality?: string | null;
@@ -108,6 +123,9 @@ export interface ArmorPayload {
 export interface ArtifactPayload {
   name: string;
   ownedId?: number;
+  instanceId?: number;
+  storageId?: number | null;
+  placement?: { location: string; [key: string]: unknown };
   qty?: number;
   note?: string | null;
   quality?: string | null;
@@ -124,6 +142,9 @@ export interface ArtifactPayload {
 export interface ContainerPayload {
   name: string;
   ownedId?: number;
+  instanceId?: number;
+  storageId?: number | null;
+  placement?: { location: string; [key: string]: unknown };
   qty?: number;
   note?: string | null;
   quality?: string | null;
@@ -168,6 +189,8 @@ export interface ProfilePayload {
   containers: ContainerPayload[];
   artifacts: ArtifactPayload[];
   catalog: { weapons: CatalogEntry[]; armor: CatalogEntry[]; meta: Record<string, unknown> };
+  /** The instance inventory: storages, equipment, loose tray and computed loadout. */
+  inventory: InventoryRead;
   details: Record<string, unknown>;
   icons: Record<string, string>;
   freshness: Freshness;

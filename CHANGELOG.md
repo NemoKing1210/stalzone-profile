@@ -9,6 +9,19 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- The profile has a full inventory: a cell grid with the item's own size and weight, one
+  inventory plus any number of named stashes, the game's equipment slots (primary,
+  secondary, melee, armor, backpack/container, quick slots 1–4), containers with artifact
+  slots and their effectiveness, and weapons that accept attachments per module slot
+  (scope, muzzle, grip, magazine, stock, tactical). Gear is stored as one row per instance,
+  so identical-looking weapons keep their own level, quality, fill and modules; stackable
+  ammo and consumables keep a quantity. The `/inventory` screen supports drag-and-drop
+  between the grid, equipment slots, containers and modules, auto-arrange, stash creation,
+  renaming and resizing, and a per-item layout override. The REST API gains
+  `/api/v1/inventory`, `/inventory/items`, `/inventory/storages`,
+  `/inventory/containers/:id/fill` and `/inventory/weapons/:id/modules/:slot`, and MCP gains
+  `get_inventory`, `list_storages`, `list_inventory_items` plus the matching instance write
+  tools.
 - Settings → Resets replaces the single inventory cleanup with five scoped resets:
   inventory, manual stats, character, journal and full reset. Each one is one journalled
   transaction and can be rolled back from the Journal tab, including the full reset that
@@ -55,6 +68,16 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
+- The collapsed `owned_item`/`owned_container`/`container_slot` model is replaced by
+  `storage`, `inventory_item`, `item_placement`, `container_data`, `attachment_compat` and
+  `item_layout`. Migration `0006` copies the old rows (one instance per copy, a stash per
+  `character.stash`, a new artifact instance per fill slot) and drops the old tables;
+  `character.stash` is gone. The site payload's flat `weapons`/`armor`/`containers`/
+  `artifacts` lists are now a table view over the same instances and add `instanceId`,
+  `storageId` and `placement`; container fills have no per-fill timestamp, so
+  `artifactsAsOf` is `null`. Cleanup counts report `inventory: { items, storages,
+  placements }` instead of `owned: { records, copies }`, and journal events written before
+  the redesign cannot be rolled back (`409 EVENT_NOT_ROLLBACKABLE`).
 - The product is consistently named **profile** instead of **dossier**: the workspace
   packages are `@profile/*`, the MCP tool is `export_profile_json`, the resource is
   `profile://schema`, the environment variables are `PROFILE_API_URL` and `PROFILE_DOMAIN`,

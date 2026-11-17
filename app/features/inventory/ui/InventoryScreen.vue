@@ -4,7 +4,7 @@ import { h, type VNode } from 'vue';
 import { ItemCard, findDetailsCard, rankOptions } from '~/entities/item';
 import { ProfilePane, KeyHint } from '~/shared/ui';
 
-import type { FillTarget, OwnedEditTarget } from '~/shared/types/profile';
+import type { ContainerFillTarget, InstanceEditTarget } from '~/shared/types/profile';
 import {
   filterInventoryRows,
   inventorySections,
@@ -12,6 +12,7 @@ import {
   sortInventoryRows,
   typeOptions,
 } from '../model/filters';
+import { allInventoryItems } from '../model/instances';
 import { sortableHeader } from '../model/tableHeader';
 import type { InventoryColumn, InventoryKind } from '../model/types';
 import { useFilters } from '../model/useFilters';
@@ -131,8 +132,8 @@ const emptyText = computed(() =>
 const addOpen = ref(false);
 const selected = ref<TRow | null>(null);
 const dialogOpen = ref(false);
-const editTarget = ref<OwnedEditTarget | null>(null);
-const fillTarget = ref<FillTarget | null>(null);
+const editTarget = ref<InstanceEditTarget | null>(null);
+const fillTarget = ref<ContainerFillTarget | null>(null);
 const artifactTarget = ref<{ name: string; level: number } | null>(null);
 
 const artifactOpen = computed({
@@ -157,6 +158,11 @@ const fillOpen = computed({
     if (!value) fillTarget.value = null;
   },
 });
+
+/** Artifacts that can be dropped into any container; the editor filters the installed ones. */
+const artifactCandidates = computed(() =>
+  allInventoryItems(payload.value?.inventory).filter((item) => item.kind === 'artifact'),
+);
 
 function openRow(row: TRow): void {
   selected.value = row;
@@ -207,7 +213,16 @@ function openArtifact(name: string, level: number): void {
         </p>
       </div>
 
-      <UButton icon="i-lucide-plus" :label="t('owned.add')" @click="addOpen = true" />
+      <div class="flex flex-wrap items-center gap-2">
+        <UButton
+          to="/inventory"
+          icon="i-lucide-grid-3x3"
+          color="neutral"
+          variant="outline"
+          :label="t('common.viewGrid')"
+        />
+        <UButton icon="i-lucide-plus" :label="t('owned.add')" @click="addOpen = true" />
+      </div>
     </div>
 
     <CatalogNotice />
@@ -337,7 +352,7 @@ function openArtifact(name: string, level: number): void {
     </UModal>
 
     <EditOwnedModal v-model:open="editOpen" :target="editTarget" />
-    <ContainerFillEditor v-model:open="fillOpen" :container="fillTarget" />
+    <ContainerFillEditor v-model:open="fillOpen" :target="fillTarget" :candidates="artifactCandidates" />
     <component :is="ui.actions" v-model:add-open="addOpen" :kind="kind.key" />
   </section>
 </template>

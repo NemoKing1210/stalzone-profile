@@ -4,7 +4,7 @@ import type { WriteResult } from '~/shared/composables/useWrite';
 
 const open = defineModel<boolean>('open', { default: false });
 const props = defineProps<{ kind: OwnedKind }>();
-const emit = defineEmits<{ saved: []; created: [{ ownedId: number; name: string; kind: OwnedKind }] }>();
+const emit = defineEmits<{ saved: []; created: [{ instanceId: number; name: string; kind: OwnedKind }] }>();
 
 const { t } = useI18n();
 const { write, busy } = useWrite();
@@ -90,7 +90,7 @@ async function submit(): Promise<void> {
   const item = selected.value;
   if (!item) return;
 
-  const result = await write<WriteResult>('/api/v1/owned', {
+  const result = await write<WriteResult>('/api/v1/inventory/items', {
     method: 'POST',
     body: {
       name: item.name,
@@ -107,10 +107,10 @@ async function submit(): Promise<void> {
   });
   if (!result) return;
 
-  const ownedId = (result.diff.after as { id?: number | null } | null)?.id;
+  const instanceId = (result.diff.after as { id?: number | null } | null)?.id;
   open.value = false;
   emit('saved');
-  if (ownedId) emit('created', { ownedId, name: item.name, kind: props.kind });
+  if (instanceId) emit('created', { instanceId, name: item.name, kind: props.kind });
 }
 </script>
 

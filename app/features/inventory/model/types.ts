@@ -1,4 +1,8 @@
-import type { ProfilePayload, FillTarget, OwnedEditTarget } from '~/shared/types/profile';
+import type {
+  ProfilePayload,
+  ContainerFillTarget,
+  InstanceEditTarget,
+} from '~/shared/types/profile';
 
 /** Number and date formatting the table cells and cards use; mirrors `useFormat`. */
 export interface FormatFns {
@@ -78,7 +82,7 @@ export interface InventoryKind<TRow extends { key: string; name: string; rank: s
   groupKey?: (row: TRow) => string | null | undefined;
   filterKeys: (keyof TRow & string)[];
   labels: InventoryLabels;
-  editTarget: (row: TRow) => OwnedEditTarget | null;
+  editTarget: (row: TRow) => InstanceEditTarget | null;
   /** Present only when the kind can edit a container fill. */
-  fillTarget?: (row: TRow) => FillTarget | null;
+  fillTarget?: (row: TRow) => ContainerFillTarget | null;
 }

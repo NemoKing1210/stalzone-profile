@@ -30,9 +30,9 @@ Mutations (`POST/PATCH/PUT/DELETE`) require this host's `Origin` or
 | 400 | `VALIDATION` | the body/parameters failed zod |
 | 401 | `UNAUTHORIZED` / `INVALID_PASSWORD` | no session / wrong password |
 | 403 | `ORIGIN_REQUIRED`, `ORIGIN_MISMATCH` | a mutation from a foreign origin |
-| 404 | `NOT_FOUND`, `ITEM_NOT_FOUND`, `DETAIL_NOT_FOUND` | the entity or derived card does not exist |
-| 409 | `NO_CHARACTER`, `NOTHING_TO_CLEAR` and domain conflicts | no character / the cleanup scope is empty |
-| 422 | domain write errors | e.g. `OWNED_NOT_FOUND`, `NOT_A_CONTAINER` |
+| 404 | `NOT_FOUND`, `ITEM_NOT_FOUND`, `STORAGE_NOT_FOUND`, `DETAIL_NOT_FOUND` | the entity or derived card does not exist |
+| 409 | `NO_CHARACTER`, `NOTHING_TO_CLEAR`, `EVENT_NOT_ROLLBACKABLE` and domain conflicts | no character / the cleanup scope is empty / the event predates the inventory redesign / `SLOT_OCCUPIED`, `OUT_OF_BOUNDS`, `CONTAINER_FULL`, `CONTAINER_SLOTS_IN_USE`, `INCOMPATIBLE_ATTACHMENT`, `STORAGE_TOO_SMALL`, `STORAGE_NAME_TAKEN`, `LAYOUT_CONFLICT` |
+| 422 | domain write errors | e.g. `INVALID_PLACEMENT`, `NOT_A_CONTAINER`, `NOT_AN_ARTIFACT`, `NOT_A_WEAPON` |
 | 429 | `RATE_LIMITED` | too many sign-in attempts |
 
 Messages are English. The web UI localizes known codes with `useApiError`; clients that
@@ -44,20 +44,21 @@ need user-facing text should do the same or show the message as-is.
 |---|---|---|
 | GET | `/api/v1/healthz` | `{ ok: true, db: "ok" }`, public |
 | GET | `/api/v1/setup` | `{ needsSetup, catalogItems, defaultRegion, profileApiConfigured, sources }` |
-| GET | `/api/v1/payload` | the whole profile: character, gear, catalog, derived cards, icons, freshness. `catalog.meta.items` counts every catalog row (weapons, armor, motifs, artifacts, containers), not only weapons and armor |
+| GET | `/api/v1/payload` | the whole profile: character, gear, catalog, derived cards, icons, freshness and the new `inventory` section. `catalog.meta.items` counts every catalog row (weapons, armor, motifs, artifacts, containers), not only weapons and armor |
 | GET | `/api/v1/meta` | `{ meta, catalogMeta, freshness }` — described by `MetaRead` in `@profile/shared/contracts` and pinned by `tests/integration/contracts/payload-contract.test.ts` |
 | GET | `/api/v1/character` | character with derived fields (`kd`, `accuracy`, `headshot`, `hours`, `arrived`) |
 | GET | `/api/v1/items?q=&kind=&rank=&slot=&limit=` | item search |
 | GET | `/api/v1/items/:id` | item, stats, effects, card, icon |
 | GET | `/api/v1/details/:key` | derived card by key `w:`, `a:`, `art:`, `c:` |
 | GET | `/api/v1/catalog` | weapon and armor catalog |
-| GET | `/api/v1/owned?kind=` | the character's gear with its container override |
-| GET | `/api/v1/containers` | containers with their fill |
+| GET | `/api/v1/inventory` | `InventoryRead`: storages, the equipment map, the loose tray and the computed loadout (`InventoryReadSchema`) |
+| GET | `/api/v1/inventory/items/:id` | one inventory instance with its container artifacts or weapon modules |
+| GET | `/api/v1/containers` | container instances with their fill (`ContainerRead` list) for the table page |
 | GET | `/api/v1/prices?names=A,B` | `price_latest` by name |
 | GET | `/api/v1/sources` | source statuses and age |
 | GET | `/api/v1/events?limit=` | change journal |
 | GET | `/api/v1/admin/export` | the typed profile JSON (attachment) |
-| GET | `/api/v1/admin/cleanup` | counts for every reset scope: `owned`, `manualStats`, `character`, `journal` |
+| GET | `/api/v1/admin/cleanup` | counts for every reset scope: `inventory` (`items`, `storages`, `placements`), `manualStats`, `character`, `journal` |
 
 ## Writes
 
@@ -76,18 +77,25 @@ text is English.
 
 | Method | Path | Body |
 |---|---|---|
-| POST | `/api/v1/character` | `CharacterCreateSchema`: `nick`, `region` (`ru \| eu \| na \| sea`), optional `faction` (`rise \| frontier \| mercenaries \| covenant` or `null`), `alliance`, `clanName`, `clanRank`, `dryRun`. The profile holds one character: a second create answers `409 CHARACTER_EXISTS` |
-| POST | `/api/v1/owned` | `OwnedCreateSchema` (optionally `container` for a container) |
-| PATCH | `/api/v1/owned/:id` | `OwnedPatchSchema` (optionally `container` override or `null` to clear) |
-| DELETE | `/api/v1/owned/:id?qty=` | — (removes one copy or `qty`) |
-| PUT | `/api/v1/containers/:id/fill` | `{ artifacts: [{ name, level, quality? }], asOf?, dryRun? }` |
+| POST | `/api/v1/character` | `CharacterCreateSchema`: `nick`, `region` (`ru \| eu \| na \| sea`), optional `faction` (`rise \| frontier \| mercenaries \| covenant` or `null`), `alliance`, `clanName`, `clanRank`, `dryRun`. Creates the character with its default 8×8 inventory and 8×12 stash in one transaction. The profile holds one character: a second create answers `409 CHARACTER_EXISTS` |
+| POST | `/api/v1/inventory/items` | `InventoryItemCreateSchema`: resolves the catalog item, optional `target` (`grid`, `equipment`, `container`, `weapon_module`, `loose`) |
+| PATCH | `/api/v1/inventory/items/:id` | `InventoryItemPatchSchema`: level, quality, rarity, tier, note, quantity, skin, role, slot, container override |
+| DELETE | `/api/v1/inventory/items/:id` | `DeleteInventoryItemSchema`: `{ qty?, dryRun? }`; a container or weapon returns its children to `loose` first |
+| POST | `/api/v1/inventory/items/:id/move` | `MoveItemSchema`: `target`, optional `swap`, `allowUnverified`, `dryRun` |
+| POST | `/api/v1/inventory/storages` | `StorageCreateSchema`: stash name, width, height, optional `maxWeight` |
+| PATCH | `/api/v1/inventory/storages/:id` | `StoragePatchSchema`: rename, resize, weight limit, order; a shrink over placed items answers `409 STORAGE_TOO_SMALL` |
+| DELETE | `/api/v1/inventory/storages/:id` | `DeleteStorageSchema`: items go to `loose`, or into `moveToStorageId` when they fit |
+| POST | `/api/v1/inventory/storages/:id/auto-arrange` | `AutoArrangeSchema`: packs loose items into the storage by first fit |
+| PUT | `/api/v1/inventory/containers/:id/fill` | `ContainerFillWriteSchema`: `{ slots: (id \| null)[], dryRun? }`, the full positional fill |
+| PUT | `/api/v1/inventory/weapons/:id/modules/:slot` | `WeaponModuleWriteSchema`: `{ attachmentItemId: id \| null, allowUnverified?, dryRun? }` |
+| PATCH | `/api/v1/items/:id/layout` | `ItemLayoutWriteSchema`: `{ width, height, weight?, dryRun? }`; a change that breaks placed instances answers `409 LAYOUT_CONFLICT` |
 | PATCH | `/api/v1/character` | `CharacterPatchSchema` |
 | POST | `/api/v1/events/:id/rollback` | `{ dryRun? }` |
 | POST | `/api/v1/admin/cleanup` | `{ scope?: inventory \| manualStats \| character \| journal \| all, dryRun? }` |
 
 `CharacterPatchSchema` accepts identity fields (`nick`, `region`, `faction` — one of the
-four faction slugs or `null`, `alliance`, `clanName`, `clanRank`, `money`, `maxMoney`,
-`stash`) and `stats`, a map of raw
+four faction slugs or `null`, `alliance`, `clanName`, `clanRank`, `money`, `maxMoney`)
+and `stats`, a map of raw
 counter id → number/string/`null`. Writing a value sets the `manual` origin; `null` clears
 it and reveals the API value. Derived fields (K/D, accuracy, headshot share, hours) are
 read-only and rejected in the patch.
@@ -97,9 +105,9 @@ snapshot. The scope defaults to `inventory`:
 
 | Scope | Action | `before` snapshot |
 |---|---|---|
-| `inventory` | `owned.clear` | every owned row with container overrides and fill |
+| `inventory` | `inventory.clear` | every storage, instance, placement, container override and item layout |
 | `manualStats` | `character.stats.clear` | every `origin='manual'` stat row |
-| `character` | `character.delete` | character row, every stat row, owned rows |
+| `character` | `character.delete` | character row, every stat row, the whole instance inventory |
 | `journal` | `journal.clear` | every event row, with ids and raw JSON |
 | `all` | `reset.all` | the character snapshot plus every event row |
 
@@ -111,8 +119,12 @@ it. `character` and `all` leave the site without a character, so the next reques
 on `/setup`.
 
 Character creation writes one `character.create` event with `before: null`. Its rollback
-deletes the character only while no gear exists; otherwise it answers
-`409 CHARACTER_NOT_EMPTY`, because deleting the row would cascade the profile away.
+deletes the character only while it has no inventory items; otherwise it answers
+`409 CHARACTER_NOT_EMPTY`, because deleting the row would cascade the profile away. The
+default storages created with the character do not block the rollback.
+
+An event written before the inventory redesign references dropped tables; rolling it back
+answers `409 EVENT_NOT_ROLLBACKABLE` and writes nothing.
 
 ## Sync
 

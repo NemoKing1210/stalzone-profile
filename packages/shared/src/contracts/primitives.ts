@@ -21,6 +21,52 @@ export const ItemKindSchema = z.enum([
 export const OwnedKindSchema = z.enum(['weapon', 'armor', 'container', 'artifact']);
 export type OwnedKind = z.infer<typeof OwnedKindSchema>;
 
+/** Kinds an inventory instance can have. Motifs are catalog-only and never owned. */
+export const InventoryKindSchema = z.enum([
+  'weapon',
+  'armor',
+  'container',
+  'artifact',
+  'attachment',
+  'ammo',
+  'other',
+]);
+export type InventoryKind = z.infer<typeof InventoryKindSchema>;
+
+export const EquipmentSlotSchema = z.enum([
+  'primary',
+  'secondary',
+  'melee',
+  'armor',
+  'backpack',
+  'container',
+  'quick1',
+  'quick2',
+  'quick3',
+  'quick4',
+]);
+export type EquipmentSlot = z.infer<typeof EquipmentSlotSchema>;
+
+export const StorageKindSchema = z.enum(['inventory', 'stash']);
+export type StorageKind = z.infer<typeof StorageKindSchema>;
+
+export const PlacementLocationSchema = z.enum(['grid', 'equipment', 'container', 'weapon_module', 'loose']);
+export type PlacementLocation = z.infer<typeof PlacementLocationSchema>;
+
+export const RarityTierSchema = z.enum([
+  'ordinary',
+  'unordinary',
+  'special',
+  'rare',
+  'exclusive',
+  'legendary',
+  'unique',
+]);
+export type RarityTier = z.infer<typeof RarityTierSchema>;
+
+export const ModuleSlotSchema = z.enum(['scope', 'muzzle', 'grip', 'magazine', 'stock', 'tactical', 'other']);
+export type ModuleSlot = z.infer<typeof ModuleSlotSchema>;
+
 /**
  * The four northern factions of STALZONE. Stalkers and bandits are starting
  * sides, not factions, so they must not be storable. The slug is what the DB

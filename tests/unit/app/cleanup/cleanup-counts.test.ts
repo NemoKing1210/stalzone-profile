@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { cleanupCountsView } from '../../../../app/features/cleanup/model/cleanupCounts';
 
 const counts = {
-  owned: { records: 6, copies: 8 },
+  inventory: { items: 6, storages: 2, placements: 8 },
   manualStats: { records: 2 },
   character: { present: true, nick: 'tester' },
   journal: { events: 3 },
@@ -38,7 +38,7 @@ describe('cleanupCountsView', () => {
   it('reports real zeros after a successful response', () => {
     expect(
       cleanupCountsView('success', {
-        owned: { records: 0, copies: 0 },
+        inventory: { items: 0, storages: 1, placements: 0 },
         manualStats: { records: 0 },
         character: { present: false, nick: null },
         journal: { events: 0 },

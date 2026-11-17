@@ -1,5 +1,5 @@
 import { CharacterCreateSchema } from '@profile/shared';
-import { createCharacter } from '@profile/core';
+import { createSetupCharacter } from '@profile/core';
 import { useDb } from '../../utils/db';
 import { validationError } from '../../utils/errors';
 import { requireOrigin } from '../../utils/auth';
@@ -13,5 +13,5 @@ export default defineEventHandler(async (event) => {
   if (!parsed.success) return validationError(event, parsed.error);
 
   const db = useDb();
-  return handleWrite(event, () => createCharacter(db, parsed.data));
+  return handleWrite(event, () => createSetupCharacter(db, parsed.data));
 });

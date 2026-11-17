@@ -1,12 +1,37 @@
 # Migrating a database from the legacy schema
 
+Two different histories lead here.
+
+## From the old JSON-bearing schema
+
 The 2026-11-17 refactor replaced the baseline (`db/migrations/0001_init.sql`) with typed
-tables. There is **no automatic data migration**: the old JSON-bearing schema
-(`owned`, `container_fill`, `content_block`, `catalog_entry`, `details_card`, `app_meta`)
-no longer exists, and reusing the same file name means the runner skips `0001` on an
-existing database.
+tables. There is **no automatic data migration** from the old JSON-bearing schema
+(`owned`, `container_fill`, `content_block`, `catalog_entry`, `details_card`, `app_meta`):
+those tables no longer exist, and reusing the same file name means the runner skips `0001`
+on an existing database.
 
 The old database has to be rebuilt. Export first if the data still matters to you.
+
+## From the collapsed owned model (0001–0004)
+
+An existing typed database migrates automatically: `npm run db:migrate` applies
+`0005_inventory_schema.sql` and `0006_inventory_data.sql`.
+
+- `0005` adds `storage`, `inventory_item`, `item_placement`, `container_data`,
+  `attachment_compat` and `item_layout` additively.
+- `0006` copies every `owned_item` row into one instance per copy (`qty` expands for
+  gear, stackables stay single rows), turns `character.stash` into a `stash` storage,
+  copies `owned_container` into `container_data` and turns every `container_slot` into a
+  new artifact instance. All migrated gear starts `loose` so it can be arranged in the
+  grid; the old tables and `character.stash` are dropped.
+- `event_log` rows are kept, but an event that refers to the dropped tables
+  (`owned.*`, `container.fill`, `profile.clear`, `dossier.clear`) cannot be rolled back:
+  `rollbackEvent` answers `409 EVENT_NOT_ROLLBACKABLE` and writes nothing.
+
+The migration is covered by `tests/integration/migration.test.ts`, which runs `0001`–`0006`
+on a temporary database and checks the storages, expanded instances, container fill and
+dropped columns. Applying it to a copy of the working database (never the live file) is a
+read-only sanity check; `db:reset` is not needed and deletes the profile.
 
 ## Reset procedure
 
@@ -24,8 +49,7 @@ The old database has to be rebuilt. Export first if the data still matters to yo
    `db/seeds/legacy.json` / `data/my-gear.json`, if you still have them, as the source for
    manual re-entry.
 
-3. Only if you accept an empty profile until phase 2 (step 5): check where `DB_PATH`
-   points, then delete the database and its WAL files:
+3. Check where `DB_PATH` points, then delete the database and its WAL files:
 
    ```bash
    npm run db:reset
@@ -44,10 +68,10 @@ The old database has to be rebuilt. Export first if the data still matters to yo
    npm run export:json        # optional: inspect the empty typed profile
    ```
 
-5. Phase 1 has no character creation: `PATCH /api/v1/character` requires an existing row
-   and answers `409 NO_CHARACTER` on an empty database, and MCP has no character-write
-   tool. Onboarding arrives in phase 2. Until then a reset database holds only the catalog,
-   prices and sources; postpone the destructive reset if you still need the old profile.
+5. A reset database has no character: the first authenticated browser visit lands on
+   `/setup`, and the API answers `409 NO_CHARACTER` until the wizard (or
+   `POST /api/v1/character`) creates one. Creation also creates the default 8×8 inventory
+   and 8×12 stash storages, so gear can be added immediately.
 
 ## Verification
 
@@ -63,5 +87,6 @@ single formula in `packages/core/src/modules/catalog/calc/weapons.ts`.
 ## Rollback
 
 - Every API/MCP write stores its `before`/`after` in `event_log` and can be rolled back
-  from `/settings` or with the `rollback_event` tool.
+  from `/settings` or with the `rollback_event` tool. Events from before the inventory
+  redesign are the exception described above.
 - Full reset: `npm run db:reset && npm run db:migrate && npm run sync` (sync all sources).

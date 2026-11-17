@@ -18,6 +18,8 @@ backed by one SQLite database and exposed through a Nuxt site, a REST API and MC
 ## Overview
 
 - **Site** — profile sections with search, sorting, grouping and editing.
+- **Inventory** — a cell grid with per-item size and weight, multiple stashes, the game's
+  equipment slots, containers with artifact slots and weapons with modules.
 - **API** — `/api/v1/*` behind session auth; writes go only through the API, MCP or CLI.
 - **MCP** — stdio for a local agent and HTTP `/mcp` with a bearer token.
 - **Sync** — EXBO database, stalzone.wiki, skins, icons and scpmodel prices.

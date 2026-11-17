@@ -13,10 +13,10 @@ const { payload } = useProfile();
 
 const PREFIX = { weapon: 'w', armor: 'a', artifact: 'art' } as const;
 
-type DetailRow = { name: string; ownedId?: number | null; lvl?: number | null };
+type DetailRow = { name: string; instanceId?: number | null; lvl?: number | null };
 
 const data = computed(() => props.row as DetailRow);
-const owned = computed(() => data.value.ownedId != null);
+const owned = computed(() => data.value.instanceId != null);
 const card = computed(() =>
   findDetailsCard(payload.value?.details, PREFIX[props.detailKind], data.value.name),
 );

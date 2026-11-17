@@ -17,6 +17,7 @@
     "./modules/catalog": "./src/modules/catalog/index.ts",
     "./modules/identity": "./src/modules/identity/index.ts",
     "./modules/inventory": "./src/modules/inventory/index.ts",
+    "./modules/inventory/layout": "./src/modules/inventory/layout/index.ts",
     "./modules/sync": "./src/modules/sync/index.ts",
     "./modules/setup": "./src/modules/setup/index.ts",
     "./modules/maintenance": "./src/modules/maintenance/index.ts",

@@ -1,10 +1,19 @@
 import { ALL_RANKS } from '~/entities/item/model/rankOptions';
+import { findDetailsCard } from '~/entities/item/model/details';
 
+import {
+  buildInventoryIndex,
+  cardDamage15,
+  cardText,
+  cardValue,
+  locationOf,
+  type InstanceLocationRow,
+  type InstanceRow,
+} from '../instances';
 import type { InventoryColumn, InventoryKind } from '../types';
 
-export interface WeaponRow {
+export interface WeaponRow extends InstanceRow, InstanceLocationRow {
   key: string;
-  ownedId: number | null;
   qty: number;
   quality: string | null;
   skin: string | null;
@@ -24,6 +33,15 @@ export interface WeaponRow {
   weight: number | null;
   icon: string | null;
 }
+
+const EMPTY_LOCATION: Omit<InstanceLocationRow, 'location'> = {
+  storageId: null,
+  storageName: null,
+  parentName: null,
+  equipmentSlot: null,
+  moduleSlot: null,
+  slotIndex: null,
+};
 
 export const weaponsKind: InventoryKind<WeaponRow> = {
   key: 'weapon',
@@ -48,7 +66,11 @@ export const weaponsKind: InventoryKind<WeaponRow> = {
     if (mode === 'catalog') {
       return (payload.catalog?.weapons ?? []).map((entry, index) => ({
         key: `catalog-${index}-${entry.name}`,
-        ownedId: null,
+        instanceId: null,
+        item: null,
+        placement: null,
+        location: null,
+        ...EMPTY_LOCATION,
         qty: 1,
         quality: null,
         skin: null,
@@ -69,28 +91,39 @@ export const weaponsKind: InventoryKind<WeaponRow> = {
         icon: entry.icon ?? null,
       }));
     }
-    return (payload.weapons ?? []).map((weapon, index) => ({
-      key: `owned-${index}-${weapon.name}`,
-      ownedId: weapon.ownedId ?? null,
-      qty: weapon.qty ?? 1,
-      quality: weapon.quality ?? null,
-      skin: weapon.skin ?? null,
-      note: weapon.note ?? null,
-      role: weapon.role ?? null,
-      slot: weapon.slot ?? null,
-      name: weapon.name,
-      rank: weapon.rank ?? null,
-      type: weapon.type ?? null,
-      lvl: weapon.lvl ?? null,
-      dmg: weapon.dmg ?? null,
-      rof: weapon.rof ?? null,
-      dps: weapon.dps ?? null,
-      ttk: weapon.ttk ?? null,
-      mag: weapon.mag ?? null,
-      caliber: weapon.caliber ?? null,
-      weight: weapon.weight ?? null,
-      icon: weapon.icon ?? null,
-    }));
+
+    const index = buildInventoryIndex(payload.inventory);
+    return index.items
+      .filter((item) => item.kind === 'weapon')
+      .map((item) => {
+        const card = findDetailsCard(payload.details, 'w', item.name);
+        return {
+          key: `instance-${item.id}`,
+          instanceId: item.id,
+          item,
+          placement: item.placement,
+          ...locationOf(item, index),
+          qty: item.qty,
+          quality: item.quality,
+          // The instance carries the skin id, not its name; the editor leaves it untouched.
+          skin: null,
+          note: item.note,
+          role: item.role,
+          slot: item.slot,
+          name: item.displayName ?? item.name,
+          rank: item.rank,
+          type: cardText(card, 'type') ?? item.category,
+          lvl: item.level,
+          dmg: cardDamage15(card),
+          rof: cardValue(card, 'rof'),
+          dps: cardValue(card, 'dps15'),
+          ttk: cardValue(card, 'ttk15'),
+          mag: cardValue(card, 'mag'),
+          caliber: cardText(card, 'caliber'),
+          weight: item.weight,
+          icon: item.icon,
+        };
+      });
   },
 
   columns({ catalog }): InventoryColumn<WeaponRow>[] {
@@ -107,11 +140,12 @@ export const weaponsKind: InventoryKind<WeaponRow> = {
         align: 'right',
         cell: (row) => (row.lvl == null ? '—' : `+${row.lvl}`),
       });
+      columns.push({ key: 'location', label: 'table.location' });
     }
     columns.push(
       {
         key: 'dmg',
-        label: catalog ? 'table.damage15' : 'table.damage',
+        label: 'table.damage15',
         sortable: true,
         align: 'right',
         cell: (row, fmt) => (row.dmg == null ? '—' : fmt.g1(row.dmg)),
@@ -125,7 +159,7 @@ export const weaponsKind: InventoryKind<WeaponRow> = {
       },
       {
         key: 'dps',
-        label: 'DPS',
+        label: 'DPS +15',
         sortable: true,
         align: 'right',
         strong: true,
@@ -133,7 +167,7 @@ export const weaponsKind: InventoryKind<WeaponRow> = {
       },
       {
         key: 'ttk',
-        label: 'TTK',
+        label: 'TTK +15',
         sortable: true,
         align: 'right',
         cell: (row, fmt) => (row.ttk == null ? '—' : fmt.g2(row.ttk)),
@@ -183,18 +217,21 @@ export const weaponsKind: InventoryKind<WeaponRow> = {
     emptyCatalog: 'weapons.emptyCatalog',
   },
   editTarget: (row) =>
-    row.ownedId == null
+    row.instanceId == null || !row.item
       ? null
       : {
-          ownedId: row.ownedId,
+          instanceId: row.instanceId,
+          itemId: row.item.itemId,
           name: row.name,
           kind: 'weapon',
-          level: row.lvl ?? 0,
+          level: row.item.level,
           qty: row.qty,
           quality: row.quality,
-          skin: row.skin,
+          skin: null,
           note: row.note,
           role: row.role,
           slot: row.slot,
+          rarityPct: row.item.rarityPct,
+          rarityTier: row.item.rarityTier,
         },
 };
