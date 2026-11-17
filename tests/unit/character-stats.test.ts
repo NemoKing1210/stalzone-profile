@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveCharacterFields, effectiveCharacterStats } from '@dossier/core/services/character-stats';
+import { deriveCharacterFields, effectiveCharacterStats } from '@dossier/core';
 
 const api = (id: string, value: number | string) => ({
   stat_id: id,

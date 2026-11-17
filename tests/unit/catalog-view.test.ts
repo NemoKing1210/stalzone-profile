@@ -2,9 +2,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { closeDb, migrate, openDb, type Db } from '@dossier/core';
+import { closeDb, migrate, openDb, type Db, buildDetails, buildItemCard } from '@dossier/core';
 import * as repo from '@dossier/core';
-import { buildDetails, buildItemCard } from '@dossier/core/services/catalog-view';
 import { seedCatalog } from '../fixtures/seed';
 
 let dir: string;

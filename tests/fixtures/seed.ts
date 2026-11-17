@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { Db } from '@dossier/core';
-import * as repo from '@dossier/core';
+import * as seed from '@dossier/core/testing';
 
 type Json = Record<string, any>;
 
@@ -49,9 +49,9 @@ export function seedCatalog(db: Db): void {
   ) as Fixture;
 
   const run = db.transaction(() => {
-    for (const source of data.sources ?? []) repo.ensureSource(db, source.id);
+    for (const source of data.sources ?? []) seed.ensureSource(db, source.id);
     for (const stat of data.stats ?? []) {
-      repo.upsertStatDefinition(db, {
+      seed.upsertStatDefinition(db, {
         id: stat.id,
         category: stat.category ?? null,
         valueType: statType(stat.type),
@@ -63,7 +63,7 @@ export function seedCatalog(db: Db): void {
     const itemIds = new Map<string, number>();
     for (const item of data.items ?? []) {
       const sourceId = item.sourceId ?? 'local';
-      const id = repo.upsertItem(db, {
+      const id = seed.upsertItem(db, {
         sourceId,
         externalId: item.externalId,
         name: item.name,
@@ -76,9 +76,9 @@ export function seedCatalog(db: Db): void {
         isCosmetic: item.isCosmetic,
       });
       itemIds.set(item.externalId, id);
-      if (item.stats?.length) repo.replaceItemStats(db, id, item.stats as never, sourceId);
-      if (item.effects?.length) repo.replaceItemEffects(db, id, item.effects as never);
-      if (item.icon) repo.upsertIcon(db, { itemId: id, sourceId, ...item.icon });
+      if (item.stats?.length) seed.replaceItemStats(db, id, item.stats as never, sourceId);
+      if (item.effects?.length) seed.replaceItemEffects(db, id, item.effects as never);
+      if (item.icon) seed.upsertIcon(db, { itemId: id, sourceId, ...item.icon });
     }
 
     for (const item of data.items ?? []) {
@@ -86,7 +86,7 @@ export function seedCatalog(db: Db): void {
       const baseItemId = itemIds.get(item.baseExternalId);
       const id = itemIds.get(item.externalId);
       if (!baseItemId || !id) continue;
-      repo.upsertItem(db, {
+      seed.upsertItem(db, {
         sourceId: item.sourceId ?? 'local',
         externalId: item.externalId,
         name: item.name,
@@ -95,18 +95,18 @@ export function seedCatalog(db: Db): void {
       });
     }
 
-    const characterId = repo.upsertCharacter(db, data.character as never);
+    const characterId = seed.upsertCharacter(db, data.character as never);
     for (const stat of data.characterStats ?? []) {
       const value = stat.valueNum ?? stat.valueText;
       if (value == null) continue;
-      repo.setCharacterStat(db, characterId, stat.statId, value, stat.origin ?? 'api');
+      seed.setCharacterStat(db, characterId, stat.statId, value, stat.origin ?? 'api');
     }
 
     const ownedIds = new Map<string, number>();
     for (const owned of data.owned ?? []) {
       const itemId = itemIds.get(String(owned.itemExternalId));
       if (!itemId) continue;
-      const ownedId = repo.upsertOwned(db, {
+      const ownedId = seed.upsertOwned(db, {
         characterId,
         itemId,
         kind: owned.kind,
@@ -122,7 +122,7 @@ export function seedCatalog(db: Db): void {
     for (const fill of data.containerSlots ?? []) {
       const ownedId = ownedIds.get(String(fill.containerItemExternalId));
       if (!ownedId) continue;
-      repo.replaceContainerSlots(
+      seed.replaceContainerSlots(
         db,
         ownedId,
         (fill.slots ?? []).map((slot: Json) => ({
@@ -134,8 +134,8 @@ export function seedCatalog(db: Db): void {
       );
     }
 
-    if (data.build) repo.saveBuild(db, data.build as never);
-    for (const price of data.prices ?? []) repo.insertPriceQuote(db, price as never);
+    if (data.build) seed.seedBuild(db, data.build as never);
+    for (const price of data.prices ?? []) seed.insertPriceQuote(db, price as never);
   });
   run();
 }

@@ -1,7 +1,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { exportDossierJson, hashPassword, loadConfig, migrate, openDb } from '@dossier/core';
-import { runSync, runSyncAll, SYNC_SOURCES } from '@dossier/core/services/sync';
+import {
+  SYNC_SOURCES,
+  exportDossierJson,
+  hashPassword,
+  loadConfig,
+  migrate,
+  openDb,
+  runSync,
+  runSyncAll,
+} from '@dossier/core';
 
 const [command, ...rest] = process.argv.slice(2);
 const flags = new Set(rest.filter((arg) => arg.startsWith('--')));

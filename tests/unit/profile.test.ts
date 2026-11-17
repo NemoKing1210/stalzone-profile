@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { durationHours, mapProfileStats } from '@dossier/core/services/profile';
+import { durationHours, mapProfileStats } from '@dossier/core';
 
 describe('durationHours', () => {
   it('parses ISO-8601 durations', () => {
