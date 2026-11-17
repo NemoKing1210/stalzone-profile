@@ -23,7 +23,6 @@ export function getCharacterRead(db: Db, id?: number): CharacterRead | null {
     money: character.money,
     maxMoney: character.max_money,
     stash: character.stash,
-    playstyle: character.playstyle,
     ...deriveCharacterFields(effective),
     stats,
   };

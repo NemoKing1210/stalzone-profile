@@ -3,20 +3,20 @@ import { BuildReadSchema } from './builds.js';
 import { CatalogItemSchema, ItemCardSchema } from './catalog.js';
 import { ContainerReadSchema } from './inventory.js';
 import { SourceStatusSchema } from './api.js';
+import { FactionSchema } from './primitives.js';
 
 /** The payload character is a view over the identity read; `{}` means no character yet. */
 export const PayloadCharacterSchema = z
   .object({
     nick: z.string().optional(),
     region: z.string().optional(),
-    faction: z.string().nullable().optional(),
+    faction: FactionSchema.nullable().optional(),
     alliance: z.string().nullable().optional(),
     clanName: z.string().nullable().optional(),
     clanRank: z.string().nullable().optional(),
     money: z.number().nullable().optional(),
     maxMoney: z.number().nullable().optional(),
     stash: z.string().nullable().optional(),
-    playstyle: z.string().nullable().optional(),
     arrived: z.string().nullable().optional(),
     hours: z.number().nullable().optional(),
     kd: z.number().nullable().optional(),

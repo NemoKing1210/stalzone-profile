@@ -53,6 +53,7 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@intlify/message-compiler": "^11.4.20",
     "@nuxt/eslint": "^1.17.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^24.0.0",

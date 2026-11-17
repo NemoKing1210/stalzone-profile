@@ -41,6 +41,8 @@
     "armor": "Armor",
     "containers": "Containers",
     "artifacts": "Artifacts",
+    "changelog": "Changelog",
+    "guide": "Guide",
     "settings": "Settings",
     "logout": "Sign out",
     "footer": "Personal STALZONE dossier. Data is updated manually; prices are read-only.",
@@ -60,6 +62,12 @@
     "veteran": "Veteran",
     "master": "Master",
     "legend": "Legend"
+  },
+  "factions": {
+    "rise": "Rise",
+    "frontier": "Frontier",
+    "mercenaries": "Mercenaries",
+    "covenant": "Covenant"
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",
@@ -90,9 +98,7 @@
     "password": "Password",
     "signIn": "Sign in",
     "pageTitle": "Sign in",
-    "error": "Could not sign in. Check the password and try again.",
-    "footerBefore": "Owner access only. The password is set with the ",
-    "footerAfter": " environment variable on the server."
+    "error": "Could not sign in. Check the password and try again."
   },
   "overview": {
     "pageTitle": "Overview",
@@ -113,7 +119,6 @@
     "keyStats": "Key stats",
     "sectionAria": "{label}: {count} items",
     "stash": "Stash: {value}.",
-    "playstyle": "Play style: {value}.",
     "sections": "Sections",
     "dataState": "Data state",
     "about": "About the data",
@@ -415,11 +420,24 @@
     "nick": "Nickname",
     "region": "Region",
     "faction": "Faction (optional)",
-    "playstyle": "Play style (optional)",
     "create": "Create character",
     "creating": "Creating…",
-    "catalogIntro": "The item catalog is public game data downloaded from EXBO, stalzone.wiki and the auction. It needs internet.",
+    "catalogIntro": "The item catalog is public game data. Download the sources below — the dossier is browsable without them, but new gear, prices and icons need them.",
     "catalogEmptyHint": "Without the catalog the dossier is browsable, but new gear cannot be added.",
+    "sourceInfo": {
+      "exbo_base": "Items and their stats from the official EXBO database. The base every other source builds on.",
+      "wiki": "Artifacts, armor, weapons and containers with their descriptions and TTK from stalzone.wiki.",
+      "motifs": "Links between skins and the items they belong to.",
+      "scpmodel": "Auction prices and lots; refreshed every 15 minutes.",
+      "icons": "Item icons from the EXBO repository."
+    },
+    "required": "Required",
+    "recommended": "Recommended",
+    "readyCount": "{done} of {total} sources ready",
+    "downloadAll": "Download recommended",
+    "sourceReady": "Ready",
+    "sourceOutdated": "Outdated",
+    "sourceNever": "Not downloaded",
     "sync": "Download",
     "syncing": "Downloading…",
     "retry": "Retry",
@@ -470,6 +488,397 @@
     "rollbackConfirm": "Return the state before event #{id} ({action})? The rollback is also recorded in the log.",
     "refresh": "Refresh"
   },
+  "changelog": {
+    "title": "Changelog",
+    "subtitle": "Every notable change, parsed from the repository's CHANGELOG.md.",
+    "summary": "Entries: {entries} · Changes: {changes}",
+    "search": "Search changes",
+    "filters": "Filter by category",
+    "results": "{shown} of {total} entries",
+    "empty": "Nothing matches the current filters.",
+    "unreleased": "Unreleased",
+    "itemCount": "Items: {count}",
+    "kinds": {
+      "added": "Added",
+      "changed": "Changed",
+      "deprecated": "Deprecated",
+      "removed": "Removed",
+      "fixed": "Fixed",
+      "security": "Security",
+      "limitations": "Known limitations",
+      "other": "Other"
+    }
+  },
+  "guide": {
+    "title": "Project guide",
+    "subtitle": "Every screen, endpoint, tool and source of this dossier, and how they connect.",
+    "lead": "The dossier is one SQLite database behind one Nuxt process. The site, the REST API, MCP and the CLI are four ways to read and change the same data; this page is the map.",
+    "jump": "Jump to a section",
+    "stats": {
+      "pages": "Site screens",
+      "endpoints": "REST endpoints",
+      "tools": "MCP tools",
+      "sources": "Sync sources"
+    },
+    "live": {
+      "title": "Your dossier right now",
+      "owned": "Owned items",
+      "catalog": "Catalog items",
+      "builds": "Builds",
+      "updated": "Last data update"
+    },
+    "sections": {
+      "site": {
+        "title": "Site map",
+        "hint": "What each screen does"
+      },
+      "flow": {
+        "title": "How it connects",
+        "hint": "Read and write paths"
+      },
+      "api": {
+        "title": "REST API",
+        "hint": "{count} endpoints"
+      },
+      "mcp": {
+        "title": "MCP server",
+        "hint": "{count} tools for an agent"
+      },
+      "cli": {
+        "title": "Commands",
+        "hint": "Development and maintenance"
+      },
+      "sources": {
+        "title": "Data sources",
+        "hint": "Public game data and freshness"
+      },
+      "principles": {
+        "title": "Guarantees",
+        "hint": "Rules the code must not break"
+      }
+    },
+    "site": {
+      "badge": {
+        "main": "Section",
+        "system": "System screen"
+      },
+      "open": "Open",
+      "overview": {
+        "title": "Overview",
+        "summary": "The character sheet: identity, career numbers and the state of the data.",
+        "caps": {
+          "profile": "Nickname, region, faction, clan, rank and storage.",
+          "kpis": "Hours, K/D, accuracy and headshot share; achievements, money and the date the character entered the Zone.",
+          "edit": "Edit the profile and raw counters; clearing a value reveals the API value again.",
+          "freshness": "Section counts, catalog update date and the age of the latest prices."
+        }
+      },
+      "weapons": {
+        "title": "Weapons",
+        "summary": "Catalog and owned weapons with DPS and TTK recalculated at the upgrade level.",
+        "caps": {
+          "catalog": "Owned gear and the full catalog side by side; switch modes without leaving the page.",
+          "dps": "DPS and TTK are recalculated at the row's upgrade level from one formula.",
+          "filters": "Search, type and rank filters, sorting and grouping; the last view is restored per browser.",
+          "manage": "Add a copy from the catalog, edit level, quality or note, remove a copy; the item card opens from the row."
+        }
+      },
+      "armor": {
+        "title": "Armor",
+        "summary": "Catalog and owned armor with bullet protection at the current level and at +15.",
+        "caps": {
+          "catalog": "Owned armor and the full catalog with the same list controls as weapons.",
+          "protection": "Bullet protection at the current upgrade level and at +15.",
+          "curve": "The armor card shows modifiers and the full bullet-protection curve.",
+          "manage": "Add, edit and remove copies; filters and sorting persist in the browser."
+        }
+      },
+      "containers": {
+        "title": "Containers",
+        "summary": "Slots, efficiency, weight and the current fill of every container.",
+        "caps": {
+          "list": "Every container with slots, efficiency, weight and the fill date.",
+          "fill": "Open a container to replace its fill; artifacts are picked by name and level.",
+          "effect": "Effective value = slots × efficiency, shown next to the current fill.",
+          "manage": "Add a container from the catalog, edit it, and clear or replace the fill."
+        }
+      },
+      "artifacts": {
+        "title": "Artifacts",
+        "summary": "Catalog and owned artifacts with effects, quality and level.",
+        "caps": {
+          "catalog": "Owned artifacts and the catalog with quality, level, rank and effects.",
+          "effects": "Effect ranges come from the source card, not from an estimate.",
+          "filters": "Search, rank and type filters, sorting and grouping.",
+          "manage": "Add, edit and remove copies; open the source card for details."
+        }
+      },
+      "settings": {
+        "title": "Settings",
+        "summary": "Appearance, sources, data, journal and cleanup.",
+        "caps": {
+          "appearance": "Five accent presets stored per browser; semantic colours never change.",
+          "sources": "Source status, last success, last attempt, error text and a manual sync per source.",
+          "data": "Download the typed JSON export, see freshness and learn how backups work.",
+          "journal": "Every write is listed with actor and note; each event can be rolled back.",
+          "cleanup": "Clear inventory, builds or the whole dossier in one journalled transaction."
+        }
+      },
+      "changelog": {
+        "title": "Changelog",
+        "summary": "A timeline of notable project changes from CHANGELOG.md.",
+        "caps": {
+          "timeline": "Dated entries parsed from the repository's CHANGELOG.md.",
+          "filters": "Filter by category and search the full text; counts follow the filters.",
+          "buildTime": "The file is read at build time, so the page works in SSR and in Docker."
+        }
+      },
+      "guide": {
+        "title": "Guide",
+        "summary": "This page: screens, endpoints, tools, commands, sources and guarantees.",
+        "caps": {
+          "map": "One map of everything the project can do.",
+          "contract": "Tests compare its lists with the real routes, tools and scripts.",
+          "live": "A live strip shows the size of your dossier and when data last arrived."
+        }
+      },
+      "setup": {
+        "title": "First run",
+        "summary": "The setup wizard for the character, the catalog and statistics.",
+        "caps": {
+          "character": "Create the single character: nickname, region and optional profile fields.",
+          "catalog": "Download the public item catalog; without it gear cannot be added.",
+          "profile": "Optionally pull public STALZONE statistics; manual overrides survive."
+        }
+      },
+      "login": {
+        "title": "Sign in",
+        "summary": "Password sign-in and the language choice before authorization.",
+        "caps": {
+          "password": "Password sign-in with an HttpOnly session cookie.",
+          "rateLimit": "Failed attempts are limited per socket address.",
+          "locale": "Switch between English and Russian before signing in."
+        }
+      }
+    },
+    "flow": {
+      "readTitle": "Read path",
+      "writeTitle": "Write path",
+      "layersTitle": "One-way dependencies",
+      "layersText": "app/server → mcp → core → sources/shared. Lower layers never import upper ones; the app talks to the server only over HTTP.",
+      "arrow": "then",
+      "read": {
+        "sources": {
+          "title": "Public sources",
+          "text": "Adapters fetch and parse EXBO, the wiki, skins, prices, icons and the STALZONE profile. They never write to the database."
+        },
+        "sync": {
+          "title": "Sync",
+          "text": "The sync module normalizes the responses, writes rows and records freshness. A failed source becomes stale; old data stays."
+        },
+        "sqlite": {
+          "title": "SQLite",
+          "text": "One WAL database is the only source of truth. There is no second store, worker or cache."
+        },
+        "core": {
+          "title": "Core modules",
+          "text": "Each bounded context owns its tables; calc/ is the only place that produces DPS and TTK numbers."
+        },
+        "clients": {
+          "title": "Consumers",
+          "text": "The payload read model feeds the Nuxt screens, the REST API, MCP and the CLI from the same rows."
+        }
+      },
+      "write": {
+        "entry": {
+          "title": "Entry point",
+          "text": "A form, an agent or a terminal calls the API, MCP or the CLI. Nothing writes SQL directly."
+        },
+        "service": {
+          "title": "Write service",
+          "text": "The owning module validates with zod, checks ownership and builds the before/after diff."
+        },
+        "transaction": {
+          "title": "One transaction",
+          "text": "The change and its event_log entry commit together; a dry run writes nothing."
+        },
+        "result": {
+          "title": "Result",
+          "text": "Callers get the dryRun flag, diff and eventId. Rollback restores the snapshot and logs a new event."
+        }
+      }
+    },
+    "api": {
+      "groups": {
+        "auth": "Session",
+        "read": "Reads",
+        "write": "Writes",
+        "admin": "Administration"
+      },
+      "public": "Public",
+      "note": "Every write accepts a dry run (dryRun in the body or dry_run in MCP) and returns the same dryRun, diff and eventId result. Mutations also require the matching Origin or a bearer token.",
+      "auth": {
+        "login": "Check the password and set the HttpOnly session cookie.",
+        "logout": "Clear the session cookie.",
+        "me": "Report whether the caller is signed in and when the session expires."
+      },
+      "reads": {
+        "healthz": "Liveness probe for the process and the database.",
+        "setup": "First-run state: whether a character exists, catalog size and source status.",
+        "payload": "The whole dossier in one response: character, gear, catalog, derived cards, builds, icons and freshness.",
+        "meta": "Compact metadata: character update, catalog state and freshness.",
+        "character": "The character with its derived fields (K/D, accuracy, headshot, hours, arrival).",
+        "items": "Search the catalog by text, kind, rank and slot.",
+        "item": "One item with stats, effects, icon and the derived detail card.",
+        "details": "A derived card by key (w:, a:, art:, c:).",
+        "catalog": "The weapon and armor catalog.",
+        "owned": "The character's gear, optionally filtered by kind.",
+        "containers": "Containers with their current artifact fill.",
+        "builds": "Saved builds with metrics and rows.",
+        "build": "One build by slug.",
+        "prices": "Latest auction prices for a list of item names.",
+        "sources": "Source status, last success, last attempt and age.",
+        "events": "The change journal, newest first.",
+        "export": "The typed dossier JSON as a download."
+      },
+      "writes": {
+        "characterCreate": "Create the single character; a second create is rejected.",
+        "characterPatch": "Edit identity fields and raw counters; null clears an override.",
+        "ownedCreate": "Add an item copy, optionally inside a container.",
+        "ownedPatch": "Change level, quality, skin, note, role or a container override.",
+        "ownedDelete": "Remove one copy or a given quantity.",
+        "containerFill": "Replace a container's artifact fill and its date.",
+        "buildSave": "Create or update a build and its rows.",
+        "buildDelete": "Delete a build by slug.",
+        "rollback": "Restore an entity from an event snapshot and log the rollback."
+      },
+      "admin": {
+        "cleanupRead": "Count owned records, copies and builds before a cleanup.",
+        "cleanup": "Clear inventory, builds or everything; one journal entry keeps a full snapshot.",
+        "sync": "Run a source sync; all covers catalog sources, profile stays opt-in."
+      }
+    },
+    "mcp": {
+      "readTitle": "Read tools",
+      "writeTitle": "Write tools",
+      "policyTitle": "Write policy",
+      "policy": {
+        "dryRun": "dry_run defaults to true and returns the diff without touching the database.",
+        "confirm": "A real write needs dry_run: false and confirm: true.",
+        "rate": "At most 30 applied writes per minute per process.",
+        "rebuild": "rebuild_site does not rebuild anything; it reports the deploy command."
+      },
+      "tools": {
+        "get_character": "Character profile and stats from the dossier.",
+        "find_items": "Search catalog items by name, kind, rank and slot.",
+        "get_item": "Item card: stats, effects, icon and the derived detail card.",
+        "compare_items": "Compare two weapons by DPS and TTK at a refinement level.",
+        "list_owned": "Items owned by the character.",
+        "list_containers": "Containers with their current fill.",
+        "list_builds": "Builds, the current loadout and what to avoid.",
+        "get_build": "A single build by slug.",
+        "plan_artifact_build": "Pick artifacts for an effect preset, slots and budget.",
+        "get_prices": "Latest auction prices by item name.",
+        "sources_status": "Source state and freshness.",
+        "export_dossier_json": "Export the dossier as portable JSON.",
+        "upsert_owned_item": "Add one copy of an item or update its fields.",
+        "remove_owned_item": "Remove one copy of an item.",
+        "set_container_artifacts": "Replace a container fill.",
+        "save_build": "Create or update a build.",
+        "delete_build": "Delete a build.",
+        "sync_source": "Run a source sync; requires confirm.",
+        "rebuild_site": "Reports the deploy command; MCP does not rebuild the site.",
+        "rollback_event": "Roll back a journal event."
+      }
+    },
+    "cli": {
+      "groups": {
+        "dev": "Develop and build",
+        "data": "Data and maintenance",
+        "mcp": "MCP",
+        "quality": "Quality gates"
+      },
+      "danger": "Deletes the database file",
+      "note": "These are the npm scripts of this repository; the canonical list is package.json and AGENTS.md.",
+      "commands": {
+        "install": "Install dependencies exactly as the lockfile pins them.",
+        "dev": "Start Nuxt on http://stalzone-profile.local.",
+        "build": "Build the site into .output/.",
+        "start": "Run the built server.",
+        "buildCli": "Bundle dist/cli.js and dist/mcp-stdio.js.",
+        "migrate": "Apply pending SQL migrations.",
+        "reset": "Delete the database file; check DB_PATH first.",
+        "sync": "Run source syncs from the terminal; add -- --force to bypass the price TTL.",
+        "export": "Write the typed dossier JSON.",
+        "backup": "Copy the SQLite file with the online backup API and prune copies older than 14 days.",
+        "hashPassword": "Print a scrypt hash for NUXT_PASSWORD_HASH.",
+        "mcp": "Run the MCP server over stdio against the local database or DOSSIER_API_URL.",
+        "smoke": "Call every read tool against a temporary database and validate the shapes.",
+        "test": "Run unit and integration tests.",
+        "testUnit": "Pure-function tests only.",
+        "testIntegration": "Temporary-database tests only.",
+        "testRelated": "Run the test files related to changed sources.",
+        "typecheck": "Typecheck packages, server and the Nuxt app.",
+        "typecheckNode": "Typecheck packages and server without the slow Nuxt pass.",
+        "lint": "Run ESLint, including boundaries.",
+        "boundaries": "Check the dependency direction with dependency-cruiser.",
+        "check": "Typecheck, lint, boundaries and every test.",
+        "golden": "Compare the public fixture with the calculator baseline; expect 0 mismatches."
+      }
+    },
+    "sources": {
+      "columns": {
+        "source": "Source",
+        "updates": "What it updates",
+        "trigger": "When it runs"
+      },
+      "optIn": "Opt-in",
+      "note": "all runs the five catalog sources. profile requires STALZONE credentials and never runs implicitly. A failure marks the source stale and keeps the previous data; the UI shows the age of the last successful snapshot.",
+      "updates": {
+        "exbo_base": "Items and their stats from the EXBO database snapshot.",
+        "wiki": "Artifacts, armor, weapons, containers and TTK values from stalzone.wiki.",
+        "motifs": "Skins and their base item links.",
+        "scpmodel": "Auction price quotes with a 15-minute TTL.",
+        "icons": "Icon files in ICONS_DIR and the icon rows that point to them.",
+        "profile": "Character statistics from the official STALZONE API (origin api)."
+      },
+      "triggers": {
+        "catalog": "Setup wizard, Settings, API sync or the CLI.",
+        "prices": "The same sync path; inside the TTL it answers from the database.",
+        "profile": "Only when explicitly requested and credentials are configured."
+      }
+    },
+    "principles": {
+      "singleSource": {
+        "title": "One database, one process",
+        "text": "SQLite in WAL mode is the only source of truth. The site, API, MCP and CLI all read and write the same file; there is no second store or worker."
+      },
+      "journal": {
+        "title": "Every write is reversible",
+        "text": "Each change commits together with an event_log row that holds before/after snapshots. Rollback restores the entity and logs itself."
+      },
+      "numbers": {
+        "title": "No invented numbers",
+        "text": "A missing lot, stat or price stays null and renders as “no lot” or “no data”. Zero, missing and estimated values never substitute for each other."
+      },
+      "formula": {
+        "title": "One formula for DPS and TTK",
+        "text": "Every displayed damage number comes from catalog/calc/weapons.ts. Stored legacy display values are never substituted."
+      },
+      "privacy": {
+        "title": "Private by design",
+        "text": "No game credentials, no Steam or EXBO sign-in and no reading game files. Only public HTTP sources; the auction is read-only."
+      },
+      "auth": {
+        "title": "Session and origin checks",
+        "text": "A scrypt password, an HttpOnly session cookie, a required Origin on mutations and a bearer token for /mcp."
+      }
+    },
+    "keep": {
+      "title": "This page is part of the contract",
+      "text": "Adding or removing a screen, endpoint, MCP tool, CLI script or source requires updating this page. The test compares it with the code on every run."
+    }
+  },
   "forms": {
     "name": "Name",
     "sectionProfile": "Profile",
@@ -478,7 +887,7 @@
     "sectionMoney": "Money",
     "sectionNotes": "Notes",
     "chooseFaction": "Choose a faction",
-    "createFaction": "Create “{value}”",
+    "factionNone": "No faction",
     "arrivedStored": "In the dossier: “{value}”",
     "title": "Title",
     "quality": "Quality",
@@ -526,7 +935,6 @@
     "money": "Money",
     "maxMoney": "Maximum money",
     "stash": "Stash",
-    "playstyle": "Play style",
     "qty": "Quantity",
     "qualityPlaceholder": "e.g. Rare 141%",
     "skin": "Skin",

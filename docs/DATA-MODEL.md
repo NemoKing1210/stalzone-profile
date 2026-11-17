@@ -22,7 +22,7 @@ only through new migrations in `db/migrations/`.
 
 | Table | Purpose |
 |---|---|
-| `character` | identity: nick, region, faction, alliance, clan, money, stash, playstyle |
+| `character` | identity: nick, region, faction, alliance, clan, money, stash |
 | `character_stat` | raw counters per character and stat, with origin `api` or `manual` |
 | `owned_item` | gear: unique by item/level/quality/skin, copies collapse into `qty` |
 | `owned_container` | per-container override of type, shield, bonus, protection, slots, efficiency |
@@ -34,7 +34,9 @@ only through new migrations in `db/migrations/`.
 
 Migrations: `0001_init.sql` is the typed baseline (replaced once on 2026-11-17 as an
 owner-approved reset; that exception is closed). Every later change is a new
-`NNNN_*.sql` file.
+`NNNN_*.sql` file. `0002_character_faction.sql` turns `faction` into an enum
+(`rise`, `frontier`, `mercenaries`, `covenant`), keeps it nullable, normalizes legacy
+free-text values to `NULL` and drops `playstyle`.
 
 ## Key invariants
 

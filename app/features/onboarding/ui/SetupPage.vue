@@ -1,4 +1,13 @@
 <script setup lang="ts">
+import { factionSelectItems, factionValue, NO_FACTION, type FactionChoice } from '~/shared/lib/factions';
+import {
+  catalogProgress,
+  catalogSources,
+  isSourceReady,
+  type CatalogSource,
+  type CatalogSourceId,
+  type CatalogSourceRun,
+} from '../model/catalogSources';
 import { shouldCloseSetup } from '../model/shouldCloseSetup';
 
 interface SetupSource {
@@ -44,25 +53,56 @@ watchEffect(() => {
 });
 
 const step = ref(1);
-const form = reactive<{ nick: string; region: SetupRegion; faction: string; playstyle: string }>({
+const form = reactive<{ nick: string; region: SetupRegion; faction: FactionChoice }>({
   nick: '',
   region: setup.value?.defaultRegion ?? 'ru',
-  faction: '',
-  playstyle: '',
+  faction: NO_FACTION,
 });
 const creating = ref(false);
-const catalogSources = ['exbo_base', 'wiki', 'motifs', 'scpmodel', 'icons'] as const;
-type SourceResult = { status: 'running' | 'ok' | 'stale'; items?: number; error?: string };
-const results = reactive<Record<string, SourceResult | undefined>>({});
-const profileResult = ref<SourceResult | undefined>();
+const results = reactive<Partial<Record<CatalogSourceId, CatalogSourceRun>>>({});
+const profileResult = ref<CatalogSourceRun | undefined>();
 
-const availableSources = computed(() =>
-  setup.value ? catalogSources.filter((id) => setup.value!.sources.some((source) => source.id === id)) : [],
+const sources = computed(() => catalogSources(setup.value?.sources.map((source) => source.id) ?? []));
+
+function storedStatus(id: CatalogSourceId): string {
+  return setup.value?.sources.find((source) => source.id === id)?.status ?? 'never';
+}
+
+function sourceReady(id: CatalogSourceId): boolean {
+  return isSourceReady(storedStatus(id), results[id]);
+}
+
+const progress = computed(() => catalogProgress(sources.value, sourceReady));
+const running = computed(() => sources.value.some((source) => results[source.id]?.status === 'running'));
+const recommendedPending = computed(() =>
+  sources.value.filter((source) => source.level !== 'optional' && !sourceReady(source.id)),
 );
+
+function sourceStatusText(source: CatalogSource): string {
+  const result = results[source.id];
+  if (result?.status === 'running') return t('setup.syncing');
+  if (result?.status === 'ok') return t('setup.sourceOk', { items: result.items ?? 0 });
+  if (result?.status === 'stale') return t('setup.sourceStale', { error: result.error ?? '' });
+  const stored = storedStatus(source.id);
+  if (stored === 'ok') return t('setup.sourceReady');
+  if (stored === 'stale') return t('setup.sourceOutdated');
+  return t('setup.sourceNever');
+}
+
+function sourceStatusTone(source: CatalogSource): string {
+  const result = results[source.id];
+  if (result?.status === 'ok' || (!result && storedStatus(source.id) === 'ok')) return 'text-[var(--sz-positive)]';
+  if (result?.status === 'stale' || (!result && storedStatus(source.id) === 'stale')) {
+    return 'text-[var(--sz-negative)]';
+  }
+  return 'text-[var(--sz-text-dim)]';
+}
 
 const regionItems = computed(() =>
   (['ru', 'eu', 'na', 'sea'] as const).map((region) => ({ label: t(`forms.regions.${region}`), value: region })),
 );
+
+const factionItems = computed(() => factionSelectItems(t));
 
 async function createCharacter(): Promise<void> {
   if (creating.value || !form.nick.trim()) return;
@@ -73,8 +113,7 @@ async function createCharacter(): Promise<void> {
       body: {
         nick: form.nick.trim(),
         region: form.region,
-        faction: form.faction || null,
-        playstyle: form.playstyle || null,
+        faction: factionValue(form.faction),
         dryRun: false,
       },
     });
@@ -86,7 +125,8 @@ async function createCharacter(): Promise<void> {
   }
 }
 
-async function syncSource(source: string): Promise<void> {
+async function syncSource(source: CatalogSourceId): Promise<void> {
+  if (results[source]?.status === 'running') return;
   results[source] = { status: 'running' };
   try {
     const response = await $fetch<{ results: SyncResult[] }>('/api/v1/admin/sync', {
@@ -100,6 +140,12 @@ async function syncSource(source: string): Promise<void> {
     const data = (error as { data?: { error?: { code?: string; message?: string } } }).data?.error;
     results[source] = { status: 'stale', error: apiMessage(data?.code, data?.message) };
   }
+}
+
+/** The recommended sources, one after another, so the bars advance in a predictable order. */
+async function downloadRecommended(): Promise<void> {
+  if (running.value) return;
+  for (const source of recommendedPending.value) await syncSource(source.id);
 }
 
 async function syncProfile(): Promise<void> {
@@ -120,7 +166,7 @@ async function syncProfile(): Promise<void> {
 </script>
 
 <template>
-  <div class="sz-auth-vignette relative flex min-h-screen items-start justify-center bg-[var(--sz-bg)] p-4">
+  <div class="sz-atmosphere flex min-h-screen items-start justify-center p-4">
     <div class="absolute right-4 top-4">
       <LocaleSwitcher />
     </div>
@@ -155,10 +201,7 @@ async function syncProfile(): Promise<void> {
             <USelect v-model="form.region" :items="regionItems" class="w-full" />
           </UFormField>
           <UFormField :label="t('setup.faction')" name="faction">
-            <UInput v-model="form.faction" class="w-full" maxlength="100" />
-          </UFormField>
-          <UFormField :label="t('setup.playstyle')" name="playstyle">
-            <UInput v-model="form.playstyle" class="w-full" maxlength="500" />
+            <USelect v-model="form.faction" :items="factionItems" class="w-full" />
           </UFormField>
           <UButton
             type="submit"
@@ -172,37 +215,92 @@ async function syncProfile(): Promise<void> {
 
       <div v-else-if="step === 2" class="mt-5 space-y-4">
         <p class="text-[12px] text-[var(--sz-text-muted)]">{{ t('setup.catalogIntro') }}</p>
-        <UAlert color="warning" variant="subtle" icon="i-lucide-info" :title="t('setup.catalogEmptyHint')" />
 
-        <ul class="divide-y divide-[var(--sz-border)] border border-[var(--sz-border)]">
-          <li
-            v-for="source in availableSources"
-            :key="source"
-            class="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
-          >
-            <span class="text-[13px]">{{ t(`sources.${source}`) }}</span>
-            <span class="flex items-center gap-2 text-[11px]">
-              <span v-if="results[source]?.status === 'ok'" class="text-[var(--sz-positive)]">
-                {{ t('setup.sourceOk', { items: results[source]?.items ?? 0 }) }}
-              </span>
-              <span v-else-if="results[source]?.status === 'stale'" class="text-[var(--sz-negative)]">
-                {{ t('setup.sourceStale', { error: results[source]?.error ?? '' }) }}
-              </span>
-              <UButton
-                size="xs"
-                color="neutral"
-                variant="outline"
-                :loading="results[source]?.status === 'running'"
-                :label="results[source]?.status === 'stale' ? t('setup.retry') : t('setup.sync')"
-                @click="syncSource(source)"
-              />
+        <div class="border border-[var(--sz-border)] bg-[var(--sz-bg)] p-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span class="text-[12px] tabular-nums">
+              {{ t('setup.readyCount', { done: progress.done, total: progress.total }) }}
             </span>
+            <UButton
+              v-if="recommendedPending.length"
+              size="xs"
+              :loading="running"
+              :disabled="running"
+              icon="i-lucide-download"
+              :label="t('setup.downloadAll')"
+              @click="downloadRecommended"
+            />
+          </div>
+          <UProgress
+            :model-value="running ? null : progress.percent"
+            :color="progress.percent === 100 && !running ? 'success' : 'primary'"
+            size="sm"
+            class="mt-2"
+          />
+        </div>
+
+        <ul class="space-y-2">
+          <li
+            v-for="source in sources"
+            :key="source.id"
+            class="border border-[var(--sz-border)] bg-[var(--sz-surface)]"
+          >
+            <div class="flex flex-wrap items-start justify-between gap-3 p-3">
+              <div class="min-w-0 space-y-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-[13px]">{{ t(`sources.${source.id}`) }}</span>
+                  <UBadge
+                    v-if="source.level === 'required'"
+                    size="sm"
+                    color="primary"
+                    variant="subtle"
+                    :label="t('setup.required')"
+                  />
+                  <UBadge
+                    v-else-if="source.level === 'recommended'"
+                    size="sm"
+                    color="neutral"
+                    variant="subtle"
+                    :label="t('setup.recommended')"
+                  />
+                </div>
+                <p class="text-[11.5px] leading-snug text-[var(--sz-text-muted)]">
+                  {{ t(`setup.sourceInfo.${source.id}`) }}
+                </p>
+              </div>
+              <div class="flex shrink-0 flex-col items-end gap-1.5">
+                <UButton
+                  size="xs"
+                  :color="source.level === 'optional' ? 'neutral' : 'primary'"
+                  :variant="source.level === 'optional' ? 'outline' : 'solid'"
+                  :loading="results[source.id]?.status === 'running'"
+                  :disabled="running && results[source.id]?.status !== 'running'"
+                  :label="
+                    results[source.id]?.status === 'stale' || storedStatus(source.id) === 'stale'
+                      ? t('setup.retry')
+                      : t('setup.sync')
+                  "
+                  @click="syncSource(source.id)"
+                />
+                <span class="text-[11px] tabular-nums" :class="sourceStatusTone(source)">
+                  {{ sourceStatusText(source) }}
+                </span>
+              </div>
+            </div>
+            <UProgress
+              v-if="results[source.id]"
+              :model-value="results[source.id]?.status === 'running' ? null : 100"
+              :color="results[source.id]?.status === 'stale' ? 'error' : 'success'"
+              size="xs"
+            />
           </li>
         </ul>
 
+        <UAlert color="warning" variant="subtle" icon="i-lucide-info" :title="t('setup.catalogEmptyHint')" />
+
         <div class="flex flex-wrap justify-between gap-2">
           <UButton color="neutral" variant="ghost" :label="t('setup.skipCatalog')" @click="step = 3" />
-          <UButton :label="t('setup.continue')" @click="step = 3" />
+          <UButton :label="t('setup.continue')" :disabled="running" @click="step = 3" />
         </div>
       </div>
 

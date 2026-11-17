@@ -94,6 +94,7 @@ When unsure, widen: a missed test is a correctness bug; an extra suite only cost
 | `server/api/**`, `server/utils/**`                       | matching `tests/unit/*.test.ts` (`session`, `login-limit`)                                                                               |
 | `app/**`                                                 | `npm run typecheck`, `npx eslint app`; `tests/unit/app/**` and `tests/unit/use-api-error.test.ts` for the touched slice                   |
 | `i18n/locales/*.json`                                    | `npm test -- tests/unit/i18n-catalogs.test.ts`                                                                                          |
+| `app/features/guide/**`                                  | `npm test -- tests/unit/app/guide/guide.test.ts tests/unit/i18n-catalogs.test.ts`                                                      |
 | `db/migrations/**`                                      | `npm test -- tests/integration`                                                                                                         |
 | `tests/fixtures/**`                                      | `npm test -- tests/integration`; `npm run golden` if numbers move                                                                       |
 | `docs/**`, comments only                                 | no runtime tests; `git diff --check`                                                                                                    |
@@ -206,6 +207,14 @@ never the `@dossier/shared` barrel: the barrel pulls `node:crypto` into the brow
 The app imports no `@dossier/core`; ESLint enforces both rules together with the
 `shared → entities → features → pages` direction.
 
+**The `/guide` page is part of the contract.** A new or removed screen, REST route, MCP tool,
+CLI script or sync source is not done until the guide lists it. Update
+`app/features/guide/model/guide.ts` and both locale catalogs, then run
+`npm test -- tests/unit/app/guide/guide.test.ts`. That test compares the page with
+`app/pages`, `server/api`, the MCP registry, `package.json` and the sync module, so drift
+turns into a red test instead of a stale page. Keep its descriptions short and factual: they
+are a reference, not marketing copy.
+
 ## What to update along with code
 
 | Changing          | Do not forget                                                                                                                                                          |
@@ -216,6 +225,7 @@ The app imports no `@dossier/core`; ESLint enforces both rules together with the
 | Data source       | `docs/ARCHITECTURE.md` (source table), `core/src/modules/sync`, `tests/integration/sync.test.ts`                                                                       |
 | Formula/numbers   | only `core/src/modules/catalog/calc`, then `npm run golden`, and `docs/DATA-MODEL.md` when needed                                                                      |
 | UI text           | `i18n/locales/en.json` and `i18n/locales/ru.json` (both), `docs/I18N.md`                                                                                               |
+| New page, route, tool or source | `app/features/guide/model/guide.ts` and both locale catalogs; `npm test -- tests/unit/app/guide/guide.test.ts`                                                    |
 | env/deploy        | `README.md`, `.env.example`, `docs/CONFIGURATION.md`, `deploy/docker-compose.yml`, `docs/RUNBOOK.md`, `CHANGELOG.md`                                                   |
 
 ## Style
@@ -277,7 +287,8 @@ The app imports no `@dossier/core`; ESLint enforces both rules together with the
 1. There is a test that failed before the change and passes after it.
 2. Tier 2 is green before the commit, and Tier 3 before push/PR/merge: `npm run check`;
    `npm run golden` when numbers changed; `npm run build` for Docker/deploy/env.
-3. New migrations, fields, routes and tools are described in `docs/`.
+3. New migrations, fields, routes, tools, scripts and sources are described in `docs/` and
+   in the `/guide` page; `tests/unit/app/guide/guide.test.ts` is green.
 4. Secrets and personal data did not enter the diff.
 5. The commit follows Conventional Commits (`feat(scope): …`, `fix: …`, `docs: …`), one
    logical step per commit. Merge/push/deploy only with the repository owner's explicit

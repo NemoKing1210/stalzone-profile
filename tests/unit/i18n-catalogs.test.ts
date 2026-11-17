@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { baseCompile } from '@intlify/message-compiler';
 import { describe, expect, it } from 'vitest';
 import { API_ERROR_CODES } from '../../app/shared/lib/apiErrorMessage';
 
@@ -37,6 +38,19 @@ describe('i18n catalogs', () => {
   it('uses the same interpolation params for every key', () => {
     for (const key of Object.keys(en)) {
       expect({ key, params: params(en[key]!) }).toEqual({ key, params: params(ru[key] ?? '') });
+    }
+  });
+
+  it('compiles every message with the same compiler the build uses', () => {
+    for (const [locale, catalog] of [
+      ['en', en],
+      ['ru', ru],
+    ] as const) {
+      for (const [key, message] of Object.entries(catalog)) {
+        const errors: string[] = [];
+        baseCompile(message, { onError: (error) => errors.push(error.message) });
+        expect(errors, `${locale} ${key}: ${message}`).toEqual([]);
+      }
     }
   });
 

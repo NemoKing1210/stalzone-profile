@@ -1,5 +1,5 @@
 /** These are the API contract's shapes, not a second copy. */
-import type { EventRead, Freshness, OwnedKind } from '@dossier/shared/contracts';
+import type { EventRead, Faction, Freshness, OwnedKind } from '@dossier/shared/contracts';
 
 export type { OwnedKind };
 
@@ -44,7 +44,7 @@ export type EventRow = EventRead;
 export interface DossierCharacter {
   nick?: string;
   region?: string;
-  faction?: string | null;
+  faction?: Faction | null;
   alliance?: string | null;
   clanName?: string | null;
   clanRank?: string | null;
@@ -58,7 +58,6 @@ export interface DossierCharacter {
   money?: number | null;
   maxMoney?: number | null;
   stash?: string | null;
-  playstyle?: string | null;
   stats?: Record<string, number | string>;
 }
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { CharacterPatchSchema } from '@dossier/shared/contracts';
+import { factionSelectItems, factionValue, NO_FACTION, type FactionChoice } from '~/shared/lib/factions';
 import type { DossierCharacter } from '~/shared/types/dossier';
 import type { WriteResult } from '~/shared/composables/useWrite';
 import { STAT_FIELDS, toCharacterStatsPatch, type StatField } from '../model/characterStatsForm';
@@ -12,12 +13,6 @@ const { write, busy } = useWrite();
 const { t } = useI18n();
 const { dec, num } = useFormat();
 
-/**
- * Current STALZONE factions (ex-STALCRAFT: X). The 10.07.2024 patch renamed
- * Долг → Рубеж, Свобода → Заря, Монолит → Шёпот; Сталкеры and Бандиты are the base
- * factions. Anything else (legacy or event factions) can still be typed and saved.
- */
-const FACTIONS = ['Сталкеры', 'Бандиты', 'Заря', 'Рубеж', 'Завет', 'Наёмники', 'Шёпот'];
 const REGIONS = ['ru', 'eu', 'na', 'sea', 'global'] as const;
 type Region = (typeof REGIONS)[number];
 
@@ -36,26 +31,22 @@ function emptyStats(): Record<StatField, string | number | null> {
 const form = reactive({
   nick: '',
   region: 'ru' as Region,
-  /** `undefined` is what USelectMenu produces when its value is cleared. */
-  faction: undefined as string | undefined,
+  /** Sentinel for "no faction": reka-ui rejects an empty string item value. */
+  faction: NO_FACTION as FactionChoice,
   alliance: null as string | null | undefined,
   clanName: null as string | null | undefined,
   clanRank: null as string | null | undefined,
   money: null as number | null,
   maxMoney: null as number | null,
   stash: null as string | null | undefined,
-  playstyle: null as string | null | undefined,
   stats: emptyStats(),
   dryRun: false,
 });
 
 const lastResult = ref<WriteResult | null>(null);
 
-/** Keep the current value selectable even when it is not in the curated list. */
-const factionItems = computed(() => {
-  const current = form.faction?.trim();
-  return current && !FACTIONS.includes(current) ? [current, ...FACTIONS] : FACTIONS;
-});
+/** The form keeps the "no faction" sentinel; validation must see `null`. */
+const validationState = computed(() => ({ ...form, faction: factionValue(form.faction) }));
 
 const regionItems = computed(() => REGIONS.map((region) => ({ label: t(`forms.regions.${region}`), value: region })));
 
@@ -80,14 +71,13 @@ function reset(): void {
   const character = props.character;
   form.nick = character.nick ?? '';
   form.region = isRegion(character.region) ? character.region : 'ru';
-  form.faction = character.faction ?? undefined;
+  form.faction = character.faction ?? NO_FACTION;
   form.alliance = character.alliance ?? null;
   form.clanName = character.clanName ?? null;
   form.clanRank = character.clanRank ?? null;
   form.money = character.money ?? null;
   form.maxMoney = character.maxMoney ?? null;
   form.stash = character.stash ?? null;
-  form.playstyle = character.playstyle ?? null;
   form.stats = emptyStats();
   for (const field of STAT_FIELDS) form.stats[field] = character.stats?.[field] ?? null;
   form.dryRun = false;
@@ -100,14 +90,13 @@ async function submit(): Promise<void> {
     body: {
       ...(form.nick ? { nick: form.nick } : {}),
       region: form.region,
-      faction: form.faction ?? null,
+      faction: factionValue(form.faction),
       alliance: form.alliance ?? null,
       clanName: form.clanName ?? null,
       clanRank: form.clanRank ?? null,
       money: form.money,
       maxMoney: form.maxMoney,
       stash: form.stash ?? null,
-      playstyle: form.playstyle ?? null,
       stats: toCharacterStatsPatch(form.stats),
       dryRun: form.dryRun,
     },
@@ -130,7 +119,7 @@ async function submit(): Promise<void> {
     scrollable
   >
     <template #body>
-      <UForm id="character-form" :schema="CharacterPatchSchema" :state="form" class="space-y-4" @submit="submit">
+      <UForm id="character-form" :schema="CharacterPatchSchema" :state="validationState" class="space-y-4" @submit="submit">
         <div class="space-y-3">
           <p class="sz-caps text-[var(--sz-text-muted)]">{{ t('forms.sectionProfile') }}</p>
           <div class="grid gap-3 sm:grid-cols-2">
@@ -141,19 +130,12 @@ async function submit(): Promise<void> {
               <USelect v-model="form.region" :items="regionItems" class="w-full" />
             </UFormField>
             <UFormField :label="t('forms.faction')" name="faction">
-              <USelectMenu
+              <USelect
                 v-model="form.faction"
-                :items="factionItems"
-                searchable
-                clearable
-                create-item
+                :items="factionSelectItems(t)"
                 :placeholder="t('forms.chooseFaction')"
                 class="w-full"
-              >
-                <template #create-item-label="{ item }">
-                  {{ t('forms.createFaction', { value: item }) }}
-                </template>
-              </USelectMenu>
+              />
             </UFormField>
             <UFormField :label="t('forms.alliance')" name="alliance">
               <UInput v-model.nullable="form.alliance" class="w-full" />
@@ -206,9 +188,6 @@ async function submit(): Promise<void> {
           <p class="sz-caps text-[var(--sz-text-muted)]">{{ t('forms.sectionNotes') }}</p>
           <UFormField :label="t('forms.stash')" name="stash">
             <UInput v-model.nullable="form.stash" class="w-full" />
-          </UFormField>
-          <UFormField :label="t('forms.playstyle')" name="playstyle">
-            <UTextarea v-model.nullable="form.playstyle" :rows="2" class="w-full" />
           </UFormField>
         </div>
 

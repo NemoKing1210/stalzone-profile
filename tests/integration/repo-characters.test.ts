@@ -26,7 +26,7 @@ describe('characters and character stats', () => {
     const id = seed.upsertCharacter(db, {
       nick: 'tester',
       region: 'eu',
-      faction: 'Заря',
+      faction: 'rise',
       clanName: 'Клан',
       clanRank: 'Лидер',
       money: 1000,
@@ -34,6 +34,7 @@ describe('characters and character stats', () => {
     expect(repo.getCharacter(db, id)).toMatchObject({
       nick: 'tester',
       region: 'eu',
+      faction: 'rise',
       clan_name: 'Клан',
       clan_rank: 'Лидер',
       money: 1000,

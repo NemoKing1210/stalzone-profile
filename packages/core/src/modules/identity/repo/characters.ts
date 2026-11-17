@@ -1,3 +1,4 @@
+import type { Faction } from '@dossier/shared/contracts';
 import type { Db } from '../../../platform/db/index.js';
 import { upsertStatDefinition } from '../../catalog/index.js';
 
@@ -8,14 +9,13 @@ export interface CharacterRow {
   id: number;
   nick: string;
   region: string;
-  faction: string | null;
+  faction: Faction | null;
   alliance: string | null;
   clan_name: string | null;
   clan_rank: string | null;
   money: number | null;
   max_money: number | null;
   stash: string | null;
-  playstyle: string | null;
   profile_fetched_at: string | null;
   created_at: string;
   updated_at: string;
@@ -24,14 +24,13 @@ export interface CharacterRow {
 export interface CharacterInput {
   nick: string;
   region: string;
-  faction?: string | null;
+  faction?: Faction | null;
   alliance?: string | null;
   clanName?: string | null;
   clanRank?: string | null;
   money?: number | null;
   maxMoney?: number | null;
   stash?: string | null;
-  playstyle?: string | null;
   profileFetchedAt?: string | null;
 }
 
@@ -57,7 +56,6 @@ export type CharacterColumnPatch = Partial<
     | 'money'
     | 'max_money'
     | 'stash'
-    | 'playstyle'
     | 'profile_fetched_at'
   >
 >;
@@ -70,7 +68,6 @@ const IDENTITY_COLUMNS = [
   'money',
   'max_money',
   'stash',
-  'playstyle',
   'profile_fetched_at',
 ] as const;
 
@@ -87,7 +84,6 @@ export function upsertCharacter(db: Db, input: CharacterInput): number {
     money: input.money ?? null,
     max_money: input.maxMoney ?? null,
     stash: input.stash ?? null,
-    playstyle: input.playstyle ?? null,
     profile_fetched_at: input.profileFetchedAt ?? null,
   };
   const now = new Date().toISOString();

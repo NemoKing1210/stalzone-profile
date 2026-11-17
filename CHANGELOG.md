@@ -9,11 +9,37 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- The first-run catalog step explains each data source: every source is a card with a short
+  description, a Required or Recommended badge, a status line, an indeterminate progress bar
+  while it downloads and a completed bar afterwards. A summary shows how many sources are
+  ready, and "Download recommended" runs the important ones in catalog order.
 - `MetaRead` in `@dossier/shared/contracts` describes `GET /api/v1/meta` and is validated
   by the payload contract test; `OwnedKind` is exported as a type beside its schema.
+- A `/changelog` page parses the root `CHANGELOG.md` at build time and renders it as a
+  filterable timeline with date and category badges, inline code and italic notes. Links
+  render only for safe targets; search, filters and the result count are accessible, and
+  the file format is guarded by contract tests. The navigation gained a Changelog entry.
+- A `/guide` page maps every screen, REST endpoint, MCP tool, CLI script and data source,
+  with read/write flow diagrams and a live strip for the current dossier. Its lists are
+  contract-tested against `app/pages`, `server/api`, the MCP registry, `package.json` and
+  the sync module, and the navigation gained a Guide entry.
+- The shell carries a procedural Zone backdrop (`sz-atmosphere`): a faint fine grid whose
+  lines follow the accent plus fine grain, painted with CSS and one inline SVG. It is fixed
+  behind the content, never reaches a pane or a table; no image assets or network requests
+  are added.
 
 ### Changed
 
+- The `/changelog` page is a vertical timeline: entries that share a release date sit under
+  one date node, each card reads as a single column of colour-ruled categories, items get a
+  category-coloured marker, and the filter bar sticks under the header on wide screens.
+- The character faction is one of the four northern STALZONE factions — Rise, Frontier,
+  Mercenaries or Covenant — stored as the slug `rise`, `frontier`, `mercenaries` or
+  `covenant` and still optional. Both the setup wizard and the profile editor use a select
+  instead of free text, and the API rejects any other value. The new migration
+  `0002_character_faction.sql` turns legacy free-text factions into "not specified".
+- The playstyle field is gone from the dossier: the character table, the API contracts,
+  the overview page and the profile editor no longer carry it.
 - `@dossier/core` publishes each module only by name (`./modules/<name>`); the deep
   `./modules/*` wildcard and the dead `src/calc` compatibility shims are gone.
 - The write result, freshness, event and owned-kind shapes have one definition in

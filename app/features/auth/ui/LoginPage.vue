@@ -32,7 +32,7 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <div class="sz-auth-vignette relative flex min-h-screen items-center justify-center bg-[var(--sz-bg)] p-4">
+  <div class="sz-atmosphere flex min-h-screen items-center justify-center p-4">
     <div class="absolute right-4 top-4">
       <LocaleSwitcher />
     </div>
@@ -59,10 +59,6 @@ async function submit(): Promise<void> {
 
         <UButton type="submit" block :loading="pending" :disabled="!state.password">{{ t('auth.signIn') }}</UButton>
       </UForm>
-
-      <p class="mt-4 border-t border-[var(--sz-border)] pt-3 text-[11px] text-[var(--sz-text-dim)]">
-        {{ t('auth.footerBefore') }}<code class="bg-[var(--sz-surface-alt)] px-1 font-mono">NUXT_PASSWORD_HASH</code>{{ t('auth.footerAfter') }}
-      </p>
     </div>
   </div>
 </template>

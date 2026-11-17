@@ -78,7 +78,7 @@ text is English.
 
 | Method | Path | Body |
 |---|---|---|
-| POST | `/api/v1/character` | `CharacterCreateSchema`: `nick`, `region` (`ru \| eu \| na \| sea`), optional `faction`, `alliance`, `clanName`, `clanRank`, `playstyle`, `dryRun`. The dossier holds one character: a second create answers `409 CHARACTER_EXISTS` |
+| POST | `/api/v1/character` | `CharacterCreateSchema`: `nick`, `region` (`ru \| eu \| na \| sea`), optional `faction` (`rise \| frontier \| mercenaries \| covenant` or `null`), `alliance`, `clanName`, `clanRank`, `dryRun`. The dossier holds one character: a second create answers `409 CHARACTER_EXISTS` |
 | POST | `/api/v1/owned` | `OwnedCreateSchema` (optionally `container` for a container) |
 | PATCH | `/api/v1/owned/:id` | `OwnedPatchSchema` (optionally `container` override or `null` to clear) |
 | DELETE | `/api/v1/owned/:id?qty=` | — (removes one copy or `qty`) |
@@ -89,8 +89,9 @@ text is English.
 | POST | `/api/v1/events/:id/rollback` | `{ dryRun? }` |
 | POST | `/api/v1/admin/cleanup` | `{ scope: "owned" \| "builds" \| "all", dryRun? }` |
 
-`CharacterPatchSchema` accepts identity fields (`nick`, `region`, `faction`, `alliance`,
-`clanName`, `clanRank`, `money`, `maxMoney`, `stash`, `playstyle`) and `stats`, a map of raw
+`CharacterPatchSchema` accepts identity fields (`nick`, `region`, `faction` — one of the
+four faction slugs or `null`, `alliance`, `clanName`, `clanRank`, `money`, `maxMoney`,
+`stash`) and `stats`, a map of raw
 counter id → number/string/`null`. Writing a value sets the `manual` origin; `null` clears
 it and reveals the API value. Derived fields (K/D, accuracy, headshot share, hours) are
 read-only and rejected in the patch.

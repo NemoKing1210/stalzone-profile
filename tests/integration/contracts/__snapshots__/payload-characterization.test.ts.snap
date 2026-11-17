@@ -140,7 +140,6 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
     "maxMoney": null,
     "money": 100000,
     "nick": "tester",
-    "playstyle": null,
     "region": "ru",
     "stash": null,
     "stats": {

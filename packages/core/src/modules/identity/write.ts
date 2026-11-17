@@ -1,4 +1,4 @@
-import type { CharacterCreate, CharacterPatch } from '@dossier/shared';
+import type { CharacterCreate, CharacterPatch, Faction } from '@dossier/shared';
 import type { Db } from '../../platform/db/index.js';
 import { logEvent, withTransaction, WriteError, type WriteResult } from '../../platform/journal/index.js';
 import * as repo from './repo/characters.js';
@@ -14,21 +14,19 @@ const CHARACTER_FIELDS = [
   ['money', 'money'],
   ['maxMoney', 'max_money'],
   ['stash', 'stash'],
-  ['playstyle', 'playstyle'],
 ] as const;
 
 export type CharacterSnapshot = {
   id: number;
   nick: string;
   region: string;
-  faction: string | null;
+  faction: Faction | null;
   alliance: string | null;
   clanName: string | null;
   clanRank: string | null;
   money: number | null;
   maxMoney: number | null;
   stash: string | null;
-  playstyle: string | null;
   stats: Record<string, number | string>;
   manualStats: string[];
 };
@@ -60,7 +58,6 @@ export function characterSnapshot(db: Db, row: CharacterRow): CharacterSnapshot 
     money: row.money,
     maxMoney: row.max_money,
     stash: row.stash,
-    playstyle: row.playstyle,
     stats,
     manualStats: manualStats.sort(),
   };
@@ -88,7 +85,6 @@ export function createCharacter(db: Db, input: CharacterCreate): WriteResult {
     money: null,
     maxMoney: null,
     stash: null,
-    playstyle: input.playstyle ?? null,
     stats: {},
     manualStats: [],
   };
@@ -106,7 +102,6 @@ export function createCharacter(db: Db, input: CharacterCreate): WriteResult {
       alliance: input.alliance ?? null,
       clanName: input.clanName ?? null,
       clanRank: input.clanRank ?? null,
-      playstyle: input.playstyle ?? null,
     });
     after = characterSnapshot(db, repo.getCharacter(db, id)!);
     eventId = logEvent(db, {

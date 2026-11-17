@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { DossierPane, StatRow } from '~/shared/ui';
 import { clampPercent } from '~/shared/lib/clampPercent';
+import { factionLabel } from '~/shared/lib/factions';
 
 import EditCharacterModal from './EditCharacterModal.vue';
 
@@ -11,6 +12,7 @@ const { payload, meta } = useDossier();
 const { fmtMoney, dec, num, formatDate, formatAge } = useFormat();
 
 const character = computed(() => payload.value?.character ?? {});
+const factionName = computed(() => factionLabel(t, character.value.faction));
 const hasCharacter = computed(() => Object.keys(character.value).length > 0);
 const metaInfo = computed(() => payload.value?.meta ?? {});
 const catalogMeta = computed(() => meta.value?.catalogMeta ?? null);
@@ -120,7 +122,7 @@ const dataState = computed(() => [
       <div>
         <h1>{{ character.nick ?? 'STALZONE' }}</h1>
         <p class="text-[12.5px] text-[var(--sz-text-muted)]">
-          {{ character.faction ?? t('overview.factionMissing') }}
+          {{ factionName ?? t('overview.factionMissing') }}
           <span v-if="character.clanName"> · {{ character.clanName }}</span>
           <span v-if="character.clanRank"> · {{ character.clanRank }}</span>
           <span v-if="character.region"> · {{ character.region }}</span>
@@ -133,9 +135,6 @@ const dataState = computed(() => [
         <DossierPane class="order-1 min-w-0" :title="t('overview.character')" dense>
           <div class="min-w-0 space-y-1.5">
             <p class="font-display text-[15px] uppercase tracking-[0.06em]">{{ character.nick ?? 'STALZONE' }}</p>
-            <p v-if="character.playstyle" class="text-[11px] leading-snug text-[var(--sz-text-muted)]">
-              {{ t('overview.playstyle', { value: character.playstyle }) }}
-            </p>
             <UButton
               icon="i-lucide-pencil"
               color="neutral"

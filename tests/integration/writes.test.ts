@@ -456,18 +456,18 @@ describe('character', () => {
   });
 
   it('patches identity fields and rolls back', () => {
-    const patch = CharacterPatchSchema.parse({ nick: 'tester-2', playstyle: 'снайпер', dryRun: false });
+    const patch = CharacterPatchSchema.parse({ nick: 'tester-2', faction: 'covenant', dryRun: false });
     const result = patchCharacter(db, patch);
     expect(result.eventId).toBeTypeOf('number');
-    expect(getCharacter(db, characterId)).toMatchObject({ nick: 'tester-2', playstyle: 'снайпер' });
+    expect(getCharacter(db, characterId)).toMatchObject({ nick: 'tester-2', faction: 'covenant' });
 
     rollbackEvent(db, result.eventId!, false);
-    expect(getCharacter(db, characterId)).toMatchObject({ nick: 'tester', playstyle: null });
+    expect(getCharacter(db, characterId)).toMatchObject({ nick: 'tester', faction: null });
   });
 
   it('does not write on dry run', () => {
-    patchCharacter(db, CharacterPatchSchema.parse({ playstyle: 'снайпер', dryRun: true }));
-    expect(getCharacter(db, characterId)?.playstyle).toBeNull();
+    patchCharacter(db, CharacterPatchSchema.parse({ faction: 'covenant', dryRun: true }));
+    expect(getCharacter(db, characterId)?.faction).toBeNull();
     expect(listEvents(db)).toHaveLength(0);
   });
 });

@@ -9,6 +9,8 @@ const sections = computed(() => [
   { label: t('nav.armor'), icon: 'i-lucide-shield', to: '/armor' },
   { label: t('nav.containers'), icon: 'i-lucide-backpack', to: '/containers' },
   { label: t('nav.artifacts'), icon: 'i-lucide-gem', to: '/artifacts' },
+  { label: t('nav.changelog'), icon: 'i-lucide-scroll-text', to: '/changelog' },
+  { label: t('nav.guide'), icon: 'i-lucide-map', to: '/guide' },
 ]);
 
 const navItems = computed(() =>
@@ -38,7 +40,7 @@ async function logout(): Promise<void> {
 </script>
 
 <template>
-  <div class="flex min-h-screen flex-col bg-[var(--sz-bg)] text-[var(--sz-text)]">
+  <div class="sz-atmosphere flex min-h-screen flex-col text-[var(--sz-text)]">
     <header class="sticky top-0 z-40 border-b border-[var(--sz-border)] bg-ink-950">
       <div
         class="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-4 px-4 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,max-content)_minmax(0,1fr)]"

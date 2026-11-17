@@ -21,6 +21,15 @@ export const ItemKindSchema = z.enum([
 export const OwnedKindSchema = z.enum(['weapon', 'armor', 'container', 'artifact']);
 export type OwnedKind = z.infer<typeof OwnedKindSchema>;
 
+/**
+ * The four northern factions of STALZONE. Stalkers and bandits are starting
+ * sides, not factions, so they must not be storable. The slug is what the DB
+ * keeps; the display name lives in the i18n catalogs.
+ */
+export const FACTIONS = ['rise', 'frontier', 'mercenaries', 'covenant'] as const;
+export const FactionSchema = z.enum(FACTIONS);
+export type Faction = (typeof FACTIONS)[number];
+
 export const CleanupScopeSchema = z.enum(['owned', 'builds', 'all']);
 export type CleanupScope = z.infer<typeof CleanupScopeSchema>;
 

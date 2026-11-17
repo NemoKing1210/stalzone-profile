@@ -38,17 +38,17 @@ describe('createCharacter', () => {
   it('writes the character and one character.create event', () => {
     const result = createCharacter(
       db,
-      CharacterCreateSchema.parse({ nick: 'Tester', region: 'eu', playstyle: 'sniper' }),
+      CharacterCreateSchema.parse({ nick: 'Tester', region: 'eu', faction: 'rise' }),
     );
 
     expect(result.dryRun).toBe(false);
     expect(result.eventId).toBeTypeOf('number');
-    expect(getCharacter(db)).toMatchObject({ nick: 'Tester', region: 'eu', playstyle: 'sniper' });
+    expect(getCharacter(db)).toMatchObject({ nick: 'Tester', region: 'eu', faction: 'rise' });
 
     const [event] = listEvents(db);
     expect(event).toMatchObject({ action: 'character.create', entity: 'character' });
     expect(JSON.parse(event.before!)).toBeNull();
-    expect(JSON.parse(event.after!)).toMatchObject({ nick: 'Tester', stats: {} });
+    expect(JSON.parse(event.after!)).toMatchObject({ nick: 'Tester', faction: 'rise', stats: {} });
   });
 
   it('rejects a second character with 409 and writes nothing', () => {

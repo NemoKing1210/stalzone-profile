@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   CleanupScopeSchema,
+  FactionSchema,
   ItemKindSchema,
   OwnedKindSchema,
   SetupRegionSchema,
@@ -67,14 +68,13 @@ export type OwnedPatch = z.infer<typeof OwnedPatchSchema>;
 export const CharacterPatchSchema = WriteOptionsSchema.extend({
   nick: z.string().min(1).max(64).optional(),
   region: z.enum(['ru', 'eu', 'na', 'sea', 'global']).optional(),
-  faction: z.string().max(100).nullish(),
+  faction: FactionSchema.nullish(),
   alliance: z.string().max(100).nullish(),
   clanName: z.string().max(100).nullish(),
   clanRank: z.string().max(100).nullish(),
   money: z.number().int().min(0).nullish(),
   maxMoney: z.number().int().min(0).nullish(),
   stash: z.string().max(500).nullish(),
-  playstyle: z.string().max(500).nullish(),
   stats: z
     .record(z.string().min(1).max(200), z.union([z.number().finite(), z.string().min(1).max(500), z.null()]))
     .optional(),
@@ -88,11 +88,10 @@ export type CharacterPatch = z.infer<typeof CharacterPatchSchema>;
 export const CharacterCreateSchema = WriteOptionsSchema.extend({
   nick: z.string().trim().min(1).max(64),
   region: SetupRegionSchema,
-  faction: z.string().max(100).nullish(),
+  faction: FactionSchema.nullish(),
   alliance: z.string().max(100).nullish(),
   clanName: z.string().max(100).nullish(),
   clanRank: z.string().max(100).nullish(),
-  playstyle: z.string().max(500).nullish(),
 });
 
 export type CharacterCreate = z.infer<typeof CharacterCreateSchema>;
