@@ -6,7 +6,7 @@
 backed by one SQLite database and exposed through a Nuxt site, a REST API and MCP.</p>
 
 <p>
-  <img alt="Node.js 22+" src="https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white">
+  <img alt="Node.js 22.22.3+" src="https://img.shields.io/badge/node-%E2%89%A522.22.3-339933?logo=node.js&logoColor=white">
   <img alt="Nuxt 4" src="https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white">
   <img alt="TypeScript strict" src="https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white">
   <img alt="SQLite WAL" src="https://img.shields.io/badge/SQLite-WAL-003B57?logo=sqlite&logoColor=white">
@@ -29,7 +29,7 @@ over HTTPS and behind a password.
 
 ## Quick start
 
-Node.js 22+ (24 recommended) and npm.
+Node.js 22.22.3+ or 24.15+ (24 recommended) and npm.
 
 ```bash
 npm ci

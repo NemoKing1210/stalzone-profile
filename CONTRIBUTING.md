@@ -16,7 +16,7 @@ private game files, public HTTP sources only, and no personal data in commits.
 
 ## Setup
 
-Node.js 22+ (24 recommended) and npm.
+Node.js 22.22.3+ or 24.15+ (24 recommended) and npm.
 
 ```bash
 npm ci
@@ -40,10 +40,10 @@ Never commit `.env`, `data/`, `snapshots/`, `public/icons/` or any `*.db*` file.
 4. Update the documentation the change touches; AGENTS.md lists which files.
 
 ```bash
-npm test -- tests/integration/writes.test.ts   # focused test
+npm test -- tests/integration/inventory-storage.test.ts   # focused test
 npm run test:related -- <changed files>        # tests importing the change
-npm run typecheck:node                         # packages/, server/, scripts/
-npm run typecheck                              # app/
+npm run typecheck:node                         # packages/, scripts/ and tests
+npm run typecheck                              # the above plus the app and server
 npx eslint <changed files>
 npm run boundaries
 ```

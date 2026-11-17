@@ -62,7 +62,7 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     dbPath: './data/profile.db',
-    realm: 'ru',
+    realm: process.env.NUXT_REALM || process.env.REALM || 'ru',
     sessionSecret: '',
     passwordHash: '',
     password: '',

@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Stalzone Profile: Nuxt site and API over a SQLite source of truth, with an MCP server for the agent",
   "engines": {
-    "node": ">=22"
+    "node": "^22.22.3 || ^24.15.0 || >=26.0.0"
   },
   "workspaces": [
     "packages/*"

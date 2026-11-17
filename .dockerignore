@@ -5,7 +5,12 @@ dist
 coverage
 .vitest
 data
+.data
 snapshots
+public/icons
+tests
+.hallmark
+*.xeon
 .git
 .gitlab-ci.yml
 .superpowers

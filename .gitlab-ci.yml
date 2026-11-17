@@ -5,15 +5,16 @@ stages:
 
 default:
   image: node:24-bookworm
+  variables:
+    npm_config_cache: '$CI_PROJECT_DIR/.npm'
   cache:
     key:
       files:
         - package-lock.json
     paths:
-      - node_modules/
-      - .nuxt/
+      - .npm/
   before_script:
-    - npm ci
+    - npm ci --prefer-offline --no-audit --no-fund
 
 lint:
   stage: verify
@@ -30,15 +31,17 @@ boundaries:
   script:
     - npm run boundaries
 
-unit:
+test:
   stage: test
-  variables:
-    DB_PATH: ./data/ci.db
   script:
-    - npm run db:reset
-    - npm run db:migrate
     - npm test
     - npm run golden
+
+build:
+  stage: test
+  script:
+    - npm run build
+    - npm run build:cli
 
 docker:
   stage: image

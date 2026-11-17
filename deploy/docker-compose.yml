@@ -18,7 +18,13 @@ services:
       NUXT_PASSWORD: ${NUXT_PASSWORD:-}
       NUXT_MCP_TOKEN: ${NUXT_MCP_TOKEN:-}
       NUXT_LOGIN_RATE_MAX: ${NUXT_LOGIN_RATE_MAX:-5}
+      NUXT_LOGIN_WINDOW_MS: ${NUXT_LOGIN_WINDOW_MS:-60000}
       NUXT_TRUST_PROXY: ${NUXT_TRUST_PROXY:-}
+      NUXT_REALM: ${NUXT_REALM:-ru}
+      # The CLI reads plain names; keep the pair in sync with the NUXT_* values above.
+      REALM: ${NUXT_REALM:-ru}
+      LOG_BOOT_LEVEL: ${LOG_BOOT_LEVEL:-warn}
+      LOG_BOOT_STDOUT: ${LOG_BOOT_STDOUT:-1}
       NUXT_STALZONE_CLIENT_ID: ${NUXT_STALZONE_CLIENT_ID:-}
       NUXT_STALZONE_CLIENT_SECRET: ${NUXT_STALZONE_CLIENT_SECRET:-}
       # The same pair for `npm run sync` inside the container (the CLI reads plain names).

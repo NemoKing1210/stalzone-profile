@@ -5,6 +5,7 @@ dist/
 coverage/
 .vitest/
 data/
+.data/
 public/icons/
 *.db
 *.db-wal

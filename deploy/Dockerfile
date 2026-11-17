@@ -7,15 +7,24 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends python3 make g++ \
   && rm -rf /var/lib/apt/lists/*
 
+# Only manifests are copied before `npm ci` so a source edit does not bust the dependency layer.
 COPY package.json package-lock.json ./
+COPY packages/shared/package.json ./packages/shared/package.json
+COPY packages/core/package.json ./packages/core/package.json
+COPY packages/sources/package.json ./packages/sources/package.json
+COPY packages/mcp/package.json ./packages/mcp/package.json
+
+RUN npm ci
+
 COPY packages ./packages
 COPY scripts ./scripts
 COPY app ./app
 COPY server ./server
 COPY db ./db
+COPY i18n ./i18n
+COPY public ./public
 COPY nuxt.config.ts tsconfig.json tsconfig.node.json tsup.config.ts eslint.config.mjs ./
 
-RUN npm ci
 RUN npm run build && npm run build:cli
 RUN npm prune --omit=dev
 

@@ -344,8 +344,8 @@ Rules:
 
 ## Gotchas
 
-- **Node ≥ 22 (24 in CI/Docker), native `better-sqlite3`.** After changing the Node version,
-  reinstall dependencies.
+- **Node 22.22.3+ or 24.15+ (24 in CI/Docker), native `better-sqlite3`.** The range follows
+  Nuxt's own `engines`; after changing the Node version, reinstall dependencies.
 - **`"type": "module"`:** the CLI bundles are named `dist/cli.js` and `dist/mcp-stdio.js`.
   Do not rename them to `.mjs` — the Dockerfile and runbook rely on these names.
 - **Paths and secrets come from env, not constants.** `NUXT_*` overrides runtimeConfig at
