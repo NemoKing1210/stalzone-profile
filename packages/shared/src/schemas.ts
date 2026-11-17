@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const RealmSchema = z.enum(['ru', 'global', 'eu']).default('ru');
+export const RegionSchema = z.enum(['ru', 'eu', 'na', 'sea', 'global']).default('ru');
 
 export const ItemKindSchema = z.enum([
   'weapon',
@@ -31,6 +31,17 @@ export type CleanupRequest = z.infer<typeof CleanupRequestSchema>;
 /* Site/API write schemas (camelCase, dryRun defaults to false)        */
 /* ------------------------------------------------------------------ */
 
+export const OwnedContainerSchema = z.object({
+  containerType: z.string().min(1).max(200).nullish(),
+  shield: z.number().nullish(),
+  bonus: z.string().max(500).nullish(),
+  protection: z.number().nullish(),
+  slots: z.number().int().nonnegative().nullish(),
+  eff: z.number().nullish(),
+});
+
+export type OwnedContainerInput = z.infer<typeof OwnedContainerSchema>;
+
 export const OwnedCreateSchema = WriteOptionsSchema.extend({
   name: z.string().min(1).max(200),
   kind: ItemKindSchema.default('weapon'),
@@ -41,6 +52,7 @@ export const OwnedCreateSchema = WriteOptionsSchema.extend({
   role: z.string().max(200).nullish(),
   slot: z.string().max(100).nullish(),
   qty: z.number().int().min(1).max(99).default(1),
+  container: OwnedContainerSchema.optional(),
 });
 
 export type OwnedCreate = z.infer<typeof OwnedCreateSchema>;
@@ -54,6 +66,7 @@ export const OwnedPatchSchema = WriteOptionsSchema.extend({
   slot: z.string().max(100).nullish(),
   qty: z.number().int().min(1).max(99).optional(),
   displayName: z.string().min(1).max(200).nullish(),
+  container: OwnedContainerSchema.nullish(),
 }).refine((value) => Object.keys(value).some((key) => key !== 'dryRun'), {
   message: 'At least one field must be changed',
 });
@@ -62,20 +75,18 @@ export type OwnedPatch = z.infer<typeof OwnedPatchSchema>;
 
 export const CharacterPatchSchema = WriteOptionsSchema.extend({
   nick: z.string().min(1).max(64).optional(),
+  region: z.enum(['ru', 'eu', 'na', 'sea', 'global']).optional(),
   faction: z.string().max(100).nullish(),
   alliance: z.string().max(100).nullish(),
-  clan: z.string().max(100).nullish(),
-  arrived: z.string().max(100).nullish(),
-  hours: z.number().int().min(0).max(1_000_000).nullish(),
-  kd: z.number().min(0).max(100).nullish(),
-  accuracy: z.number().min(0).max(100).nullish(),
-  headshot: z.number().min(0).max(100).nullish(),
-  achievements: z.number().int().min(0).nullish(),
-  achievementPoints: z.number().int().min(0).nullish(),
+  clanName: z.string().max(100).nullish(),
+  clanRank: z.string().max(100).nullish(),
   money: z.number().int().min(0).nullish(),
   maxMoney: z.number().int().min(0).nullish(),
   stash: z.string().max(500).nullish(),
   playstyle: z.string().max(500).nullish(),
+  stats: z
+    .record(z.string().min(1).max(200), z.union([z.number().finite(), z.string().min(1).max(500), z.null()]))
+    .optional(),
 }).refine((value) => Object.keys(value).some((key) => key !== 'dryRun'), {
   message: 'At least one field must be changed',
 });
@@ -127,17 +138,6 @@ export const BuildInputSchema = WriteOptionsSchema.extend({
 });
 
 export type BuildInput = z.infer<typeof BuildInputSchema>;
-
-export const ContentBlockInputSchema = WriteOptionsSchema.extend({
-  kind: z.enum(['recs', 'earnings', 'builds_meta', 'catalog_meta']),
-  slug: z.string().max(200).nullish(),
-  title: z.string().max(200).nullish(),
-  lead: z.string().max(2000).nullish(),
-  payload: z.unknown(),
-  position: z.number().int().nonnegative().default(0),
-});
-
-export type ContentBlockInput = z.infer<typeof ContentBlockInputSchema>;
 
 export const LoginSchema = z.object({
   password: z.string().min(1).max(256),
@@ -224,7 +224,7 @@ export const SyncInputSchema = z.object({
   force: z.boolean().default(false),
 });
 
-export const SyncSourceSchema = z.enum(['exbo_base', 'wiki', 'motifs', 'profile', 'scpmodel', 'all']);
+export const SyncSourceSchema = z.enum(['exbo_base', 'wiki', 'motifs', 'scpmodel', 'all']);
 
 export const SyncRequestSchema = z.object({
   source: SyncSourceSchema.default('all'),

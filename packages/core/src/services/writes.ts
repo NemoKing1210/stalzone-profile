@@ -3,13 +3,12 @@ import type {
   BuildInput as BuildInputPayload,
   CharacterPatch,
   ContainerFill,
-  ContentBlockInput,
   OwnedCreate,
   OwnedPatch,
 } from '@dossier/shared';
 import type { Db } from '../db/index.js';
 import * as repo from '../repo/index.js';
-import type { BuildSlotRow, CharacterRow, ContentBlockRow, OwnedRow } from '../repo/index.js';
+import type { CharacterColumnPatch, CharacterRow, OwnedJoined } from '../repo/index.js';
 
 export interface WriteDiff {
   before: unknown;
@@ -48,7 +47,7 @@ function parseJson(value: string | null | undefined): unknown {
 
 function characterOrThrow(db: Db): CharacterRow {
   const character = repo.getCharacter(db);
-  if (!character) throw new WriteError(409, 'NO_CHARACTER', 'No character in the dossier — import the dossier first');
+  if (!character) throw new WriteError(409, 'NO_CHARACTER', 'No character in the dossier — run onboarding first');
   return character;
 }
 
@@ -113,23 +112,77 @@ function resolveMotifExact(db: Db, name: string) {
   return item;
 }
 
-function ownedSnapshot(row: OwnedRow, itemName?: string) {
+/* ------------------------------ snapshots ------------------------------ */
+
+interface ContainerSnapshot {
+  containerType: string | null;
+  shield: number | null;
+  bonus: string | null;
+  protection: number | null;
+  slots: number | null;
+  eff: number | null;
+}
+
+type ContainerPatch = Partial<ContainerSnapshot>;
+
+function containerSnapshot(db: Db, ownedId: number): ContainerSnapshot | null {
+  const row = repo.getOwnedContainer(db, ownedId);
+  if (!row) return null;
+  return {
+    containerType: row.container_type,
+    shield: row.shield,
+    bonus: row.bonus,
+    protection: row.protection,
+    slots: row.slots,
+    eff: row.eff,
+  };
+}
+
+function mergeContainer(current: ContainerSnapshot | null, patch: ContainerPatch | null | undefined): ContainerSnapshot | null {
+  if (patch === undefined) return current;
+  if (patch === null) return null;
+  return {
+    containerType: patch.containerType ?? current?.containerType ?? null,
+    shield: patch.shield ?? current?.shield ?? null,
+    bonus: patch.bonus ?? current?.bonus ?? null,
+    protection: patch.protection ?? current?.protection ?? null,
+    slots: patch.slots ?? current?.slots ?? null,
+    eff: patch.eff ?? current?.eff ?? null,
+  };
+}
+
+function fillSnapshot(db: Db, ownedId: number) {
+  const rows = repo.listContainerSlots(db, ownedId);
+  return {
+    ownedId,
+    asOf: rows[0]?.as_of ?? null,
+    artifacts: rows.map((row) => ({
+      itemId: row.artifact_item_id,
+      name: row.artifact_name ?? null,
+      level: row.level,
+      quality: row.quality,
+    })),
+  };
+}
+
+function ownedSnapshot(db: Db, row: OwnedJoined) {
   return {
     id: row.id,
     itemId: row.item_id,
-    name: row.display_name ?? itemName ?? '',
+    name: row.display_name ?? row.item_name,
     kind: row.kind,
     level: row.level,
     quality: row.quality,
     skinItemId: row.skin_item_id,
+    skinName: row.skin_name,
     qty: row.qty,
     note: row.note,
     role: row.role,
     slot: row.slot,
-    extra: parseJson(row.extra),
+    displayName: row.display_name,
+    container: containerSnapshot(db, row.id),
   };
 }
-
 
 /* ------------------------------ cleanup counts ------------------------------ */
 
@@ -150,46 +203,117 @@ export function cleanupCounts(db: Db): CleanupCounts {
 
 const CHARACTER_FIELDS = [
   ['nick', 'nick'],
+  ['region', 'region'],
   ['faction', 'faction'],
   ['alliance', 'alliance'],
-  ['clan', 'clan'],
-  ['arrived', 'arrived'],
-  ['hours', 'hours'],
-  ['kd', 'kd'],
-  ['accuracy', 'accuracy'],
-  ['headshot', 'headshot'],
-  ['achievements', 'achievements'],
-  ['achievementPoints', 'achievement_points'],
+  ['clanName', 'clan_name'],
+  ['clanRank', 'clan_rank'],
   ['money', 'money'],
   ['maxMoney', 'max_money'],
   ['stash', 'stash'],
   ['playstyle', 'playstyle'],
 ] as const;
 
-function characterSnapshot(row: CharacterRow): Record<string, unknown> {
-  const out: Record<string, unknown> = { id: row.id };
-  for (const [key, column] of CHARACTER_FIELDS) out[key] = row[column as keyof CharacterRow] ?? null;
+type CharacterSnapshot = {
+  id: number;
+  nick: string;
+  region: string;
+  faction: string | null;
+  alliance: string | null;
+  clanName: string | null;
+  clanRank: string | null;
+  money: number | null;
+  maxMoney: number | null;
+  stash: string | null;
+  playstyle: string | null;
+  stats: Record<string, number | string>;
+  manualStats: string[];
+};
+
+function characterSnapshot(db: Db, row: CharacterRow): CharacterSnapshot {
+  const effective = repo.characterStatMap(db, row.id);
+  const stats: Record<string, number | string> = {};
+  const manualStats: string[] = [];
+  for (const [statId, stat] of Object.entries(effective)) {
+    const value = stat.value_num ?? stat.value_text;
+    if (value == null) continue;
+    stats[statId] = value;
+    if (stat.origin === 'manual') manualStats.push(statId);
+  }
+  return {
+    id: row.id,
+    nick: row.nick,
+    region: row.region,
+    faction: row.faction,
+    alliance: row.alliance,
+    clanName: row.clan_name,
+    clanRank: row.clan_rank,
+    money: row.money,
+    maxMoney: row.max_money,
+    stash: row.stash,
+    playstyle: row.playstyle,
+    stats,
+    manualStats: manualStats.sort(),
+  };
+}
+
+function characterColumns(snapshot: Partial<CharacterSnapshot>): CharacterColumnPatch {
+  const out: CharacterColumnPatch = {};
+  for (const [key, column] of CHARACTER_FIELDS) {
+    if (snapshot[key] !== undefined) out[column] = snapshot[key] as never;
+  }
   return out;
 }
 
 export function patchCharacter(db: Db, patch: CharacterPatch): WriteResult {
   const character = characterOrThrow(db);
-  const before = characterSnapshot(character);
-  const defined: Record<string, unknown> = {};
+  const before = characterSnapshot(db, character);
+
+  const defined: Partial<CharacterSnapshot> = {};
   for (const [key] of CHARACTER_FIELDS) {
-    if (patch[key as keyof typeof patch] !== undefined) defined[key] = patch[key as keyof typeof patch];
+    const value = patch[key as keyof CharacterPatch];
+    if (value !== undefined) defined[key] = value as never;
   }
-  const after = { ...before, ...defined };
-  const changed = Object.keys(defined);
-  const human = changed.length
-    ? `Character: ${changed.map((key) => `${key} ${String(before[key])} → ${String(after[key])}`).join(', ')}`
-    : 'No changes';
+
+  const patchStats = patch.stats ?? {};
+  const cleared = new Set(Object.entries(patchStats).filter(([, value]) => value === null).map(([statId]) => statId));
+  const stats: Record<string, number | string> = {};
+  for (const [statId, value] of Object.entries(before.stats)) {
+    if (!cleared.has(statId)) stats[statId] = value;
+  }
+  const manual = new Set(before.manualStats);
+  for (const [statId, value] of Object.entries(patchStats)) {
+    if (value === null) {
+      manual.delete(statId);
+    } else {
+      stats[statId] = value;
+      manual.add(statId);
+    }
+  }
+
+  const after: CharacterSnapshot = {
+    ...before,
+    ...defined,
+    stats,
+    manualStats: [...manual].sort(),
+  };
+
+  const changed: string[] = [];
+  for (const [key] of CHARACTER_FIELDS) {
+    if (before[key] !== after[key]) changed.push(`${key} ${String(before[key])} → ${String(after[key])}`);
+  }
+  if (JSON.stringify(before.stats) !== JSON.stringify(after.stats)) changed.push('stats');
+  const human = changed.length ? `Character: ${changed.join(', ')}` : 'No changes';
 
   if (patch.dryRun) return { dryRun: true, diff: { before, after, human } };
 
   let eventId: number | undefined;
   db.transaction(() => {
-    repo.updateCharacterById(db, character.id, defined);
+    if (Object.keys(defined).length) repo.updateCharacterById(db, character.id, characterColumns(defined));
+    for (const [statId, value] of Object.entries(patch.stats ?? {})) {
+      if (value === null) repo.clearCharacterStat(db, character.id, statId, 'manual');
+      else repo.setCharacterStat(db, character.id, statId, value, 'manual');
+    }
     eventId = repo.logEvent(db, {
       actor: 'owner',
       action: 'character.update',
@@ -207,15 +331,18 @@ export function patchCharacter(db: Db, patch: CharacterPatch): WriteResult {
 export function createOwned(db: Db, input: OwnedCreate): WriteResult {
   const character = characterOrThrow(db);
   const item = resolveItem(db, input.name, input.kind);
-  const skinItemId = input.skin ? resolveMotifExact(db, input.skin).id : null;
+  const skin = input.skin ? resolveMotifExact(db, input.skin) : null;
+  const skinItemId = skin?.id ?? null;
   const quality = input.quality ?? null;
   const existing = repo.findOwned(db, character.id, item.id, input.level, quality, skinItemId);
+  const existingRow = existing ? repo.getOwned(db, existing.id) : null;
   const qty = (existing?.qty ?? 0) + input.qty;
-  const before = existing ? ownedSnapshot(existing, item.name) : null;
-  const extra =
-    input.skin === undefined
-      ? undefined
-      : { ...((existing ? parseJson(existing.extra) : null) as Record<string, unknown> | null), skin: input.skin };
+  const before = existingRow ? ownedSnapshot(db, existingRow) : null;
+  const container = input.container
+    ? mergeContainer(existingRow ? containerSnapshot(db, existingRow.id) : null, input.container)
+    : existingRow
+      ? containerSnapshot(db, existingRow.id)
+      : null;
   const after = {
     id: existing?.id ?? null,
     itemId: item.id,
@@ -224,11 +351,13 @@ export function createOwned(db: Db, input: OwnedCreate): WriteResult {
     level: input.level,
     quality,
     skinItemId,
+    skinName: skin?.name ?? existingRow?.skin_name ?? null,
     qty,
     note: input.note ?? existing?.note ?? null,
     role: input.role ?? existing?.role ?? null,
     slot: input.slot ?? existing?.slot ?? item.slot ?? null,
-    extra: extra ?? (existing ? parseJson(existing.extra) : null),
+    displayName: item.name,
+    container,
   };
   const human = existing
     ? `Quantity of "${item.name}": ${existing.qty} → ${qty}`
@@ -250,7 +379,7 @@ export function createOwned(db: Db, input: OwnedCreate): WriteResult {
       slot: after.slot,
       qty,
       displayName: item.name,
-      extra,
+      container: input.container ?? undefined,
     });
     after.id = id;
     eventId = repo.logEvent(db, {
@@ -269,21 +398,19 @@ export function updateOwned(db: Db, id: number, patch: OwnedPatch): WriteResult 
   const row = repo.getOwned(db, id);
   if (!row) throw new WriteError(404, 'OWNED_NOT_FOUND', 'Record not found');
 
-  const currentExtra = (parseJson(row.extra) ?? {}) as Record<string, unknown>;
-  const currentSkin = typeof currentExtra.skin === 'string' ? currentExtra.skin : null;
   let skinItemId = row.skin_item_id;
-  let extra = row.extra;
+  let skinName = row.skin_name;
   if (patch.skin !== undefined) {
     if (patch.skin === null) {
       skinItemId = null;
-      extra = JSON.stringify({ ...currentExtra, skin: null });
-    } else if (currentSkin !== null && patch.skin === currentSkin) {
-      // Unchanged legacy skin string: keep the existing mapping (possibly none) instead of guessing.
+      skinName = null;
     } else {
-      skinItemId = resolveMotifExact(db, patch.skin).id;
-      extra = JSON.stringify({ ...currentExtra, skin: patch.skin });
+      const motif = resolveMotifExact(db, patch.skin);
+      skinItemId = motif.id;
+      skinName = motif.name;
     }
   }
+
   const merged = {
     level: patch.level ?? row.level,
     quality: patch.quality === undefined ? row.quality : patch.quality,
@@ -293,7 +420,8 @@ export function updateOwned(db: Db, id: number, patch: OwnedPatch): WriteResult 
     qty: patch.qty ?? row.qty,
     displayName: patch.displayName === undefined ? row.display_name : patch.displayName,
     skinItemId,
-    extra: parseJson(extra),
+    skinName,
+    container: mergeContainer(containerSnapshot(db, row.id), patch.container),
   };
 
   const clash = repo.findOwned(db, row.character_id, row.item_id, merged.level, merged.quality, merged.skinItemId);
@@ -303,7 +431,7 @@ export function updateOwned(db: Db, id: number, patch: OwnedPatch): WriteResult 
     });
   }
 
-  const before = ownedSnapshot(row, row.item_name);
+  const before = ownedSnapshot(db, row);
   const after = { ...before, ...merged, name: merged.displayName ?? row.item_name };
   const changes: string[] = [];
   for (const key of ['level', 'quality', 'qty', 'note', 'role', 'slot'] as const) {
@@ -311,6 +439,7 @@ export function updateOwned(db: Db, id: number, patch: OwnedPatch): WriteResult 
   }
   if (before.name !== after.name) changes.push(`name: ${before.name} → ${after.name}`);
   if (before.skinItemId !== after.skinItemId) changes.push('skin: changed');
+  if (JSON.stringify(before.container) !== JSON.stringify(after.container)) changes.push('container: changed');
   const human = changes.length ? `"${row.display_name ?? row.item_name}": ${changes.join(', ')}` : 'No changes';
 
   if (patch.dryRun) return { dryRun: true, diff: { before, after, human } };
@@ -326,7 +455,12 @@ export function updateOwned(db: Db, id: number, patch: OwnedPatch): WriteResult 
       skin_item_id: merged.skinItemId,
       qty: merged.qty,
       display_name: merged.displayName,
-      extra: merged.extra == null ? null : JSON.stringify(merged.extra),
+      container:
+        patch.container === undefined
+          ? undefined
+          : patch.container === null
+            ? null
+            : (patch.container as repo.ContainerInput),
     });
     eventId = repo.logEvent(db, {
       actor: 'owner',
@@ -346,8 +480,8 @@ export function deleteOwned(db: Db, id: number, opts: { dryRun: boolean; qty?: n
 
   const remove = Math.min(Math.max(1, Math.trunc(opts.qty ?? 1)), row.qty);
   const remaining = row.qty - remove;
-  const before: Record<string, unknown> = { ...ownedSnapshot(row) };
-  if (row.kind === 'container') before.fill = containerFillSnapshot(db, row.id);
+  const before: Record<string, unknown> = { ...ownedSnapshot(db, row) };
+  if (row.kind === 'container') before.fill = fillSnapshot(db, row.id);
   const after = remaining > 0 ? { ...before, qty: remaining } : null;
   const name = row.display_name ?? row.item_name;
   const human = remaining > 0 ? `Quantity of "${name}": ${row.qty} → ${remaining}` : `Removed "${name}"`;
@@ -372,26 +506,12 @@ export function deleteOwned(db: Db, id: number, opts: { dryRun: boolean; qty?: n
 
 /* ------------------------------ containers ------------------------------ */
 
-function containerFillSnapshot(db: Db, ownedId: number) {
-  const rows = repo.listContainerFill(db, ownedId);
-  return {
-    ownedId,
-    asOf: rows[0]?.as_of ?? null,
-    artifacts: rows.map((row) => ({
-      itemId: row.artifact_item_id,
-      name: row.artifact_name ?? null,
-      level: row.level,
-      quality: row.quality,
-    })),
-  };
-}
-
 export function setContainerFill(db: Db, id: number, input: ContainerFill): WriteResult {
   const row = repo.getOwned(db, id);
   if (!row) throw new WriteError(404, 'OWNED_NOT_FOUND', 'Container not found');
   if (row.kind !== 'container') throw new WriteError(422, 'NOT_A_CONTAINER', 'This record is not a container');
 
-  const before = containerFillSnapshot(db, id);
+  const before = fillSnapshot(db, id);
   const artifacts = input.artifacts.map((artifact) => {
     const item = resolveItem(db, artifact.name, 'artifact');
     return { itemId: item.id, name: item.name, level: artifact.level, quality: artifact.quality ?? null };
@@ -404,10 +524,14 @@ export function setContainerFill(db: Db, id: number, input: ContainerFill): Writ
 
   let eventId: number | undefined;
   db.transaction(() => {
-    repo.replaceContainerFill(
+    repo.replaceContainerSlots(
       db,
       id,
-      artifacts.map((artifact) => ({ itemId: artifact.itemId, level: artifact.level, quality: artifact.quality })),
+      artifacts.map((artifact) => ({
+        itemId: artifact.itemId,
+        level: artifact.level,
+        quality: artifact.quality,
+      })),
       asOf,
     );
     eventId = repo.logEvent(db, {
@@ -438,10 +562,14 @@ function buildSnapshot(db: Db, slug: string) {
     eff: build.eff,
     budget: build.budget,
     total: build.total,
-    metrics: parseJson(build.metrics),
     verdict: build.verdict,
     position: build.position,
-    rows: repo.listBuildSlots(db, build.id).map((slot: BuildSlotRow) => ({
+    metrics: repo.listBuildMetrics(db, build.id).map((metric) => ({
+      l: metric.label,
+      v: metric.value,
+      s: metric.sub,
+    })),
+    rows: repo.listBuildSlots(db, build.id).map((slot) => ({
       itemId: slot.item_id,
       label: slot.label,
       quality: slot.quality,
@@ -485,7 +613,7 @@ export function saveBuild(db: Db, input: BuildInputPayload): WriteResult {
     eff: input.eff ?? null,
     budget: input.budget ?? null,
     total: input.total ?? null,
-    metrics: input.metrics ?? null,
+    metrics: input.metrics?.map((metric) => ({ l: metric.l, v: metric.v ?? null, s: metric.s ?? null })) ?? null,
     verdict: input.verdict ?? null,
     position: existing?.position ?? repo.listBuilds(db).length,
     rows,
@@ -496,7 +624,7 @@ export function saveBuild(db: Db, input: BuildInputPayload): WriteResult {
 
   let eventId: number | undefined;
   db.transaction(() => {
-    repo.saveBuild(db, { ...after, position: after.position });
+    repo.saveBuild(db, after);
     eventId = repo.logEvent(db, {
       actor: 'owner',
       action: 'build.save',
@@ -531,56 +659,11 @@ export function deleteBuild(db: Db, slug: string, dryRun: boolean): WriteResult 
   return { dryRun: false, diff: { before, after: null, human }, eventId };
 }
 
-/* ------------------------------ content ------------------------------ */
-
-function blockSnapshot(row: ContentBlockRow | null) {
-  if (!row) return null;
-  return {
-    kind: row.kind,
-    slug: row.slug,
-    title: row.title,
-    lead: row.lead,
-    payload: repo.blockPayload(row),
-    position: row.position,
-  };
-}
-
-export function putContentBlock(db: Db, input: ContentBlockInput): WriteResult {
-  const before = blockSnapshot(repo.getBlock(db, input.kind, input.slug ?? null));
-  const after = {
-    kind: input.kind,
-    slug: input.slug ?? null,
-    title: input.title ?? null,
-    lead: input.lead ?? null,
-    payload: input.payload,
-    position: input.position,
-  };
-  const human = before
-    ? `Block ${input.kind}/${input.slug ?? '—'} updated`
-    : `Block ${input.kind}/${input.slug ?? '—'} created`;
-
-  if (input.dryRun) return { dryRun: true, diff: { before, after, human } };
-
-  let eventId: number | undefined;
-  db.transaction(() => {
-    repo.putBlock(db, after);
-    eventId = repo.logEvent(db, {
-      actor: 'owner',
-      action: 'content.put',
-      entity: 'content',
-      entityId: `${input.kind}:${input.slug ?? ''}`,
-      before,
-      after,
-    });
-  })();
-  return { dryRun: false, diff: { before, after, human }, eventId };
-}
-
 /* ------------------------------ cleanup ------------------------------ */
 
-function ownedCleanupSnapshot(db: Db, row: ReturnType<typeof repo.listOwned>[number]) {
-  const snapshot: Record<string, unknown> = ownedSnapshot(row, row.item_name);
-  if (row.kind === 'container') snapshot.fill = containerFillSnapshot(db, row.id);
+function ownedCleanupSnapshot(db: Db, row: OwnedJoined) {
+  const snapshot: Record<string, unknown> = ownedSnapshot(db, row);
+  if (row.kind === 'container') snapshot.fill = fillSnapshot(db, row.id);
   return snapshot;
 }
 
@@ -678,7 +761,7 @@ export function rollbackEvent(db: Db, eventId: number, dryRun: boolean): WriteRe
 
   let rollbackId: number | undefined;
   db.transaction(() => {
-    restoreSnapshot(db, event.action, after as never, before as never);
+    restoreSnapshot(db, event.action, after, before);
     rollbackId = repo.logEvent(db, {
       actor: 'owner',
       action: 'rollback',
@@ -692,72 +775,88 @@ export function rollbackEvent(db: Db, eventId: number, dryRun: boolean): WriteRe
   return { dryRun: false, diff: { before, after, human }, eventId: rollbackId };
 }
 
-function restoreSnapshot(db: Db, action: string, before: any, after: any): void {
+function restoreSnapshot(
+  db: Db,
+  action: string,
+  target: any /* the state recorded in event.before */,
+  produced: any /* the state recorded in event.after */,
+): void {
   switch (action) {
     case 'owned.create': {
-      if (before) repo.updateOwnedById(db, before.id, ownedPatch(before));
-      else if (after?.id) repo.deleteOwned(db, after.id);
+      if (target) restoreOwnedSnapshot(db, target);
+      else if (produced?.id) repo.deleteOwned(db, produced.id);
       return;
     }
     case 'owned.update': {
-      if (before?.id) repo.updateOwnedById(db, before.id, ownedPatch(before));
+      if (target?.id) {
+        repo.updateOwnedById(db, target.id, ownedPatch(target));
+      }
       return;
     }
     case 'owned.delete': {
-      restoreOwnedSnapshot(db, before);
+      restoreOwnedSnapshot(db, target);
       return;
     }
     case 'owned.clear': {
-      for (const snapshot of (before as any[]) ?? []) restoreOwnedSnapshot(db, snapshot);
+      for (const snapshot of (target as any[]) ?? []) restoreOwnedSnapshot(db, snapshot);
       return;
     }
     case 'build.clear': {
-      for (const snapshot of (before as any[]) ?? []) if (snapshot) repo.saveBuild(db, snapshot);
+      for (const snapshot of (target as any[]) ?? []) if (snapshot) repo.saveBuild(db, snapshot);
       return;
     }
     case 'dossier.clear': {
-      for (const snapshot of (before?.owned as any[]) ?? []) restoreOwnedSnapshot(db, snapshot);
-      for (const snapshot of (before?.builds as any[]) ?? []) if (snapshot) repo.saveBuild(db, snapshot);
+      for (const snapshot of (target?.owned as any[]) ?? []) restoreOwnedSnapshot(db, snapshot);
+      for (const snapshot of (target?.builds as any[]) ?? []) if (snapshot) repo.saveBuild(db, snapshot);
       return;
     }
     case 'container.fill': {
-      if (before) {
-        if (!repo.getOwned(db, before.ownedId)) {
+      if (target) {
+        if (!repo.getOwned(db, target.ownedId)) {
           throw new WriteError(409, 'OWNED_NOT_FOUND', 'Container to roll back not found');
         }
-        repo.replaceContainerFill(
+        repo.replaceContainerSlots(
           db,
-          before.ownedId,
-          (before.artifacts ?? []).map((artifact: any) => ({
+          target.ownedId,
+          (target.artifacts ?? []).map((artifact: any) => ({
             itemId: artifact.itemId,
             level: artifact.level,
             quality: artifact.quality,
           })),
-          before.asOf ?? new Date().toISOString(),
+          target.asOf ?? new Date().toISOString(),
         );
       }
       return;
     }
     case 'build.save': {
-      if (before) repo.saveBuild(db, before);
-      else if (after?.slug) repo.deleteBuild(db, after.slug);
+      if (target) repo.saveBuild(db, target);
+      else if (produced?.slug) repo.deleteBuild(db, produced.slug);
       return;
     }
     case 'build.delete': {
-      if (before) repo.saveBuild(db, before);
-      return;
-    }
-    case 'content.put': {
-      if (before) repo.putBlock(db, before);
-      else if (after) repo.deleteBlock(db, after.kind, after.slug ?? null);
+      if (target) repo.saveBuild(db, target);
       return;
     }
     case 'character.update': {
-      if (before) repo.updateCharacterById(db, before.id ?? characterOrThrow(db).id, before);
+      if (!target) return;
+      const id = target.id ?? characterOrThrow(db).id;
+      repo.updateCharacterById(db, id, characterColumns(target));
+      restoreCharacterStats(db, id, target, produced);
       return;
     }
     default:
       throw new WriteError(400, 'NOT_ROLLBACKABLE', `Event "${action}" cannot be rolled back`);
+  }
+}
+
+function restoreCharacterStats(db: Db, characterId: number, target: any, produced: any): void {
+  const values = (target?.stats ?? {}) as Record<string, number | string>;
+  const manual = new Set((target?.manualStats ?? []) as string[]);
+  const current = repo.characterStatMap(db, characterId);
+  const keys = new Set([...Object.keys(values), ...Object.keys(current), ...Object.keys(produced?.stats ?? {})]);
+  for (const statId of keys) {
+    if (statId in values && manual.has(statId)) repo.setCharacterStat(db, characterId, statId, values[statId]!, 'manual');
+    else repo.clearCharacterStat(db, characterId, statId, 'manual');
   }
 }
 
@@ -774,15 +873,15 @@ function restoreOwnedSnapshot(db: Db, snapshot: any): void {
     note: snapshot.note,
     role: snapshot.role,
     slot: snapshot.slot,
-    displayName: snapshot.name,
-    extra: snapshot.extra ?? undefined,
+    displayName: snapshot.displayName ?? snapshot.name,
   });
+  if (snapshot.container) repo.upsertOwnedContainer(db, restoredId, snapshot.container);
   const fill = snapshot.fill as { asOf?: string | null; artifacts?: any[] } | null | undefined;
-  if (fill?.artifacts?.length) {
-    repo.replaceContainerFill(
+  if (fill) {
+    repo.replaceContainerSlots(
       db,
       restoredId,
-      fill.artifacts.map((artifact) => ({
+      (fill.artifacts ?? []).map((artifact) => ({
         itemId: artifact.itemId,
         level: artifact.level,
         quality: artifact.quality,
@@ -792,16 +891,16 @@ function restoreOwnedSnapshot(db: Db, snapshot: any): void {
   }
 }
 
-function ownedPatch(snapshot: any) {
+function ownedPatch(snapshot: any): repo.OwnedPatch {
   return {
     level: snapshot.level,
     quality: snapshot.quality,
-    skin_item_id: snapshot.skinItemId,
+    skin_item_id: snapshot.skinItemId ?? null,
     qty: snapshot.qty,
     note: snapshot.note,
     role: snapshot.role,
     slot: snapshot.slot,
-    display_name: snapshot.name,
-    extra: typeof snapshot.extra === 'string' ? snapshot.extra : snapshot.extra == null ? null : JSON.stringify(snapshot.extra),
+    display_name: snapshot.displayName ?? snapshot.name ?? null,
+    container: snapshot.container ? { ...snapshot.container } : null,
   };
 }
