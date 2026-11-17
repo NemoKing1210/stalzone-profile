@@ -1,6 +1,7 @@
 import { norm } from '@dossier/shared';
 import type {
   BuildInput as BuildInputPayload,
+  CharacterCreate,
   CharacterPatch,
   ContainerFill,
   OwnedCreate,
@@ -266,6 +267,53 @@ function characterColumns(snapshot: Partial<CharacterSnapshot>): CharacterColumn
     if (snapshot[key] !== undefined) out[column] = snapshot[key] as never;
   }
   return out;
+}
+
+/** First-run creation. The dossier holds at most one character. */
+export function createCharacter(db: Db, input: CharacterCreate): WriteResult {
+  if (repo.getCharacter(db)) throw new WriteError(409, 'CHARACTER_EXISTS', 'A character already exists');
+
+  const preview: Omit<CharacterSnapshot, 'id'> = {
+    nick: input.nick,
+    region: input.region,
+    faction: input.faction ?? null,
+    alliance: input.alliance ?? null,
+    clanName: input.clanName ?? null,
+    clanRank: input.clanRank ?? null,
+    money: null,
+    maxMoney: null,
+    stash: null,
+    playstyle: input.playstyle ?? null,
+    stats: {},
+    manualStats: [],
+  };
+  const human = `Create character "${input.nick}" (${input.region})`;
+
+  if (input.dryRun) return { dryRun: true, diff: { before: null, after: preview, human } };
+
+  let eventId: number | undefined;
+  let after: CharacterSnapshot | undefined;
+  db.transaction(() => {
+    const id = repo.upsertCharacter(db, {
+      nick: input.nick,
+      region: input.region,
+      faction: input.faction ?? null,
+      alliance: input.alliance ?? null,
+      clanName: input.clanName ?? null,
+      clanRank: input.clanRank ?? null,
+      playstyle: input.playstyle ?? null,
+    });
+    after = characterSnapshot(db, repo.getCharacter(db, id)!);
+    eventId = repo.logEvent(db, {
+      actor: 'owner',
+      action: 'character.create',
+      entity: 'character',
+      entityId: id,
+      before: null,
+      after,
+    });
+  })();
+  return { dryRun: false, diff: { before: null, after, human }, eventId };
 }
 
 export function patchCharacter(db: Db, patch: CharacterPatch): WriteResult {
@@ -843,6 +891,19 @@ function restoreSnapshot(
     }
     case 'build.delete': {
       if (target) repo.saveBuild(db, target);
+      return;
+    }
+    case 'character.create': {
+      const id = produced?.id;
+      if (id == null) return;
+      if (repo.characterHasDossier(db, id)) {
+        throw new WriteError(
+          409,
+          'CHARACTER_NOT_EMPTY',
+          'Character has gear or builds; remove them before rolling back its creation',
+        );
+      }
+      repo.deleteCharacter(db, id);
       return;
     }
     case 'character.update': {
