@@ -1,8 +1,7 @@
 import { z } from 'zod';
-import { latestPricesForNames } from '@dossier/core';
+import { latestPriceReadsForNames } from '@dossier/core';
 import { useDb } from '../../utils/db';
 import { apiError, validationError } from '../../utils/errors';
-import { priceJson } from '../../utils/serialize';
 
 const QuerySchema = z.object({
   names: z.string().trim().min(1).max(4000),
@@ -18,6 +17,5 @@ export default defineEventHandler((event) => {
     .filter(Boolean);
   if (!names.length) return apiError(event, 400, 'VALIDATION', 'Provide at least one name');
 
-  const prices = latestPricesForNames(useDb(), names);
-  return Object.fromEntries(Object.entries(prices).map(([name, rows]) => [name, rows.map(priceJson)]));
+  return latestPriceReadsForNames(useDb(), names);
 });

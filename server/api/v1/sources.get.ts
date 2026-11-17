@@ -1,5 +1,4 @@
-import { listSources } from '@dossier/core';
+import { listSourceReads } from '@dossier/core';
 import { useDb } from '../../utils/db';
-import { sourceJson } from '../../utils/serialize';
 
-export default defineEventHandler(() => listSources(useDb()).map(sourceJson));
+export default defineEventHandler(() => listSourceReads(useDb()));

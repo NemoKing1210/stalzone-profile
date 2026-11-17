@@ -1,5 +1,5 @@
 import { BuildInputSchema } from '@dossier/shared';
-import { saveBuild } from '@dossier/core/services/writes';
+import { saveBuild } from '@dossier/core';
 import { useDb } from '../../utils/db';
 import { validationError } from '../../utils/errors';
 import { requireOrigin } from '../../utils/auth';

@@ -1,6 +1,5 @@
-import { defaultSetupRegion, listSources, setupState } from '@dossier/core';
+import { defaultSetupRegion, setupState, listSourceReads } from '@dossier/core';
 import { useDb } from '../../utils/db';
-import { sourceJson } from '../../utils/serialize';
 
 export default defineEventHandler(() => {
   const db = useDb();
@@ -9,6 +8,6 @@ export default defineEventHandler(() => {
     ...setupState(db),
     defaultRegion: defaultSetupRegion(String(config.realm)),
     profileApiConfigured: Boolean(config.stalzoneClientId && config.stalzoneClientSecret),
-    sources: listSources(db).map(sourceJson),
+    sources: listSourceReads(db),
   };
 });

@@ -1,5 +1,5 @@
 import { CharacterCreateSchema } from '@dossier/shared';
-import { createCharacter } from '@dossier/core/services/writes';
+import { createCharacter } from '@dossier/core';
 import { useDb } from '../../utils/db';
 import { validationError } from '../../utils/errors';
 import { requireOrigin } from '../../utils/auth';

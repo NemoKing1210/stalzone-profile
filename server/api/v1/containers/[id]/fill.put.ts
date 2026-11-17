@@ -1,5 +1,5 @@
 import { ContainerFillSchema } from '@dossier/shared';
-import { setContainerFill } from '@dossier/core/services/writes';
+import { setContainerFill } from '@dossier/core';
 import { useDb } from '../../../../utils/db';
 import { apiError, validationError } from '../../../../utils/errors';
 import { requireOrigin } from '../../../../utils/auth';

@@ -1,9 +1,8 @@
 import { z } from 'zod';
 import { ItemKindSchema } from '@dossier/shared';
-import { getIcon, searchItems } from '@dossier/core';
+import { searchItemSummaries } from '@dossier/core';
 import { useDb } from '../../utils/db';
 import { validationError } from '../../utils/errors';
-import { itemJson } from '../../utils/serialize';
 
 const QuerySchema = z.object({
   q: z.string().trim().max(200).optional(),
@@ -18,7 +17,5 @@ export default defineEventHandler((event) => {
   if (!parsed.success) return validationError(event, parsed.error);
 
   const { q, kind, rank, slot, limit } = parsed.data;
-  const db = useDb();
-  const items = searchItems(db, { q: q ?? null, kind: kind ?? null, rank: rank ?? null, slot: slot ?? null, limit });
-  return items.map((item) => itemJson(item, { icon: getIcon(db, item.id)?.path ?? null }));
+  return searchItemSummaries(useDb(), { q: q ?? null, kind: kind ?? null, rank: rank ?? null, slot: slot ?? null, limit });
 });

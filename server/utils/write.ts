@@ -1,5 +1,5 @@
 import type { H3Event } from 'h3';
-import { WriteError } from '@dossier/core/services/writes';
+import { WriteError } from '@dossier/core';
 import { apiError, type ApiErrorBody } from './errors';
 
 /** Runs a core write and turns its domain error into the standard API envelope. */

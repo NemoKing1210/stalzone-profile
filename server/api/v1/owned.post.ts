@@ -1,5 +1,5 @@
 import { OwnedCreateSchema } from '@dossier/shared';
-import { createOwned } from '@dossier/core/services/writes';
+import { createOwned } from '@dossier/core';
 import { useDb } from '../../utils/db';
 import { validationError } from '../../utils/errors';
 import { requireOrigin } from '../../utils/auth';

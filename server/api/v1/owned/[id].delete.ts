@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { deleteOwned } from '@dossier/core/services/writes';
+import { deleteOwned } from '@dossier/core';
 import { useDb } from '../../../utils/db';
 import { apiError, validationError } from '../../../utils/errors';
 import { requireOrigin } from '../../../utils/auth';
