@@ -1,5 +1,5 @@
 {
-  "name": "@dossier/sources",
+  "name": "@profile/sources",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,6 +9,6 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@dossier/shared": "0.1.0"
+    "@profile/shared": "0.1.0"
   }
 }

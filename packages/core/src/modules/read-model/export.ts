@@ -1,12 +1,12 @@
-import type { DossierExport } from '@dossier/shared/contracts';
+import type { ProfileExport } from '@profile/shared/contracts';
 import type { Db } from '../../platform/db/index.js';
 import { buildPayload } from './payload.js';
 
 /**
- * Serializes the dossier into the portable `dossier.json` shape.
+ * Serializes the profile into the portable `profile.json` shape.
  * Display-only extras (`icons`, `freshness`) are intentionally dropped.
  */
-export function exportDossierJson(db: Db, characterId?: number): DossierExport {
+export function exportProfileJson(db: Db, characterId?: number): ProfileExport {
   const payload = buildPayload(db, characterId);
   return {
     meta: payload.meta,

@@ -1,4 +1,4 @@
-import { norm } from '@dossier/shared';
+import { norm } from '@profile/shared';
 import type { Db } from '../../../platform/db/index.js';
 import { WriteError } from '../../../platform/journal/index.js';
 import * as repo from '../repo/index.js';

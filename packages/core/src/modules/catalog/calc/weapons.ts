@@ -1,4 +1,4 @@
-import { round } from '@dossier/shared';
+import { round } from '@profile/shared';
 
 export const DUMMY_HP = 600;
 
@@ -14,7 +14,7 @@ export function dps(damage: number | null | undefined, rof: number | null | unde
   return round((damage * rof) / 60, 1);
 }
 
-/** Damage as the dossier shows it: one decimal. */
+/** Damage as the profile shows it: one decimal. */
 export function displayDmg(damage: number | null | undefined): number | null {
   if (damage == null || !Number.isFinite(damage)) return null;
   return round(damage, 1);

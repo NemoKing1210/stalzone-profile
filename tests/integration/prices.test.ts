@@ -11,14 +11,14 @@ import {
   bestPrice,
   latestPriceFetchedAt,
   latestPriceRows,
-} from '@dossier/core';
-import { insertPriceQuote } from '@dossier/core/testing';
+} from '@profile/core';
+import { insertPriceQuote } from '@profile/core/testing';
 
 let dir: string;
 let db: Db;
 
 beforeEach(() => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dossier-prices-'));
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'profile-prices-'));
   db = openDb(path.join(dir, 'test.db'));
   migrate(db, path.join(process.cwd(), 'db', 'migrations'));
   ensureDefaultSources(db);

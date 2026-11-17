@@ -17,7 +17,7 @@ export const ItemKindSchema = z.enum([
   'other',
 ]);
 
-/** Only these kinds can belong to the dossier; the rest stay catalog-only. */
+/** Only these kinds can belong to the profile; the rest stay catalog-only. */
 export const OwnedKindSchema = z.enum(['weapon', 'armor', 'container', 'artifact']);
 export type OwnedKind = z.infer<typeof OwnedKindSchema>;
 

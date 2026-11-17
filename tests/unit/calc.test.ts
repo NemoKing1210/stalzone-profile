@@ -7,7 +7,7 @@ import {
   displayTtk,
   headMultiplier,
   ttk,
-} from '@dossier/core';
+} from '@profile/core';
 
 describe('precise formulas', () => {
   it('computes DPS and TTK from raw damage', () => {

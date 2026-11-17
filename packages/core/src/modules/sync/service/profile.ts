@@ -1,5 +1,5 @@
-import { round } from '@dossier/shared';
-import type { StalzoneProfileStat } from '@dossier/sources';
+import { round } from '@profile/shared';
+import type { StalzoneProfileStat } from '@profile/sources';
 import { parseIsoDurationHours } from '../../identity/index.js';
 
 /** Counters the public profile provides as numbers. */

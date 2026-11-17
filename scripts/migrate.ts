@@ -1,6 +1,6 @@
-import { loadConfig } from '@dossier/core/config';
-import { openDb } from '@dossier/core/db';
-import { migrate } from '@dossier/core/db/migrate';
+import { loadConfig } from '@profile/core/config';
+import { openDb } from '@profile/core/db';
+import { migrate } from '@profile/core/db/migrate';
 
 const cfg = loadConfig();
 const db = openDb(cfg.dbPath);

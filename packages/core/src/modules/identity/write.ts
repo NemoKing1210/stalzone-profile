@@ -1,4 +1,4 @@
-import type { CharacterCreate, CharacterPatch, Faction } from '@dossier/shared';
+import type { CharacterCreate, CharacterPatch, Faction } from '@profile/shared';
 import type { Db } from '../../platform/db/index.js';
 import { logEvent, withTransaction, WriteError, type WriteResult } from '../../platform/journal/index.js';
 import * as repo from './repo/characters.js';
@@ -33,7 +33,7 @@ export type CharacterSnapshot = {
 
 export function characterOrThrow(db: Db): CharacterRow {
   const character = repo.getCharacter(db);
-  if (!character) throw new WriteError(409, 'NO_CHARACTER', 'No character in the dossier — run onboarding first');
+  if (!character) throw new WriteError(409, 'NO_CHARACTER', 'No character in the profile — run onboarding first');
   return character;
 }
 
@@ -71,7 +71,7 @@ function characterColumns(snapshot: Partial<CharacterSnapshot>): CharacterColumn
   return out;
 }
 
-/** First-run creation. The dossier holds at most one character. */
+/** First-run creation. The profile holds at most one character. */
 export function createCharacter(db: Db, input: CharacterCreate): WriteResult {
   if (repo.getCharacter(db)) throw new WriteError(409, 'CHARACTER_EXISTS', 'A character already exists');
 

@@ -1,5 +1,5 @@
-import { CharacterPatchSchema } from '@dossier/shared';
-import { patchCharacter } from '@dossier/core';
+import { CharacterPatchSchema } from '@profile/shared';
+import { patchCharacter } from '@profile/core';
 import { useDb } from '../../utils/db';
 import { validationError } from '../../utils/errors';
 import { requireOrigin } from '../../utils/auth';

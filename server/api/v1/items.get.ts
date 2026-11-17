@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { ItemKindSchema } from '@dossier/shared';
-import { searchItemSummaries } from '@dossier/core';
+import { ItemKindSchema } from '@profile/shared';
+import { searchItemSummaries } from '@profile/core';
 import { useDb } from '../../utils/db';
 import { validationError } from '../../utils/errors';
 

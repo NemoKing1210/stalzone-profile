@@ -12,8 +12,8 @@ import {
   SOURCE_IDS,
   defaultSetupRegion,
   setupState,
-} from '@dossier/core';
-import { upsertCharacter } from '@dossier/core/testing';
+} from '@profile/core';
+import { upsertCharacter } from '@profile/core/testing';
 
 const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
 
@@ -21,7 +21,7 @@ let dir: string;
 let db: Db;
 
 beforeEach(() => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dossier-setup-'));
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'profile-setup-'));
   db = openDb(path.join(dir, 'test.db'));
   migrate(db, migrationsDir);
 });

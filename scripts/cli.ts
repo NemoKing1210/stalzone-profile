@@ -2,14 +2,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   SYNC_SOURCES,
-  exportDossierJson,
+  exportProfileJson,
   hashPassword,
   loadConfig,
   migrate,
   openDb,
   runSync,
   runSyncAll,
-} from '@dossier/core';
+} from '@profile/core';
 
 const [command, ...rest] = process.argv.slice(2);
 const flags = new Set(rest.filter((arg) => arg.startsWith('--')));
@@ -20,7 +20,7 @@ function usage(): never {
 
 Commands:
   migrate                 apply pending migrations
-  export [file]           write the typed dossier JSON export
+  export [file]           write the typed profile JSON export
   sync [source|all]       sync exbo_base | wiki | motifs | scpmodel (default: all)
   backup [dir]            make a SQLite backup (default: snapshots/)
   hash-password [value]   print a scrypt hash (reads stdin when value is omitted)`);
@@ -45,7 +45,7 @@ async function main(): Promise<void> {
     }
     case 'export': {
       const { db } = open();
-      const json = JSON.stringify(exportDossierJson(db), null, 2);
+      const json = JSON.stringify(exportProfileJson(db), null, 2);
       const file = positional[0];
       if (file) {
         fs.writeFileSync(file, json);
@@ -84,11 +84,11 @@ async function main(): Promise<void> {
       const dir = path.resolve(positional[0] ?? cfg.snapshotsDir);
       fs.mkdirSync(dir, { recursive: true });
       const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const dest = path.join(dir, `dossier-${stamp}.db`);
+      const dest = path.join(dir, `profile-${stamp}.db`);
       await db.backup(dest);
       const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
       for (const entry of fs.readdirSync(dir)) {
-        if (!/^dossier-.*\.db$/.test(entry)) continue;
+        if (!/^profile-.*\.db$/.test(entry)) continue;
         const file = path.join(dir, entry);
         if (fs.statSync(file).mtimeMs < cutoff) fs.rmSync(file);
       }

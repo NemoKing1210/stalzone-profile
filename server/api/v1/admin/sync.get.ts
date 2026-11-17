@@ -1,4 +1,4 @@
-import { syncDiagnostics } from '@dossier/core';
+import { syncDiagnostics } from '@profile/core';
 import { useDb } from '../../../utils/db';
 import { serverSyncOptions } from '../../../utils/sync-options';
 

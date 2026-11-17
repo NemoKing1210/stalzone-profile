@@ -3,7 +3,7 @@ import type {
   SyncBundleReason,
   SyncBundleState,
   SyncScheduleValues,
-} from '@dossier/shared/contracts';
+} from '@profile/shared/contracts';
 import type { SourceRow, SourceId } from '../repo/sources.js';
 
 type BundleSource = Exclude<SourceId, 'local'>;

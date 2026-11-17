@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isSyncRunning, runExclusive, tryRunExclusive } from '@dossier/core';
+import { isSyncRunning, runExclusive, tryRunExclusive } from '@profile/core';
 
 function deferred<T>() {
   let resolve!: (value: T) => void;

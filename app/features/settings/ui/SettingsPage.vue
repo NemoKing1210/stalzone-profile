@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DossierPane } from '~/shared/ui';
+import { ProfilePane } from '~/shared/ui';
 import { DEFAULT_ACCENT } from '~/shared/lib/accents';
 import SourcesSection from './SourcesSection.vue';
 
@@ -42,7 +42,7 @@ const tabItems = computed(() => [
     >
       <template #content="{ item }">
         <div v-if="item.value === 'appearance'">
-          <DossierPane :title="t('settings.appearanceTitle')">
+          <ProfilePane :title="t('settings.appearanceTitle')">
             <p class="text-[12.5px] leading-relaxed text-[var(--sz-text-muted)]">
               {{ t('settings.appearanceText') }}
             </p>
@@ -92,13 +92,13 @@ const tabItems = computed(() => [
                 @click="resetAccent"
               />
             </div>
-          </DossierPane>
+          </ProfilePane>
         </div>
 
         <SourcesSection v-else-if="item.value === 'sources'" />
 
         <div v-else-if="item.value === 'data'" class="grid gap-4 lg:grid-cols-2">
-          <DossierPane :title="t('settings.exportTitle')" dense>
+          <ProfilePane :title="t('settings.exportTitle')" dense>
             <p class="text-[12.5px] text-[var(--sz-text-muted)]">
               {{ t('settings.exportText') }}
             </p>
@@ -113,19 +113,19 @@ const tabItems = computed(() => [
                 :label="t('settings.downloadJson')"
               />
             </div>
-          </DossierPane>
+          </ProfilePane>
 
-          <DossierPane :title="t('settings.backupsTitle')" dense>
+          <ProfilePane :title="t('settings.backupsTitle')" dense>
             <p class="text-[12.5px] leading-relaxed text-[var(--sz-text-muted)]">
               {{ t('settings.backupsBefore') }}<code class="border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] px-1 font-mono text-[11px]">npm run backup</code>{{ t('settings.backupsAfter') }}
             </p>
-          </DossierPane>
+          </ProfilePane>
 
-          <DossierPane :title="t('settings.accessTitle')" dense>
+          <ProfilePane :title="t('settings.accessTitle')" dense>
             <p class="text-[12.5px] leading-relaxed text-[var(--sz-text-muted)]">
               {{ t('settings.accessBefore') }}<code class="border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] px-1 font-mono text-[11px]">NUXT_PASSWORD_HASH</code>{{ t('settings.accessBetween') }}<code class="border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] px-1 font-mono text-[11px]">NUXT_PASSWORD</code>{{ t('settings.accessAfter') }}
             </p>
-          </DossierPane>
+          </ProfilePane>
         </div>
 
         <div v-else-if="item.value === 'journal'">

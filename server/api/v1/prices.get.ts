@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { latestPriceReadsForNames } from '@dossier/core';
+import { latestPriceReadsForNames } from '@profile/core';
 import { useDb } from '../../utils/db';
 import { apiError, validationError } from '../../utils/errors';
 

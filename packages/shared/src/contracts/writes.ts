@@ -82,7 +82,7 @@ export const CharacterPatchSchema = WriteOptionsSchema.extend({
 
 export type CharacterPatch = z.infer<typeof CharacterPatchSchema>;
 
-/** First-run creation. The dossier holds at most one character. */
+/** First-run creation. The profile holds at most one character. */
 export const CharacterCreateSchema = WriteOptionsSchema.extend({
   nick: z.string().trim().min(1).max(64),
   region: SetupRegionSchema,

@@ -1,5 +1,5 @@
-import { CleanupRequestSchema } from '@dossier/shared/contracts';
-import { clearOwned } from '@dossier/core';
+import { CleanupRequestSchema } from '@profile/shared/contracts';
+import { clearOwned } from '@profile/core';
 import { useDb } from '../../../utils/db';
 import { validationError } from '../../../utils/errors';
 import { requireOrigin } from '../../../utils/auth';

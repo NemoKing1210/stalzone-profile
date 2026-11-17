@@ -4,22 +4,22 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { closeDb, migrate, openDb, runExclusive, type Db } from '@dossier/core';
+import { closeDb, migrate, openDb, runExclusive, type Db } from '@profile/core';
 import {
   READ_OUTPUT_SCHEMAS,
   READ_TOOLS,
   connectInMemory,
-  createDossierServer,
+  createProfileServer,
   createMcpHttpHandler,
   httpClient,
   localClient,
   writeLimiter,
-} from '@dossier/mcp';
+} from '@profile/mcp';
 import { seedCatalog } from '../fixtures/seed';
 
 let dir: string;
 let db: Db;
-let server: ReturnType<typeof createDossierServer>;
+let server: ReturnType<typeof createProfileServer>;
 let client: Client;
 
 const EXPECTED_WRITE_TOOLS = [
@@ -40,15 +40,15 @@ const EXPECTED_READ_TOOLS = [
   'plan_artifact_build',
   'get_prices',
   'sources_status',
-  'export_dossier_json',
+  'export_profile_json',
 ];
 
 beforeAll(async () => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dossier-mcp-'));
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'profile-mcp-'));
   db = openDb(path.join(dir, 'test.db'));
   migrate(db, path.join(process.cwd(), 'db', 'migrations'));
   seedCatalog(db);
-  server = createDossierServer(localClient(db));
+  server = createProfileServer(localClient(db));
   client = await connectInMemory(server);
 });
 
@@ -76,7 +76,7 @@ describe('MCP registry', () => {
     expect(tools).not.toContain('export_legacy_json');
 
     const resources = await client.listResources();
-    expect(resources.resources.map((resource) => resource.uri)).toContain('dossier://schema');
+    expect(resources.resources.map((resource) => resource.uri)).toContain('profile://schema');
   });
 
   it('accepts the icon and profile sources in sync_source', async () => {
@@ -95,11 +95,11 @@ describe('MCP registry', () => {
     }
   });
 
-  it('exports the typed dossier', async () => {
-    const result = await callTool('export_dossier_json', {});
-    const dossier = (result.structuredContent as { dossier: Record<string, any> }).dossier;
-    expect(dossier).not.toHaveProperty('career');
-    expect(dossier.weapons[0]).not.toHaveProperty('raw');
+  it('exports the typed profile', async () => {
+    const result = await callTool('export_profile_json', {});
+    const profile = (result.structuredContent as { profile: Record<string, any> }).profile;
+    expect(profile).not.toHaveProperty('career');
+    expect(profile.weapons[0]).not.toHaveProperty('raw');
   });
 
   it('returns a derived item card', async () => {
@@ -201,7 +201,7 @@ describe('MCP write safety', () => {
   });
 
   it('stops writes at the shared rate limit', async () => {
-    const limited = createDossierServer(localClient(db), { limiter: { take: () => false } });
+    const limited = createProfileServer(localClient(db), { limiter: { take: () => false } });
     const limitedClient = await connectInMemory(limited);
     try {
       const result = await limitedClient.callTool({

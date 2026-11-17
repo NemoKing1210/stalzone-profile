@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import * as core from '@dossier/core';
-import * as inventory from '@dossier/core/modules/inventory';
+import * as core from '@profile/core';
+import * as inventory from '@profile/core/modules/inventory';
 
 describe('inventory public API', () => {
   it('exposes the read and write primitives', () => {
@@ -12,8 +12,8 @@ describe('inventory public API', () => {
 
   it('does not import core repositories from the MCP client', () => {
     const source = fs.readFileSync(path.join(process.cwd(), 'packages/mcp/src/client.ts'), 'utf8');
-    expect(source).not.toContain('@dossier/core/repo');
-    expect(source).not.toContain('@dossier/core/db');
+    expect(source).not.toContain('@profile/core/repo');
+    expect(source).not.toContain('@profile/core/db');
   });
 });
 

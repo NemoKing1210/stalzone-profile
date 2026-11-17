@@ -24,7 +24,7 @@ The old database has to be rebuilt. Export first if the data still matters to yo
    `db/seeds/legacy.json` / `data/my-gear.json`, if you still have them, as the source for
    manual re-entry.
 
-3. Only if you accept an empty dossier until phase 2 (step 5): check where `DB_PATH`
+3. Only if you accept an empty profile until phase 2 (step 5): check where `DB_PATH`
    points, then delete the database and its WAL files:
 
    ```bash
@@ -41,13 +41,13 @@ The old database has to be rebuilt. Export first if the data still matters to yo
    npm run sync exbo_base
    npm run sync wiki
    npm run sync motifs
-   npm run export:json        # optional: inspect the empty typed dossier
+   npm run export:json        # optional: inspect the empty typed profile
    ```
 
 5. Phase 1 has no character creation: `PATCH /api/v1/character` requires an existing row
    and answers `409 NO_CHARACTER` on an empty database, and MCP has no character-write
    tool. Onboarding arrives in phase 2. Until then a reset database holds only the catalog,
-   prices and sources; postpone the destructive reset if you still need the old dossier.
+   prices and sources; postpone the destructive reset if you still need the old profile.
 
 ## Verification
 
@@ -56,7 +56,7 @@ npm run golden   # mismatches: 0, legacyDeltas: []
 npm run check
 ```
 
-`npm run golden` no longer reads a personal dossier: it migrates a temporary database,
+`npm run golden` no longer reads a personal profile: it migrates a temporary database,
 seeds the public fixture from `tests/fixtures/`, and recomputes every number with the
 single formula in `packages/core/src/modules/catalog/calc/weapons.ts`.
 

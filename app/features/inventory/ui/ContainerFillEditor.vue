@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ContainerFillSchema } from '@dossier/shared/contracts';
-import type { FillTarget } from '~/shared/types/dossier';
+import { ContainerFillSchema } from '@profile/shared/contracts';
+import type { FillTarget } from '~/shared/types/profile';
 import type { WriteResult } from '~/shared/composables/useWrite';
 
 const open = defineModel<boolean>('open', { default: false });

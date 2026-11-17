@@ -12,7 +12,7 @@ import { RADIO_TRACKS } from '../model/tracks';
 
 type RadioStatus = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
 
-const STORAGE_KEY = 'dossier.radio';
+const STORAGE_KEY = 'profile.radio';
 const METER_BARS = 16;
 const METER_BUFFER_SIZE = 128;
 

@@ -1,4 +1,4 @@
-import { CAT_RU, RANK_ORDER, rankKey, round } from '@dossier/shared';
+import { CAT_RU, RANK_ORDER, rankKey, round } from '@profile/shared';
 import {
   armorAtLevel,
   displayDmg,

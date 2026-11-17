@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ConfirmActionModal } from '~/shared/ui';
 
-import { OwnedPatchSchema } from '@dossier/shared/contracts';
-import type { OwnedEditTarget } from '~/shared/types/dossier';
+import { OwnedPatchSchema } from '@profile/shared/contracts';
+import type { OwnedEditTarget } from '~/shared/types/profile';
 import type { WriteResult } from '~/shared/composables/useWrite';
 
 const open = defineModel<boolean>('open', { default: false });

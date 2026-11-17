@@ -1,4 +1,4 @@
-import { rankKey, type RankKey } from '@dossier/shared/ranks';
+import { rankKey, type RankKey } from '@profile/shared/ranks';
 
 export const RANK_TEXT_COLOR: Record<RankKey, string> = {
   default: '#9aa294',

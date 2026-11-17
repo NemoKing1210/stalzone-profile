@@ -2,7 +2,7 @@
 
 <h1>STALZONE Profile</h1>
 
-<p><strong>A personal STALZONE dossier</strong> — gear, containers and auction prices,<br>
+<p><strong>A personal STALZONE profile</strong> — gear, containers and auction prices,<br>
 backed by one SQLite database and exposed through a Nuxt site, a REST API and MCP.</p>
 
 <p>
@@ -17,7 +17,7 @@ backed by one SQLite database and exposed through a Nuxt site, a REST API and MC
 
 ## Overview
 
-- **Site** — dossier sections with search, sorting, grouping and editing.
+- **Site** — profile sections with search, sorting, grouping and editing.
 - **API** — `/api/v1/*` behind session auth; writes go only through the API, MCP or CLI.
 - **MCP** — stdio for a local agent and HTTP `/mcp` with a bearer token.
 - **Sync** — EXBO database, stalzone.wiki, skins, icons and scpmodel prices.
@@ -83,7 +83,7 @@ docs/                architecture, API, MCP, data model, configuration, runbook
   files. Only public HTTP sources.
 - The auction is read-only: prices and lots, no buying or listing.
 - Numbers are never invented: no lot means "no lot", no stat means "no data".
-- `dossier.db` and the export are not edited by hand — only through the API, MCP or CLI.
+- `profile.db` and the export are not edited by hand — only through the API, MCP or CLI.
 - All secrets live in environment variables, never in the repository.
 
 ## Contributing and security

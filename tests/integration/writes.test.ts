@@ -7,7 +7,7 @@ import {
   ContainerFillSchema,
   OwnedCreateSchema,
   OwnedPatchSchema,
-} from '@dossier/shared';
+} from '@profile/shared';
 import {
   buildPayload,
   closeDb,
@@ -27,9 +27,9 @@ import {
   setContainerFill,
   updateOwned,
   WriteError,
-} from '@dossier/core';
-import * as seed from '@dossier/core/testing';
-import * as repo from '@dossier/core';
+} from '@profile/core';
+import * as seed from '@profile/core/testing';
+import * as repo from '@profile/core';
 
 const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
 
@@ -43,7 +43,7 @@ function item(name: string, kind: string): number {
 }
 
 beforeEach(() => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dossier-writes-'));
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'profile-writes-'));
   db = openDb(path.join(dir, 'test.db'));
   migrate(db, migrationsDir);
   ensureDefaultSources(db);

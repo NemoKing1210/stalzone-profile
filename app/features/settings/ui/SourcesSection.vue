@@ -4,8 +4,8 @@ import type {
   SyncDiagnostics,
   SyncResult,
   SyncScheduleValues,
-} from '@dossier/shared/contracts';
-import { DossierPane, StatRow } from '~/shared/ui';
+} from '@profile/shared/contracts';
+import { ProfilePane, StatRow } from '~/shared/ui';
 import { SOURCE_ORDER, canSyncSource, sourceKey } from '../model/sources';
 import AutoSyncPanel from './AutoSyncPanel.vue';
 import SourceCard from './SourceCard.vue';
@@ -14,7 +14,7 @@ const { t } = useI18n();
 const toast = useToast();
 const { message: apiMessage } = useApiError();
 const { formatAge, formatDate } = useFormat();
-const { payload, meta, refresh: refreshDossier } = useDossier();
+const { payload, meta, refresh: refreshProfile } = useProfile();
 const { write, busy: saving } = useWrite();
 
 const { data, refresh } = useFetch<SyncDiagnostics>('/api/v1/admin/sync', { key: 'sync-diagnostics' });
@@ -92,7 +92,7 @@ async function syncSource(id: string): Promise<void> {
         icon: 'i-lucide-cloud-off',
       });
     }
-    await Promise.all([refresh(), refreshDossier()]);
+    await Promise.all([refresh(), refreshProfile()]);
   } catch (error) {
     const data = (error as { data?: { error?: { code?: string; message?: string } } }).data?.error;
     toast.add({
@@ -139,7 +139,7 @@ onUnmounted(() => {
       @save="saveSchedule"
     />
 
-    <DossierPane :title="t('settings.dataSources')">
+    <ProfilePane :title="t('settings.dataSources')">
       <template #actions>
         <UButton
           :label="t('settings.sources.syncAll')"
@@ -160,7 +160,7 @@ onUnmounted(() => {
           {{ t('settings.sources.running') }}
         </span>
       </div>
-    </DossierPane>
+    </ProfilePane>
 
     <div v-if="sources.length" class="grid gap-3 sm:grid-cols-2">
       <SourceCard
@@ -174,22 +174,22 @@ onUnmounted(() => {
         @sync="syncSource(source.id)"
       />
     </div>
-    <DossierPane v-else :title="t('settings.dataSources')">
+    <ProfilePane v-else :title="t('settings.dataSources')">
       <UEmpty
         icon="i-lucide-cloud-off"
         :title="t('settings.emptyTitle')"
         :description="t('settings.emptyDescription')"
       />
-    </DossierPane>
+    </ProfilePane>
 
-    <DossierPane :title="t('settings.dataTitle')" dense>
+    <ProfilePane :title="t('settings.dataTitle')" dense>
       <div class="divide-y divide-[var(--sz-border)]">
-        <StatRow :label="t('settings.dossierUpdated')" :value="formatDate(payload?.freshness.dataUpdated)" />
+        <StatRow :label="t('settings.profileUpdated')" :value="formatDate(payload?.freshness.dataUpdated)" />
         <StatRow :label="t('settings.prices')" :value="formatAge(payload?.freshness.pricesAgeMin)" />
         <StatRow :label="t('settings.catalogUpdated')" :value="formatDate(catalogUpdated)" />
         <StatRow :label="t('settings.catalogSource')" :value="catalogSource" />
         <StatRow :label="t('settings.profileSnapshot')" :value="formatDate(profileFetched)" />
       </div>
-    </DossierPane>
+    </ProfilePane>
   </section>
 </template>

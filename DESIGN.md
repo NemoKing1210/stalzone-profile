@@ -9,7 +9,7 @@ Current UI change (2026-11-16): the Builds, Recommendations, Earnings and Notes 
 were removed from the site. Sections 8.5–8.8 below describe the earlier proposal and are
 kept for reference only.
 
-The site is a private STALZONE dossier. It keeps Nuxt UI for controls (buttons, inputs,
+The site is a private STALZONE profile. It keeps Nuxt UI for controls (buttons, inputs,
 selects, modals, tables, toasts) because that library already provides behaviour and
 accessibility. This document describes how those controls are dressed, which small custom
 primitives are added, and how the pages are arranged. Nuxt UI is the skeleton; STALZONE is
@@ -17,7 +17,7 @@ the skin.
 
 ## 1. Intent
 
-The dossier should read as a piece of equipment from the Zone, not as a marketing site and
+The profile should read as a piece of equipment from the Zone, not as a marketing site and
 not as a generic admin dashboard. It is a working tool: dense, quiet, legible under a lot
 of numbers, with the visual grammar of the in-game inventory.
 
@@ -87,7 +87,7 @@ structure and colour:
   numerals and wide tracking on labels;
 - there are no shadows, gradients inside data areas, rounded cards or decorative textures.
 
-This is the language the dossier adopts. The official site's red and its 5/10px rounded
+This is the language the profile adopts. The official site's red and its 5/10px rounded
 cards are deliberately not carried over.
 
 ### 2.3 stalzone.wiki
@@ -95,7 +95,7 @@ cards are deliberately not carried over.
 The community wiki confirms the same dark family and adds two useful patterns: a warm amber
 accent for primary actions, and a consistent rank palette (`newbie` green, `stalker` blue,
 `veteran` violet, `master` red, `legend` gold). Its cards are softer and rounder than the
-game's; the dossier takes the rank palette and the dense data tables, not the rounded card
+game's; the profile takes the rank palette and the dense data tables, not the rounded card
 style.
 
 ### 2.4 Previous static report (prior art)
@@ -107,7 +107,7 @@ pair belongs to the game's language, while the amber was an editorial choice of 
 
 ### 2.5 Conclusion
 
-The dossier uses the **in-game inventory** as its visual base, the **official wordmark** for
+The profile uses the **in-game inventory** as its visual base, the **official wordmark** for
 identity, and the **wiki rank palette** for item names. The default accent is the game's
 green; the accent is user-selectable in Settings.
 
@@ -282,7 +282,7 @@ Rules:
   web target.
 - Uppercase is a CSS transform (`text-transform`), never baked into translation strings.
 - All numerals use `font-variant-numeric: tabular-nums`; right-align numeric columns.
-- Currency, decimals and dates come from `useFormat` / `@dossier/shared/format`; no manual
+- Currency, decimals and dates come from `useFormat` / `@profile/shared/format`; no manual
   separators.
 - Long Russian labels must wrap; never truncate a label without a tooltip. Ellipsis is allowed
   only in one-line table names with a tooltip/full value on selection.
@@ -452,7 +452,7 @@ Controls remain Nuxt UI. The table lists the intended defaults; they are applied
 | `UFormField` | label 11px caps muted; description 11px dim; error 11px danger text; 6px gap |
 | `UModal`, `USlideover` | surface `--sz-ink-800`, 1px border, square; header 44px with title 14px 500; backdrop blur(3px) 72% black; footer actions right-aligned; scrollable body; mobile full-height |
 | `UTable` | header `--sz-ink-750`, 11px caps, sticky; rows 30px, hairline dividers; hover accent 5%; selected row accent 8% + 2px left accent bar; numeric cells right/tabular; sortable header shows a 10px caret and `aria-sort` |
-| `UCard` | replaced by `DossierPane` where the inventory chrome is needed; a bare `UCard` uses surface + 1px border + square, header `--sz-ink-750` |
+| `UCard` | replaced by `ProfilePane` where the inventory chrome is needed; a bare `UCard` uses surface + 1px border + square, header `--sz-ink-750` |
 | `UBadge` | square; 11px caps; subtle = 12% colour + text colour; outline = 1px colour + text; never a pill |
 | `UAlert` | square; 2px left semantic bar; icon 16px; title 12px 500; description 12px muted; neutral/info/warning/error variants |
 | `UDropdownMenu` | surface `--sz-ink-800`, 1px border, square; item 30px; hover accent 8%; danger item red text |
@@ -474,7 +474,7 @@ offset; disabled uses 40% opacity and `cursor: not-allowed`; loading keeps the l
 Six small components, each with one job. They are presentation-only, SSR-safe, and have no
 data fetching.
 
-1. **`DossierPane.vue`** — the pane chrome.
+1. **`ProfilePane.vue`** — the pane chrome.
    Props: `title?: string`, `hint?: string`, `dense?: boolean`, `flush?: boolean`.
    Slots: `header`, `actions`, default, `footer`.
    Renders a `<section>` with a 30px header (`--sz-ink-750`, 1px bottom border, uppercase
@@ -490,12 +490,12 @@ data fetching.
 3. **`RarityName.vue`** — an item name in rank colour.
    Props: `name`, `rank?: string | null`, `level?: number | null`, `size?: 'sm' | 'md' | 'lg'`.
    Uses `rankKey` and the exact `RANK_COLOR` for the border/dot from
-   `@dossier/shared/ranks` (subpath import), and the text-safe rank variant for the name.
+   `@profile/shared/ranks` (subpath import), and the text-safe rank variant for the name.
    Renders the name plus `+15` when `level` is present; the level uses `--sz-success-text`, the
    name uses `--sz-rank-*-text`. Falls back to `--sz-text` when the rank is unknown. Colour is
    supported by the visible rank word elsewhere in the same card, not colour alone.
 
-4. **`DossierItemCard.vue`** — an inventory card.
+4. **`ProfileItemCard.vue`** — an inventory card.
    Props: `name`, `rank`, `category`, `level`, `icon?`, `stats` (array of `{ label, value,
    tone? }`), `selected?`, `to?`/`clickable?`.
    Renders: category caps, `RarityName`, a 16:9 icon/silhouette well (game icons when present,
@@ -556,7 +556,7 @@ muted lot count), `StatBar` (wraps the 3px bar), `EventLog`, `LocaleSwitcher`,
   transform, 160ms opacity) and the button fades and scales in; hiding reverses it. Under
   `prefers-reduced-motion: reduce` both change instantly.
 - The chosen track, volume and open/collapsed state persist in `localStorage` under
-  `dossier.radio`; playback state does not. See `docs/AUDIO.md` for the assets and license.
+  `profile.radio`; playback state does not. See `docs/AUDIO.md` for the assets and license.
 
 ## 7. Accent setting
 
@@ -586,7 +586,7 @@ Red is not offered: it already means negative/error.
 
 ### 7.2 Mechanism
 
-- `localStorage['dossier.accent']` stores one of the preset ids. Invalid or missing → `green`.
+- `localStorage['profile.accent']` stores one of the preset ids. Invalid or missing → `green`.
 - A tiny client plugin (`app/plugins/accent.client.ts`) reads the value and sets
   `document.documentElement.dataset.accent`.
 - CSS defines `:root[data-accent='amber'] { --sz-accent: …; --ui-primary: …; }` etc. The
@@ -617,7 +617,7 @@ The visual layer may only show fields that the payload actually carries. The fol
 elements from the game/reference screens are deliberately dropped or redefined; inventing a
 field, parsing a display string, or changing the data model to satisfy a visual is forbidden:
 
-- **No player rank chip.** `DossierCharacter` has no rank. Rank colours are used only for item
+- **No player rank chip.** `ProfileCharacter` has no rank. Rank colours are used only for item
   names. The character pane shows faction, clan and playstyle instead.
 - **No numeric stash bar.** `character.stash` is a localized string. It is displayed as text;
   `StorageBar` is used only where numeric ratios exist.
@@ -644,10 +644,10 @@ A three-pane instrument. The page title is the nick; faction, clan and realm sit
   split into two balanced columns from 1280px (one list below).
 - **Sections** (right 320px): a 2×2 inventory-slot grid — one square tile per section with
   icon, count and label; each tile links to its section and its accessible name includes the
-  count. Below: **Data state** with dossier date, prices age (success/warning/danger tone by
+  count. Below: **Data state** with profile date, prices age (success/warning/danger tone by
   the freshness thresholds), catalog date and source, and the about note.
 - Mobile order: character → sections → career.
-- Empty dossier: a single pane with the current empty message, not a fake character.
+- Empty profile: a single pane with the current empty message, not a fake character.
 - **Character editor** (modal behind "Edit profile"): fields are grouped as Profile /
   Progress / Combat / Money / Notes instead of one undifferentiated grid. Faction is a
   searchable select over the current STALZONE factions with free entry for any other value;
@@ -700,7 +700,7 @@ A three-pane instrument. The page title is the nick; faction, clan and realm sit
 ### 8.5 Builds (`/builds`)
 
 - Document column. Current build pane first (title, note, item chips).
-- Each build is a `DossierPane`: header with title + tag + edit; a 4-cell metric strip
+- Each build is a `ProfilePane`: header with title + tag + edit; a 4-cell metric strip
   (container, slots, budget, total); the items table (name, quality, lot price, effect, plus,
   minus, why, rank); a verdict alert at the bottom; a price note alert when present.
 - Tables keep all columns on desktop; horizontal scroll on mobile; the "why" column may move
@@ -708,7 +708,7 @@ A three-pane instrument. The page title is the nick; faction, clan and realm sit
 
 ### 8.6 Recommendations (`/recommendations`)
 
-- Document column, 2 columns ≥1280, 1 below. Each recommendation is a `DossierPane` with a
+- Document column, 2 columns ≥1280, 1 below. Each recommendation is a `ProfilePane` with a
   title, lead, and rows (`label` muted left, value + description right); edit action in the
   header.
 - No nested cards.
@@ -822,7 +822,7 @@ Phases (each phase ends with `npm run check`):
 
 1. **Foundations** — fonts, tokens, `app.config.ts`, base element styles, accent CSS blocks.
 2. **Shell** — top bar, navigation, page header, status bar, login.
-3. **Primitives** — `DossierPane`, `StatRow`, `RarityName`, `DossierItemCard`, `StorageBar`,
+3. **Primitives** — `ProfilePane`, `StatRow`, `RarityName`, `ProfileItemCard`, `StorageBar`,
    `KeyHint`; restyle `RankBadge`, `FreshnessBadge`, `PriceCell`, `StatBar`.
 4. **Data pages** — overview, weapons, armor, containers, artifacts.
 5. **Document pages** — builds, recommendations, earnings, notes, settings.
@@ -840,8 +840,8 @@ Acceptance:
 - Accent switch applies instantly, survives reload, resets to green, and changes no semantic
   colour.
 - Visual QA covers every page at 1440 and 390. Screenshots are **local only** and are never
-  committed or sent outside; the dossier is personal data. If an image must be shared, it is
-  taken against an anonymized fixture or the empty-dossier server (`:3111`) — never the
+  committed or sent outside; the profile is personal data. If an image must be shared, it is
+  taken against an anonymized fixture or the empty-profile server (`:3111`) — never the
   working database.
 - No personal data, secrets, game assets or screenshots are committed.
 
@@ -890,7 +890,7 @@ Anti-goals (would make the result a failure even if it looks "cool"):
 | Stash | displayed as the stored string | `character.stash` is not numeric; parsing it would invent data |
 | Artifact weight | omitted | not exposed by the payload |
 | URL selection | no `?item=` deep link in this refresh | keeps routing/SSR out of a visual change |
-| Screenshots | local only; anonymized fixture or empty server for any shared image | the real dossier is personal data |
+| Screenshots | local only; anonymized fixture or empty server for any shared image | the real profile is personal data |
 | Overview composition | KPI tiles and inventory-slot tiles inside the three panes | the owner asked for a more game-like, clearer reading; still only real numbers and bars with a true maximum |
 | Page backdrop | procedural atmosphere layer (§4.7), fixed and behind opaque panes | the owner asked for a worn Zone backdrop; CSS/SVG keeps it asset-free and keeps tables readable |
 

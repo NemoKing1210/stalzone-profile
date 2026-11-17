@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FACTIONS } from '@dossier/shared/contracts';
+import { FACTIONS } from '@profile/shared/contracts';
 import { factionOptions, factionSelectItems, factionValue, NO_FACTION } from '~/shared/lib/factions';
 
 const t = (key: string): string => key;

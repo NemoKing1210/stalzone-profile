@@ -1,11 +1,11 @@
 import crypto from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import type { DossierClient } from './client.js';
-import { createDossierServer, writeLimiter, type WriteLimiter } from './registry.js';
+import type { ProfileClient } from './client.js';
+import { createProfileServer, writeLimiter, type WriteLimiter } from './registry.js';
 
 export interface McpHttpOptions {
-  client: DossierClient;
+  client: ProfileClient;
   token: string | null;
   writesPerMinute?: number;
   limiter?: WriteLimiter;
@@ -81,7 +81,7 @@ export function createMcpHttpHandler(options: McpHttpOptions) {
       return;
     }
 
-    const server = createDossierServer(options.client, { limiter });
+    const server = createProfileServer(options.client, { limiter });
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,

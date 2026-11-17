@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import * as core from '@dossier/core';
-import * as testing from '@dossier/core/testing';
+import * as core from '@profile/core';
+import * as testing from '@profile/core/testing';
 
 describe('core public surface', () => {
   it('exposes the application façade and testing seed surface', () => {
@@ -16,7 +16,7 @@ describe('core public surface', () => {
     expect(index).not.toContain("export * from './repo");
   });
   it.each([
-    // Raw catalog writes bypass the journal; fixtures seed through @dossier/core/testing.
+    // Raw catalog writes bypass the journal; fixtures seed through @profile/core/testing.
     'upsertItem',
     'replaceItemStats',
     'addItemStats',
@@ -24,7 +24,7 @@ describe('core public surface', () => {
     'upsertIcon',
     'insertPriceQuote',
     'upsertStatDefinition',
-    // Raw dossier writes bypass the write services and event_log.
+    // Raw profile writes bypass the write services and event_log.
     'upsertCharacter',
     'setCharacterStat',
     'upsertOwned',

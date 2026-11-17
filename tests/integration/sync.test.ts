@@ -2,10 +2,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { closeDb, ensureDefaultSources, migrate, openDb, type Db, runSync } from '@dossier/core';
-import * as repo from '@dossier/core';
-import * as seed from '@dossier/core/testing';
-import { exboAdapter, motifsAdapter, parseExboItem, wikiAdapter } from '@dossier/sources';
+import { closeDb, ensureDefaultSources, migrate, openDb, type Db, runSync } from '@profile/core';
+import * as repo from '@profile/core';
+import * as seed from '@profile/core/testing';
+import { exboAdapter, motifsAdapter, parseExboItem, wikiAdapter } from '@profile/sources';
 
 const EXBO_ITEM = {
   id: 'wg53',
@@ -83,7 +83,7 @@ let dir: string;
 let db: Db;
 
 beforeEach(() => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dossier-sync-'));
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'profile-sync-'));
   db = openDb(path.join(dir, 'test.db'));
   migrate(db, path.join(process.cwd(), 'db', 'migrations'));
   ensureDefaultSources(db);

@@ -3,7 +3,7 @@ import type { Db } from '../db/index.js';
 /* ------------------------------ write contract ------------------------------ */
 
 /** The API contract owns the shape; core produces it, so the two cannot drift. */
-export type { WriteDiff, WriteResult } from '@dossier/shared/contracts';
+export type { WriteDiff, WriteResult } from '@profile/shared/contracts';
 
 export class WriteError extends Error {
   constructor(

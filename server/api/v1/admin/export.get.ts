@@ -1,7 +1,7 @@
-import { exportDossierJson } from '@dossier/core';
+import { exportProfileJson } from '@profile/core';
 import { useDb } from '../../../utils/db';
 
 export default defineEventHandler((event) => {
-  setHeader(event, 'content-disposition', 'attachment; filename="dossier.json"');
-  return exportDossierJson(useDb());
+  setHeader(event, 'content-disposition', 'attachment; filename="profile.json"');
+  return exportProfileJson(useDb());
 });

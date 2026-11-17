@@ -1,12 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { EventReadSchema, ItemSummarySchema, OwnedReadSchema, PriceRowSchema, SourceStatusSchema } from '@dossier/shared/contracts';
-import { itemSummary } from '@dossier/core';
+import { EventReadSchema, ItemSummarySchema, OwnedReadSchema, PriceRowSchema, SourceStatusSchema } from '@profile/shared/contracts';
+import { itemSummary } from '@profile/core';
 import { eventJson } from '../../server/utils/serialize';
-import { ownedRead } from '@dossier/core/modules/inventory';
-import { priceRead } from '@dossier/core/modules/catalog';
-import { sourceRead } from '@dossier/core/modules/sync';
+import { ownedRead } from '@profile/core/modules/inventory';
+import { priceRead } from '@profile/core/modules/catalog';
+import { sourceRead } from '@profile/core/modules/sync';
 
 describe('HTTP serializers', () => {
   it('produces contract-valid item and event objects', () => {

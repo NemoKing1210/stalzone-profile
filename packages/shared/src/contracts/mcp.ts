@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { SourcesReadSchema } from './api.js';
 import { ItemCardSchema, ItemEffectSchema, ItemStatSchema, ItemSummarySchema } from './catalog.js';
 import { ContainerOverrideSchema, ContainerReadSchema } from './inventory.js';
-import { DossierExportSchema, PayloadCharacterSchema, PayloadMetaSchema } from './payload.js';
+import { ProfileExportSchema, PayloadCharacterSchema, PayloadMetaSchema } from './payload.js';
 
 /** The MCP owned row uses `ownedId`; the HTTP owned row uses `id`. */
 export const McpOwnedReadSchema = z.object({
@@ -66,5 +66,5 @@ export const READ_OUTPUT_SCHEMAS: Record<string, z.ZodTypeAny> = {
   plan_artifact_build: z.object({ plan: PlanResultSchema }),
   get_prices: z.object({ prices: z.record(z.string(), z.array(McpPriceRowSchema)) }),
   sources_status: z.object({ sources: SourcesReadSchema }),
-  export_dossier_json: z.object({ dossier: DossierExportSchema }),
+  export_profile_json: z.object({ profile: ProfileExportSchema }),
 };

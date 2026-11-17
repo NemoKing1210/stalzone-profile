@@ -1,5 +1,5 @@
-import { setSyncSchedule } from '@dossier/core';
-import { SyncScheduleUpdateSchema } from '@dossier/shared/contracts';
+import { setSyncSchedule } from '@profile/core';
+import { SyncScheduleUpdateSchema } from '@profile/shared/contracts';
 import { requireOrigin } from '../../../utils/auth';
 import { useDb } from '../../../utils/db';
 import { validationError } from '../../../utils/errors';

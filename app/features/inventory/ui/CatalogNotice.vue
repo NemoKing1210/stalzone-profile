@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const { t } = useI18n();
-const { payload } = useDossier();
+const { payload } = useProfile();
 
 /** The catalog is empty until the first sync, so gear cannot be added yet. */
 const empty = computed(() => {

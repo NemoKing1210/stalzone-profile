@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ConfirmActionModal, DossierPane } from '~/shared/ui';
+import { ConfirmActionModal, ProfilePane } from '~/shared/ui';
 
-import type { CleanupCounts } from '@dossier/shared/contracts';
+import type { CleanupCounts } from '@profile/shared/contracts';
 import { cleanupCountsView } from '../model/cleanupCounts';
 
 const { t } = useI18n();
@@ -60,7 +60,7 @@ async function clear(): Promise<void> {
       </div>
     </div>
 
-    <DossierPane :title="t('settings.cleanup.inventoryTitle')" dense class="border-[var(--sz-danger)]">
+    <ProfilePane :title="t('settings.cleanup.inventoryTitle')" dense class="border-[var(--sz-danger)]">
       <p class="text-[12.5px] text-[var(--sz-text-muted)]">{{ t('settings.cleanup.inventoryText') }}</p>
       <p class="mt-2 text-[12.5px] tabular-nums">
         {{
@@ -78,7 +78,7 @@ async function clear(): Promise<void> {
           @click="confirmOpen = true"
         />
       </div>
-    </DossierPane>
+    </ProfilePane>
 
     <p class="text-[11.5px] text-[var(--sz-text-dim)]">
       {{ t('settings.cleanup.exportHint') }}

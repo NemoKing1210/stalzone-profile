@@ -1,4 +1,4 @@
-import { round } from '@dossier/shared';
+import { round } from '@profile/shared';
 
 export const ARMOR_MIN = 0;
 export const ARMOR_MAX = 15;

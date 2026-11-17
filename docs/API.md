@@ -11,7 +11,7 @@ An anonymous request to a protected route receives:
 { "error": { "code": "UNAUTHORIZED", "message": "Authentication required" } }
 ```
 
-- `POST /api/auth/login` `{ "password": "..." }` — sets the HttpOnly `dossier_session`
+- `POST /api/auth/login` `{ "password": "..." }` — sets the HttpOnly `profile_session`
   cookie; a wrong password returns 401 `INVALID_PASSWORD`.
 - `POST /api/auth/logout` — clears the cookie.
 - `GET /api/auth/me` — `{ authenticated, expiresAt? }`.
@@ -44,8 +44,8 @@ need user-facing text should do the same or show the message as-is.
 |---|---|---|
 | GET | `/api/v1/healthz` | `{ ok: true, db: "ok" }`, public |
 | GET | `/api/v1/setup` | `{ needsSetup, catalogItems, defaultRegion, profileApiConfigured, sources }` |
-| GET | `/api/v1/payload` | the whole dossier: character, gear, catalog, derived cards, icons, freshness. `catalog.meta.items` counts every catalog row (weapons, armor, motifs, artifacts, containers), not only weapons and armor |
-| GET | `/api/v1/meta` | `{ meta, catalogMeta, freshness }` — described by `MetaRead` in `@dossier/shared/contracts` and pinned by `tests/integration/contracts/payload-contract.test.ts` |
+| GET | `/api/v1/payload` | the whole profile: character, gear, catalog, derived cards, icons, freshness. `catalog.meta.items` counts every catalog row (weapons, armor, motifs, artifacts, containers), not only weapons and armor |
+| GET | `/api/v1/meta` | `{ meta, catalogMeta, freshness }` — described by `MetaRead` in `@profile/shared/contracts` and pinned by `tests/integration/contracts/payload-contract.test.ts` |
 | GET | `/api/v1/character` | character with derived fields (`kd`, `accuracy`, `headshot`, `hours`, `arrived`) |
 | GET | `/api/v1/items?q=&kind=&rank=&slot=&limit=` | item search |
 | GET | `/api/v1/items/:id` | item, stats, effects, card, icon |
@@ -56,7 +56,7 @@ need user-facing text should do the same or show the message as-is.
 | GET | `/api/v1/prices?names=A,B` | `price_latest` by name |
 | GET | `/api/v1/sources` | source statuses and age |
 | GET | `/api/v1/events?limit=` | change journal |
-| GET | `/api/v1/admin/export` | the typed dossier JSON (attachment) |
+| GET | `/api/v1/admin/export` | the typed profile JSON (attachment) |
 | GET | `/api/v1/admin/cleanup` | owned records and copies |
 
 ## Writes
@@ -76,7 +76,7 @@ text is English.
 
 | Method | Path | Body |
 |---|---|---|
-| POST | `/api/v1/character` | `CharacterCreateSchema`: `nick`, `region` (`ru \| eu \| na \| sea`), optional `faction` (`rise \| frontier \| mercenaries \| covenant` or `null`), `alliance`, `clanName`, `clanRank`, `dryRun`. The dossier holds one character: a second create answers `409 CHARACTER_EXISTS` |
+| POST | `/api/v1/character` | `CharacterCreateSchema`: `nick`, `region` (`ru \| eu \| na \| sea`), optional `faction` (`rise \| frontier \| mercenaries \| covenant` or `null`), `alliance`, `clanName`, `clanRank`, `dryRun`. The profile holds one character: a second create answers `409 CHARACTER_EXISTS` |
 | POST | `/api/v1/owned` | `OwnedCreateSchema` (optionally `container` for a container) |
 | PATCH | `/api/v1/owned/:id` | `OwnedPatchSchema` (optionally `container` override or `null` to clear) |
 | DELETE | `/api/v1/owned/:id?qty=` | — (removes one copy or `qty`) |
@@ -98,7 +98,7 @@ snapshot, so Rollback restores the cleared data. An empty inventory answers
 
 Character creation writes one `character.create` event with `before: null`. Its rollback
 deletes the character only while no gear exists; otherwise it answers
-`409 CHARACTER_NOT_EMPTY`, because deleting the row would cascade the dossier away.
+`409 CHARACTER_NOT_EMPTY`, because deleting the row would cascade the profile away.
 
 ## Sync
 

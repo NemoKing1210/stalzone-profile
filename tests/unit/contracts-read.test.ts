@@ -4,7 +4,7 @@ import {
   ItemCardSchema,
   OwnedReadSchema,
   WriteResultSchema,
-} from '@dossier/shared/contracts';
+} from '@profile/shared/contracts';
 
 describe('read contracts', () => {
   it('keeps missing values as null', () => {

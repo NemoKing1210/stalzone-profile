@@ -11,14 +11,14 @@ import {
   runSyncSequence,
   setSyncSchedule,
   type Db,
-} from '@dossier/core';
+} from '@profile/core';
 
 const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
 let dir: string;
 let db: Db;
 
 beforeEach(() => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dossier-scheduler-'));
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'profile-scheduler-'));
   db = openDb(path.join(dir, 'test.db'));
   migrate(db, migrationsDir);
   ensureDefaultSources(db);

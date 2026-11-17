@@ -1,4 +1,4 @@
-import type { SyncOptions } from '@dossier/core';
+import type { SyncOptions } from '@profile/core';
 
 /**
  * Sync options that depend on the deployment: the icon directory comes from

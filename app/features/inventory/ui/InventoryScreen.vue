@@ -2,9 +2,9 @@
 import { h, type VNode } from 'vue';
 
 import { ItemCard, findDetailsCard, rankOptions } from '~/entities/item';
-import { DossierPane, KeyHint } from '~/shared/ui';
+import { ProfilePane, KeyHint } from '~/shared/ui';
 
-import type { FillTarget, OwnedEditTarget } from '~/shared/types/dossier';
+import type { FillTarget, OwnedEditTarget } from '~/shared/types/profile';
 import {
   filterInventoryRows,
   inventorySections,
@@ -25,7 +25,7 @@ import { INVENTORY_UI } from './kinds/registry';
 const props = defineProps<{ kind: InventoryKind<TRow> }>();
 
 const { t } = useI18n();
-const { payload } = useDossier();
+const { payload } = useProfile();
 const { g1, g2, num } = useFormat();
 useHead(() => ({ title: `${t(props.kind.labels.pageTitle)} // ${t('common.appName')}` }));
 
@@ -212,7 +212,7 @@ function openArtifact(name: string, level: number): void {
 
     <CatalogNotice />
 
-    <DossierPane
+    <ProfilePane
       class="min-w-0"
       flush
       :label="t(kind.labels.title)"
@@ -288,7 +288,7 @@ function openArtifact(name: string, level: number): void {
           </template>
         </template>
       </div>
-    </DossierPane>
+    </ProfilePane>
 
     <p v-if="kind.labels.hint" class="text-[11px] text-[var(--sz-text-dim)]">{{ t(kind.labels.hint) }}</p>
 

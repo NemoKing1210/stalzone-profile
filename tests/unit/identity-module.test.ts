@@ -2,15 +2,15 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { closeDb, migrate, openDb, type Db } from '@dossier/core';
-import { getCharacterRead, upsertCharacter } from '@dossier/core/modules/identity';
+import { closeDb, migrate, openDb, type Db } from '@profile/core';
+import { getCharacterRead, upsertCharacter } from '@profile/core/modules/identity';
 
 const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
 let dir: string;
 let db: Db;
 
 beforeEach(() => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dossier-identity-'));
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'profile-identity-'));
   db = openDb(path.join(dir, 'test.db'));
   migrate(db, migrationsDir);
 });

@@ -1,7 +1,7 @@
 export type CatalogSourceId = 'exbo_base' | 'wiki' | 'motifs' | 'scpmodel' | 'icons';
 
 /**
- * How much of the dossier depends on a source: `required` builds the item base,
+ * How much of the profile depends on a source: `required` builds the item base,
  * `recommended` fills the sections people look at first, `optional` is polish.
  */
 export type CatalogSourceLevel = 'required' | 'recommended' | 'optional';

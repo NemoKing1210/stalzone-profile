@@ -1,4 +1,4 @@
-import type { SourceDiagnostic, SyncDiagnostics } from '@dossier/shared/contracts';
+import type { SourceDiagnostic, SyncDiagnostics } from '@profile/shared/contracts';
 import type { Db } from '../../../platform/db/index.js';
 import { countItems } from '../../catalog/index.js';
 import * as identity from '../../identity/index.js';

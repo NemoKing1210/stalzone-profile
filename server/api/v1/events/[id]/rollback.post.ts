@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { rollbackEvent } from '@dossier/core';
+import { rollbackEvent } from '@profile/core';
 import { useDb } from '../../../../utils/db';
 import { apiError, validationError } from '../../../../utils/errors';
 import { requireOrigin } from '../../../../utils/auth';

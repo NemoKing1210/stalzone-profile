@@ -1,6 +1,6 @@
 # AGENTS.md — how to change this repository safely
 
-A personal STALZONE dossier: **SQLite is the single source of truth**, Nuxt 4 serves the
+A personal STALZONE profile: **SQLite is the single source of truth**, Nuxt 4 serves the
 site and the REST API, Nitro serves `/mcp`, and `packages/mcp` gives an agent the same data.
 One process, one database, no separate worker.
 
@@ -38,7 +38,7 @@ This file holds rules, not a copy of the documentation.
 | Formula regression (public fixture) | `npm run golden` — expect `0 mismatches`, `legacyDeltas: []`               |
 | Site build                        | `npm run build` → `.output/`                                                 |
 | CLI/MCP build                     | `npm run build:cli` → `dist/cli.js`, `dist/mcp-stdio.js`                     |
-| MCP stdio                         | `npm run mcp` (local DB) or `DOSSIER_API_URL=… MCP_TOKEN=… npm run mcp`      |
+| MCP stdio                         | `npm run mcp` (local DB) or `PROFILE_API_URL=… MCP_TOKEN=… npm run mcp`      |
 | MCP smoke                         | `npm run smoke:mcp`                                                          |
 | Source sync                       | `npm run sync [exbo_base\|wiki\|motifs\|scpmodel\|icons\|profile] [-- --force]` |
 | Backup                            | `npm run backup`                                                             |
@@ -147,7 +147,7 @@ Lower layers do not import upper layers.
 
 Breaking any item is a bug, even when the tests are green.
 
-1. **Data changes only through services.** Do not edit `dossier.db`, `payload.json` or the
+1. **Data changes only through services.** Do not edit `profile.db`, `payload.json` or the
    export by hand. Writes go only through the API, MCP or CLI, and always through the owning
    domain module's `write.ts` (`modules/<name>/write.ts`) with an `event_log` entry in the
    same transaction. HTTP routes and MCP never write SQL themselves.
@@ -195,16 +195,16 @@ the module's `index.ts`; the façade re-exports it for the server and MCP.
 `packages/core/src/modules/sync`. On failure the source is marked `stale`; old data is
 not deleted.
 
-**UI.** Nuxt UI plus the existing composables (`useDossier`, `useWrite`, `useFilters`,
+**UI.** Nuxt UI plus the existing composables (`useProfile`, `useWrite`, `useFilters`,
 `useFormat`, `useApiError`, all auto-imported from `app/shared/composables`). New screens
 live in `app/features/<feature>/ui` with their pure model in `.../model`, and the route file
 in `app/pages` stays a thin wrapper. SSR safety is mandatory: do not touch
 `window`/`localStorage` during setup, and format dates deterministically to avoid hydration
 mismatches. All visible strings come from `t(...)`; see `docs/I18N.md`.
 
-**Client code** imports `@dossier/shared/contracts`, `/ranks` and `/format` through subpaths,
-never the `@dossier/shared` barrel: the barrel pulls `node:crypto` into the browser bundle.
-The app imports no `@dossier/core`; ESLint enforces both rules together with the
+**Client code** imports `@profile/shared/contracts`, `/ranks` and `/format` through subpaths,
+never the `@profile/shared` barrel: the barrel pulls `node:crypto` into the browser bundle.
+The app imports no `@profile/core`; ESLint enforces both rules together with the
 `shared → entities → features → pages` direction.
 
 **The `/guide` page is part of the contract.** A new or removed screen, REST route, MCP tool,
@@ -231,7 +231,7 @@ are a reference, not marketing copy.
 ## Style
 
 - TypeScript strict, ESM. Inside packages, relative imports end with `.js`; between
-  packages use `@dossier/*`.
+  packages use `@profile/*`.
 - English is the project language: interface defaults, error messages, comments, docs and
   commits. Russian exists only as a translation catalog (`i18n/locales/ru.json`) and as
   game data (item names, stat labels, category names coming from the sources).

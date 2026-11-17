@@ -1,4 +1,4 @@
-import { buildDetails, findItemByKindName } from '@dossier/core';
+import { buildDetails, findItemByKindName } from '@profile/core';
 import { useDb } from '../../../utils/db';
 import { apiError } from '../../../utils/errors';
 

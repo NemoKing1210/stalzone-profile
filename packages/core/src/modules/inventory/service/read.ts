@@ -1,4 +1,4 @@
-import type { OwnedRead } from '@dossier/shared/contracts';
+import type { OwnedRead } from '@profile/shared/contracts';
 import type { Db } from '../../../platform/db/index.js';
 import * as repo from '../repo/owned.js';
 import type { OwnedContainerRow, OwnedJoined } from '../repo/owned.js';

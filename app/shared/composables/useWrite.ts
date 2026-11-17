@@ -1,4 +1,4 @@
-import type { WriteDiff, WriteResult } from '@dossier/shared/contracts';
+import type { WriteDiff, WriteResult } from '@profile/shared/contracts';
 
 export type { WriteDiff, WriteResult };
 
@@ -14,7 +14,7 @@ interface ApiErrorData {
 /** Single write path for the edit forms: toast, diff and payload refresh in one place. */
 export function useWrite() {
   const toast = useToast();
-  const { refresh } = useDossier();
+  const { refresh } = useProfile();
   const { t } = useI18n();
   const { message: apiMessage } = useApiError();
   const busy = ref(false);

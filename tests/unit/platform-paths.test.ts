@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { openDb } from '@dossier/core/platform/db';
-import { loadConfig } from '@dossier/core/platform/config';
-import { createSessionToken } from '@dossier/core/platform/security';
+import { openDb } from '@profile/core/platform/db';
+import { loadConfig } from '@profile/core/platform/config';
+import { createSessionToken } from '@profile/core/platform/security';
 
 describe('platform public paths', () => {
   it('exposes lifecycle, config and security functions', () => {

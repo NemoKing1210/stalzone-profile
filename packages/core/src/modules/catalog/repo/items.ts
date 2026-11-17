@@ -1,4 +1,4 @@
-import { norm } from '@dossier/shared';
+import { norm } from '@profile/shared';
 import type { Db } from '../../../platform/db/index.js';
 import { sourcePriority } from '../source-priority.js';
 import { ensureStatDefinition } from './stats.js';

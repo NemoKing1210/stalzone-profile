@@ -1,4 +1,4 @@
-import type { DossierPayload, FillTarget, OwnedEditTarget } from '~/shared/types/dossier';
+import type { ProfilePayload, FillTarget, OwnedEditTarget } from '~/shared/types/profile';
 
 /** Number and date formatting the table cells and cards use; mirrors `useFormat`. */
 export interface FormatFns {
@@ -71,7 +71,7 @@ export interface InventoryKind<TRow extends { key: string; name: string; rank: s
   gridTestId: string;
   gridClass: string;
   emptyIcon: string;
-  toRows: (payload: DossierPayload | null, mode?: string) => TRow[];
+  toRows: (payload: ProfilePayload | null, mode?: string) => TRow[];
   columns: (context: InventoryColumnContext) => InventoryColumn<TRow>[];
   sortOptions: InventorySortOption[];
   defaultSort: { key: string; dir: 'asc' | 'desc' };

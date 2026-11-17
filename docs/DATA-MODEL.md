@@ -19,7 +19,7 @@ only through new migrations in `db/migrations/`.
 | `icon` | one icon per item: `path` is `/icons/<sha1>.<ext>` (`png` downloaded from EXBO, `webp` from an admin import), files in `ICONS_DIR`; `item` has no icon column |
 | `price_quote` | auction price history; view `price_latest` — newest by name+quality+bonus |
 
-### Dossier data (the owner)
+### Profile data (the owner)
 
 | Table | Purpose |
 |---|---|
@@ -35,7 +35,7 @@ owner-approved reset; that exception is closed). Every later change is a new
 `NNNN_*.sql` file. `0002_character_faction.sql` turns `faction` into an enum
 (`rise`, `frontier`, `mercenaries`, `covenant`), keeps it nullable, normalizes legacy
 free-text values to `NULL` and drops `playstyle`. `0003_drop_builds.sql` drops the
-`build`, `build_metric` and `build_slot` tables: the dossier now stores only item-centred
+`build`, `build_metric` and `build_slot` tables: the profile now stores only item-centred
 entities. Historical `event_log` rows that mention builds remain readable but can no
 longer be restored.
 
@@ -136,7 +136,7 @@ ttk          = round((ceil(600 / displayedDmg) - 1) * 60 / rof, 2)
   disabled state). A no-op writes nothing.
 - Boot backfills `source.url` with each source's public origin (`COALESCE` keeps an existing
   value); `local` has no URL.
-- The portable JSON export describes dossier content and does not include settings; the
+- The portable JSON export describes profile content and does not include settings; the
   SQLite backup includes `sync_schedule` like every other table.
 - On first run the database is empty apart from migrations and sources: the catalog comes
   from `npm run sync`, gear through the API, MCP or the site.

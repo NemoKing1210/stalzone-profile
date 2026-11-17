@@ -67,7 +67,7 @@ claim a green check from focused tests alone: name the tier and the commands you
   `i18n/locales/ru.json` and as game data.
 - API and site use `camelCase`; MCP tools and arguments use `snake_case`.
 - Dependencies point one way: `app/server → mcp → core → sources/shared`. The app never
-  imports `@dossier/core` and uses `@dossier/shared` only through `/contracts`, `/ranks`
+  imports `@profile/core` and uses `@profile/shared` only through `/contracts`, `/ranks`
   and `/format`. `npm run boundaries` enforces this.
 
 ## Tests

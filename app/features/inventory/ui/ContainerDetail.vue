@@ -2,7 +2,7 @@
 import { RankBadge, RarityName } from '~/entities/item';
 import { StatRow, StorageBar } from '~/shared/ui';
 
-import type { ContainerPayload } from '~/shared/types/dossier';
+import type { ContainerPayload } from '~/shared/types/profile';
 
 const props = defineProps<{ container: ContainerPayload | null }>();
 

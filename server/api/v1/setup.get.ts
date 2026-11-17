@@ -1,4 +1,4 @@
-import { defaultSetupRegion, setupState, listSourceReads } from '@dossier/core';
+import { defaultSetupRegion, setupState, listSourceReads } from '@profile/core';
 import { useDb } from '../../utils/db';
 
 export default defineEventHandler(() => {

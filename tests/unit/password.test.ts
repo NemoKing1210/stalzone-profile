@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hashPassword, verifyPassword } from '@dossier/core';
+import { hashPassword, verifyPassword } from '@profile/core';
 
 describe('password hashing', () => {
   it('accepts the original password and rejects another', () => {

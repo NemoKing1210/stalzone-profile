@@ -23,7 +23,7 @@ const navItems = computed(() =>
 );
 
 const route = useRoute();
-const { meta } = useDossier();
+const { meta } = useProfile();
 const loggingOut = ref(false);
 
 async function logout(): Promise<void> {

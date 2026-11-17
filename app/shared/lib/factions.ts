@@ -1,4 +1,4 @@
-import { FACTIONS, type Faction } from '@dossier/shared/contracts';
+import { FACTIONS, type Faction } from '@profile/shared/contracts';
 
 type Translate = (key: string) => string;
 

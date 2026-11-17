@@ -16,7 +16,7 @@
                     └──────────────┬───────────────┘
                                    │
                     ┌──────────────▼───────────────┐
-                    │ SQLite (WAL) dossier.db      │
+                    │ SQLite (WAL) profile.db      │
                     └──────────────▲───────────────┘
                                    │ runSync
                     ┌──────────────┴───────────────┐
@@ -63,12 +63,12 @@ Inside `app` the slices follow the same rule with ESLint enforcement
 (`eslint.config.mjs`, `boundaries/dependencies`): `shared` imports only `shared`, `entities`
 imports `shared`/`entities`, `features` imports `shared`/`entities` (never another feature),
 and `pages` imports `shared`/`entities`/`features`. The app talks to the server only over
-HTTP: it imports no `@dossier/core`, and `@dossier/shared` only through `/contracts`,
+HTTP: it imports no `@profile/core`, and `@profile/shared` only through `/contracts`,
 `/ranks` or `/format`.
 
 ## Read flow
 
-1. A page calls `useDossier()` → `GET /api/v1/payload` or `/api/v1/meta`.
+1. A page calls `useProfile()` → `GET /api/v1/payload` or `/api/v1/meta`.
 2. The route gets the shared `Db` from `server/utils/db.ts` (WAL, one migration per process).
 3. `buildPayload` (`packages/core/src/modules/read-model/payload.ts`) assembles typed rows:
    character with derived fields, gear, catalog, derived `details[key]` cards, icons
@@ -122,7 +122,7 @@ form → useWrite → POST/PATCH/DELETE /api/v1/...
 ## Authorization
 
 - Password: a scrypt hash (`NUXT_PASSWORD_HASH`) or plain (`NUXT_PASSWORD`) for dev.
-- Cookie `dossier_session`: HMAC-SHA256, HttpOnly, SameSite=Lax, Secure over HTTPS.
+- Cookie `profile_session`: HMAC-SHA256, HttpOnly, SameSite=Lax, Secure over HTTPS.
 - Middleware guards everything except `/login`, `/api/auth/login`, `/api/v1/healthz`, `/mcp`.
 - `/mcp` checks `Authorization: Bearer NUXT_MCP_TOKEN` itself; without a token — 404.
 - Mutations require a matching `Origin` (or Bearer for non-browser clients).
@@ -132,13 +132,13 @@ form → useWrite → POST/PATCH/DELETE /api/v1/...
 
 One tool registry (`packages/mcp/src/registry.ts`) serves both transports:
 
-- **stdio** — `packages/mcp/src/stdio.ts`: with `DOSSIER_API_URL` it works as an HTTP
+- **stdio** — `packages/mcp/src/stdio.ts`: with `PROFILE_API_URL` it works as an HTTP
   client, otherwise it opens `DB_PATH` and works locally.
 - **HTTP** — `POST /mcp`: stateless `StreamableHTTPServerTransport`, a new server per
   request, one rate limiter per process.
 
 Writes: `dry_run` by default, `confirm: true` is mandatory, no more than 30 changes per
-minute. The `dossier://schema` resource describes the tools and the write rules.
+minute. The `profile://schema` resource describes the tools and the write rules.
 
 ## Sources and freshness
 
@@ -174,7 +174,7 @@ answer as themselves. Once a character exists, `/setup` redirects to `/`.
 
 The site is an English-default Nuxt app with a Russian translation, powered by
 `@nuxtjs/i18n` in `no_prefix` mode. Catalogs are lazy-loaded from `i18n/locales/*.json`;
-`app/plugins/i18n-locale.ts` persists the choice in the `dossier_lang` cookie.
+`app/plugins/i18n-locale.ts` persists the choice in the `profile_lang` cookie.
 Game data (item names, stat labels, categories from the sources) is not translated.
 Server and MCP messages are English; the UI localizes error codes. Details: `docs/I18N.md`.
 
@@ -182,4 +182,4 @@ Server and MCP messages are English; the UI localizes error codes. Details: `doc
 
 One image: the Nuxt + CLI build, a runtime with `.output`, `node_modules`, `dist`,
 `db/migrations` and an empty database created on first run. The `/data` volume holds
-`dossier.db` and backups. Caddy is an optional profile for TLS. See `docs/RUNBOOK.md`.
+`profile.db` and backups. Caddy is an optional profile for TLS. See `docs/RUNBOOK.md`.

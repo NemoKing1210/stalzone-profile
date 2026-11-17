@@ -8,7 +8,7 @@ export default defineNuxtPlugin(() => {
   const accent = useState<AccentId>('accent', () => DEFAULT_ACCENT);
 
   try {
-    const stored = localStorage.getItem('dossier.accent');
+    const stored = localStorage.getItem('profile.accent');
     if (stored !== null) accent.value = normalizeAccent(stored);
     document.documentElement.dataset.accent = accent.value;
   } catch {

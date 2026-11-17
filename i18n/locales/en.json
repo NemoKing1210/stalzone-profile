@@ -45,7 +45,7 @@
     "guide": "Guide",
     "settings": "Settings",
     "logout": "Sign out",
-    "footer": "Personal STALZONE dossier. Data is updated manually; prices are read-only.",
+    "footer": "Personal STALZONE profile. Data is updated manually; prices are read-only.",
     "currentSection": "Current section: {path}"
   },
   "accents": {
@@ -94,7 +94,7 @@
     "SYNC_IN_PROGRESS": "A sync is already running. Try again when it finishes."
   },
   "auth": {
-    "subtitle": "Personal dossier. Password sign-in.",
+    "subtitle": "Personal profile. Password sign-in.",
     "password": "Password",
     "signIn": "Sign in",
     "pageTitle": "Sign in",
@@ -122,10 +122,10 @@
     "sections": "Sections",
     "dataState": "Data state",
     "about": "About the data",
-    "aboutSnapshot": "Dossier snapshot: {date}.",
+    "aboutSnapshot": "Profile snapshot: {date}.",
     "aboutSources": "Sources: {sources}.",
     "aboutNote": "Prices are updated separately; a missing lot is shown as “no lot”, a missing stat as “no data”. All numbers are recomputed with one formula from the database.",
-    "emptyTitle": "Dossier is empty",
+    "emptyTitle": "Profile is empty",
     "emptyDescription": "Load the catalog with npm run sync, then add gear through the site, the API or MCP."
   },
   "sources": {
@@ -186,8 +186,8 @@
     "title": "Weapons",
     "summary": "{shown} of {total} · DPS and TTK are recalculated for each weapon's upgrade level",
     "emptyCatalog": "The weapon catalog is empty. Load the EXBO base.",
-    "emptyOwned": "No weapons in the dossier yet. Add them through the API or MCP.",
-    "hint": "Click a row to open the item card from the source dossier. Sorting and filters are saved in the browser.",
+    "emptyOwned": "No weapons in the profile yet. Add them through the API or MCP.",
+    "hint": "Click a row to open the item card from the source profile. Sorting and filters are saved in the browser.",
     "editAria": "Edit {name}"
   },
   "armor": {
@@ -195,8 +195,8 @@
     "title": "Armor",
     "summary": "{shown} of {total} · bullet protection at the current upgrade level and at +15",
     "emptyCatalog": "The armor catalog is empty. Load the EXBO base.",
-    "emptyOwned": "No armor in the dossier yet. Add it through the API or MCP.",
-    "hint": "Click a row to open the armor card from the source dossier: protection, modifiers and the bullet-protection curve."
+    "emptyOwned": "No armor in the profile yet. Add it through the API or MCP.",
+    "hint": "Click a row to open the armor card from the source profile: protection, modifiers and the bullet-protection curve."
   },
   "containers": {
     "pageTitle": "Containers",
@@ -224,7 +224,7 @@
     "fillEmpty": "no fill data",
     "fillAsOf": "Filled on {date}",
     "formula": "{slots} slots × {eff}% = {value} effect",
-    "emptyDescription": "No containers in the dossier yet. Add them through the API or MCP."
+    "emptyDescription": "No containers in the profile yet. Add them through the API or MCP."
   },
   "artifacts": {
     "pageTitle": "Artifacts",
@@ -235,7 +235,7 @@
     "sortRank": "By rank",
     "typeFallback": "type not specified",
     "effectsEmpty": "no effect data",
-    "emptyDescription": "No artifacts in the dossier yet. Add them through the API or MCP.",
+    "emptyDescription": "No artifacts in the profile yet. Add them through the API or MCP.",
     "hint": "Click a card to open the source artifact card with value ranges.",
     "editAria": "Edit {name}",
     "openAria": "Open the card for {name}",
@@ -313,7 +313,7 @@
     "bonusValue": "Bonus: {value}",
     "fillAsOf": "Filled on {date}",
     "notFoundTitle": "Card not found",
-    "notFoundDescription": "The source dossier has no card for this item.",
+    "notFoundDescription": "The source profile has no card for this item.",
     "rawData": "Raw card data",
     "noLot": "no lot"
   },
@@ -323,7 +323,7 @@
     "action": "Open settings"
   },
   "owned": {
-    "addTitle": "Add to the dossier",
+    "addTitle": "Add to the profile",
     "addDescription": "Pick a catalog item and its parameters.",
     "item": "Item",
     "searchItem": "Search the catalog",
@@ -436,7 +436,7 @@
           "updates": "API-owned character stats, alliance, clan and the profile snapshot time; manual overrides are kept."
         },
         "local": {
-          "title": "This dossier",
+          "title": "Local data",
           "description": "Everything you added yourself: owned gear, container fills and manual stat overrides.",
           "updates": "Local records only; a source sync never overwrites them."
         }
@@ -451,14 +451,14 @@
     },
     "emptyTitle": "No sources registered",
     "emptyDescription": "Run migrations to create source records.",
-    "exportTitle": "Dossier export",
-    "exportText": "JSON in the source dossier format: character, gear, catalog and cards.",
+    "exportTitle": "Profile export",
+    "exportText": "JSON in the source profile format: character, gear, catalog and cards.",
     "downloadJson": "Download JSON",
     "backupsTitle": "Backups",
     "backupsBefore": "SQLite lives in a single file. A backup is taken with ",
     "backupsAfter": " without stopping the server; copies are kept for 14 days. Recovery is described in the RUNBOOK on a database copy.",
     "dataTitle": "Data",
-    "dossierUpdated": "Dossier updated",
+    "profileUpdated": "Profile updated",
     "prices": "Prices",
     "catalogUpdated": "Catalog updated",
     "catalogSource": "Catalog source",
@@ -468,7 +468,7 @@
     "accessBetween": " (scrypt) or ",
     "accessAfter": " for local development. Secrets are not stored in the repository.",
     "cleanup": {
-      "intro": "Remove dossier data from the interface. Every action is written to the change log and can be rolled back there.",
+      "intro": "Remove profile data from the interface. Every action is written to the change log and can be rolled back there.",
       "inventoryTitle": "Inventory",
       "inventoryText": "Every item you own, including container fills, in all categories.",
       "inventoryCount": "{records} records · {copies} copies",
@@ -477,7 +477,7 @@
       "countsRetry": "Retry",
       "confirmTitle": "Clear data",
       "confirmInventory": "Delete all {records} inventory records ({copies} copies)? The action is written to the journal and can be rolled back.",
-      "exportHint": "Export the dossier before cleanup:",
+      "exportHint": "Export the profile before cleanup:",
       "exportLink": "Download JSON",
       "journalHint": "You can undo this in the Journal tab."
     },
@@ -492,8 +492,8 @@
   },
   "setup": {
     "pageTitle": "First run",
-    "title": "Set up the dossier",
-    "intro": "Create the character this dossier belongs to. Gear and statistics come later.",
+    "title": "Set up the profile",
+    "intro": "Create the character this profile belongs to. Gear and statistics come later.",
     "step": "Step {current} of {total}",
     "stepCharacter": "Character",
     "stepCatalog": "Item catalog",
@@ -503,8 +503,8 @@
     "faction": "Faction (optional)",
     "create": "Create character",
     "creating": "Creating…",
-    "catalogIntro": "The item catalog is public game data. Download the sources below — the dossier is browsable without them, but new gear, prices and icons need them.",
-    "catalogEmptyHint": "Without the catalog the dossier is browsable, but new gear cannot be added.",
+    "catalogIntro": "The item catalog is public game data. Download the sources below — the profile is browsable without them, but new gear, prices and icons need them.",
+    "catalogEmptyHint": "Without the catalog the profile is browsable, but new gear cannot be added.",
     "sourceInfo": {
       "exbo_base": "Items and their stats from the official EXBO database. The base every other source builds on.",
       "wiki": "Artifacts, armor, weapons and containers with their descriptions and TTK from stalzone.wiki.",
@@ -531,11 +531,11 @@
     "profileSynced": "Profile statistics loaded: {items}",
     "profileNotConfigured": "The profile API is not configured. You can add statistics in the character editor later.",
     "profileSettings": "Open settings",
-    "finish": "Open the dossier"
+    "finish": "Open the profile"
   },
   "freshness": {
     "prices": "Prices: {age}",
-    "data": "Dossier data: {date}"
+    "data": "Profile data: {date}"
   },
   "events": {
     "title": "Change log",
@@ -555,7 +555,7 @@
       "containerFill": "Container fill",
       "contentPut": "Block changed",
       "ownedClear": "Inventory cleared",
-      "dossierClear": "All data cleared",
+      "profileClear": "All data cleared",
       "rollback": "Rollback"
     },
     "rollbackAria": "Roll back event {id}",
@@ -589,8 +589,8 @@
   },
   "guide": {
     "title": "Project guide",
-    "subtitle": "Every screen, endpoint, tool and source of this dossier, and how they connect.",
-    "lead": "The dossier is one SQLite database behind one Nuxt process. The site, the REST API, MCP and the CLI are four ways to read and change the same data; this page is the map.",
+    "subtitle": "Every screen, endpoint, tool and source of this profile, and how they connect.",
+    "lead": "The profile is one SQLite database behind one Nuxt process. The site, the REST API, MCP and the CLI are four ways to read and change the same data; this page is the map.",
     "jump": "Jump to a section",
     "stats": {
       "pages": "Site screens",
@@ -599,7 +599,7 @@
       "sources": "Sync sources"
     },
     "live": {
-      "title": "Your dossier right now",
+      "title": "Your profile right now",
       "owned": "Owned items",
       "catalog": "Catalog items",
       "updated": "Last data update"
@@ -716,7 +716,7 @@
         "caps": {
           "map": "One map of everything the project can do.",
           "contract": "Tests compare its lists with the real routes, tools and scripts.",
-          "live": "A live strip shows the size of your dossier and when data last arrived."
+          "live": "A live strip shows the size of your profile and when data last arrived."
         }
       },
       "setup": {
@@ -802,7 +802,7 @@
       "reads": {
         "healthz": "Liveness probe for the process and the database.",
         "setup": "First-run state: whether a character exists, catalog size and source status.",
-        "payload": "The whole dossier in one response: character, gear, catalog, derived cards, icons and freshness.",
+        "payload": "The whole profile in one response: character, gear, catalog, derived cards, icons and freshness.",
         "meta": "Compact metadata: character update, catalog state and freshness.",
         "character": "The character with its derived fields (K/D, accuracy, headshot, hours, arrival).",
         "items": "Search the catalog by text, kind, rank and slot.",
@@ -814,7 +814,7 @@
         "prices": "Latest auction prices for a list of item names.",
         "sources": "Source status, last success, last attempt and age.",
         "events": "The change journal, newest first.",
-        "export": "The typed dossier JSON as a download."
+        "export": "The typed profile JSON as a download."
       },
       "writes": {
         "characterCreate": "Create the single character; a second create is rejected.",
@@ -844,7 +844,7 @@
         "rebuild": "rebuild_site does not rebuild anything; it reports the deploy command."
       },
       "tools": {
-        "get_character": "Character profile and stats from the dossier.",
+        "get_character": "Character profile and its statistics.",
         "find_items": "Search catalog items by name, kind, rank and slot.",
         "get_item": "Item card: stats, effects, icon and the derived detail card.",
         "compare_items": "Compare two weapons by DPS and TTK at a refinement level.",
@@ -853,7 +853,7 @@
         "plan_artifact_build": "Pick artifacts for an effect preset, slots and budget.",
         "get_prices": "Latest auction prices by item name.",
         "sources_status": "Source state and freshness.",
-        "export_dossier_json": "Export the dossier as portable JSON.",
+        "export_profile_json": "Export the profile as portable JSON.",
         "upsert_owned_item": "Add one copy of an item or update its fields.",
         "remove_owned_item": "Remove one copy of an item.",
         "set_container_artifacts": "Replace a container fill.",
@@ -880,10 +880,10 @@
         "migrate": "Apply pending SQL migrations.",
         "reset": "Delete the database file; check DB_PATH first.",
         "sync": "Run source syncs from the terminal; add -- --force to bypass the price TTL.",
-        "export": "Write the typed dossier JSON.",
+        "export": "Write the typed profile JSON.",
         "backup": "Copy the SQLite file with the online backup API and prune copies older than 14 days.",
         "hashPassword": "Print a scrypt hash for NUXT_PASSWORD_HASH.",
-        "mcp": "Run the MCP server over stdio against the local database or DOSSIER_API_URL.",
+        "mcp": "Run the MCP server over stdio against the local database or PROFILE_API_URL.",
         "smoke": "Call every read tool against a temporary database and validate the shapes.",
         "test": "Run unit and integration tests.",
         "testUnit": "Pure-function tests only.",
@@ -959,7 +959,7 @@
     "sectionNotes": "Notes",
     "chooseFaction": "Choose a faction",
     "factionNone": "No faction",
-    "arrivedStored": "In the dossier: “{value}”",
+    "arrivedStored": "In the profile: “{value}”",
     "title": "Title",
     "quality": "Quality",
     "fillTitle": "Container fill",

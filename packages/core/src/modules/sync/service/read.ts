@@ -1,4 +1,4 @@
-import type { SourceStatus as SourceStatusRead } from '@dossier/shared/contracts';
+import type { SourceStatus as SourceStatusRead } from '@profile/shared/contracts';
 import type { Db } from '../../../platform/db/index.js';
 import * as repo from '../repo/sources.js';
 import type { SourceRow } from '../repo/sources.js';

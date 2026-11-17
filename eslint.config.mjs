@@ -6,7 +6,7 @@ const APP_LAYER_MESSAGE =
   'shared from shared, entities from shared/entities, features from shared/entities, pages from shared/entities/features.';
 
 const SHARED_PACKAGE_MESSAGE =
-  'Import @dossier/shared through a subpath: /contracts, /ranks or /format. The barrel pulls node:crypto into the browser bundle.';
+  'Import @profile/shared through a subpath: /contracts, /ranks or /format. The barrel pulls node:crypto into the browser bundle.';
 
 export default withNuxt(
   {
@@ -40,22 +40,22 @@ export default withNuxt(
         'error',
         {
           paths: [
-            { name: '@dossier/core', message: 'The app talks to the server through the HTTP API, never to core.' },
-            { name: '@dossier/mcp', message: 'The app talks to the server through the HTTP API, never to an MCP client.' },
-            { name: '@dossier/sources', message: 'Source adapters run on the server only; the app never imports them.' },
-            { name: '@dossier/shared', message: SHARED_PACKAGE_MESSAGE },
+            { name: '@profile/core', message: 'The app talks to the server through the HTTP API, never to core.' },
+            { name: '@profile/mcp', message: 'The app talks to the server through the HTTP API, never to an MCP client.' },
+            { name: '@profile/sources', message: 'Source adapters run on the server only; the app never imports them.' },
+            { name: '@profile/shared', message: SHARED_PACKAGE_MESSAGE },
           ],
           patterns: [
-            { group: ['@dossier/core/*'], message: 'The app talks to the server through the HTTP API, never to core.' },
-            { group: ['@dossier/mcp/*'], message: 'The app talks to the server through the HTTP API, never to an MCP client.' },
-            { group: ['@dossier/sources/*'], message: 'Source adapters run on the server only; the app never imports them.' },
+            { group: ['@profile/core/*'], message: 'The app talks to the server through the HTTP API, never to core.' },
+            { group: ['@profile/mcp/*'], message: 'The app talks to the server through the HTTP API, never to an MCP client.' },
+            { group: ['@profile/sources/*'], message: 'Source adapters run on the server only; the app never imports them.' },
             {
               group: [
-                '@dossier/shared/**',
-                '!@dossier/shared/contracts',
-                '!@dossier/shared/contracts/**',
-                '!@dossier/shared/ranks',
-                '!@dossier/shared/format',
+                '@profile/shared/**',
+                '!@profile/shared/contracts',
+                '!@profile/shared/contracts/**',
+                '!@profile/shared/ranks',
+                '!@profile/shared/format',
               ],
               message: SHARED_PACKAGE_MESSAGE,
             },

@@ -30,7 +30,7 @@ Then, in the browser:
 2. `/setup` opens on its own: enter the nickname and a live region (`ru`, `eu`, `na`,
    `sea`).
 3. Download the catalog (`exbo_base`, `wiki`, `motifs`, `scpmodel`, `icons`). It needs
-   internet; skipping leaves the dossier browsable but without items to add.
+   internet; skipping leaves the profile browsable but without items to add.
 4. If `NUXT_STALZONE_CLIENT_ID`/`NUXT_STALZONE_CLIENT_SECRET` are set, load the profile
    statistics. Otherwise enter the counters by hand in the character editor.
 
@@ -46,7 +46,7 @@ docker compose -f deploy/docker-compose.yml ps
 curl -fsS http://127.0.0.1:3000/api/v1/healthz
 ```
 
-The first start creates `/data/dossier.db` and applies migrations. The catalog on an empty
+The first start creates `/data/profile.db` and applies migrations. The catalog on an empty
 volume is empty — load it from the sources:
 
 ```bash
@@ -59,12 +59,30 @@ API answers `NO_CHARACTER` until the wizard (or `POST /api/v1/character`) create
 
 Check: `http://<host>:3000/login` serves the form; sign in with the password from `.env`.
 
+### Migrating an existing dossier deployment
+
+The rename changes the default file and volume names. Before starting the new build, copy
+the old data into the new volume:
+
+```bash
+docker compose -f deploy/docker-compose.yml down
+docker run --rm \
+  -v stalzone-profile_dossier-data:/from \
+  -v stalzone-profile_profile-data:/to \
+  alpine sh -c 'cp -a /from/. /to/ && cd /to && [ -f dossier.db ] && mv dossier.db profile.db; rm -f dossier.db-wal dossier.db-shm'
+docker compose -f deploy/docker-compose.yml up -d
+```
+
+Rename `DOSSIER_API_URL`/`DOSSIER_DOMAIN` to `PROFILE_API_URL`/`PROFILE_DOMAIN` in `.env`.
+For a local checkout, `mv data/dossier.db data/profile.db` (and the `-wal`/`-shm` files) is
+enough; existing sessions end because the cookie is now `profile_session`, so sign in again.
+
 ### Build without Docker
 
 ```bash
 npm run build             # .output/
 npm run build:cli         # dist/cli.js and dist/mcp-stdio.js
-DB_PATH=/data/dossier.db NUXT_SESSION_SECRET=... node .output/server/index.mjs
+DB_PATH=/data/profile.db NUXT_SESSION_SECRET=... node .output/server/index.mjs
 ```
 
 The schema is applied when the server starts; a separate migration step is optional.
@@ -72,7 +90,7 @@ The schema is applied when the server starts; a separate migration step is optio
 ### TLS
 
 ```bash
-DOSSIER_DOMAIN=dossier.example.com \
+PROFILE_DOMAIN=profile.example.com \
   docker compose -f deploy/docker-compose.yml --profile proxy up -d
 ```
 
@@ -92,7 +110,7 @@ cd /opt/stalzone-profile && deploy/backup.sh
 ```
 
 Or locally: `npm run backup`. The command uses `db.backup()` (safe with a running WAL),
-writes `dossier-<ISO>.db` into `snapshots/` (or `/data/backups`), and deletes copies older
+writes `profile-<ISO>.db` into `snapshots/` (or `/data/backups`), and deletes copies older
 than 14 days.
 
 ### Restore
@@ -103,8 +121,8 @@ than 14 days.
 
 ```bash
 docker compose -f deploy/docker-compose.yml stop app
-docker run --rm -v stalzone-profile_dossier-data:/data -v "$PWD":/backup alpine \
-  sh -c 'cp /backup/dossier-2026-11-15T04-00-00-000Z.db /data/dossier.db && rm -f /data/dossier.db-wal /data/dossier.db-shm'
+docker run --rm -v stalzone-profile_profile-data:/data -v "$PWD":/backup alpine \
+  sh -c 'cp /backup/profile-2026-11-15T04-00-00-000Z.db /data/profile.db && rm -f /data/profile.db-wal /data/profile.db-shm'
 docker compose -f deploy/docker-compose.yml start app
 ```
 

@@ -276,7 +276,7 @@ export const GUIDE_MCP: GuideMcpTool[] = [
   { name: 'plan_artifact_build', access: 'read', descriptionKey: 'guide.mcp.tools.plan_artifact_build' },
   { name: 'get_prices', access: 'read', descriptionKey: 'guide.mcp.tools.get_prices' },
   { name: 'sources_status', access: 'read', descriptionKey: 'guide.mcp.tools.sources_status' },
-  { name: 'export_dossier_json', access: 'read', descriptionKey: 'guide.mcp.tools.export_dossier_json' },
+  { name: 'export_profile_json', access: 'read', descriptionKey: 'guide.mcp.tools.export_profile_json' },
   { name: 'upsert_owned_item', access: 'write', descriptionKey: 'guide.mcp.tools.upsert_owned_item' },
   { name: 'remove_owned_item', access: 'write', descriptionKey: 'guide.mcp.tools.remove_owned_item' },
   { name: 'set_container_artifacts', access: 'write', descriptionKey: 'guide.mcp.tools.set_container_artifacts' },
@@ -384,7 +384,7 @@ export const GUIDE_READ_FLOW: GuideFlowStep[] = [
     icon: 'i-lucide-database',
     titleKey: 'guide.flow.read.sqlite.title',
     textKey: 'guide.flow.read.sqlite.text',
-    chips: ['dossier.db', 'WAL'],
+    chips: ['profile.db', 'WAL'],
   },
   {
     id: 'core',

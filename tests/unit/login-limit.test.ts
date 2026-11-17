@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { loginClientKey } from '@dossier/core';
+import { loginClientKey } from '@profile/core';
 
 describe('loginClientKey', () => {
   it('uses the socket address by default', () => {

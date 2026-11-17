@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FillTarget, OwnedKind } from '~/shared/types/dossier';
+import type { FillTarget, OwnedKind } from '~/shared/types/profile';
 
 import AddOwnedModal from '../AddOwnedModal.vue';
 import ContainerFillEditor from '../ContainerFillEditor.vue';
@@ -15,7 +15,7 @@ const fillOpen = computed({
   },
 });
 
-/** A container just added to the dossier opens straight into the fill editor. */
+/** A container just added to the profile opens straight into the fill editor. */
 function onCreated(created: { ownedId: number; name: string }): void {
   fillTarget.value = { ownedId: created.ownedId, name: created.name, artifacts: [], artifactsAsOf: null };
 }

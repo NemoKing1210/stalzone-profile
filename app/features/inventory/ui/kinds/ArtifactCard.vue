@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DossierItemCard } from '~/entities/item';
+import { ProfileItemCard } from '~/entities/item';
 
 import type { ArtifactRow } from '../../model/kinds/artifacts';
 
@@ -13,7 +13,7 @@ const stats = computed(() => [
 </script>
 
 <template>
-  <DossierItemCard
+  <ProfileItemCard
     :name="row.name"
     :rank="row.rank"
     :category="row.type"

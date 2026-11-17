@@ -1,4 +1,4 @@
-import type { ContainerFill, OwnedCreate, OwnedPatch } from '@dossier/shared';
+import type { ContainerFill, OwnedCreate, OwnedPatch } from '@profile/shared';
 import type { Db } from '../../platform/db/index.js';
 import { logEvent, withTransaction, WriteError, type WriteResult } from '../../platform/journal/index.js';
 import { resolveItem, resolveMotifExact } from '../catalog/index.js';

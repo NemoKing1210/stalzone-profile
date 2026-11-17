@@ -1,4 +1,4 @@
-import { norm, shortHash, slugify } from '@dossier/shared';
+import { norm, shortHash, slugify } from '@profile/shared';
 import type { ItemEffectInput, StatInput } from '../../catalog/index.js';
 
 type Json = Record<string, any>;

@@ -8,7 +8,7 @@ One tool registry serves both stdio and HTTP — results never diverge. There ar
 ### stdio, local database
 
 ```bash
-DB_PATH=./data/dossier.db npm run mcp
+DB_PATH=./data/profile.db npm run mcp
 # production:
 node dist/mcp-stdio.js
 ```
@@ -16,10 +16,10 @@ node dist/mcp-stdio.js
 ### stdio over HTTP
 
 ```bash
-DOSSIER_API_URL=https://dossier.example.com MCP_TOKEN=... npm run mcp
+PROFILE_API_URL=https://profile.example.com MCP_TOKEN=... npm run mcp
 ```
 
-Without `DOSSIER_API_URL` the shim opens SQLite directly; with it, it talks to `/mcp`.
+Without `PROFILE_API_URL` the shim opens SQLite directly; with it, it talks to `/mcp`.
 
 ### HTTP
 
@@ -35,7 +35,7 @@ Client config:
     "stalzone-profile": {
       "command": "node",
       "args": ["/app/dist/mcp-stdio.js"],
-      "env": { "DOSSIER_API_URL": "https://dossier.example.com", "MCP_TOKEN": "..." }
+      "env": { "PROFILE_API_URL": "https://profile.example.com", "MCP_TOKEN": "..." }
     }
   }
 }
@@ -54,7 +54,7 @@ Client config:
 
 Tool errors: `{ isError: true, content: [{ text: "{\"error\":{\"code\",\"message\"}}" }] }`.
 
-The `dossier://schema` resource provides tool descriptions and the write rules.
+The `profile://schema` resource provides tool descriptions and the write rules.
 
 ## Read tools
 
@@ -69,7 +69,7 @@ The `dossier://schema` resource provides tool descriptions and the write rules.
 | `plan_artifact_build` | preset/effects, slots, budget, mode, quality, unique, requireLot | an artifact plan by price |
 | `get_prices` | `names[]`, `quality?` | latest prices for each combination |
 | `sources_status` | — | source status, `lastOkAt`, `lastError` |
-| `export_dossier_json` | — | the typed dossier JSON (the same shape as `GET /api/v1/admin/export`) |
+| `export_profile_json` | — | the typed profile JSON (the same shape as `GET /api/v1/admin/export`) |
 
 ## Write and maintenance tools
 

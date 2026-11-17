@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DossierPane, StatRow } from '~/shared/ui';
+import { ProfilePane, StatRow } from '~/shared/ui';
 import { clampPercent } from '~/shared/lib/clampPercent';
 import { factionLabel } from '~/shared/lib/factions';
 
@@ -8,7 +8,7 @@ import EditCharacterModal from './EditCharacterModal.vue';
 const { t } = useI18n();
 useHead(() => ({ title: `${t('overview.pageTitle')} // ${t('common.appName')}` }));
 
-const { payload, meta } = useDossier();
+const { payload, meta } = useProfile();
 const { fmtMoney, dec, num, formatDate, formatAge } = useFormat();
 
 const character = computed(() => payload.value?.character ?? {});
@@ -106,7 +106,7 @@ const pricesTone = computed(() => {
 
 const dataState = computed(() => [
   {
-    label: t('settings.dossierUpdated'),
+    label: t('settings.profileUpdated'),
     value: formatDate(payload.value?.freshness.dataUpdated),
     tone: 'neutral' as const,
   },
@@ -132,7 +132,7 @@ const dataState = computed(() => [
 
     <template v-if="hasCharacter">
       <div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
-        <DossierPane class="order-1 min-w-0" :title="t('overview.character')" dense>
+        <ProfilePane class="order-1 min-w-0" :title="t('overview.character')" dense>
           <div class="min-w-0 space-y-1.5">
             <p class="font-display text-[15px] uppercase tracking-[0.06em]">{{ character.nick ?? 'STALZONE' }}</p>
             <UButton
@@ -179,10 +179,10 @@ const dataState = computed(() => [
           >
             {{ t('overview.stash', { value: character.stash }) }}
           </p>
-        </DossierPane>
+        </ProfilePane>
 
         <div class="order-2 min-w-0 space-y-4">
-          <DossierPane :title="t('overview.sections')" dense flush>
+          <ProfilePane :title="t('overview.sections')" dense flush>
             <div class="grid grid-cols-2 gap-px bg-[var(--sz-border)]">
               <NuxtLink
                 v-for="card in counts"
@@ -205,9 +205,9 @@ const dataState = computed(() => [
                 <p class="sz-caps text-[var(--sz-text-muted)]">{{ card.label }}</p>
               </NuxtLink>
             </div>
-          </DossierPane>
+          </ProfilePane>
 
-          <DossierPane :title="t('overview.dataState')" dense>
+          <ProfilePane :title="t('overview.dataState')" dense>
             <div class="divide-y divide-[var(--sz-border)]">
               <StatRow
                 v-for="entry in dataState"
@@ -222,7 +222,7 @@ const dataState = computed(() => [
               <span v-if="metaInfo.source"> {{ t('overview.aboutSources', { sources: metaInfo.source }) }}</span>
               {{ t('overview.aboutNote') }}
             </p>
-          </DossierPane>
+          </ProfilePane>
         </div>
       </div>
     </template>

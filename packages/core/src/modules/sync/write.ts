@@ -3,7 +3,7 @@ import {
   type SyncScheduleUpdate,
   type SyncScheduleValues,
   type WriteResult,
-} from '@dossier/shared/contracts';
+} from '@profile/shared/contracts';
 import type { Db } from '../../platform/db/index.js';
 import { logEvent, withTransaction, WriteError } from '../../platform/journal/index.js';
 import { readSyncSchedule, writeSyncScheduleRow } from './repo/schedule.js';
@@ -28,7 +28,7 @@ function valuesOf(schedule: SyncScheduleValues): SyncScheduleValues {
   };
 }
 
-/** The schedule is settings, not dossier content: it is persisted and rollbackable like any write. */
+/** The schedule is settings, not profile content: it is persisted and rollbackable like any write. */
 export function setSyncSchedule(db: Db, input: SyncScheduleUpdate): WriteResult {
   const parsed = SyncScheduleValuesSchema.safeParse(input);
   if (!parsed.success) {

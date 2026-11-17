@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { buildPayload, closeDb, migrate, openDb, setupState, type Db } from '@dossier/core';
-import { MetaReadSchema, PayloadSchema, SetupStateSchema } from '@dossier/shared/contracts';
+import { buildPayload, closeDb, migrate, openDb, setupState, type Db } from '@profile/core';
+import { MetaReadSchema, PayloadSchema, SetupStateSchema } from '@profile/shared/contracts';
 import { seedCatalog } from '../../fixtures/seed';
 
 const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
@@ -11,7 +11,7 @@ let dir: string;
 let db: Db;
 
 beforeEach(() => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dossier-contract-'));
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'profile-contract-'));
   db = openDb(path.join(dir, 'test.db'));
   migrate(db, migrationsDir);
 });
@@ -22,7 +22,7 @@ afterEach(() => {
 });
 
 describe('payload contract', () => {
-  it('parses an empty dossier without throwing', () => {
+  it('parses an empty profile without throwing', () => {
     const parsed = PayloadSchema.parse(buildPayload(db));
     expect(parsed.character).toEqual({});
     expect(parsed.weapons).toEqual([]);

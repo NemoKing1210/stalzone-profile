@@ -1,4 +1,4 @@
-import { getCharacter } from '@dossier/core';
+import { getCharacter } from '@profile/core';
 import { apiError } from '../utils/errors';
 import { isAuthenticated } from '../utils/auth';
 import { useDb } from '../utils/db';

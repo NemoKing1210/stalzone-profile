@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { SourceDiagnostic } from '@dossier/shared/contracts';
-import { DossierPane } from '~/shared/ui';
+import type { SourceDiagnostic } from '@profile/shared/contracts';
+import { ProfilePane } from '~/shared/ui';
 import { minutesSince, sourceKey } from '../model/sources';
 
 const props = defineProps<{
@@ -50,7 +50,7 @@ const recordsValue = computed(() =>
 </script>
 
 <template>
-  <DossierPane :label="title">
+  <ProfilePane :label="title">
     <template #header>
       <div class="flex min-w-0 flex-wrap items-center gap-1.5">
         <h2 class="sz-caps truncate text-[var(--sz-text)]">{{ title }}</h2>
@@ -127,5 +127,5 @@ const recordsValue = computed(() =>
         <dd class="break-words text-[var(--sz-danger-text)]">{{ source.lastError }}</dd>
       </template>
     </dl>
-  </DossierPane>
+  </ProfilePane>
 </template>

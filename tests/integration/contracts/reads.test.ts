@@ -2,14 +2,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { closeDb, openDb, artifactSources, latestPricesForNames, migrate, type Db, getCharacter, listOwnedReads, latestPriceReadsForNames, searchItemSummaries, listEvents, logEvent } from '@dossier/core';
+import { closeDb, openDb, artifactSources, latestPricesForNames, migrate, type Db, getCharacter, listOwnedReads, latestPriceReadsForNames, searchItemSummaries, listEvents, logEvent } from '@profile/core';
 import {
   ArtifactSourceSchema,
   EventReadSchema,
   ItemSummarySchema,
   OwnedReadSchema,
   PriceRowSchema,
-} from '@dossier/shared/contracts';
+} from '@profile/shared/contracts';
 import { eventJson } from '../../../server/utils/serialize';
 import { seedCatalog } from '../../fixtures/seed';
 
@@ -18,7 +18,7 @@ let dir: string;
 let db: Db;
 
 beforeEach(() => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dossier-read-contracts-'));
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'profile-read-contracts-'));
   db = openDb(path.join(dir, 'test.db'));
   migrate(db, migrationsDir);
   seedCatalog(db);

@@ -5,7 +5,7 @@ import {
   CharacterReadSchema,
   FactionSchema,
   FACTIONS,
-} from '@dossier/shared/contracts';
+} from '@profile/shared/contracts';
 
 describe('character faction contract', () => {
   it('accepts exactly the four playable STALZONE factions', () => {

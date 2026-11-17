@@ -27,20 +27,20 @@ describe('app boundaries', () => {
   });
 
   it.each([
-    ['@dossier/core', "import { buildPayload } from '@dossier/core';"],
-    ['@dossier/mcp', "import { localClient } from '@dossier/mcp';"],
-    ['@dossier/sources', "import { exboAdapter } from '@dossier/sources';"],
-    ['the shared barrel', "import { rankKey } from '@dossier/shared';"],
-    ['a non-client shared subpath', "import { sha1 } from '@dossier/shared/hash';"],
+    ['@profile/core', "import { buildPayload } from '@profile/core';"],
+    ['@profile/mcp', "import { localClient } from '@profile/mcp';"],
+    ['@profile/sources', "import { exboAdapter } from '@profile/sources';"],
+    ['the shared barrel', "import { rankKey } from '@profile/shared';"],
+    ['a non-client shared subpath', "import { sha1 } from '@profile/shared/hash';"],
   ])('rejects %s in the app', async (_label, source) => {
     expect(await lintProbe('app/shared/probe.ts', source)).toContain('no-restricted-imports');
   });
 
   it.each([
-    ['contracts', "import { OwnedPatchSchema } from '@dossier/shared/contracts';"],
-    ['ranks', "import { rankKey } from '@dossier/shared/ranks';"],
-    ['format', "import { g1 } from '@dossier/shared/format';"],
-  ])('allows @dossier/shared/%s', async (_label, source) => {
+    ['contracts', "import { OwnedPatchSchema } from '@profile/shared/contracts';"],
+    ['ranks', "import { rankKey } from '@profile/shared/ranks';"],
+    ['format', "import { g1 } from '@profile/shared/format';"],
+  ])('allows @profile/shared/%s', async (_label, source) => {
     expect(await lintProbe('app/features/inventory/probe.ts', source)).toEqual([]);
   });
 

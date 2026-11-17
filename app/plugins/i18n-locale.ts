@@ -11,7 +11,7 @@ function isSupported(value: unknown): value is SupportedLocale {
  * is available as `nuxtApp.$i18n`.
  */
 export default defineNuxtPlugin(async (nuxtApp) => {
-  const cookie = useCookie<string | null>('dossier_lang', {
+  const cookie = useCookie<string | null>('profile_lang', {
     path: '/',
     maxAge: 60 * 60 * 24 * 365,
     sameSite: 'lax',

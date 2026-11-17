@@ -1,5 +1,5 @@
-import { CAT_RU, rankKey } from '@dossier/shared';
-import type { Payload } from '@dossier/shared/contracts';
+import { CAT_RU, rankKey } from '@profile/shared';
+import type { Payload } from '@profile/shared/contracts';
 import type { Db } from '../../platform/db/index.js';
 import {
   armorAtLevel,
@@ -218,7 +218,7 @@ function artifactPayload(db: Db, ctx: CatalogContext, owned: OwnedJoined): Json 
   };
 }
 
-/** Identical ownership rows are stored once with `qty`; the dossier shows one entry per copy. */
+/** Identical ownership rows are stored once with `qty`; the profile shows one entry per copy. */
 function expandOwned(rows: OwnedJoined[]): OwnedJoined[] {
   const out: OwnedJoined[] = [];
   for (const row of rows) {

@@ -24,14 +24,14 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
   description, a Required or Recommended badge, a status line, an indeterminate progress bar
   while it downloads and a completed bar afterwards. A summary shows how many sources are
   ready, and "Download recommended" runs the important ones in catalog order.
-- `MetaRead` in `@dossier/shared/contracts` describes `GET /api/v1/meta` and is validated
+- `MetaRead` in `@profile/shared/contracts` describes `GET /api/v1/meta` and is validated
   by the payload contract test; `OwnedKind` is exported as a type beside its schema.
 - A `/changelog` page parses the root `CHANGELOG.md` at build time and renders it as a
   filterable timeline with date and category badges, inline code and italic notes. Links
   render only for safe targets; search, filters and the result count are accessible, and
   the file format is guarded by contract tests. The navigation gained a Changelog entry.
 - A `/guide` page maps every screen, REST endpoint, MCP tool, CLI script and data source,
-  with read/write flow diagrams and a live strip for the current dossier. Its lists are
+  with read/write flow diagrams and a live strip for the current profile. Its lists are
   contract-tested against `app/pages`, `server/api`, the MCP registry, `package.json` and
   the sync module, and the navigation gained a Guide entry.
 - The shell carries a procedural Zone backdrop (`sz-atmosphere`): a faint fine grid whose
@@ -48,6 +48,13 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
+- The product is consistently named **profile** instead of **dossier**: the workspace
+  packages are `@profile/*`, the MCP tool is `export_profile_json`, the resource is
+  `profile://schema`, the environment variables are `PROFILE_API_URL` and `PROFILE_DOMAIN`,
+  the session cookie is `profile_session`, the default database file is `data/profile.db`
+  and the Docker volume is `profile-data`. Journal rows written before the rename keep the
+  old `dossier.clear` action name so they stay rollback-compatible; existing data must be
+  copied to the new filename and volume (see `docs/RUNBOOK.md`).
 - Sources have one written authority: `exbo_base` owns item identity, `wiki` owns the
   numeric layers (per-level weapon damage, armor and artifact numbers, effect labels) and
   the container capacity, effectiveness and protection fields, which the wiki sync now
@@ -66,18 +73,18 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
   `covenant` and still optional. Both the setup wizard and the profile editor use a select
   instead of free text, and the API rejects any other value. The new migration
   `0002_character_faction.sql` turns legacy free-text factions into "not specified".
-- The playstyle field is gone from the dossier: the character table, the API contracts,
+- The playstyle field is gone from the profile: the character table, the API contracts,
   the overview page and the profile editor no longer carry it.
-- `@dossier/core` publishes each module only by name (`./modules/<name>`); the deep
+- `@profile/core` publishes each module only by name (`./modules/<name>`); the deep
   `./modules/*` wildcard and the dead `src/calc` compatibility shims are gone.
 - The write result, freshness, event and owned-kind shapes have one definition in
-  `@dossier/shared/contracts`; core and the app reuse them instead of redeclaring.
+  `@profile/shared/contracts`; core and the app reuse them instead of redeclaring.
 - `server/utils/serialize.ts` keeps only the event adapter: the test-only `itemJson`
   wrapper and the unused `findAnyDetailsCard` export are removed.
 
 ### Removed
 
-- Saved builds are gone from the dossier. The project now keeps only item-centred
+- Saved builds are gone from the profile. The project now keeps only item-centred
   entities: the `build`, `build_metric` and `build_slot` tables are dropped by
   `0003_drop_builds.sql`; the builds module, `GET/POST/DELETE /api/v1/builds`, the
   `list_builds`, `get_build`, `save_build` and `delete_build` MCP tools, the payload

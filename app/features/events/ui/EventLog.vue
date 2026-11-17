@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ConfirmActionModal, DossierPane } from '~/shared/ui';
+import { ConfirmActionModal, ProfilePane } from '~/shared/ui';
 
-import type { EventRow } from '~/shared/types/dossier';
+import type { EventRow } from '~/shared/types/profile';
 
 const { write, busy } = useWrite();
 const { t, locale } = useI18n();
@@ -29,7 +29,8 @@ const ACTION_KEYS: Record<string, string> = {
   'container.fill': 'containerFill',
   'content.put': 'contentPut',
   'owned.clear': 'ownedClear',
-  'dossier.clear': 'dossierClear',
+  'profile.clear': 'profileClear',
+  'dossier.clear': 'profileClear',
   rollback: 'rollback',
 };
 
@@ -75,7 +76,7 @@ async function rollback(): Promise<void> {
 </script>
 
 <template>
-  <DossierPane flush :title="t('events.title')">
+  <ProfilePane flush :title="t('events.title')">
     <template #actions>
       <UButton
         icon="i-lucide-refresh-cw"
@@ -128,7 +129,7 @@ async function rollback(): Promise<void> {
         :description="t('events.emptyDescription')"
       />
     </div>
-  </DossierPane>
+  </ProfilePane>
 
   <ConfirmActionModal
     v-model:open="confirmOpen"

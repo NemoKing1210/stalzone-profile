@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { SyncBundleState, SyncSchedule, SyncScheduleValues } from '@dossier/shared/contracts';
-import { DossierPane } from '~/shared/ui';
+import type { SyncBundleState, SyncSchedule, SyncScheduleValues } from '@profile/shared/contracts';
+import { ProfilePane } from '~/shared/ui';
 import { INTERVAL_VALUES, nextRunBucket } from '../model/sources';
 
 const props = defineProps<{
@@ -89,7 +89,7 @@ function save(): void {
 </script>
 
 <template>
-  <DossierPane :title="t('settings.sources.autoTitle')">
+  <ProfilePane :title="t('settings.sources.autoTitle')">
     <template #actions>
       <UButton
         :label="t('settings.sources.save')"
@@ -143,5 +143,5 @@ function save(): void {
         class="text-[var(--sz-accent)] underline decoration-dotted underline-offset-2"
       >{{ t('settings.sources.externalCronLink') }}</NuxtLink>{{ t('settings.sources.externalCronAfter') }}
     </p>
-  </DossierPane>
+  </ProfilePane>
 </template>

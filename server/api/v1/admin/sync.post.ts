@@ -1,5 +1,5 @@
-import { runExclusive, runSync, runSyncAll } from '@dossier/core';
-import { SyncRequestSchema } from '@dossier/shared/contracts';
+import { runExclusive, runSync, runSyncAll } from '@profile/core';
+import { SyncRequestSchema } from '@profile/shared/contracts';
 import { requireOrigin } from '../../../utils/auth';
 import { useDb } from '../../../utils/db';
 import { validationError } from '../../../utils/errors';

@@ -3,7 +3,7 @@ import {
   CharacterCreateSchema,
   OwnedCreateSchema,
   SyncSourceSchema,
-} from '@dossier/shared/contracts';
+} from '@profile/shared/contracts';
 
 describe('write contracts', () => {
   it('accepts a character create with a live region', () => {

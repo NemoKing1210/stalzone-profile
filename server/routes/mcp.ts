@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { fromNodeMiddleware } from 'h3';
-import { createMcpHttpHandler, localClient, writeLimiter } from '@dossier/mcp';
+import { createMcpHttpHandler, localClient, writeLimiter } from '@profile/mcp';
 import { useDb } from '../utils/db';
 import { serverSyncOptions } from '../utils/sync-options';
 

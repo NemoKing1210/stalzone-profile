@@ -14,8 +14,8 @@ import {
   setSyncSchedule,
   syncDiagnostics,
   type Db,
-} from '@dossier/core';
-import { writeSyncScheduleRow } from '@dossier/core/modules/sync';
+} from '@profile/core';
+import { writeSyncScheduleRow } from '@profile/core/modules/sync';
 import { seedCatalog } from '../fixtures/seed';
 
 const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
@@ -23,7 +23,7 @@ let dir: string;
 let db: Db;
 
 beforeEach(() => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dossier-schedule-'));
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'profile-schedule-'));
   db = openDb(path.join(dir, 'test.db'));
   migrate(db, migrationsDir);
   ensureDefaultSources(db);

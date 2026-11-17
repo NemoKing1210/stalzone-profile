@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { buildPayload, closeDb, exportDossierJson, migrate, openDb, type Db } from '@dossier/core';
+import { buildPayload, closeDb, exportProfileJson, migrate, openDb, type Db } from '@profile/core';
 import { seedCatalog } from '../fixtures/seed';
 
 const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
@@ -12,7 +12,7 @@ let db: Db;
 let payload: ReturnType<typeof buildPayload>;
 
 beforeEach(() => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dossier-payload-'));
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'profile-payload-'));
   db = openDb(path.join(dir, 'test.db'));
   migrate(db, migrationsDir);
   seedCatalog(db);
@@ -100,8 +100,8 @@ describe('buildPayload contract', () => {
     expect(payload.details['art:Нервяк']).toMatchObject({ kind: 'artifact', name: 'Нервяк', effects: 'Скорость' });
   });
 
-  it('exports the new dossier shape without legacy sections', () => {
-    const exported = exportDossierJson(db);
+  it('exports the new profile shape without legacy sections', () => {
+    const exported = exportProfileJson(db);
     expect(Object.keys(exported).sort()).toEqual([
       'armor',
       'artifacts',

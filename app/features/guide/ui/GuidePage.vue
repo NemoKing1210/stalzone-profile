@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DossierPane } from '~/shared/ui';
+import { ProfilePane } from '~/shared/ui';
 
 import {
   GUIDE_API,
@@ -19,10 +19,10 @@ import {
 const { t } = useI18n();
 useHead(() => ({ title: `${t('guide.title')} // ${t('common.appName')}` }));
 
-const { payload } = useDossier();
+const { payload } = useProfile();
 const { formatDate, num } = useFormat();
 
-/** Static counts describe the reference; the live strip describes this dossier. */
+/** Static counts describe the reference; the live strip describes this profile. */
 const heroStats = computed(() => [
   { key: 'pages', label: t('guide.stats.pages'), value: GUIDE_SITE.length },
   { key: 'endpoints', label: t('guide.stats.endpoints'), value: GUIDE_API.length },
@@ -141,7 +141,7 @@ function flowArrow(index: number, length: number): boolean {
       </nav>
     </header>
 
-    <DossierPane :title="t('guide.live.title')" dense>
+    <ProfilePane :title="t('guide.live.title')" dense>
       <dl class="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
         <div v-for="stat in liveStats" :key="stat.key" class="min-w-0">
           <dt class="sz-caps text-[var(--sz-text-muted)]">{{ stat.label }}</dt>
@@ -153,9 +153,9 @@ function flowArrow(index: number, length: number): boolean {
           </dd>
         </div>
       </dl>
-    </DossierPane>
+    </ProfilePane>
 
-    <DossierPane
+    <ProfilePane
       id="site"
       :title="t('guide.sections.site.title')"
       :hint="sectionHint('site')"
@@ -203,9 +203,9 @@ function flowArrow(index: number, length: number): boolean {
           </div>
         </article>
       </div>
-    </DossierPane>
+    </ProfilePane>
 
-    <DossierPane
+    <ProfilePane
       id="flow"
       :title="t('guide.sections.flow.title')"
       :hint="sectionHint('flow')"
@@ -303,9 +303,9 @@ function flowArrow(index: number, length: number): boolean {
           </p>
         </div>
       </div>
-    </DossierPane>
+    </ProfilePane>
 
-    <DossierPane
+    <ProfilePane
       id="api"
       :title="t('guide.sections.api.title')"
       :hint="sectionHint('api', GUIDE_API.length)"
@@ -347,9 +347,9 @@ function flowArrow(index: number, length: number): boolean {
           </ul>
         </section>
       </div>
-    </DossierPane>
+    </ProfilePane>
 
-    <DossierPane
+    <ProfilePane
       id="mcp"
       :title="t('guide.sections.mcp.title')"
       :hint="sectionHint('mcp', GUIDE_MCP.length)"
@@ -394,9 +394,9 @@ function flowArrow(index: number, length: number): boolean {
           </li>
         </ul>
       </div>
-    </DossierPane>
+    </ProfilePane>
 
-    <DossierPane
+    <ProfilePane
       id="cli"
       :title="t('guide.sections.cli.title')"
       :hint="sectionHint('cli')"
@@ -428,9 +428,9 @@ function flowArrow(index: number, length: number): boolean {
         </section>
       </div>
       <p class="mt-2 text-[11.5px] leading-relaxed text-[var(--sz-text-dim)]">{{ t('guide.cli.note') }}</p>
-    </DossierPane>
+    </ProfilePane>
 
-    <DossierPane
+    <ProfilePane
       id="sources"
       :title="t('guide.sections.sources.title')"
       :hint="sectionHint('sources')"
@@ -475,9 +475,9 @@ function flowArrow(index: number, length: number): boolean {
         </span>
       </div>
       <p class="mt-2 text-[12px] leading-relaxed text-[var(--sz-text-muted)]">{{ t('guide.sources.note') }}</p>
-    </DossierPane>
+    </ProfilePane>
 
-    <DossierPane
+    <ProfilePane
       id="principles"
       :title="t('guide.sections.principles.title')"
       :hint="sectionHint('principles')"
@@ -506,6 +506,6 @@ function flowArrow(index: number, length: number): boolean {
         </p>
         <p class="mt-1 text-[12px] leading-relaxed text-[var(--sz-text-muted)]">{{ t('guide.keep.text') }}</p>
       </div>
-    </DossierPane>
+    </ProfilePane>
   </section>
 </template>

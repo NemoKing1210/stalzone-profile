@@ -1,5 +1,5 @@
-import type { EventRead } from '@dossier/shared/contracts';
-import { parseEventJson, type EventRow } from '@dossier/core';
+import type { EventRead } from '@profile/shared/contracts';
+import { parseEventJson, type EventRow } from '@profile/core';
 
 /**
  * HTTP adapters over module read DTOs. Everything the routes return is

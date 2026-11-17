@@ -1,5 +1,5 @@
-import { LoginSchema } from '@dossier/shared';
-import { verifyPassword } from '@dossier/core';
+import { LoginSchema } from '@profile/shared';
+import { verifyPassword } from '@profile/core';
 import { assertLoginAllowed, createSession, requireOrigin } from '../../utils/auth';
 import { apiError, validationError } from '../../utils/errors';
 

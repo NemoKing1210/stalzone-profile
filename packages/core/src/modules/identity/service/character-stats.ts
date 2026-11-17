@@ -1,4 +1,4 @@
-import { round } from '@dossier/shared';
+import { round } from '@profile/shared';
 
 export type CharacterStatOrigin = 'api' | 'manual';
 

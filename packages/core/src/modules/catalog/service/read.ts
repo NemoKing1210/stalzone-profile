@@ -1,4 +1,4 @@
-import type { ItemEffect, ItemStat, ItemSummary, PriceRow as PriceRowRead } from '@dossier/shared/contracts';
+import type { ItemEffect, ItemStat, ItemSummary, PriceRow as PriceRowRead } from '@profile/shared/contracts';
 import type { Db } from '../../../platform/db/index.js';
 import * as repo from '../repo/index.js';
 import type { ItemRow, SearchOptions } from '../repo/items.js';

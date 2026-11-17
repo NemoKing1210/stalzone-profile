@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { buildPayload, closeDb, migrate, openDb } from '@dossier/core';
+import { buildPayload, closeDb, migrate, openDb } from '@profile/core';
 import { seedCatalog } from '../tests/fixtures/seed';
 
 interface GoldenWeapon {
@@ -45,13 +45,13 @@ const round = (value: number, digits: number): number => {
 /**
  * Frozen expectations derived from the public/synthetic catalog fixture.
  * They contain no personal data: the golden is a regression check for the
- * formulas and the payload, not a copy of the owner's dossier.
+ * formulas and the payload, not a copy of the owner's profile.
  */
 function main(): void {
   const fixturePath = path.join(process.cwd(), 'tests', 'fixtures', 'golden.json');
   const fixture = JSON.parse(fs.readFileSync(fixturePath, 'utf8')) as Golden;
 
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dossier-golden-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'profile-golden-'));
   const dbPath = path.join(dir, 'golden.db');
   const db = openDb(dbPath);
   const mismatches: string[] = [];

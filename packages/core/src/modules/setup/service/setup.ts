@@ -3,7 +3,7 @@ import { countItems } from '../../catalog/index.js';
 import { getCharacter } from '../../identity/index.js';
 
 export interface SetupState {
-  /** True until the dossier has its character. */
+  /** True until the profile has its character. */
   needsSetup: boolean;
   catalogItems: number;
 }

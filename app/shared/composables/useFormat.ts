@@ -1,5 +1,5 @@
-import { dec, fmtMoney, g1, g2, num } from '@dossier/shared/format';
-import { RANK_COLOR, rankKey } from '@dossier/shared/ranks';
+import { dec, fmtMoney, g1, g2, num } from '@profile/shared/format';
+import { RANK_COLOR, rankKey } from '@profile/shared/ranks';
 import { formatDateValue } from '../lib/formatDateValue';
 import { rankTextColor as rankTextColorValue } from '../lib/rankText';
 

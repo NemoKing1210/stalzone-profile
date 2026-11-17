@@ -7,10 +7,10 @@ import {
   safeEqual,
   SESSION_TTL_MS,
   verifySessionToken,
-} from '@dossier/core';
+} from '@profile/core';
 import { apiError, type ApiErrorBody } from './errors';
 
-export const SESSION_COOKIE = 'dossier_session';
+export const SESSION_COOKIE = 'profile_session';
 
 let ephemeralSecret: string | null = null;
 

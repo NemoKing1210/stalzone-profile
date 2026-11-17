@@ -1,4 +1,4 @@
-import { RANK_ORDER } from '@dossier/shared/ranks';
+import { RANK_ORDER } from '@profile/shared/ranks';
 
 export const ALL_RANKS = 'all';
 

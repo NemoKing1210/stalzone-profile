@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { RANK_COLOR, rankKey } from '@dossier/shared/ranks';
+import { RANK_COLOR, rankKey } from '@profile/shared/ranks';
 
 const props = withDefaults(
   defineProps<{

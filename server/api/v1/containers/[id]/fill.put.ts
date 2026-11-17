@@ -1,5 +1,5 @@
-import { ContainerFillSchema } from '@dossier/shared';
-import { setContainerFill } from '@dossier/core';
+import { ContainerFillSchema } from '@profile/shared';
+import { setContainerFill } from '@profile/core';
 import { useDb } from '../../../../utils/db';
 import { apiError, validationError } from '../../../../utils/errors';
 import { requireOrigin } from '../../../../utils/auth';

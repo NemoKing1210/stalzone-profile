@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { ItemKindSchema } from '@dossier/shared';
+import { ItemKindSchema } from '@profile/shared';
 import {
   CompareItemsInputSchema,
   FindItemsQuerySchema,
@@ -8,8 +8,8 @@ import {
   PlanArtifactBuildInputSchema,
   RemoveOwnedInputSchema,
   SetContainerArtifactsInputSchema,
-} from '@dossier/shared/contracts';
-import { McpClientError, type DossierClient } from './client.js';
+} from '@profile/shared/contracts';
+import { McpClientError, type ProfileClient } from './client.js';
 
 type Json = Record<string, unknown>;
 
@@ -72,14 +72,14 @@ export const READ_TOOLS: { name: string; args: Record<string, unknown> }[] = [
   { name: 'plan_artifact_build', args: { preset: 'speed', slots: 3 } },
   { name: 'get_prices', args: { names: ['АК-12'] } },
   { name: 'sources_status', args: {} },
-  { name: 'export_dossier_json', args: {} },
+  { name: 'export_profile_json', args: {} },
 ];
 
 /** Loose zod shape of every read tool result, so the smoke fails loudly on malformed output. */
-export { READ_OUTPUT_SCHEMAS } from '@dossier/shared/contracts';
+export { READ_OUTPUT_SCHEMAS } from '@profile/shared/contracts';
 
 const TOOL_DOCS: Record<string, string> = {
-    get_character: 'Character profile and stats from the dossier',
+    get_character: 'Character profile and stats from the profile',
     find_items: 'Search catalog items by name, kind, rank and slot',
     get_item: 'Item card: typed stats, effects, icon and the derived detail card',
     compare_items: 'Compare two weapons by DPS and TTK at a refinement level',
@@ -88,7 +88,7 @@ const TOOL_DOCS: Record<string, string> = {
     plan_artifact_build: 'Pick artifacts for an effect preset, slots and budget',
     get_prices: 'Latest auction prices by item name',
     sources_status: 'Data source state and freshness',
-    export_dossier_json: 'Export the dossier as portable JSON',
+    export_profile_json: 'Export the profile as portable JSON',
     upsert_owned_item: 'Add or update a character item (dry_run by default)',
     remove_owned_item: 'Remove one copy of an item (dry_run by default)',
     set_container_artifacts: 'Replace a container fill (dry_run by default)',
@@ -125,19 +125,19 @@ function confirmation(dryRun: boolean, confirm: boolean) {
   return null;
 }
 
-export interface DossierServerOptions {
+export interface ProfileServerOptions {
   writesPerMinute?: number;
   limiter?: WriteLimiter;
 }
 
 /** The single tool registry behind stdio and `/mcp`; transports only carry messages. */
-export function createDossierServer(
-  client: DossierClient,
-  options: DossierServerOptions = {},
+export function createProfileServer(
+  client: ProfileClient,
+  options: ProfileServerOptions = {},
 ): McpServer {
   const server = new McpServer(
     { name: 'stalzone-profile', version: '0.1.0' },
-    { instructions: 'Personal STALZONE dossier. Reads are open; writes default to dry_run and require confirm.' },
+    { instructions: 'Personal STALZONE profile. Reads are open; writes default to dry_run and require confirm.' },
   );
   const limiter = options.limiter ?? writeLimiter(options.writesPerMinute ?? 30);
 
@@ -223,7 +223,7 @@ export function createDossierServer(
     { description: TOOL_DOCS.plan_artifact_build, inputSchema: PlanArtifactBuildInputSchema },
     async (args) => {
       try {
-        return ok({ plan: await client.planArtifactBuild(args as unknown as Parameters<DossierClient['planArtifactBuild']>[0]) });
+        return ok({ plan: await client.planArtifactBuild(args as unknown as Parameters<ProfileClient['planArtifactBuild']>[0]) });
       } catch (error) {
         return errorResult(error);
       }
@@ -256,11 +256,11 @@ export function createDossierServer(
   );
 
   server.registerTool(
-    'export_dossier_json',
-    { description: TOOL_DOCS.export_dossier_json, inputSchema: z.object({}) },
+    'export_profile_json',
+    { description: TOOL_DOCS.export_profile_json, inputSchema: z.object({}) },
     async () => {
       try {
-        return ok({ dossier: await client.exportDossierJson() });
+        return ok({ profile: await client.exportProfileJson() });
       } catch (error) {
         return errorResult(error);
       }
@@ -386,10 +386,10 @@ export function createDossierServer(
 
   server.registerResource(
     'schema',
-    'dossier://schema',
+    'profile://schema',
     {
-      title: 'Dossier MCP schema',
-      description: 'Dossier tools, their purpose and the dry_run/confirm rule',
+      title: 'Profile MCP schema',
+      description: 'Profile tools, their purpose and the dry_run/confirm rule',
       mimeType: 'application/json',
     },
     async (uri) => ({
@@ -405,7 +405,7 @@ export function createDossierServer(
                 apply: 'dry_run=false + confirm=true',
                 rateLimit: '30 writes per minute',
               },
-              export: 'export_dossier_json returns the portable dossier JSON shape',
+              export: 'export_profile_json returns the portable profile JSON shape',
             },
             null,
             2,

@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { norm, sha1 } from '@dossier/shared';
+import { norm, sha1 } from '@profile/shared';
 import {
   exboAdapter,
   fetchStalzoneProfile,
@@ -11,7 +11,7 @@ import {
   type MotifRow,
   type PriceRow,
   type StalzoneApiOptions,
-} from '@dossier/sources';
+} from '@profile/sources';
 import type { Db } from '../../../platform/db/index.js';
 import * as repo from '../../catalog/index.js';
 import * as identity from '../../identity/index.js';

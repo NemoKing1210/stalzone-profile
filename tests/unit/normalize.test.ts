@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { remoteIcon, wikiEffects, wikiStats } from '@dossier/core';
+import { remoteIcon, wikiEffects, wikiStats } from '@profile/core';
 
 describe('normalize', () => {
   it('keeps a wiki range as min/max and a variant as per-level numbers', () => {

@@ -75,7 +75,7 @@ describe('i18n catalogs', () => {
   it('names the cleanup actions in the journal', () => {
     for (const key of [
       'events.actions.ownedClear',
-      'events.actions.dossierClear',
+      'events.actions.profileClear',
       'events.actions.characterCreate',
     ]) {
       expect(en[key]).toBeTruthy();

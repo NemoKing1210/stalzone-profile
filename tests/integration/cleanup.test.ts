@@ -15,8 +15,8 @@ import {
   rollbackEvent,
   WriteError,
   type Db,
-} from '@dossier/core';
-import { replaceContainerSlots, upsertCharacter, upsertItem, upsertOwned } from '@dossier/core/testing';
+} from '@profile/core';
+import { replaceContainerSlots, upsertCharacter, upsertItem, upsertOwned } from '@profile/core/testing';
 
 const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
 
@@ -30,7 +30,7 @@ function item(name: string, kind: string): number {
 }
 
 beforeEach(() => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dossier-cleanup-'));
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'profile-cleanup-'));
   db = openDb(path.join(dir, 'test.db'));
   migrate(db, migrationsDir);
   ensureDefaultSources(db);
@@ -110,6 +110,22 @@ describe('cleanup writes', () => {
     rollbackEvent(db, result.eventId!, false);
     expect(listOwned(db, characterId)).toHaveLength(6);
     expect(db.prepare(`SELECT * FROM container_slot`).all()).toHaveLength(slotsBefore.length);
+  });
+
+  it('rolls back the inventory part of a legacy profile.clear snapshot', () => {
+    const before = clearOwned(db, true).diff.before as unknown[];
+    db.prepare(`DELETE FROM owned_item`).run();
+    const eventId = logEvent(db, {
+      actor: 'owner',
+      action: 'profile.clear',
+      entity: 'profile',
+      entityId: 'all',
+      before: { owned: before, builds: [] },
+      after: null,
+    });
+
+    rollbackEvent(db, eventId, false);
+    expect(listOwned(db, characterId)).toHaveLength(6);
   });
 
   it('rolls back the inventory part of a legacy dossier.clear snapshot', () => {

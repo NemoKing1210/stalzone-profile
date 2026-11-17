@@ -1,8 +1,8 @@
-import { runDueBundles, tryRunExclusive } from '@dossier/core';
+import { runDueBundles, tryRunExclusive } from '@profile/core';
 import { useDb } from '../utils/db';
 import { serverSyncOptions } from '../utils/sync-options';
 
-const TIMER_KEY = '__dossierSyncScheduler';
+const TIMER_KEY = '__profileSyncScheduler';
 const BOOT_DELAY_MS = 10_000;
 const TICK_MS = 60_000;
 

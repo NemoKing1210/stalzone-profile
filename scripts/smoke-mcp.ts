@@ -1,25 +1,25 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { closeDb, migrate, openDb } from '@dossier/core';
+import { closeDb, migrate, openDb } from '@profile/core';
 import {
   READ_OUTPUT_SCHEMAS,
   READ_TOOLS,
   connectInMemory,
-  createDossierServer,
+  createProfileServer,
   localClient,
-} from '@dossier/mcp';
+} from '@profile/mcp';
 import { seedCatalog } from '../tests/fixtures/seed';
 
 const external = process.env.SMOKE_DB_PATH;
-const dir = external ? null : fs.mkdtempSync(path.join(os.tmpdir(), 'dossier-smoke-'));
+const dir = external ? null : fs.mkdtempSync(path.join(os.tmpdir(), 'profile-smoke-'));
 const dbPath = external ?? path.join(dir!, 'smoke.db');
 
 const db = openDb(dbPath);
 migrate(db, path.join(process.cwd(), 'db', 'migrations'));
 if (!external) seedCatalog(db);
 
-const server = createDossierServer(localClient(db));
+const server = createProfileServer(localClient(db));
 const client = await connectInMemory(server);
 
 let failures = 0;

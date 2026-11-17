@@ -75,7 +75,7 @@ const RANK_ALIASES: Record<string, RankKey> = {
   rank_legend: 'legend',
 };
 
-/** Normalizes EXBO (`RANK_MASTER`) and dossier (`master`) rank spellings. */
+/** Normalizes EXBO (`RANK_MASTER`) and profile (`master`) rank spellings. */
 export function rankKey(raw: string | null | undefined): RankKey | null {
   if (!raw) return null;
   return RANK_ALIASES[String(raw).trim().toLowerCase()] ?? null;

@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { ItemKindSchema } from '@dossier/shared';
-import { getCharacter, listOwnedReads } from '@dossier/core';
+import { ItemKindSchema } from '@profile/shared';
+import { getCharacter, listOwnedReads } from '@profile/core';
 import { useDb } from '../../utils/db';
 import { validationError } from '../../utils/errors';
 

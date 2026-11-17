@@ -1,6 +1,6 @@
 import { ACCENT_PRESETS, DEFAULT_ACCENT, normalizeAccent, type AccentId } from '../lib/accents';
 
-const STORAGE_KEY = 'dossier.accent';
+const STORAGE_KEY = 'profile.accent';
 
 /**
  * Reads the stored accent and returns the normalized id. Only runs in the browser:

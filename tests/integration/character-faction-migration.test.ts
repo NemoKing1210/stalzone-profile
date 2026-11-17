@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { closeDb, migrate, openDb, type Db } from '@dossier/core';
+import { closeDb, migrate, openDb, type Db } from '@profile/core';
 
 const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
 const FACTIONS = ['rise', 'frontier', 'mercenaries', 'covenant'];
@@ -12,8 +12,8 @@ let legacyDir: string;
 let db: Db;
 
 beforeEach(() => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dossier-faction-'));
-  legacyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dossier-legacy-'));
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'profile-faction-'));
+  legacyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'profile-legacy-'));
   fs.copyFileSync(path.join(migrationsDir, '0001_init.sql'), path.join(legacyDir, '0001_init.sql'));
   db = openDb(path.join(dir, 'test.db'));
   // Start from the pre-change schema so the new migration has data to convert.

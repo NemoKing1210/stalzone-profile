@@ -1,4 +1,4 @@
-import type { CharacterRead } from '@dossier/shared/contracts';
+import type { CharacterRead } from '@profile/shared/contracts';
 import type { Db } from '../../../platform/db/index.js';
 import { getCharacter, listCharacterStats } from '../repo/characters.js';
 import { deriveCharacterFields, effectiveCharacterStats } from './character-stats.js';

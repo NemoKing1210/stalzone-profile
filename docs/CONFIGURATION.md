@@ -11,14 +11,14 @@ in the shell win over the file. Docker deployments do not read `.env` directly:
 
 | Variable                      | Default                        | Purpose                                                                            |
 | ----------------------------- | ------------------------------ | ---------------------------------------------------------------------------------- |
-| `DB_PATH`                     | `./data/dossier.db`            | SQLite file (Docker: `/data/dossier.db`)                                           |
+| `DB_PATH`                     | `./data/profile.db`            | SQLite file (Docker: `/data/profile.db`)                                           |
 | `ICONS_DIR`                   | `./public/icons`               | Downloaded `.png` and rendered `.webp` icons (Docker: `/data/icons`)               |
 | `SNAPSHOTS_DIR`               | `./snapshots`                  | Backup directory                                                                   |
 | `DEV_HOST`                    | `127.0.0.1`                    | Dev-server address; a domain makes the console print it                            |
 | `DEV_PORT`                    | `80`                           | Dev-server port                                                                    |
 | `NUXT_PASSWORD_HASH`          | —                              | scrypt hash of the site password                                                   |
 | `NUXT_PASSWORD`               | —                              | Plain password for development; ignored when the hash is set                       |
-| `NUXT_SESSION_SECRET`         | ephemeral                      | HMAC secret for the `dossier_session` cookie                                       |
+| `NUXT_SESSION_SECRET`         | ephemeral                      | HMAC secret for the `profile_session` cookie                                       |
 | `NUXT_MCP_TOKEN`              | —                              | Bearer token for `/mcp`; empty disables the endpoint                               |
 | `NUXT_LOGIN_RATE_MAX`         | `5`                            | Sign-in attempts per window                                                        |
 | `NUXT_LOGIN_WINDOW_MS`        | `60000`                        | Rate-limit window                                                                  |
@@ -35,7 +35,7 @@ MCP clients may also use:
 
 | Variable          | Default          | Purpose                                                             |
 | ----------------- | ---------------- | ------------------------------------------------------------------- |
-| `DOSSIER_API_URL` | —                | Make `npm run mcp` talk to a running server instead of local SQLite |
+| `PROFILE_API_URL` | —                | Make `npm run mcp` talk to a running server instead of local SQLite |
 | `MCP_TOKEN`       | `NUXT_MCP_TOKEN` | Bearer token for the stdio-over-HTTP client                         |
 
 ## Password and sessions

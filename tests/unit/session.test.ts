@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createSessionToken, verifySessionToken } from '@dossier/core';
+import { createSessionToken, verifySessionToken } from '@profile/core';
 
 const SECRET = 'unit-test-session-secret-at-least-32-chars';
 const NOW = Date.UTC(2026, 10, 15, 12, 0, 0);

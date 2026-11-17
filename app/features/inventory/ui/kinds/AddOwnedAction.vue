@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { OwnedKind } from '~/shared/types/dossier';
+import type { OwnedKind } from '~/shared/types/profile';
 
 import AddOwnedModal from '../AddOwnedModal.vue';
 

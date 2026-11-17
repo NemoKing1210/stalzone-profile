@@ -1,6 +1,6 @@
 # Security policy
 
-STALZONE Profile is a personal, single-user dossier. It runs one process, keeps its data in
+STALZONE Profile is a personal, single-user profile. It runs one process, keeps its data in
 one SQLite database and reads only public sources. It holds no game credentials and never
 signs in to Steam or EXBO.
 
@@ -40,7 +40,7 @@ details.
 
 ## In scope
 
-- authentication and sessions (`/login`, `dossier_session`, origin checks);
+- authentication and sessions (`/login`, `profile_session`, origin checks);
 - sign-in rate limiting and `X-Forwarded-For` handling;
 - MCP authorization (`NUXT_MCP_TOKEN`) and the write policy (`confirm`, rate limit);
 - SQL injection, XSS, path traversal (`/icons/*`) and SSRF in source adapters;

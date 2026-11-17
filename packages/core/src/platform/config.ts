@@ -39,7 +39,7 @@ export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   const rootDir = overrides.rootDir ?? (process.env.ROOT_DIR ? path.resolve(process.env.ROOT_DIR) : process.cwd());
   loadEnv(rootDir);
 
-  const dbPath = path.resolve(rootDir, overrides.dbPath ?? process.env.DB_PATH ?? './data/dossier.db');
+  const dbPath = path.resolve(rootDir, overrides.dbPath ?? process.env.DB_PATH ?? './data/profile.db');
   const snapshotsDir = path.resolve(
     rootDir,
     overrides.snapshotsDir ?? process.env.SNAPSHOTS_DIR ?? './snapshots',

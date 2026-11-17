@@ -1,6 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { norm } from '@dossier/shared';
+import { norm } from '@profile/shared';
 import {
   WriteError,
   artifactSources,
@@ -9,7 +9,7 @@ import {
   compareWeapons,
   createOwned,
   deleteOwned,
-  exportDossierJson,
+  exportProfileJson,
   findItemByKindName,
   getCharacter,
   getIcon,
@@ -38,7 +38,7 @@ import {
   type PriceRow,
   type SyncOptions,
   type WriteResult,
-} from '@dossier/core';
+} from '@profile/core';
 
 type Json = Record<string, unknown>;
 
@@ -78,8 +78,8 @@ export interface ContainerFillInput {
   dryRun: boolean;
 }
 
-/** Everything the MCP tools need from a dossier, whether it lives in this process or behind HTTP. */
-export interface DossierClient {
+/** Everything the MCP tools need from a profile, whether it lives in this process or behind HTTP. */
+export interface ProfileClient {
   getCharacter(): Promise<Json>;
   findItems(query: {
     q?: string | null;
@@ -95,7 +95,7 @@ export interface DossierClient {
   planArtifactBuild(input: PlanInput): Promise<Json>;
   getPrices(names: string[], quality?: string | null): Promise<Json>;
   sourcesStatus(): Promise<Json[]>;
-  exportDossierJson(): Promise<Json>;
+  exportProfileJson(): Promise<Json>;
   upsertOwnedItem(input: OwnedWriteInput): Promise<WriteResult>;
   removeOwnedItem(input: RemoveOwnedInput): Promise<WriteResult>;
   setContainerArtifacts(input: ContainerFillInput): Promise<WriteResult>;
@@ -171,10 +171,10 @@ export type LocalClientOptions = Pick<SyncOptions, 'iconsDir' | 'profileApi' | '
 
 /**
  * In-process client used by Nitro's `/mcp` route and the stdio shim without
- * DOSSIER_API_URL. Sync options are forwarded so both hosts resolve them the
+ * PROFILE_API_URL. Sync options are forwarded so both hosts resolve them the
  * same way the CLI and the admin route do; `force` always comes from the tool.
  */
-export function localClient(db: Db, syncOptions: LocalClientOptions = {}): DossierClient {
+export function localClient(db: Db, syncOptions: LocalClientOptions = {}): ProfileClient {
   return {
     async getCharacter() {
       const payload = buildPayload(db);
@@ -256,8 +256,8 @@ export function localClient(db: Db, syncOptions: LocalClientOptions = {}): Dossi
       return listSourceReads(db);
     },
 
-    async exportDossierJson() {
-      return exportDossierJson(db) as Json;
+    async exportProfileJson() {
+      return exportProfileJson(db) as Json;
     },
 
     async upsertOwnedItem(input) {
@@ -280,14 +280,14 @@ export function localClient(db: Db, syncOptions: LocalClientOptions = {}): Dossi
 
     async removeOwnedItem(input) {
       const character = getCharacter(db);
-      if (!character) throw new McpClientError('NO_CHARACTER', 'No character in the dossier');
+      if (!character) throw new McpClientError('NO_CHARACTER', 'No character in the profile');
       const target = listOwned(db, character.id, input.kind).find(
           (row) =>
             norm(row.display_name ?? row.item_name) === norm(input.name) &&
             (input.level == null || row.level === input.level),
         );
       if (!target) {
-        throw new McpClientError('OWNED_NOT_FOUND', `${input.name} is not in the dossier for this kind`);
+        throw new McpClientError('OWNED_NOT_FOUND', `${input.name} is not in the profile for this kind`);
       }
       try {
         return deleteOwned(db, target.id, { dryRun: input.dryRun, qty: 1 });
@@ -376,15 +376,15 @@ function unwrap(raw: unknown): Json {
   return text ? (JSON.parse(text) as Json) : {};}
 
 /**
- * Client for a remote dossier over its MCP endpoint. Tools are the same registry, so
+ * Client for a remote profile over its MCP endpoint. Tools are the same registry, so
  * stdio-over-HTTP and `/mcp` cannot drift from the local implementation.
  */
-export function httpClient(baseUrl: string, token: string): DossierClient {
+export function httpClient(baseUrl: string, token: string): ProfileClient {
   let connection: Promise<Client> | null = null;
 
   function connect(): Promise<Client> {
     connection ??= (async () => {
-      const client = new Client({ name: 'dossier-stdio', version: '0.1.0' });
+      const client = new Client({ name: 'profile-stdio', version: '0.1.0' });
       const transport = new StreamableHTTPClientTransport(
         new URL(`${baseUrl.replace(/\/+$/, '')}/mcp`),
         {
@@ -432,8 +432,8 @@ export function httpClient(baseUrl: string, token: string): DossierClient {
     async sourcesStatus() {
       return (await call('sources_status')).sources as Json[];
     },
-    async exportDossierJson() {
-      return (await call('export_dossier_json')).dossier as Json;
+    async exportProfileJson() {
+      return (await call('export_profile_json')).profile as Json;
     },
     async upsertOwnedItem(input) {
       return (await call('upsert_owned_item', toSnakeWrite(input))) as unknown as WriteResult;

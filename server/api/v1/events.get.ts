@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { listEvents } from '@dossier/core';
+import { listEvents } from '@profile/core';
 import { useDb } from '../../utils/db';
 import { validationError } from '../../utils/errors';
 import { eventJson } from '../../utils/serialize';

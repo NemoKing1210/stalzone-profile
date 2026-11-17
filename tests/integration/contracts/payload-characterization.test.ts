@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { buildPayload, closeDb, migrate, openDb, type Db } from '@dossier/core';
+import { buildPayload, closeDb, migrate, openDb, type Db } from '@profile/core';
 import { seedCatalog } from '../../fixtures/seed';
 
 const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
@@ -12,7 +12,7 @@ let db: Db;
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dossier-characterization-'));
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'profile-characterization-'));
   db = openDb(path.join(dir, 'test.db'));
   migrate(db, migrationsDir);
   seedCatalog(db);

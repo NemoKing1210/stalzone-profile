@@ -1,4 +1,4 @@
-import { norm } from '@dossier/shared/format';
+import { norm } from '@profile/shared/format';
 
 /** Exact legacy card lookup by `<prefix>:<name>`, then a normalized-name fallback. */
 export function findDetailsCard(

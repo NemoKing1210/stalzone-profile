@@ -20,7 +20,7 @@ import {
   round,
   sha1,
   slugify,
-} from '@dossier/shared';
+} from '@profile/shared';
 
 describe('norm', () => {
   it('lowercases, drops quotes, folds ё and collapses spaces', () => {
@@ -34,7 +34,7 @@ describe('norm', () => {
 });
 
 describe('rankKey', () => {
-  it('normalizes EXBO and dossier spellings', () => {
+  it('normalizes EXBO and profile spellings', () => {
     expect(rankKey('RANK_MASTER')).toBe('master');
     expect(rankKey('legendary')).toBe('legend');
     expect(rankKey(' stalker ')).toBe('stalker');

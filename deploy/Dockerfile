@@ -24,7 +24,7 @@ FROM node:24-bookworm-slim AS runtime
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=3000 \
-    DB_PATH=/data/dossier.db \
+    DB_PATH=/data/profile.db \
     ICONS_DIR=/data/icons
 
 WORKDIR /app
@@ -32,9 +32,9 @@ COPY --from=build /app/.output ./.output
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/db ./db
-COPY deploy/docker-entrypoint.sh /usr/local/bin/dossier-entrypoint
+COPY deploy/docker-entrypoint.sh /usr/local/bin/profile-entrypoint
 
-RUN chmod +x /usr/local/bin/dossier-entrypoint \
+RUN chmod +x /usr/local/bin/profile-entrypoint \
   && mkdir -p /data \
   && chown -R node:node /data
 
@@ -42,4 +42,4 @@ USER node
 EXPOSE 3000
 VOLUME ["/data"]
 
-ENTRYPOINT ["dossier-entrypoint"]
+ENTRYPOINT ["profile-entrypoint"]

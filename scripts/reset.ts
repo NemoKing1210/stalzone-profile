@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { loadConfig } from '@dossier/core/config';
+import { loadConfig } from '@profile/core/config';
 
 const cfg = loadConfig();
 for (const file of [cfg.dbPath, `${cfg.dbPath}-wal`, `${cfg.dbPath}-shm`]) {

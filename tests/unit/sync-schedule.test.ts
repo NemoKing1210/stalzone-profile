@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { dueSyncBundles, syncBundleStates, type SourceRow } from '@dossier/core';
-import { SyncScheduleSchema, SyncScheduleUpdateSchema } from '@dossier/shared/contracts';
+import { dueSyncBundles, syncBundleStates, type SourceRow } from '@profile/core';
+import { SyncScheduleSchema, SyncScheduleUpdateSchema } from '@profile/shared/contracts';
 
 const values = { enabled: true, catalogEveryMin: 360, pricesEveryMin: 60, profileEveryMin: 0 };
 

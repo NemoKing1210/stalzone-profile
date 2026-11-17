@@ -1,4 +1,4 @@
-import type { SyncSchedule, SyncScheduleValues } from '@dossier/shared/contracts';
+import type { SyncSchedule, SyncScheduleValues } from '@profile/shared/contracts';
 import type { Db } from '../../../platform/db/index.js';
 
 export interface ScheduleRow {

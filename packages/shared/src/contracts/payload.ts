@@ -52,7 +52,7 @@ export const FreshnessSchema = z.object({
 });
 export type Freshness = z.infer<typeof FreshnessSchema>;
 
-/** `/api/v1/meta`: the freshness header without the heavy dossier sections. */
+/** `/api/v1/meta`: the freshness header without the heavy profile sections. */
 export const MetaReadSchema = z.object({
   meta: PayloadMetaSchema,
   catalogMeta: CatalogMetaSchema,
@@ -80,6 +80,6 @@ export const PayloadSchema = z.object({
 });
 export type Payload = z.infer<typeof PayloadSchema>;
 
-/** The portable export keeps the dossier sections and drops display-only freshness. */
-export const DossierExportSchema = PayloadSchema.omit({ icons: true, freshness: true });
-export type DossierExport = z.infer<typeof DossierExportSchema>;
+/** The portable export keeps the profile sections and drops display-only freshness. */
+export const ProfileExportSchema = PayloadSchema.omit({ icons: true, freshness: true });
+export type ProfileExport = z.infer<typeof ProfileExportSchema>;

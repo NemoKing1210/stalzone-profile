@@ -1,5 +1,5 @@
 /** These are the API contract's shapes, not a second copy. */
-import type { EventRead, Faction, Freshness, OwnedKind } from '@dossier/shared/contracts';
+import type { EventRead, Faction, Freshness, OwnedKind } from '@profile/shared/contracts';
 
 export type { OwnedKind };
 
@@ -39,9 +39,9 @@ export interface FillTarget {
 /** `/api/v1/events` returns contract event reads; entity ids are nullable by contract. */
 export type EventRow = EventRead;
 
-/* ------------------------------ dossier payload ------------------------------ */
+/* ------------------------------ profile payload ------------------------------ */
 
-export interface DossierCharacter {
+export interface ProfileCharacter {
   nick?: string;
   region?: string;
   faction?: Faction | null;
@@ -160,9 +160,9 @@ export interface CatalogEntry {
   [key: string]: unknown;
 }
 
-export interface DossierPayload {
+export interface ProfilePayload {
   meta: Record<string, unknown>;
-  character: DossierCharacter;
+  character: ProfileCharacter;
   weapons: WeaponPayload[];
   armor: ArmorPayload[];
   containers: ContainerPayload[];

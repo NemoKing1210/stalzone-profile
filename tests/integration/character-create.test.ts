@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { CharacterCreateSchema, OwnedCreateSchema } from '@dossier/shared';
+import { CharacterCreateSchema, OwnedCreateSchema } from '@profile/shared';
 import {
   closeDb,
   ensureDefaultSources,
@@ -14,8 +14,8 @@ import {
   createCharacter,
   createOwned,
   rollbackEvent,
-} from '@dossier/core';
-import { upsertItem } from '@dossier/core/testing';
+} from '@profile/core';
+import { upsertItem } from '@profile/core/testing';
 
 const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
 
@@ -23,7 +23,7 @@ let dir: string;
 let db: Db;
 
 beforeEach(() => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dossier-character-create-'));
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'profile-character-create-'));
   db = openDb(path.join(dir, 'test.db'));
   migrate(db, migrationsDir);
   ensureDefaultSources(db);

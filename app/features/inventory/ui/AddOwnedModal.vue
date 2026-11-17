@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { OwnedKind } from '~/shared/types/dossier';
+import type { OwnedKind } from '~/shared/types/profile';
 import type { WriteResult } from '~/shared/composables/useWrite';
 
 const open = defineModel<boolean>('open', { default: false });
@@ -8,7 +8,7 @@ const emit = defineEmits<{ saved: []; created: [{ ownedId: number; name: string;
 
 const { t } = useI18n();
 const { write, busy } = useWrite();
-const { payload } = useDossier();
+const { payload } = useProfile();
 
 interface CatalogItem {
   id: number;

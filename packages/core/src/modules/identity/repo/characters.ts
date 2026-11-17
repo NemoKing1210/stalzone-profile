@@ -1,4 +1,4 @@
-import type { Faction } from '@dossier/shared/contracts';
+import type { Faction } from '@profile/shared/contracts';
 import type { Db } from '../../../platform/db/index.js';
 import { upsertStatDefinition } from '../../catalog/index.js';
 
@@ -127,7 +127,7 @@ export function findCharacterByName(db: Db, nick: string, region = 'ru'): Charac
 }
 
 /** True when gear exists; deleting the character would cascade-destroy it. */
-export function characterHasDossier(db: Db, id: number): boolean {
+export function characterHasProfile(db: Db, id: number): boolean {
   const row = db
     .prepare(`SELECT COUNT(*) AS c FROM owned_item WHERE character_id = @id`)
     .get({ id }) as { c: number };

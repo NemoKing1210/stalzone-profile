@@ -1,4 +1,4 @@
-import { getItemDetail } from '@dossier/core';
+import { getItemDetail } from '@profile/core';
 import { useDb } from '../../../utils/db';
 import { apiError } from '../../../utils/errors';
 

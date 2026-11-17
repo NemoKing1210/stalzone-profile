@@ -9,7 +9,7 @@ const props = defineProps<{
 defineEmits<{ edit: []; fill: []; close: [] }>();
 
 const { t } = useI18n();
-const { payload } = useDossier();
+const { payload } = useProfile();
 
 const PREFIX = { weapon: 'w', armor: 'a', artifact: 'art' } as const;
 

@@ -15,14 +15,14 @@
     "baseUrl": ".",
     "paths": {
       "~/*": ["app/*"],
-      "@dossier/shared": ["packages/shared/src/index.ts"],
-      "@dossier/shared/*": ["packages/shared/src/*"],
-      "@dossier/core": ["packages/core/src/index.ts"],
-      "@dossier/core/*": ["packages/core/src/*"],
-      "@dossier/sources": ["packages/sources/src/index.ts"],
-      "@dossier/sources/*": ["packages/sources/src/*"],
-      "@dossier/mcp": ["packages/mcp/src/index.ts"],
-      "@dossier/mcp/*": ["packages/mcp/src/*"]
+      "@profile/shared": ["packages/shared/src/index.ts"],
+      "@profile/shared/*": ["packages/shared/src/*"],
+      "@profile/core": ["packages/core/src/index.ts"],
+      "@profile/core/*": ["packages/core/src/*"],
+      "@profile/sources": ["packages/sources/src/index.ts"],
+      "@profile/sources/*": ["packages/sources/src/*"],
+      "@profile/mcp": ["packages/mcp/src/index.ts"],
+      "@profile/mcp/*": ["packages/mcp/src/*"]
     }
   },
   "include": [

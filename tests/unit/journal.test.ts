@@ -2,13 +2,13 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { closeDb, migrate, openDb, type Db, withTransaction, WriteError } from '@dossier/core';
+import { closeDb, migrate, openDb, type Db, withTransaction, WriteError } from '@profile/core';
 
 let dir: string;
 let db: Db;
 
 beforeEach(() => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dossier-journal-'));
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'profile-journal-'));
   db = openDb(path.join(dir, 'test.db'));
   migrate(db, path.join(process.cwd(), 'db', 'migrations'));
 });

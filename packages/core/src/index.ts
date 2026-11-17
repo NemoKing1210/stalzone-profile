@@ -1,5 +1,5 @@
 /**
- * Application façade of `@dossier/core`. HTTP routes, MCP and scripts use this
+ * Application façade of `@profile/core`. HTTP routes, MCP and scripts use this
  * surface; repositories and module internals stay behind module indexes, and the
  * raw mutators that write without a journal entry are not re-exported here.
  */
@@ -63,7 +63,7 @@ export type {
   CharacterStatRow,
 } from './modules/identity/repo/characters.js';
 export {
-  characterHasDossier,
+  characterHasProfile,
   characterStatMap,
   findCharacterByName,
   getCharacter,

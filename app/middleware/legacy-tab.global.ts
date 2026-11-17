@@ -6,7 +6,7 @@ const TABS: Record<string, string> = {
   artifacts: '/artifacts',
 };
 
-/** Old dossier links (`/?tab=weapons`) keep working after the move to routes. */
+/** Old profile links (`/?tab=weapons`) keep working after the move to routes. */
 export default defineNuxtRouteMiddleware((to) => {
   if (to.path !== '/') return;
   const raw = Array.isArray(to.query.tab) ? to.query.tab[0] : to.query.tab;

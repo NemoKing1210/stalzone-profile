@@ -46,7 +46,7 @@ module.exports = {
     {
       name: 'app-no-core',
       severity: 'error',
-      comment: 'The browser app talks to the dossier through the HTTP API, never through @dossier/core.',
+      comment: 'The browser app talks to the profile through the HTTP API, never through @profile/core.',
       from: { path: '^app/' },
       to: { path: '^packages/core/' },
     },
@@ -111,7 +111,7 @@ module.exports = {
       name: 'mcp-server-no-core-internals',
       severity: 'error',
       comment:
-        'MCP and server use the @dossier/core façade only; modules and repositories are not their API (bootstrap files are handled by the next rule).',
+        'MCP and server use the @profile/core façade only; modules and repositories are not their API (bootstrap files are handled by the next rule).',
       from: { path: '^(packages/mcp|server)/' },
       to: { path: '^packages/core/src/modules/' },
     },
@@ -119,7 +119,7 @@ module.exports = {
       name: 'core-bootstrap-only',
       severity: 'error',
       comment:
-        'Only the DB/bootstrap adapters may import @dossier/core/config, /db and /platform/*; everything else imports the façade.',
+        'Only the DB/bootstrap adapters may import @profile/core/config, /db and /platform/*; everything else imports the façade.',
       from: {
         path: '^(packages/mcp|server)/',
         pathNot: '^(server/utils/db\\.ts|packages/mcp/src/stdio\\.ts)$',
@@ -130,7 +130,7 @@ module.exports = {
       name: 'tests-core-public-only',
       severity: 'error',
       comment:
-        'Tests import the core façade, @dossier/core/testing, platform public entries or a module index; never repos or module internals.',
+        'Tests import the core façade, @profile/core/testing, platform public entries or a module index; never repos or module internals.',
       from: { path: '^tests/' },
       to: {
         path:
@@ -140,7 +140,7 @@ module.exports = {
     {
       name: 'tests-seed-uses-testing',
       severity: 'error',
-      comment: 'tests/fixtures/seed.ts seeds through @dossier/core/testing, not through the application façade.',
+      comment: 'tests/fixtures/seed.ts seeds through @profile/core/testing, not through the application façade.',
       from: { path: '^tests/fixtures/seed\\.ts$' },
       to: { path: '^packages/core/src/(modules|platform)/' },
     },

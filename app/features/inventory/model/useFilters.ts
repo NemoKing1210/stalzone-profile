@@ -1,6 +1,6 @@
 /** Persists table sort/filter state per section in the browser. */
 export function useFilters<T extends Record<string, string | number | boolean | null>>(key: string, defaults: T) {
-  const storageKey = `dossier:filters:${key}`;
+  const storageKey = `profile:filters:${key}`;
   const state = reactive({ ...defaults }) as T;
 
   onMounted(() => {

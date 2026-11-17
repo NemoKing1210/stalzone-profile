@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { buildPayload } from '@dossier/core';
+import { buildPayload } from '@profile/core';
 import { useDb } from '../../utils/db';
 import { validationError } from '../../utils/errors';
 

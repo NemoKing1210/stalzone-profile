@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { CharacterPatchSchema } from '@dossier/shared/contracts';
+import { CharacterPatchSchema } from '@profile/shared/contracts';
 import { factionSelectItems, factionValue, NO_FACTION, type FactionChoice } from '~/shared/lib/factions';
-import type { DossierCharacter } from '~/shared/types/dossier';
+import type { ProfileCharacter } from '~/shared/types/profile';
 import type { WriteResult } from '~/shared/composables/useWrite';
 import { STAT_FIELDS, toCharacterStatsPatch, type StatField } from '../model/characterStatsForm';
 
 const open = defineModel<boolean>('open', { default: false });
-const props = defineProps<{ character: DossierCharacter }>();
+const props = defineProps<{ character: ProfileCharacter }>();
 const emit = defineEmits<{ saved: [] }>();
 
 const { write, busy } = useWrite();

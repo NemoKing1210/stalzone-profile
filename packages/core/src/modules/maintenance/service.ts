@@ -8,7 +8,7 @@ import {
   type WriteResult,
 } from '../../platform/journal/index.js';
 import {
-  characterHasDossier,
+  characterHasProfile,
   characterOrThrow,
   deleteCharacter,
   getCharacter,
@@ -118,9 +118,16 @@ function restoreSnapshot(
       for (const snapshot of (target as any[]) ?? []) restoreOwnedTx(db, snapshot, characterId);
       return;
     }
-    case 'dossier.clear': {
+    case 'profile.clear': {
       // Legacy event from before builds were removed: only its inventory part can
       // still be restored, because the build tables no longer exist.
+      const characterId = characterOrThrow(db).id;
+      for (const snapshot of (target?.owned as any[]) ?? []) restoreOwnedTx(db, snapshot, characterId);
+      return;
+    }
+    // Events written before the dossier -> profile rename keep their old action
+    // name so the journal stays rollback-compatible.
+    case 'dossier.clear': {
       const characterId = characterOrThrow(db).id;
       for (const snapshot of (target?.owned as any[]) ?? []) restoreOwnedTx(db, snapshot, characterId);
       return;
@@ -143,7 +150,7 @@ function restoreSnapshot(
     case 'character.create': {
       const id = produced?.id;
       if (id == null) return;
-      if (characterHasDossier(db, id)) {
+      if (characterHasProfile(db, id)) {
         throw new WriteError(
           409,
           'CHARACTER_NOT_EMPTY',

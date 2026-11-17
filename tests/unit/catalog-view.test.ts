@@ -2,15 +2,15 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { closeDb, migrate, openDb, type Db, buildDetails, buildItemCard } from '@dossier/core';
-import * as repo from '@dossier/core';
+import { closeDb, migrate, openDb, type Db, buildDetails, buildItemCard } from '@profile/core';
+import * as repo from '@profile/core';
 import { seedCatalog } from '../fixtures/seed';
 
 let dir: string;
 let db: Db;
 
 beforeEach(() => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dossier-catalog-'));
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'profile-catalog-'));
   db = openDb(path.join(dir, 'test.db'));
   migrate(db, path.join(process.cwd(), 'db', 'migrations'));
   seedCatalog(db);

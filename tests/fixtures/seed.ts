@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { Db } from '@dossier/core';
-import * as seed from '@dossier/core/testing';
+import type { Db } from '@profile/core';
+import * as seed from '@profile/core/testing';
 
 type Json = Record<string, any>;
 
