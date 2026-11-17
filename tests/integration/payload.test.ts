@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { buildPayload, closeDb, migrate, openDb, type Db } from '@dossier/core';
+import { buildPayload, closeDb, exportDossierJson, migrate, openDb, type Db } from '@dossier/core';
 import { seedCatalog } from '../fixtures/seed';
 
 const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
@@ -104,6 +104,25 @@ describe('buildPayload contract', () => {
       metrics: [{ l: 'DPS', v: '550', s: null }],
       total: null,
     });
+  });
+
+  it('exports the new dossier shape without legacy sections', () => {
+    const exported = exportDossierJson(db);
+    expect(Object.keys(exported).sort()).toEqual([
+      'armor',
+      'artifacts',
+      'builds',
+      'catalog',
+      'character',
+      'containers',
+      'details',
+      'meta',
+      'weapons',
+    ]);
+    expect(exported).not.toHaveProperty('career');
+    expect(exported).not.toHaveProperty('recommendations');
+    expect(exported).not.toHaveProperty('earnings');
+    expect(exported.weapons[0]).not.toHaveProperty('raw');
   });
 
   it('returns empty sections and a null character for an empty database', () => {

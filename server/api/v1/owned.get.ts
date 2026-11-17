@@ -17,5 +17,5 @@ export default defineEventHandler((event) => {
   const character = getCharacter(db);
   if (!character) return [];
 
-  return listOwned(db, character.id, parsed.data.kind).map((row) => ownedJson(row));
+  return listOwned(db, character.id, parsed.data.kind).map((row) => ownedJson(db, row));
 });

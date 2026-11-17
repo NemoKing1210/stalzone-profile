@@ -1,4 +1,13 @@
-import type { ContainerFillRow, EventRow, ItemRow, OwnedJoined, PriceRow, SourceRow } from '@dossier/core';
+import {
+  getOwnedContainer,
+  type Db,
+  type EventRow,
+  type ItemRow,
+  type OwnedContainerRow,
+  type OwnedJoined,
+  type PriceRow,
+  type SourceRow,
+} from '@dossier/core';
 
 type Json = any;
 
@@ -11,10 +20,18 @@ export function parseJson(value: string | null | undefined): unknown {
   }
 }
 
-export function itemJson(item: ItemRow, opts: { raw?: boolean; stats?: unknown[] } = {}): Json {
+/**
+ * Item relation serializer. The icon lives in its own table, so the caller
+ * passes the resolved path from `getIcon`; the item row itself carries no
+ * derived raw payload or quality.
+ */
+export function itemJson(
+  item: ItemRow,
+  opts: { icon?: string | null; stats?: unknown[]; effects?: unknown[] } = {},
+): Json {
   return {
     id: item.id,
-    exboId: item.exbo_id,
+    externalId: item.external_id,
     name: item.name,
     nameEn: item.name_en,
     kind: item.kind,
@@ -22,20 +39,20 @@ export function itemJson(item: ItemRow, opts: { raw?: boolean; stats?: unknown[]
     rank: item.rank,
     slot: item.slot,
     weight: item.weight,
-    quality: item.quality,
     cosmetic: !!item.is_cosmetic,
-    icon: item.icon_path,
+    icon: opts.icon ?? null,
     ...(opts.stats === undefined ? {} : { stats: opts.stats }),
-    ...(opts.raw ? { raw: parseJson(item.raw) } : {}),
+    ...(opts.effects === undefined ? {} : { effects: opts.effects }),
   };
 }
 
-export function ownedJson(row: OwnedJoined): Json {
+export function ownedJson(db: Db, row: OwnedJoined): Json {
+  const container: OwnedContainerRow | null = getOwnedContainer(db, row.id);
   return {
     id: row.id,
     itemId: row.item_id,
     name: row.display_name ?? row.item_name,
-    exboId: row.exbo_id,
+    externalId: row.external_id,
     kind: row.kind,
     category: row.category,
     level: row.level,
@@ -46,21 +63,17 @@ export function ownedJson(row: OwnedJoined): Json {
     qty: row.qty,
     skinItemId: row.skin_item_id,
     icon: row.item_icon,
-    extra: parseJson(row.extra),
+    container: container
+      ? {
+          type: container.container_type,
+          shield: container.shield,
+          bonus: container.bonus,
+          protection: container.protection,
+          slots: container.slots,
+          eff: container.eff,
+        }
+      : null,
     updatedAt: row.updated_at,
-  };
-}
-
-export function containerFillJson(row: ContainerFillRow): Json {
-  return {
-    slot: row.slot,
-    itemId: row.artifact_item_id,
-    name: row.artifact_name ?? null,
-    level: row.level,
-    quality: row.quality,
-    asOf: row.as_of,
-    rank: row.artifact_rank ?? null,
-    icon: row.artifact_icon ?? null,
   };
 }
 
@@ -68,6 +81,7 @@ export function priceJson(row: PriceRow): Json {
   return {
     id: row.id,
     itemId: row.item_id,
+    externalId: row.external_id,
     name: row.name,
     quality: row.quality,
     bonus: row.bonus,

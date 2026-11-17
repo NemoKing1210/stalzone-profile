@@ -4,6 +4,8 @@ import {
   displayDps,
   displayTtk,
   protKeyFor,
+  type ArtifactSource,
+  type ArtifactStat,
 } from '../calc/index.js';
 import type { Db } from '../db/index.js';
 import * as repo from '../repo/index.js';
@@ -35,7 +37,7 @@ export interface ItemCard {
   p0?: DamagePoint;
   p15?: DamagePoint;
   curve?: number[] | null;
-  prot?: Record<string, number | null>;
+  prot?: Record<string, number | null> | number | null;
   mods?: { name: string; value: number; pct: boolean }[];
   slots?: number | null;
   slotEq?: number | null;
@@ -239,7 +241,7 @@ export function buildDetails(db: Db): Record<string, ItemCard> {
   return out;
 }
 
-const RANK_INDEX = new Map(RANK_ORDER.map((rank, index) => [rank, index]));
+const RANK_INDEX = new Map<string, number>(RANK_ORDER.map((rank, index) => [rank, index]));
 
 export function buildCatalog(db: Db, kind: 'weapon' | 'armor'): Record<string, unknown>[] {
   const entries = repo.listItems(db, kind).map((item) => {
@@ -285,25 +287,6 @@ export function buildCatalog(db: Db, kind: 'weapon' | 'armor'): Record<string, u
   return entries.map((entry) => entry.row);
 }
 
-export interface ArtifactSourceStat {
-  key: string;
-  label: string;
-  min: number;
-  max: number;
-  mid: number;
-  pos: boolean;
-  pct: boolean;
-  additional: boolean;
-}
-
-export interface ArtifactSource {
-  exboId: string;
-  name: string;
-  type: string;
-  stats: ArtifactSourceStat[];
-  additional: ArtifactSourceStat[];
-}
-
 export function artifactSources(db: Db): ArtifactSource[] {
   const definitions = new Map(repo.listStatDefinitions(db).map((definition) => [definition.id, definition]));
   return repo
@@ -316,8 +299,8 @@ export function artifactSources(db: Db): ArtifactSource[] {
         list.push(row);
         grouped.set(row.stat_id, list);
       }
-      const stats: ArtifactSourceStat[] = [];
-      const additional: ArtifactSourceStat[] = [];
+      const stats: ArtifactStat[] = [];
+      const additional: ArtifactStat[] = [];
       for (const [statId, rows] of grouped) {
         const label = rows.find((row) => row.label)?.label ?? definitions.get(statId)?.label_ru ?? statId;
         const explicitMin = rows.find((row) => row.value_min != null)?.value_min ?? null;
@@ -326,7 +309,7 @@ export function artifactSources(db: Db): ArtifactSource[] {
         const min = explicitMin ?? (numbers.length ? Math.min(...numbers) : null);
         const max = explicitMax ?? (numbers.length ? Math.max(...numbers) : null);
         if (min == null || max == null) continue;
-        const entry: ArtifactSourceStat = {
+        const entry: ArtifactStat = {
           key: statId,
           label,
           min,
