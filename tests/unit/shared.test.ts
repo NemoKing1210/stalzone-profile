@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   BuildInputSchema,
+  CharacterCreateSchema,
   CharacterPatchSchema,
   CleanupRequestSchema,
   ContainerFillSchema,
@@ -189,10 +190,24 @@ describe('cleanup request', () => {
 });
 
 describe('sync source', () => {
-  it('accepts known sources and rejects the removed profile source', () => {
-    expect(SyncSourceSchema.safeParse('all').success).toBe(true);
-    expect(SyncSourceSchema.safeParse('scpmodel').success).toBe(true);
-    expect(SyncSourceSchema.safeParse('profile').success).toBe(false);
+  it('accepts the catalog, icon and profile sources and rejects an unknown one', () => {
+    for (const source of ['all', 'scpmodel', 'icons', 'profile']) {
+      expect(SyncSourceSchema.safeParse(source).success, source).toBe(true);
+    }
+    expect(SyncSourceSchema.safeParse('seeds').success).toBe(false);
+  });
+});
+
+describe('character create', () => {
+  it('accepts the four live regions and trims the nickname', () => {
+    const parsed = CharacterCreateSchema.parse({ nick: '  Tester ', region: 'sea' });
+    expect(parsed).toMatchObject({ nick: 'Tester', region: 'sea', dryRun: false });
+  });
+
+  it('rejects global, an empty nickname and a 65-character nickname', () => {
+    expect(CharacterCreateSchema.safeParse({ nick: 'Tester', region: 'global' }).success).toBe(false);
+    expect(CharacterCreateSchema.safeParse({ nick: '   ', region: 'ru' }).success).toBe(false);
+    expect(CharacterCreateSchema.safeParse({ nick: 'x'.repeat(65), region: 'ru' }).success).toBe(false);
   });
 });
 

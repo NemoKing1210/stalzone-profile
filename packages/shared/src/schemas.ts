@@ -96,6 +96,19 @@ export const CharacterPatchSchema = WriteOptionsSchema.extend({
 
 export type CharacterPatch = z.infer<typeof CharacterPatchSchema>;
 
+/** First-run creation. The dossier holds at most one character. */
+export const CharacterCreateSchema = WriteOptionsSchema.extend({
+  nick: z.string().trim().min(1).max(64),
+  region: z.enum(['ru', 'eu', 'na', 'sea']),
+  faction: z.string().max(100).nullish(),
+  alliance: z.string().max(100).nullish(),
+  clanName: z.string().max(100).nullish(),
+  clanRank: z.string().max(100).nullish(),
+  playstyle: z.string().max(500).nullish(),
+});
+
+export type CharacterCreate = z.infer<typeof CharacterCreateSchema>;
+
 export const ContainerFillSchema = WriteOptionsSchema.extend({
   artifacts: z
     .array(
@@ -227,7 +240,7 @@ export const SyncInputSchema = z.object({
   force: z.boolean().default(false),
 });
 
-export const SyncSourceSchema = z.enum(['exbo_base', 'wiki', 'motifs', 'scpmodel', 'all']);
+export const SyncSourceSchema = z.enum(['exbo_base', 'wiki', 'motifs', 'scpmodel', 'icons', 'profile', 'all']);
 
 export const SyncRequestSchema = z.object({
   source: SyncSourceSchema.default('all'),
