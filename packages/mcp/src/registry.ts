@@ -169,25 +169,26 @@ const TOOL_DOCS: Record<string, string> = {
     find_items: 'Search catalog items by name, kind, rank and slot',
     get_item: 'Item card: typed stats, effects, icon and the derived detail card',
     compare_items: 'Compare two weapons by DPS and TTK at a refinement level',
-    get_inventory: 'Storages, equipment, the loose tray and the computed loadout',
-    list_storages: 'Storages with their grid items and weight',
+    get_inventory: 'Storages, equipment, the intake stash and the computed loadout',
+    list_storages: 'Storages with grid items, weight and effective height, including intake',
     list_inventory_items: 'Inventory instances filtered by kind, location or storage',
     list_containers: 'Containers with their current fill',
     plan_artifact_build: 'Pick artifacts for an effect preset, slots and budget',
     get_prices: 'Latest auction prices by item name',
     sources_status: 'Data source state and freshness',
     export_profile_json: 'Export the profile as portable JSON',
-    add_inventory_item: 'Add an item instance to the loose tray (dry_run by default)',
+    add_inventory_item: 'Add an item instance to intake (dry_run by default)',
     update_inventory_item: 'Change an instance level, quality, rarity or note (dry_run by default)',
     remove_inventory_item: 'Remove an instance or part of a stack (dry_run by default)',
-    move_inventory_item: 'Move an instance to a grid cell, slot, container or module (dry_run by default)',
+    move_inventory_item:
+      'Move an instance to a grid cell, slot, container or module; intake only releases items (dry_run by default)',
     create_storage: 'Create a stash storage (dry_run by default)',
-    update_storage: 'Rename, resize or reorder a storage (dry_run by default)',
-    delete_storage: 'Delete a stash, moving or loosening its items (dry_run by default)',
+    update_storage: 'Rename, resize or reorder a stash (dry_run by default)',
+    delete_storage: 'Delete a stash; its items move to the intake stash (dry_run by default)',
     set_container_artifacts: 'Replace a container fill by instance ids (dry_run by default)',
     set_weapon_module: 'Install or remove a weapon module (dry_run by default)',
     set_item_layout: 'Change a catalog item grid size or weight (dry_run by default)',
-    auto_arrange_storage: 'Pack loose items into a storage by first fit (dry_run by default)',
+    auto_arrange_storage: 'Pack intake items into a stash by first fit (dry_run by default)',
     sync_source: 'Run a source sync (exbo_base, wiki, motifs, scpmodel, icons, profile); requires confirm',
     rebuild_site: 'Site rebuild happens on deploy; MCP only reports the command',
     rollback_event: 'Roll back a journal event (dry_run by default)',
@@ -247,8 +248,6 @@ function placementTarget(target: McpPlacementTarget): PlacementTarget {
         slot: target.slot,
         allowUnverified: target.allow_unverified,
       };
-    case 'loose':
-      return { location: 'loose' };
   }
 }
 
@@ -636,11 +635,8 @@ export function createProfileServer(
   });
 
   registerWriteTool(server, limiter, 'delete_storage', DeleteStorageInputSchema, async (raw, dryRun) => {
-    const args = raw as unknown as { storage_id: number; move_to_storage_id: number | null };
-    return client.deleteStorage(args.storage_id, {
-      moveToStorageId: args.move_to_storage_id,
-      dryRun,
-    });
+    const args = raw as unknown as { storage_id: number };
+    return client.deleteStorage(args.storage_id, { dryRun });
   });
 
   registerWriteTool(

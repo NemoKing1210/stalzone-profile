@@ -2,6 +2,8 @@ import type { Db } from '../../platform/db/index.js';
 import { norm } from '@profile/shared';
 import { WriteError } from '../../platform/journal/index.js';
 import * as repo from './repo/index.js';
+import { nextOverflowPlacement, packIntoOverflow } from './write/overflow.js';
+import { itemSize } from './write/placement.js';
 import { inventorySnapshot } from './write/storage.js';
 
 /**
@@ -23,14 +25,15 @@ export function inventoryCleanupSnapshot(db: Db, characterId: number): Record<st
 
 /**
  * Deletes every storage, instance and placement of the character and recreates
- * its default inventory storage (spec §15); returns what was removed.
+ * its default inventory and intake storages (spec §15); returns what was removed.
  */
 export function clearInventoryTx(db: Db, characterId: number): Record<string, unknown> {
   const snapshot = inventoryCleanupSnapshot(db, characterId);
   db.prepare(`DELETE FROM item_placement WHERE character_id = ?`).run(characterId);
   db.prepare(`DELETE FROM inventory_item WHERE character_id = ?`).run(characterId);
   db.prepare(`DELETE FROM storage WHERE character_id = ?`).run(characterId);
-  repo.insertStorage(db, { characterId, kind: 'inventory', name: 'Inventory', width: 8, height: 8 });
+  repo.insertStorage(db, { characterId, kind: 'inventory', name: 'Inventory', width: 8, height: 20 });
+  repo.insertStorage(db, { characterId, kind: 'overflow', name: 'Intake', width: 40, height: 80 });
   return snapshot;
 }
 
@@ -170,13 +173,14 @@ export function restoreInventoryItemTx(
   }
 }
 
-/** Removes an instance created by a write being rolled back, freeing its children. */
+/** Removes an instance created by a write being rolled back, freeing its children into intake. */
 export function deleteInventoryItemTx(db: Db, id: number): void {
   const row = repo.getInventoryItem(db, id);
   if (!row) return;
   for (const placement of repo.listPlacements(db, row.character_id)) {
     if (placement.container_item_id === id || placement.weapon_item_id === id) {
-      repo.upsertPlacement(db, { itemId: placement.item_id, characterId: row.character_id, location: 'loose' });
+      const child = repo.getInventoryItem(db, placement.item_id);
+      if (child) sendToIntake(db, row.character_id, child.id, itemSize(db, child));
     }
   }
   repo.deleteInventoryItemRow(db, id);
@@ -201,6 +205,9 @@ export function restoreMoveTx(
 ): void {
   const moved = before as unknown as MoveSnapshot;
   const produced = after as unknown as MoveSnapshot;
+  // The occupant took the mover's old slot, which the unique placement indexes now
+  // guard: free it before the mover returns, then put the occupant back last.
+  if (produced.swapped) repo.deletePlacement(db, produced.swapped.itemId);
   if (moved.placement) restorePlacementSnapshot(db, moved.id, moved.placement, characterId);
   if (produced.swapped && produced.placement) {
     restorePlacementSnapshot(db, produced.swapped.itemId, produced.placement, characterId);
@@ -209,7 +216,7 @@ export function restoreMoveTx(
 
 interface StorageSnapshot {
   id: number;
-  kind: 'inventory' | 'stash';
+  kind: 'inventory' | 'stash' | 'overflow';
   name: string;
   width: number;
   height: number;
@@ -240,14 +247,63 @@ export function restoreStorageTx(db: Db, snapshot: Record<string, unknown>, char
   }
 }
 
-/** Removes a storage created by a write being rolled back, returning its items to loose. */
+/** Removes a storage created by a write being rolled back, returning its items to intake. */
 export function deleteStorageTx(db: Db, id: number): void {
   const storage = repo.getStorage(db, id);
-  if (!storage) return;
-  for (const placement of repo.listStoragePlacements(db, id)) {
-    repo.upsertPlacement(db, { itemId: placement.item_id, characterId: storage.character_id, location: 'loose' });
+  if (!storage || storage.kind !== 'stash') return;
+  const placements = repo.listStoragePlacements(db, id);
+  if (placements.length) {
+    const intakeId = ensureIntakeRow(db, storage.character_id);
+    const packed = packIntoOverflow(
+      db,
+      storage.character_id,
+      placements.map((placement) => ({
+        id: placement.item_id,
+        size: itemSize(db, repo.getInventoryItem(db, placement.item_id)!),
+      })),
+    );
+    for (const entry of packed) {
+      repo.upsertPlacement(db, {
+        itemId: entry.id,
+        characterId: storage.character_id,
+        location: 'grid',
+        storageId: intakeId,
+        x: entry.x,
+        y: entry.y,
+        rotated: entry.rotated,
+      });
+    }
   }
   repo.deleteStorageRow(db, id);
+}
+
+/** A rollback runs inside the event transaction, so a missing intake row is repaired silently. */
+function ensureIntakeRow(db: Db, characterId: number): number {
+  const existing = repo.getOverflowStorage(db, characterId);
+  if (existing) return existing.id;
+  return repo.insertStorage(db, {
+    characterId,
+    kind: 'overflow',
+    name: 'Intake',
+    width: 40,
+    height: 80,
+    sortOrder: 0,
+  });
+}
+
+/** Places one item in intake without logging an event of its own. */
+function sendToIntake(db: Db, characterId: number, itemId: number, size: ReturnType<typeof itemSize>): void {
+  ensureIntakeRow(db, characterId);
+  const spot = nextOverflowPlacement(db, characterId, size);
+  repo.upsertPlacement(db, {
+    itemId,
+    characterId,
+    location: 'grid',
+    storageId: spot.storageId,
+    x: spot.x,
+    y: spot.y,
+    rotated: spot.rotated,
+  });
 }
 
 /** Re-applies the fields of a storage snapshot. */
@@ -292,7 +348,8 @@ export function restoreWeaponModuleTx(
       restorePlacementSnapshot(db, installed, module.incomingPlacement, characterId);
     }
   } else if (current && current.item_id !== module.attachmentItemId) {
-    repo.upsertPlacement(db, { itemId: current.item_id, characterId, location: 'loose' });
+    const displaced = repo.getInventoryItem(db, current.item_id);
+    if (displaced) sendToIntake(db, characterId, displaced.id, itemSize(db, displaced));
   }
 
   if (module.attachmentItemId != null) {
@@ -329,8 +386,10 @@ export function restoreInventoryFillTx(
   const fill = snapshot as unknown as FillSnapshot;
   // Free the container first: the forward write may have reordered retained artifacts
   // or pulled in artifacts that now occupy other slots.
+  const freed: number[] = [];
   for (const placement of repo.listPlacements(db, characterId)) {
     if (placement.location === 'container' && placement.container_item_id === fill.containerItemId) {
+      freed.push(placement.item_id);
       repo.upsertPlacement(db, { itemId: placement.item_id, characterId, location: 'loose' });
     }
   }
@@ -347,16 +406,30 @@ export function restoreInventoryFillTx(
       containerSlot: entry.slot,
     });
   }
+  // An artifact the event does not account for still has to land somewhere: intake.
+  for (const itemId of freed) {
+    if (repo.getPlacement(db, itemId)?.location !== 'loose') continue;
+    const row = repo.getInventoryItem(db, itemId);
+    if (row) sendToIntake(db, characterId, row.id, itemSize(db, row));
+  }
 }
 
-/** Returns the items an auto-arrange packed back to the loose tray. */
+/** Puts auto-arranged items back where they came from, or into intake for legacy events. */
 export function restoreAutoArrangeTx(
   db: Db,
   snapshot: Record<string, unknown>,
   characterId: number,
 ): void {
-  for (const entry of (snapshot.placed as { id: number }[] | undefined) ?? []) {
-    repo.upsertPlacement(db, { itemId: entry.id, characterId, location: 'loose' });
+  const sources = snapshot.sources as PlacementEntry[] | undefined;
+  if (sources) {
+    for (const entry of sources) {
+      restorePlacementSnapshot(db, entry.itemId, entry.placement, characterId);
+    }
+    return;
+  }
+  for (const itemId of (snapshot.loose as number[] | undefined) ?? []) {
+    const row = repo.getInventoryItem(db, itemId);
+    if (row) sendToIntake(db, characterId, row.id, itemSize(db, row));
   }
 }
 

@@ -120,8 +120,8 @@ export function listInventoryItems(
     }) as InventoryItemJoined[];
 }
 
-/** First loose ammo/other stack of an item, used when a create should merge quantities. */
-export function findLooseStackRow(
+/** First intake ammo/other stack of an item, used when a create should merge quantities. */
+export function findOverflowStackRow(
   db: Db,
   characterId: number,
   itemId: number,
@@ -132,7 +132,9 @@ export function findLooseStackRow(
         `SELECT o.id, o.qty
          FROM inventory_item o
          JOIN item_placement p ON p.item_id = o.id
-         WHERE o.character_id = ? AND o.item_id = ? AND o.kind IN ('ammo', 'other') AND p.location = 'loose'
+         JOIN storage s ON s.id = p.storage_id
+         WHERE o.character_id = ? AND o.item_id = ? AND o.kind IN ('ammo', 'other')
+           AND p.location = 'grid' AND s.kind = 'overflow'
          ORDER BY CASE o.kind WHEN 'ammo' THEN 0 ELSE 1 END, o.id
          LIMIT 1`,
       )

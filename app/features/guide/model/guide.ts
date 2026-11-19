@@ -103,6 +103,7 @@ export const GUIDE_SITE: GuideSitePage[] = [
     capabilityKeys: [
       'guide.site.inventory.caps.equipment',
       'guide.site.inventory.caps.grid',
+      'guide.site.inventory.caps.intake',
       'guide.site.inventory.caps.loadout',
     ],
   },
@@ -489,7 +490,7 @@ export const GUIDE_PRINCIPLES: GuidePrinciple[] = [
   { id: 'singleSource', icon: 'i-lucide-database', titleKey: 'guide.principles.singleSource.title', textKey: 'guide.principles.singleSource.text' },
   { id: 'journal', icon: 'i-lucide-history', titleKey: 'guide.principles.journal.title', textKey: 'guide.principles.journal.text' },
   { id: 'numbers', icon: 'i-lucide-ruler', titleKey: 'guide.principles.numbers.title', textKey: 'guide.principles.numbers.text' },
-  { id: 'formula', icon: 'i-lucide-function-square', titleKey: 'guide.principles.formula.title', textKey: 'guide.principles.formula.text' },
+  { id: 'formula', icon: 'i-lucide-square-function', titleKey: 'guide.principles.formula.title', textKey: 'guide.principles.formula.text' },
   { id: 'privacy', icon: 'i-lucide-shield-check', titleKey: 'guide.principles.privacy.title', textKey: 'guide.principles.privacy.text' },
   { id: 'auth', icon: 'i-lucide-key-round', titleKey: 'guide.principles.auth.title', textKey: 'guide.principles.auth.text' },
 ];

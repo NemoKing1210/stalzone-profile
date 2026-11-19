@@ -248,6 +248,14 @@ in `app/pages` stays a thin wrapper. SSR safety is mandatory: do not touch
 `window`/`localStorage` during setup, and format dates deterministically to avoid hydration
 mismatches. All visible strings come from `t(...)`; see `docs/I18N.md`.
 
+**Complex interactions use a library.** Drag and drop, sorting, resizing and similar
+pointer-driven behaviour go through a maintained library instead of hand-rolled pointer
+tracking. The inventory screen uses `interactjs`: a preview of the item follows the cursor
+at its real footprint while the ghost marks the snapped landing cells, and the shared drop
+state lives in `app/features/inventory/ui/grid/useGridDrag.ts`. Keep geometry and drop
+resolution pure in `app/features/inventory/model` so they stay unit-tested; do not add
+manual `pointermove`/`pointerup` listeners for a new interaction.
+
 **Client code** imports `@profile/shared/contracts`, `/ranks` and `/format` through subpaths,
 never the `@profile/shared` barrel: the barrel pulls `node:crypto` into the browser bundle.
 The app imports no `@profile/core`; ESLint enforces both rules together with the

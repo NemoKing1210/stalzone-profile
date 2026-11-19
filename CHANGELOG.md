@@ -9,6 +9,11 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- A branded boot splash covers the shell from the server paint until Nuxt reports the app
+  hydrated: a trefoil mark, the `STALZONE // PROFILE` wordmark, an indeterminate 3px accent
+  rule and a localized "Loading profile" label. It is skipped without scripting, waits for
+  the web fonts (capped at 600ms), fades in 240ms and hides itself after 8s if the client
+  never becomes ready.
 - A diagnostic logging module: a SQLite-backed `log_entry` table with configurable minimum
   level, per-category overrides, retention days and a row cap. It records HTTP requests,
   sync runs, MCP calls, CLI commands, database boot lines and browser errors, with request
@@ -77,6 +82,25 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
+- The read model builds one catalog context and one inventory snapshot per payload,
+  reuses one card index for details and both catalogs, and caches the payload per database
+  until `total_changes()` moves. `useProfile()` makes one `/api/v1/payload` request; meta is
+  derived locally. `/api/v1/meta`, `/character`, `/containers` and `/catalog` build only
+  their own section. On the local 2,645-item database a payload now issues 19 prepared
+  statements instead of 46 and a repeat load is cache-served; the first build stays around
+  0.1–0.2 s and is the only one that reads the catalog stats.
+- Sync resolves items and icons in batches instead of per row, reuses the price insert
+  statement, skips the catalog upsert when the EXBO commit is unchanged, and writes icons
+  through a temp file plus rename (a truncated file is downloaded again). Prices keep only
+  the current quote per name/quality/bonus, so `price_latest` does not scan an ever-growing
+  history; `/api/v1/prices` resolves many names in one query per 500 names.
+- Write routes read JSON with a byte-counting stream, so a chunked body cannot exceed
+  2 MiB (32 KiB for browser logs) before zod runs. The in-memory limiter refuses new keys
+  at 5,000 active windows instead of clearing every window, and destructive journal
+  snapshots over 20,000 events or 32 MiB answer `413 JOURNAL_TOO_LARGE` without allocating.
+  `swap: true` on a grid target is rejected with `422 INVALID_PLACEMENT`; the client resolves
+  grid collisions. SQLite opens with tuned `cache_size`, `mmap_size` and `temp_store` and
+  runs `PRAGMA optimize` on close.
 - The collapsed `owned_item`/`owned_container`/`container_slot` model is replaced by
   `storage`, `inventory_item`, `item_placement`, `container_data`, `attachment_compat` and
   `item_layout`. Migration `0006` copies the old rows (one instance per copy, a stash per

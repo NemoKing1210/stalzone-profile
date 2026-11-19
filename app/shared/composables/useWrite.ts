@@ -5,6 +5,10 @@ export type { WriteDiff, WriteResult };
 interface WriteOptions {
   method: 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   body?: Record<string, unknown>;
+  /** Skip the success toast; errors still surface. Used for frequent moves. */
+  silent?: boolean;
+  /** 'await' (default) refreshes before resolving; 'none' leaves the refresh to the caller. */
+  reconcile?: 'await' | 'none';
 }
 
 interface ApiErrorData {
@@ -44,13 +48,15 @@ export function useWrite() {
           icon: 'i-lucide-eye',
         });
       } else {
-        toast.add({
-          title: t('common.changeWritten'),
-          description: writeResult?.diff?.human,
-          color: 'success',
-          icon: 'i-lucide-check',
-        });
-        await refresh();
+        if (!options.silent) {
+          toast.add({
+            title: t('common.changeWritten'),
+            description: writeResult?.diff?.human,
+            color: 'success',
+            icon: 'i-lucide-check',
+          });
+        }
+        if (options.reconcile !== 'none') await refresh();
       }
       return result;
     } catch (error) {

@@ -6,6 +6,7 @@ import type {
   StorageRead,
 } from '@profile/shared/contracts';
 
+import { applyPending, clearPending, type PendingMove } from './pending';
 import { useFilters } from './useFilters';
 
 /**
@@ -14,15 +15,32 @@ import { useFilters } from './useFilters';
  * Every mutation goes through the REST service, never through the payload cache.
  */
 export function useInventory() {
-  const { payload } = useProfile();
-  const { write, busy, lastError } = useWrite();
+  const { payload, refresh } = useProfile();
+  const { write, busy: writing, lastError } = useWrite();
 
-  const inventory = computed<InventoryRead | null>(() => payload.value?.inventory ?? null);
+  /** Moves shown at their destination while the server answers; cleared by the refresh. */
+  const pending = ref(new Map<number, PendingMove>());
+  /** Writes queued or reconciling; keeps `busy` true through the refresh. */
+  const moving = ref(0);
+  const busy = computed(() => writing.value || moving.value > 0);
+  /** Monotonic clock: a refresh only clears moves that settled before it was requested. */
+  let clock = 0;
+  /** Moves reach the server one at a time, so an older request cannot land last. */
+  let queue: Promise<unknown> = Promise.resolve();
+
+  const inventory = computed<InventoryRead | null>(() => {
+    const base = payload.value?.inventory ?? null;
+    if (!base) return null;
+    return pending.value.size ? applyPending(base, [...pending.value.values()]) : base;
+  });
   const storages = computed<StorageRead[]>(() => inventory.value?.storages ?? []);
   const inventoryStorage = computed<StorageRead | null>(
     () => storages.value.find((storage) => storage.kind === 'inventory') ?? null,
   );
   const stashes = computed<StorageRead[]>(() => storages.value.filter((storage) => storage.kind === 'stash'));
+  const overflow = computed<StorageRead | null>(
+    () => storages.value.find((storage) => storage.kind === 'overflow') ?? null,
+  );
   const equipment = computed(() => inventory.value?.equipment ?? null);
   const loose = computed<InventoryItemRead[]>(() => inventory.value?.loose ?? []);
   const stats = computed<LoadoutStats | null>(() => inventory.value?.stats ?? null);
@@ -30,12 +48,46 @@ export function useInventory() {
   const selection = useFilters('inventory-grid', { storageId: 0 });
 
   const selectedStorage = computed<StorageRead | null>(() => {
-    const chosen = stashes.value.find((storage) => storage.id === Number(selection.storageId));
-    return chosen ?? stashes.value[0] ?? null;
+    const available = [...(overflow.value ? [overflow.value] : []), ...stashes.value];
+    const chosen = available.find((storage) => storage.id === Number(selection.storageId));
+    return chosen ?? stashes.value[0] ?? overflow.value;
   });
 
   function selectStorage(id: number | null): void {
     selection.storageId = id ?? 0;
+  }
+
+  async function performMove(
+    entry: PendingMove,
+    options: { swap?: boolean; allowUnverified?: boolean },
+  ) {
+    const { itemId, target } = entry;
+    const result = await write(`/api/v1/inventory/items/${itemId}/move`, {
+      method: 'POST',
+      // Dropping onto an occupied equipment, container or module slot means swapping;
+      // the server decides whether the displaced item has a safe place to go.
+      body: { target, swap: options.swap ?? target.location !== 'grid', ...options },
+      silent: true,
+      reconcile: 'none',
+    });
+    if (!result) {
+      // A rejected move reverts at once; awaiting the refresh first would keep drawing
+      // the item at a place the server never stored for the whole round trip.
+      if (pending.value.get(itemId) === entry) pending.value.delete(itemId);
+      await refresh();
+      return null;
+    }
+    entry.settledAt = ++clock;
+    const refreshAt = ++clock;
+    try {
+      // The screen already shows the item at its target; this replaces the optimism
+      // with the server's payload.
+      await refresh();
+    } finally {
+      const kept = clearPending([...pending.value.values()], refreshAt);
+      pending.value = new Map(kept.map((keptEntry) => [keptEntry.itemId, keptEntry]));
+    }
+    return result;
   }
 
   function move(
@@ -43,9 +95,14 @@ export function useInventory() {
     target: PlacementTarget,
     options: { swap?: boolean; allowUnverified?: boolean } = {},
   ) {
-    return write(`/api/v1/inventory/items/${itemId}/move`, {
-      method: 'POST',
-      body: { target, ...options },
+    // The screen shows the landing immediately; the request waits for its turn.
+    const entry: PendingMove = { itemId, target };
+    pending.value.set(itemId, entry);
+    moving.value += 1;
+    const run = queue.then(() => performMove(entry, options));
+    queue = run.catch(() => undefined);
+    return run.finally(() => {
+      moving.value -= 1;
     });
   }
 
@@ -60,15 +117,16 @@ export function useInventory() {
     return write(`/api/v1/inventory/storages/${id}`, { method: 'PATCH', body: patch });
   }
 
-  function deleteStorage(id: number, moveToStorageId?: number | null) {
-    return write(`/api/v1/inventory/storages/${id}`, {
-      method: 'DELETE',
-      body: moveToStorageId == null ? {} : { moveToStorageId },
-    });
+  function deleteStorage(id: number) {
+    return write(`/api/v1/inventory/storages/${id}`, { method: 'DELETE', body: {} });
   }
 
   function autoArrange(storageId: number) {
-    return write(`/api/v1/inventory/storages/${storageId}/auto-arrange`, { method: 'POST', body: {} });
+    return write(`/api/v1/inventory/storages/${storageId}/auto-arrange`, {
+      method: 'POST',
+      body: {},
+      silent: true,
+    });
   }
 
   function setContainerFill(containerId: number, slots: (number | null)[]) {
@@ -107,6 +165,7 @@ export function useInventory() {
     storages,
     inventoryStorage,
     stashes,
+    overflow,
     equipment,
     loose,
     stats,

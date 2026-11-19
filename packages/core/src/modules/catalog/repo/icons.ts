@@ -49,13 +49,22 @@ const KIND_PREFIXES: Record<string, string> = {
 /** Legacy `<prefix>:<name>` icon keys still consumed by the payload and the UI. */
 export function iconMap(db: Db): Record<string, string> {
   const rows = db
-    .prepare(`SELECT i.kind AS kind, i.name AS name, ic.path AS path FROM icon ic JOIN item i ON i.id = ic.item_id`)
-    .all() as { kind: string; name: string; path: string }[];
+    .prepare(`SELECT i.id AS id, i.kind AS kind, i.name AS name, ic.path AS path FROM icon ic JOIN item i ON i.id = ic.item_id`)
+    .all() as { id: number; kind: string; name: string; path: string }[];
+  return iconMapFrom(rows, new Map(rows.map((row) => [row.id, row.path])));
+}
+
+/** Same keys as `iconMap`, built from an already loaded item/icon context. */
+export function iconMapFrom(
+  items: Iterable<{ id: number; kind: string; name: string }>,
+  icons: Map<number, string>,
+): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const row of rows) {
-    const prefix = KIND_PREFIXES[row.kind];
+  for (const item of items) {
+    const prefix = KIND_PREFIXES[item.kind];
     if (!prefix) continue;
-    out[`${prefix}:${row.name}`] = row.path;
+    const path = icons.get(item.id);
+    if (path) out[`${prefix}:${item.name}`] = path;
   }
   return out;
 }

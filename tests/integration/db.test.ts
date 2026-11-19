@@ -128,6 +128,11 @@ describe('baseline schema', () => {
     ).toThrow(/placement character mismatch/);
   });
 
+  it('keeps the hot page cache and temp tables in memory', () => {
+    expect(db.pragma('cache_size', { simple: true })).toBe(-64000);
+    expect(db.pragma('temp_store', { simple: true })).toBe(2);
+  });
+
   it('enables STRICT and foreign keys', () => {
     expect(db.pragma('foreign_keys', { simple: true })).toBe(1);
     for (const table of ['item', 'character', 'inventory_item', 'event_log']) {

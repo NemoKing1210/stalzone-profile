@@ -206,3 +206,80 @@ describe('inventory data migration', () => {
     expect(db.prepare(`SELECT name FROM storage WHERE kind = 'stash'`).get()).toEqual({ name: 'Stash' });
   });
 });
+
+describe('overflow storage migration', () => {
+  it('adds intake, resizes defaults and converts loose placements', () => {
+    seedCharacter('Личный склад');
+    seedCatalog();
+    seedLegacyInventory();
+    applyDataMigration(); // 0006: legacy rows become loose placements
+
+    copyMigrations(['0008_overflow_storage.sql']);
+    migrate(db, workDir);
+
+    expect(db.prepare(`SELECT kind, name, width, height FROM storage ORDER BY kind`).all()).toEqual([
+      { kind: 'inventory', name: 'Inventory', width: 8, height: 20 },
+      { kind: 'overflow', name: 'Intake', width: 40, height: 80 },
+      { kind: 'stash', name: 'Личный склад', width: 40, height: 80 },
+    ]);
+    const loose = db
+      .prepare(`SELECT COUNT(*) AS count FROM item_placement WHERE location = 'loose'`)
+      .get() as { count: number };
+    expect(loose.count).toBe(0);
+    const grid = db
+      .prepare(
+        `SELECT p.x, p.y, s.kind FROM item_placement p JOIN storage s ON s.id = p.storage_id
+         WHERE p.location = 'grid'`,
+      )
+      .all() as { x: number; y: number; kind: string }[];
+    expect(grid.length).toBe(5);
+    expect(grid.every((row) => row.kind === 'overflow' && row.x === 0)).toBe(true);
+    expect(new Set(grid.map((row) => row.y)).size).toBe(grid.length);
+    expect(db.pragma('foreign_key_check')).toEqual([]);
+  });
+
+  it('resizes the old 8 × 10 UI default and moves placements outside 8 × 20', () => {
+    seedCharacter('Личный склад');
+    seedCatalog();
+    seedLegacyInventory();
+    applyDataMigration();
+
+    db.prepare(
+      `INSERT INTO storage
+         (character_id, kind, name, name_norm, width, height, max_weight, sort_order, created_at, updated_at)
+       VALUES (1, 'stash', 'Старый', 'старый', 8, 10, NULL, 1, ?, ?)`,
+    ).run(NOW, NOW);
+    const inventory = db.prepare(`SELECT id FROM storage WHERE kind = 'inventory'`).get() as { id: number };
+    const placed = db.prepare(`SELECT item_id FROM item_placement ORDER BY item_id LIMIT 1`).get() as {
+      item_id: number;
+    };
+    // An older build could grow the inventory; this placement no longer fits 8 × 20.
+    db.prepare(
+      `UPDATE item_placement SET location = 'grid', storage_id = ?, x = 0, y = 30, rotated = 0
+       WHERE item_id = ?`,
+    ).run(inventory.id, placed.item_id);
+
+    copyMigrations(['0008_overflow_storage.sql']);
+    migrate(db, workDir);
+
+    expect(db.prepare(`SELECT width, height FROM storage WHERE name = 'Старый'`).get()).toEqual({
+      width: 40,
+      height: 80,
+    });
+    const outOfBounds = db
+      .prepare(
+        `SELECT COUNT(*) AS count FROM item_placement p JOIN storage s ON s.id = p.storage_id
+         WHERE s.kind = 'inventory' AND p.location = 'grid' AND (p.x > 7 OR p.y > 19)`,
+      )
+      .get() as { count: number };
+    expect(outOfBounds.count).toBe(0);
+    expect(
+      db
+        .prepare(
+          `SELECT s.kind FROM item_placement p JOIN storage s ON s.id = p.storage_id
+           WHERE p.item_id = ?`,
+        )
+        .get(placed.item_id),
+    ).toEqual({ kind: 'overflow' });
+  });
+});

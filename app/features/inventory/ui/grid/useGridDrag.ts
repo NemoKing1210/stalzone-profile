@@ -1,17 +1,65 @@
-import type { EquipmentSlot, InventoryItemRead, ModuleSlot } from '@profile/shared/contracts';
+import type { EquipmentSlot, InventoryItemRead, ModuleSlot, StorageRead } from '@profile/shared/contracts';
 import { EquipmentSlotSchema, ModuleSlotSchema } from '@profile/shared/contracts';
 
-import { isSameTarget, keyboardTarget, pointerToCell, type DropTarget, type Point } from '../../model/drag';
+import {
+  cellPixels,
+  centerGrab,
+  grabPoint,
+  gridUnder,
+  pickRotation,
+  isSameTarget,
+  keyboardTarget,
+  previewBox,
+  startPlacement,
+  type DropTarget,
+  type GrabSource,
+  type GridBox,
+  type Point,
+  type PreviewBox,
+} from '../../model/drag';
+import { scrollVelocity } from '../../model/autoscroll';
+import { clampOrigin, effectiveSize, ghostForGrid, type GridBounds, type Size } from '../../model/grid';
+
+type InteractApi = (typeof import('interactjs'))['default'];
 
 /** Pixels a press must travel before it becomes a drag; below this it stays a click. */
 const DRAG_THRESHOLD = 6;
 
+/** A `data-drop` id is a positive integer; anything else is a malformed attribute. */
+function positiveId(value: string | undefined): number | null {
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+let interactApi: InteractApi | null = null;
+let interactLoading: Promise<InteractApi | null> | null = null;
+
+/** interact.js touches the DOM at import time, so the client loads it on first use. */
+function loadInteract(): Promise<InteractApi | null> {
+  if (!import.meta.client) return Promise.resolve(null);
+  interactLoading ??= import('interactjs')
+    .then((module) => {
+      interactApi = module.default;
+      return interactApi;
+    })
+    .catch((error: unknown) => {
+      // A missing drag library must be visible in the diagnostic log, not a dead screen.
+      console.error('inventory: failed to load interactjs', error);
+      return null;
+    });
+  return interactLoading;
+}
+
 export interface GridDragOptions {
   onDrop: (itemId: number, target: DropTarget, rotated: boolean) => void | Promise<void>;
-  /** Grid dimensions for a storage id, used while the pointer is over its cells. */
-  storageAt: (storageId: number) => { width: number; height: number } | null;
+  /** The storage behind an id, used for grid dimensions and for validating a landing. */
+  storageFor: (storageId: number) => StorageRead | null;
+  /** The landing is blocked locally; the caller explains it to the user. */
+  onDropRejected?: () => void;
   /** Grid a non-grid item lands on when picked up with the keyboard. */
   homeStorageId: () => number | null;
+  /** The read-only intake grid: it never hosts a pick, it only releases items. */
+  intakeStorageId: () => number | null;
 }
 
 export interface DragGhost {
@@ -20,21 +68,26 @@ export interface DragGhost {
   storageId: number;
 }
 
+interface TileRecord {
+  item: InventoryItemRead | null;
+  rect: GridBounds | null;
+}
+
 /**
- * One drag state for the whole inventory screen: pointer drags (mouse and touch)
- * and the keyboard ghost share it, so an item picked in one grid can be dropped
- * in another, on an equipment slot, in a container or on a weapon module.
+ * One drag state for the whole inventory screen. Pointer drags are handled by
+ * interact.js, which moves the real tile under the cursor at its true footprint;
+ * the keyboard ghost feeds the same state, so drops land through one code path.
  */
 export function useGridDrag(options: GridDragOptions) {
   const picked = ref<InventoryItemRead | null>(null);
   const rotated = ref(false);
   const ghost = ref<DragGhost | null>(null);
   const target = ref<DropTarget | null>(null);
-  const pointer = ref<Point | null>(null);
+  /** The floating tile under the pointer at the item's real footprint. */
+  const preview = ref<PreviewBox | null>(null);
+  /** The cell of the item's footprint under the pointer; the drop keeps it under the pointer. */
+  const grab = ref<Point>({ x: 0, y: 0 });
 
-  let press: { item: InventoryItemRead; x: number; y: number; touch: boolean } | null = null;
-  /** A touch tap starts a pick; its own pointerup must not drop it straight back. */
-  let ignoringPointerUp = false;
   /** The keydown that picked an item; the same event must not immediately drop it. */
   let pickEvent: KeyboardEvent | null = null;
   /** A completed pointer drag ends with a click on whatever is under the pointer; ignore it. */
@@ -42,33 +95,65 @@ export function useGridDrag(options: GridDragOptions) {
 
   const active = computed(() => picked.value !== null);
 
+  /** Tiles bound to interact.js, with the item they currently represent. */
+  const tiles = new Map<HTMLElement, TileRecord>();
+  /** The tile being dragged, the press point inside it and the current pointer. */
+  let dragging: { el: HTMLElement; pointer: Point } | null = null;
+  /** Pixels per cell for the preview, taken from the last grid the pointer crossed. */
+  let cellPx: Size | null = null;
+  /** Edge auto-scroll: frame handle and the last pointer position it follows. */
+  let scrollRaf = 0;
+  let lastPointer: Point | null = null;
+  /** Whether the pick came from grid cells or a slot; a rotated slot card re-centres. */
+  let grabSource: GrabSource = 'grid';
+
   function shouldIgnoreClick(): boolean {
     return Date.now() < ignoreClickUntil;
   }
 
-  function start(item: InventoryItemRead, source?: KeyboardEvent): void {
+  function start(item: InventoryItemRead, source?: KeyboardEvent, at?: Point, from: GrabSource = 'grid'): void {
     picked.value = item;
     pickEvent = source ?? null;
-    rotated.value = item.placement.location === 'grid' ? item.placement.rotated : false;
+    grabSource = from;
+    preview.value = null;
+    cellPx = null;
+    const spot = startPlacement(item.placement, {
+      homeStorageId: options.homeStorageId(),
+      intakeStorageId: options.intakeStorageId(),
+    });
+    ghost.value = spot.ghost;
+    target.value = spot.target;
+    rotated.value = spot.rotated;
+    const size = effectiveSize(item.size, rotated.value);
+    grab.value = at ?? centerGrab(size);
+  }
 
-    if (item.placement.location === 'grid') {
-      ghost.value = { x: item.placement.x, y: item.placement.y, storageId: item.placement.storageId };
-      target.value = {
-        location: 'grid',
-        storageId: item.placement.storageId,
-        x: item.placement.x,
-        y: item.placement.y,
-        rotated: rotated.value,
-      };
-      return;
+  function stopScroll(): void {
+    if (scrollRaf !== 0) cancelAnimationFrame(scrollRaf);
+    scrollRaf = 0;
+    lastPointer = null;
+  }
+
+  /**
+   * Scrolls the page while the pointer rests near the viewport edge. The grid moves under
+   * a stationary pointer, so the target is recomputed after every scroll frame.
+   */
+  function scrollTick(): void {
+    scrollRaf = 0;
+    if (!picked.value || !lastPointer) return;
+    const velocity = scrollVelocity(lastPointer, { width: window.innerWidth, height: window.innerHeight });
+    if (velocity.x !== 0 || velocity.y !== 0) {
+      window.scrollBy(velocity.x, velocity.y);
+      hoverAt(lastPointer);
+      movePreview(lastPointer);
     }
+    scrollRaf = requestAnimationFrame(scrollTick);
+  }
 
-    const home = options.homeStorageId();
-    ghost.value = home == null ? null : { x: 0, y: 0, storageId: home };
-    target.value =
-      home == null
-        ? null
-        : { location: 'grid', storageId: home, x: 0, y: 0, rotated: false };
+  function startScroll(pointer: Point): void {
+    if (!import.meta.client) return;
+    lastPointer = pointer;
+    if (scrollRaf === 0) scrollRaf = requestAnimationFrame(scrollTick);
   }
 
   function cancel(): void {
@@ -76,8 +161,12 @@ export function useGridDrag(options: GridDragOptions) {
     pickEvent = null;
     ghost.value = null;
     target.value = null;
-    pointer.value = null;
-    press = null;
+    preview.value = null;
+    cellPx = null;
+    // End the pointer gesture with the pick: otherwise the next mouse move passes the
+    // threshold again and silently starts a second drag of the item just cancelled.
+    dragging = null;
+    stopScroll();
   }
 
   function moveTo(next: GhostUpdate): void {
@@ -119,12 +208,6 @@ export function useGridDrag(options: GridDragOptions) {
     target.value = { location: 'weapon_module', weaponItemId, slot, allowUnverified: false };
   }
 
-  function overLoose(): void {
-    if (!picked.value) return;
-    ghost.value = null;
-    target.value = { location: 'loose' };
-  }
-
   function clearTarget(): void {
     target.value = null;
     ghost.value = null;
@@ -133,17 +216,25 @@ export function useGridDrag(options: GridDragOptions) {
   function rotate(): void {
     if (!picked.value) return;
     rotated.value = !rotated.value;
+    const size = effectiveSize(picked.value.size, rotated.value);
+    grab.value =
+      grabSource === 'slot'
+        ? centerGrab(size)
+        : { x: Math.min(grab.value.x, size.width - 1), y: Math.min(grab.value.y, size.height - 1) };
     if (target.value?.location === 'grid') {
       target.value = { ...target.value, rotated: rotated.value };
     }
+    // The carried card turns with the ghost, not on the next pointer move.
+    if (lastPointer) movePreview(lastPointer);
   }
 
   function moveBy(key: string): void {
     const item = picked.value;
     const current = ghost.value;
     if (!item || !current) return;
-    const grid = options.storageAt(current.storageId);
-    if (!grid) return;
+    const storage = options.storageFor(current.storageId);
+    if (!storage) return;
+    const grid = { width: storage.width, height: storage.height };
     const next = keyboardTarget(current, key, item.size, rotated.value, grid);
     overGrid(current.storageId, next.x, next.y);
     rotated.value = next.rotated;
@@ -158,72 +249,112 @@ export function useGridDrag(options: GridDragOptions) {
       cancel();
       return;
     }
+    if (destination.location === 'grid') {
+      const storage = options.storageFor(destination.storageId);
+      const items = storage
+        ? storage.items.flatMap((entry) =>
+            entry.placement.location === 'grid'
+              ? [{ id: entry.id, size: entry.size, placement: entry.placement }]
+              : [],
+          )
+        : [];
+      const landing = storage
+        ? ghostForGrid(
+            { width: storage.width, height: storage.height },
+            item,
+            destination,
+            wasRotated,
+            items,
+          )
+        : null;
+      // A red ghost is a local refusal: sending it would only turn a clear visual into
+      // a server error toast after a round trip.
+      if (!landing?.valid) {
+        cancel();
+        options.onDropRejected?.();
+        return;
+      }
+    }
     cancel();
     void options.onDrop(item.id, destination, wasRotated);
   }
 
-  function pressItem(item: InventoryItemRead, event: PointerEvent): void {
-    const touch = event.pointerType === 'touch' || event.pointerType === 'pen';
-    press = { item, x: event.clientX, y: event.clientY, touch };
-    if (!touch) return;
-
-    // A second tap on the picked item cancels the pick; the click that follows opens the card.
-    if (picked.value?.id === item.id) {
-      press = null;
-      cancel();
-      return;
-    }
-    // Another item is being carried: leave the pick alone so the pointerup drops it here.
-    if (picked.value) {
-      press = null;
-      return;
-    }
-    press = null;
-    ignoringPointerUp = true;
-    start(item);
-  }
-
-  function targetFromElement(element: Element | null, event: PointerEvent): DropTarget | null {
+  /** The non-grid drop zones, which are small and still resolved by the element on top. */
+  function targetFromElement(element: Element | null): Exclude<DropTarget, { location: 'grid' }> | null {
     const node = element?.closest('[data-drop]') as HTMLElement | null;
     const raw = node?.dataset.drop;
     if (!node || !raw) return null;
     const [kind, first, second] = raw.split(':');
 
-    if (kind === 'grid' && first) {
-      const storageId = Number(first);
-      const grid = options.storageAt(storageId);
-      if (!grid) return null;
-      const cell = pointerToCell(event, node, grid.width);
-      return { location: 'grid', storageId, x: cell.x, y: cell.y, rotated: rotated.value };
-    }
     if (kind === 'equipment' && first && EquipmentSlotSchema.safeParse(first).success) {
       return { location: 'equipment', slot: first as EquipmentSlot };
     }
-    if (kind === 'container' && first && second) {
-      return { location: 'container', containerItemId: Number(first), slot: Number(second) };
+    const id = positiveId(first);
+    if (kind === 'container' && id != null && second) {
+      const slot = Number(second);
+      if (Number.isInteger(slot) && slot >= 0) return { location: 'container', containerItemId: id, slot };
     }
-    if (kind === 'module' && first && second && ModuleSlotSchema.safeParse(second).success) {
+    if (kind === 'module' && id != null && second && ModuleSlotSchema.safeParse(second).success) {
       return {
         location: 'weapon_module',
-        weaponItemId: Number(first),
+        weaponItemId: id,
         slot: second as ModuleSlot,
         allowUnverified: false,
       };
     }
-    if (kind === 'loose') return { location: 'loose' };
     return null;
   }
 
-  function hover(event: PointerEvent): void {
-    pointer.value = { x: event.clientX, y: event.clientY };
+  /** Every visible grid box, so a target comes from the pointer's position, not the top element. */
+  function gridBoxes(): { box: GridBox; node: HTMLElement }[] {
+    const boxes: { box: GridBox; node: HTMLElement }[] = [];
+    for (const node of document.querySelectorAll<HTMLElement>('[data-drop^="grid:"]')) {
+      const storageId = Number(node.dataset.drop?.slice('grid:'.length));
+      const storage = options.storageFor(storageId);
+      if (!Number.isFinite(storageId) || !storage) continue;
+      const rect = node.getBoundingClientRect();
+      boxes.push({
+        node,
+        box: {
+          storageId,
+          columns: storage.width,
+          rows: storage.height,
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
+          height: rect.height,
+        },
+      });
+    }
+    return boxes;
+  }
+
+  function hoverAt(pointer: Point): void {
     if (!picked.value) return;
-    const next = targetFromElement(document.elementFromPoint(event.clientX, event.clientY), event);
-    if (!next) {
-      clearTarget();
+    const top = document.elementFromPoint(pointer.x, pointer.y);
+    // A pane or a dialog above a grid still blocks the drop; tiles inside it do not.
+    const live = gridBoxes().filter(({ node }) => !top || node.contains(top));
+    const hit = gridUnder(
+      pointer,
+      live.map(({ box }) => box),
+    );
+    if (hit) {
+      const storage = options.storageFor(hit.storageId);
+      const node = live.find(({ box }) => box.storageId === hit.storageId)?.node;
+      if (!storage || !node) {
+        clearTarget();
+        return;
+      }
+      const grid = { width: storage.width, height: storage.height };
+      cellPx = cellPixels({ width: node.clientWidth, height: node.clientHeight }, grid);
+      const size = effectiveSize(picked.value.size, rotated.value);
+      const origin = clampOrigin({ x: hit.x - grab.value.x, y: hit.y - grab.value.y }, size, grid);
+      overGrid(hit.storageId, origin.x, origin.y);
       return;
     }
-    if (next.location === 'grid') {
-      overGrid(next.storageId, next.x, next.y);
+    const next = targetFromElement(top);
+    if (!next) {
+      clearTarget();
       return;
     }
     if (next.location === 'equipment') {
@@ -234,36 +365,135 @@ export function useGridDrag(options: GridDragOptions) {
       overContainer(next.containerItemId, next.slot);
       return;
     }
-    if (next.location === 'weapon_module') {
-      overModule(next.weaponItemId, next.slot);
-      return;
-    }
-    overLoose();
+    overModule(next.weaponItemId, next.slot);
   }
 
-  function onPointerMove(event: PointerEvent): void {
-    if (press && !picked.value) {
-      if (Math.hypot(event.clientX - press.x, event.clientY - press.y) >= DRAG_THRESHOLD) {
-        const item = press.item;
-        press = null;
-        start(item);
-        hover(event);
-      }
-      return;
-    }
-    if (picked.value) hover(event);
+  /** The preview follows the pointer at the footprint's size; the ghost shows the snap. */
+  function movePreview(pointer: Point): void {
+    const item = picked.value;
+    if (!item || !cellPx) return;
+    preview.value = previewBox(pointer, grab.value, cellPx, effectiveSize(item.size, rotated.value));
   }
 
-  function onPointerUp(event: PointerEvent): void {
-    press = null;
-    if (ignoringPointerUp) {
-      ignoringPointerUp = false;
+  /* ------------------------------------------------------------------ */
+  /* Pointer drags (interact.js)                                         */
+  /* ------------------------------------------------------------------ */
+
+  /** A grid tile carries its own cell size; an equipment slot borrows the home grid's. */
+  function sourceCell(el: HTMLElement, rect: GridBounds, size: Size): Size | null {
+    if (el.dataset.size) return { width: rect.width / size.width, height: rect.height / size.height };
+    const home = options.homeStorageId();
+    if (home == null) return null;
+    const node = document.querySelector<HTMLElement>(`[data-drop="grid:${home}"]`);
+    const storage = options.storageFor(home);
+    if (!node || !storage) return null;
+    return cellPixels(
+      { width: node.clientWidth, height: node.clientHeight },
+      { width: storage.width, height: storage.height },
+    );
+  }
+
+  /** Starts the shared drag state once the press has travelled past the threshold. */
+  function beginDrag(el: HTMLElement, record: TileRecord, pointer: Point): void {
+    const item = record.item;
+    if (!item) return;
+    const rect = record.rect ?? el.getBoundingClientRect();
+    // The grab must use the rotation the pick actually starts with: an intake item is
+    // stored rotated but starts unrotated, and a rotated grab would offset the card.
+    const rotatedAtStart = pickRotation(item.placement, options.intakeStorageId());
+    const size = effectiveSize(item.size, rotatedAtStart);
+    const source: GrabSource = el.dataset.size ? 'grid' : 'slot';
+    const at = grabPoint(source, rect, pointer, size);
+    start(item, undefined, at, source);
+    // An item picked up outside a grid has no cell to preview: hover decides the target.
+    if (item.placement.location !== 'grid') {
+      ghost.value = null;
+      target.value = null;
+    }
+    cellPx = sourceCell(el, rect, size);
+    movePreview(pointer);
+    hoverAt(pointer);
+    startScroll(pointer);
+  }
+
+  /** Releases one tile; an empty equipment slot and an unmounted tile both land here. */
+  function detachTile(el: HTMLElement): void {
+    if (!tiles.delete(el)) return;
+    if (interactApi) interactApi(el).unset();
+    if (dragging?.el !== el) return;
+    // The tile left the payload mid-drag: end the drag, or the auto-scroll loop keeps
+    // running with a pointer that no longer belongs to an item.
+    dragging = null;
+    if (picked.value) cancel();
+  }
+
+  /** Registers a tile element as a drag source; call it from a template ref. A null item detaches. */
+  function attachTile(el: HTMLElement | null, item: InventoryItemRead | null): void {
+    if (!el) return;
+    if (!item) {
+      detachTile(el);
       return;
     }
-    if (!picked.value) return;
-    hover(event);
-    drop();
-    ignoreClickUntil = Date.now() + 250;
+    const bound = tiles.get(el);
+    if (bound) {
+      bound.item = item;
+      return;
+    }
+    // The rectangle is measured on press, not here: measuring every tile on mount and on
+    // every payload refresh forces a layout for the whole grid.
+    tiles.set(el, { item, rect: null });
+    void loadInteract().then((interact) => {
+      if (!interact || !tiles.has(el)) return;
+      const interactable = interact(el).styleCursor(false);
+      interactable.draggable({
+        // The interaction starts on press; the threshold below decides whether it is a
+        // drag. Waiting for a move *over the tile* loses fast pointer movements.
+        manualStart: true,
+        inertia: false,
+        listeners: {
+          move: (event) => {
+            if (!dragging) return;
+            const pointer = { x: event.clientX, y: event.clientY };
+            lastPointer = pointer;
+            if (!picked.value) {
+              const dx = pointer.x - dragging.pointer.x;
+              const dy = pointer.y - dragging.pointer.y;
+              if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+              const record = tiles.get(el);
+              if (!record?.item) return;
+              beginDrag(el, record, dragging.pointer);
+            }
+            hoverAt(pointer);
+            movePreview(pointer);
+          },
+          end: (event) => {
+            stopScroll();
+            if (picked.value) {
+              hoverAt({ x: event.clientX, y: event.clientY });
+              dragging = null;
+              ignoreClickUntil = Date.now() + 250;
+              drop();
+              return;
+            }
+            dragging = null;
+          },
+        },
+      });
+      interactable.on('down', (event) => {
+        const record = tiles.get(el);
+        if (!record?.item || picked.value) return;
+        record.rect = el.getBoundingClientRect();
+        dragging = { el, pointer: { x: event.clientX, y: event.clientY } };
+        event.interaction.start({ name: 'drag' }, event.interactable, el);
+      });
+    });
+  }
+
+  /** Releases every interact.js binding; call on section unmount. */
+  function detachTiles(): void {
+    if (interactApi) for (const el of tiles.keys()) interactApi(el).unset();
+    tiles.clear();
+    dragging = null;
   }
 
   function isFormField(target: EventTarget | null): boolean {
@@ -293,15 +523,13 @@ export function useGridDrag(options: GridDragOptions) {
   }
 
   onMounted(() => {
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
     window.addEventListener('keydown', onKeydown);
   });
 
   onUnmounted(() => {
-    window.removeEventListener('pointermove', onPointerMove);
-    window.removeEventListener('pointerup', onPointerUp);
     window.removeEventListener('keydown', onKeydown);
+    detachTiles();
+    stopScroll();
   });
 
   return {
@@ -309,16 +537,15 @@ export function useGridDrag(options: GridDragOptions) {
     rotated,
     ghost,
     target,
-    pointer,
+    preview,
     active,
     shouldIgnoreClick,
-    pressItem,
     start,
+    attachTile,
     overGrid,
     overEquipment,
     overContainer,
     overModule,
-    overLoose,
     clearTarget,
     rotate,
     moveBy,

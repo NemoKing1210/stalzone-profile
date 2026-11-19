@@ -1,5 +1,5 @@
 import { norm } from '@profile/shared';
-import type { Db } from '../../../platform/db/index.js';
+import { cachedStatement, type Db } from '../../../platform/db/index.js';
 
 export interface PriceQuoteInput {
   itemId?: number | null;
@@ -34,15 +34,14 @@ export interface PriceRow {
   fetched_at: string;
 }
 
+const INSERT_QUOTE = `INSERT INTO price_quote
+  (item_id, external_id, name, name_norm, quality, quality_norm, bonus,
+   lot_price, lot_count, current_price, last_trade, lot_updated_at, source_id, fetched_at)
+ VALUES (@item_id, @external_id, @name, @name_norm, @quality, @quality_norm, @bonus,
+   @lot_price, @lot_count, @current_price, @last_trade, @lot_updated_at, @source_id, @fetched_at)`;
+
 export function insertPriceQuote(db: Db, row: PriceQuoteInput): number {
-  const info = db
-    .prepare(
-      `INSERT INTO price_quote
-        (item_id, external_id, name, name_norm, quality, quality_norm, bonus,
-         lot_price, lot_count, current_price, last_trade, lot_updated_at, source_id, fetched_at)
-       VALUES (@item_id, @external_id, @name, @name_norm, @quality, @quality_norm, @bonus,
-         @lot_price, @lot_count, @current_price, @last_trade, @lot_updated_at, @source_id, @fetched_at)`,
-    )
+  const info = cachedStatement(db, INSERT_QUOTE)
     .run({
       item_id: row.itemId ?? null,
       external_id: row.exboId ?? null,
@@ -62,9 +61,31 @@ export function insertPriceQuote(db: Db, row: PriceQuoteInput): number {
   return Number(info.lastInsertRowid);
 }
 
+/**
+ * Keeps the newest quote per name/quality/bonus. The read model only ever uses
+ * the latest row, so older snapshots are dead weight that slows `price_latest`.
+ */
+export function prunePriceHistory(db: Db): number {
+  return db
+    .prepare(
+      `DELETE FROM price_quote
+       WHERE id NOT IN (
+         SELECT id FROM (
+           SELECT id, ROW_NUMBER() OVER (
+             PARTITION BY name_norm, quality_norm, COALESCE(bonus, 0)
+             ORDER BY fetched_at DESC, id DESC
+           ) AS rn
+           FROM price_quote
+         ) WHERE rn = 1
+       )`,
+    )
+    .run().changes;
+}
+
 export function insertPriceQuotes(db: Db, rows: PriceQuoteInput[]): number {
   const run = db.transaction(() => {
     for (const row of rows) insertPriceQuote(db, row);
+    prunePriceHistory(db);
   });
   run();
   return rows.length;
@@ -78,7 +99,7 @@ export function latestPriceRows(db: Db, name: string, quality?: string | null): 
     params.push(norm(quality));
   }
   sql += ` ORDER BY COALESCE(lot_price, current_price, last_trade, 9223372036854775807) ASC`;
-  return db.prepare(sql).all(...params) as PriceRow[];
+  return cachedStatement(db, sql).all(...params) as PriceRow[];
 }
 
 export function effectivePrice(row: PriceRow | null | undefined): number | null {
@@ -90,9 +111,38 @@ export function bestPrice(db: Db, name: string, quality?: string | null): PriceR
   return latestPriceRows(db, name, quality)[0] ?? null;
 }
 
-export function latestPricesForNames(db: Db, names: string[]): Record<string, PriceRow[]> {
+const PRICE_NAME_CHUNK = 500;
+
+/** Latest quotes grouped by the caller's original name string. */
+export type PriceRowsByName = Record<string, PriceRow[]>;
+
+/** One window scan per chunk of names instead of one scan per name. */
+export function latestPricesForNames(db: Db, names: string[]): PriceRowsByName {
   const out: Record<string, PriceRow[]> = {};
-  for (const name of names) out[name] = latestPriceRows(db, name);
+  const namesByNorm = new Map<string, string[]>();
+  for (const name of names) {
+    out[name] ??= [];
+    const key = norm(name);
+    const list = namesByNorm.get(key) ?? [];
+    list.push(name);
+    namesByNorm.set(key, list);
+  }
+
+  const keys = [...namesByNorm.keys()];
+  for (let offset = 0; offset < keys.length; offset += PRICE_NAME_CHUNK) {
+    const chunk = keys.slice(offset, offset + PRICE_NAME_CHUNK);
+    if (!chunk.length) continue;
+    const placeholders = new Array(chunk.length).fill('?').join(', ');
+    const rows = db
+      .prepare(
+        `SELECT * FROM price_latest WHERE name_norm IN (${placeholders})
+         ORDER BY name_norm, COALESCE(lot_price, current_price, last_trade, 9223372036854775807) ASC`,
+      )
+      .all(...chunk) as PriceRow[];
+    for (const row of rows) {
+      for (const name of namesByNorm.get(row.name_norm) ?? []) out[name]?.push(row);
+    }
+  }
   return out;
 }
 

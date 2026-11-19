@@ -2,7 +2,16 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { closeDb, migrate, openDb, type Db, withTransaction, WriteError } from '@profile/core';
+import {
+  closeDb,
+  logEvent,
+  migrate,
+  openDb,
+  snapshotEvents,
+  type Db,
+  withTransaction,
+  WriteError,
+} from '@profile/core';
 
 let dir: string;
 let db: Db;
@@ -37,5 +46,13 @@ describe('journal transaction kernel', () => {
       }),
     ).toThrow(WriteError);
     expect(db.prepare('SELECT COUNT(*) AS n FROM source WHERE id = ?').get('test_rollback')).toEqual({ n: 0 });
+  });
+
+  it('refuses a snapshot that would exhaust memory', () => {
+    for (let index = 0; index < 3; index++) {
+      logEvent(db, { actor: 'test', action: 'test.event', entity: 'test', entityId: index });
+    }
+    expect(() => snapshotEvents(db, { maxRows: 2 })).toThrow(/too large/i);
+    expect(snapshotEvents(db, { maxRows: 3 })).toHaveLength(3);
   });
 });

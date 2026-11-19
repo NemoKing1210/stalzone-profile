@@ -3,16 +3,25 @@ import type { InventoryItemRead, ModuleSlot } from '@profile/shared/contracts';
 
 import { findDetailsCard } from '~/entities/item';
 
+import { useGridDragContext } from './drag-context';
+
 const props = withDefaults(
   defineProps<{
     weapon: InventoryItemRead;
     /** Owned attachments anywhere in the inventory; the panel filters by slot. */
     attachments?: InventoryItemRead[];
-    activeSlot?: ModuleSlot | null;
     busy?: boolean;
   }>(),
-  { attachments: () => [], activeSlot: null, busy: false },
+  { attachments: () => [], busy: false },
 );
+
+const drag = useGridDragContext();
+
+/** The module slot the drag is hovering on this weapon, read without the page. */
+const activeSlot = computed(() => {
+  const target = drag?.target.value;
+  return target?.location === 'weapon_module' && target.weaponItemId === props.weapon.id ? target.slot : null;
+});
 
 const emit = defineEmits<{
   install: [slot: ModuleSlot, attachmentItemId: number | null];
@@ -117,7 +126,7 @@ function isVerified(item: InventoryItemRead): boolean {
           class="relative flex min-h-[46px] flex-col items-center justify-center gap-0.5 border bg-ink-800 p-1 text-center transition-colors hover:bg-ink-700"
           :class="[
             selectedSlot === entry.slot ? 'border-[var(--sz-accent)]' : 'border-[var(--sz-border)]',
-            props.activeSlot === entry.slot ? 'shadow-[inset_0_0_0_2px_var(--sz-accent)]' : '',
+            activeSlot === entry.slot ? 'shadow-[inset_0_0_0_2px_var(--sz-accent)]' : '',
           ]"
           :data-drop="`module:${props.weapon.id}:${entry.slot}`"
           :aria-label="t(`inventory.module.${entry.slot}`)"

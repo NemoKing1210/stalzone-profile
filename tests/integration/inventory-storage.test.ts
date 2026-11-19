@@ -24,8 +24,10 @@ import {
   deleteInventoryItem,
   deleteStorage,
   ensureInventoryStorage,
+  ensureOverflowStorage,
   getContainerData,
   getInventoryItem,
+  getOverflowStorage,
   getPlacement,
   getStorage,
   inventorySnapshot,
@@ -41,9 +43,6 @@ let dir: string;
 let db: Db;
 let characterId: number;
 let weaponId: number;
-let ammoId: number;
-let containerId: number;
-let artifactId: number;
 
 function item(kind: string, name: string, category: string | null, weight: number | null): number {
   return seed.upsertItem(db, {
@@ -77,9 +76,9 @@ beforeEach(() => {
   ensureDefaultSources(db);
   characterId = seed.upsertCharacter(db, { nick: 'tester', region: 'ru' });
   weaponId = item('weapon', 'АК-12', 'weapon/assault_rifle', 3.8);
-  ammoId = item('ammo', 'Патроны', 'bullet', 0.01);
-  containerId = item('container', 'Рюкзак', 'containers', 1.2);
-  artifactId = item('artifact', 'Артефакт', 'artefact', 0.1);
+  item('ammo', 'Патроны', 'bullet', 0.01);
+  item('container', 'Рюкзак', 'containers', 1.2);
+  item('artifact', 'Артефакт', 'artefact', 0.1);
 });
 
 afterEach(() => {
@@ -94,21 +93,6 @@ describe('inventory storage and item writes', () => {
     expect(second).toBe(first);
     expect(listInventoryItems(db, characterId)).toEqual([]);
     expect(getStorage(db, first)?.kind).toBe('inventory');
-  });
-
-  it('refuses to move deleted storage contents into another character storage', () => {
-    const stash = seed.insertStorage(db, { characterId, kind: 'stash', name: 'Main', width: 6, height: 6 });
-    const otherCharacter = seed.upsertCharacter(db, { nick: 'other', region: 'eu' });
-    const foreign = seed.insertStorage(db, {
-      characterId: otherCharacter,
-      kind: 'stash',
-      name: 'Foreign',
-      width: 6,
-      height: 6,
-    });
-
-    expectWriteError(() => deleteStorage(db, stash, { moveToStorageId: foreign, dryRun: false }), 'VALIDATION');
-    expect(getStorage(db, stash)).not.toBeNull();
   });
 
   it('creates and renames a stash, rejecting a duplicate normalized name', () => {    const created = createStorage(
@@ -128,17 +112,24 @@ describe('inventory storage and item writes', () => {
     );
   });
 
-  it('moves a deleted stash contents to loose and lists them', () => {
+  it('moves a deleted stash contents to intake and lists them', () => {
     const stashId = idOf(createStorage(db, StorageCreateSchema.parse({ name: 'Stash', width: 8, height: 12, dryRun: false })));
     const rifleId = idOf(createInventoryItem(db, InventoryItemCreateSchema.parse({ name: 'АК-12', kind: 'weapon', dryRun: false })));
     upsertPlacement(db, { itemId: rifleId, characterId, location: 'grid', storageId: stashId, x: 0, y: 0 });
 
     const result = deleteStorage(db, stashId, { dryRun: false });
-    expect(result.diff.after).toMatchObject({ deleted: true, movedToLoose: [rifleId] });
+    expect(result.diff.after).toMatchObject({
+      deleted: true,
+      movedTo: getOverflowStorage(db, characterId)?.id,
+      moved: [rifleId],
+    });
     expect(getStorage(db, stashId)).toBeNull();
     expect(getInventoryItem(db, rifleId)).not.toBeNull();
-    expect(getPlacement(db, rifleId)).toMatchObject({ location: 'loose' });
-    expect(listEvents(db)[0]?.action).toBe('inventory.storage.delete');
+    expect(getPlacement(db, rifleId)).toMatchObject({
+      location: 'grid',
+      storage_id: getOverflowStorage(db, characterId)?.id,
+    });
+    expect(listEvents(db).map((event) => event.action)).toContain('inventory.storage.delete');
   });
 
   it('rejects a storage shrink that would leave an item out of bounds', () => {
@@ -178,6 +169,7 @@ describe('inventory storage and item writes', () => {
   });
 
   it('does not change rows or write events on a dry run', () => {
+    ensureOverflowStorage(db, characterId);
     const rowsBefore = listInventoryItems(db, characterId).length;
     const eventsBefore = eventCount(db);
     const result = createInventoryItem(
@@ -215,7 +207,7 @@ describe('inventory storage and item writes', () => {
     expect(getInventoryItem(db, stackId)).toBeNull();
   });
 
-  it('returns a deleted container children to loose', () => {
+  it('returns a deleted container children to intake', () => {
     const bagId = idOf(createInventoryItem(db, InventoryItemCreateSchema.parse({ name: 'Рюкзак', kind: 'container', dryRun: false })));
     const artifactInstanceId = idOf(
       createInventoryItem(db, InventoryItemCreateSchema.parse({ name: 'Артефакт', kind: 'artifact', rarityPct: 100, dryRun: false })),
@@ -230,8 +222,8 @@ describe('inventory storage and item writes', () => {
     });
 
     const result = deleteInventoryItem(db, bagId, { dryRun: false });
-    expect(result.diff.after).toMatchObject({ deleted: true, movedToLoose: [artifactInstanceId] });
-    expect(getPlacement(db, artifactInstanceId)).toMatchObject({ location: 'loose' });
+    expect(result.diff.after).toMatchObject({ deleted: true, movedToOverflow: [artifactInstanceId] });
+    expect(getPlacement(db, artifactInstanceId)).toMatchObject({ location: 'grid' });
     expect(getInventoryItem(db, artifactInstanceId)).not.toBeNull();
   });
 
@@ -265,7 +257,7 @@ describe('inventory storage and item writes', () => {
     seed.upsertItemLayout(db, weaponId, { width: 4, height: 2, weight: 3.5 });
 
     const snapshot = inventorySnapshot(db, characterId);
-    expect(snapshot.storages).toHaveLength(1);
+    expect(snapshot.storages).toHaveLength(2);
     expect(snapshot.items).toHaveLength(2);
     expect(snapshot.placements).toHaveLength(2);
     expect(snapshot.containerData).toMatchObject([{ item_id: bagId, slots: 2 }]);

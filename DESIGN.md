@@ -336,6 +336,7 @@ Rules:
 | modal/slideover | 60 |
 | toast | 70 |
 | tooltip | 80 |
+| boot splash | 100 |
 
 ### 4.7 Atmosphere layer
 
@@ -354,6 +355,25 @@ above the base colour and below every pane. Panes, tables, modals and the header
 surfaces — no texture is painted inside a data area. Nothing animates, so reduced motion
 needs no special case. Weight: one CSS block plus two inline SVG data URIs; no image files
 and no network requests.
+
+### 4.8 Boot splash
+
+`BootSplash.vue` (`app/shared/ui`) covers the shell from the first server paint until the
+client is hydrated:
+
+- the ink field plus the same 28px accent grid and vignette as §4.7, one trefoil mark, the
+  `STALZONE // PROFILE` wordmark (Bebas, accent slashes) and an 11px tracked label;
+- the rule is 3px and indeterminate — it scans; the client cannot know the remaining time,
+  so no fake percentage and no invented stage text;
+- shown only when scripting works: the stock state is `display: none` and the inline boot
+  script adds `js` to `<html>` before the first paint. Without JS the page is readable at
+  once;
+- removed when `app:mounted` fires (the hydrated tree is in place) plus a 600ms font cap,
+  with a 240ms fade and a 6s JS safety timer. A CSS failsafe hides it after 8s, so a
+  runtime error cannot trap the page;
+- `role="status"` carries the localized label; the visual panel is `aria-hidden`;
+- fixed at z-index 100, `pointer-events` dropped during the fade. The global reduced-motion
+  rule shortens the scan and the fade.
 
 ## 5. Layout
 

@@ -1,10 +1,11 @@
-import type { InventoryItemRead, InventoryRead, PlacementRead } from '@profile/shared/contracts';
+import type { InventoryItemRead, InventoryRead, PlacementRead, StorageKind } from '@profile/shared/contracts';
 
 /** Where an instance sits, plus the names the tables show for that place. */
 export interface InstanceLocationRow {
   location: PlacementRead['location'] | null;
   storageId: number | null;
   storageName: string | null;
+  storageKind: StorageKind | null;
   parentName: string | null;
   equipmentSlot: string | null;
   moduleSlot: string | null;
@@ -21,7 +22,7 @@ export interface InstanceRow {
 
 export interface InventoryIndex {
   items: InventoryItemRead[];
-  storages: Map<number, string>;
+  storages: Map<number, { kind: StorageKind; name: string }>;
   containers: Map<number, InventoryItemRead>;
   weapons: Map<number, InventoryItemRead>;
 }
@@ -48,7 +49,9 @@ export function allInventoryItems(inventory: InventoryRead | null | undefined): 
 /** Build the lookup maps once per payload; location labels then cost a map read. */
 export function buildInventoryIndex(inventory: InventoryRead | null | undefined): InventoryIndex {
   const items = allInventoryItems(inventory);
-  const storages = new Map((inventory?.storages ?? []).map((storage) => [storage.id, storage.name]));
+  const storages = new Map(
+    (inventory?.storages ?? []).map((storage) => [storage.id, { kind: storage.kind, name: storage.name }]),
+  );
   const containers = new Map<number, InventoryItemRead>();
   const weapons = new Map<number, InventoryItemRead>();
   for (const item of items) {
@@ -62,10 +65,12 @@ export function buildInventoryIndex(inventory: InventoryRead | null | undefined)
 export function locationOf(item: InventoryItemRead, index: InventoryIndex): InstanceLocationRow {
   const placement = item.placement;
   if (placement.location === 'grid') {
+    const storage = index.storages.get(placement.storageId);
     return {
       location: 'grid',
       storageId: placement.storageId,
-      storageName: index.storages.get(placement.storageId) ?? null,
+      storageName: storage?.name ?? null,
+      storageKind: storage?.kind ?? null,
       parentName: null,
       equipmentSlot: null,
       moduleSlot: null,
@@ -77,6 +82,7 @@ export function locationOf(item: InventoryItemRead, index: InventoryIndex): Inst
       location: 'equipment',
       storageId: null,
       storageName: null,
+      storageKind: null,
       parentName: null,
       equipmentSlot: placement.slot,
       moduleSlot: null,
@@ -88,6 +94,7 @@ export function locationOf(item: InventoryItemRead, index: InventoryIndex): Inst
       location: 'container',
       storageId: null,
       storageName: null,
+      storageKind: null,
       parentName: index.containers.get(placement.containerItemId)?.name ?? null,
       equipmentSlot: null,
       moduleSlot: null,
@@ -99,6 +106,7 @@ export function locationOf(item: InventoryItemRead, index: InventoryIndex): Inst
       location: 'weapon_module',
       storageId: null,
       storageName: null,
+      storageKind: null,
       parentName: index.weapons.get(placement.weaponItemId)?.name ?? null,
       equipmentSlot: null,
       moduleSlot: placement.slot,
@@ -109,6 +117,7 @@ export function locationOf(item: InventoryItemRead, index: InventoryIndex): Inst
     location: 'loose',
     storageId: null,
     storageName: null,
+    storageKind: null,
     parentName: null,
     equipmentSlot: null,
     moduleSlot: null,

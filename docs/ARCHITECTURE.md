@@ -68,18 +68,41 @@ HTTP: it imports no `@profile/core`, and `@profile/shared` only through `/contra
 
 ## Read flow
 
-1. A page calls `useProfile()` → `GET /api/v1/payload` or `/api/v1/meta`.
-2. The route gets the shared `Db` from `server/utils/db.ts` (WAL, one migration per process).
-3. `buildPayload` (`packages/core/src/modules/read-model/payload.ts`) assembles typed rows:
-   character with derived fields, catalog, derived `details[key]` cards, icons and
-   freshness, plus the instance inventory (`inventoryRead`). The flat
-   `weapons`/`armor`/`containers`/`artifacts` lists are a table view built from the same
-   instances; each row adds `instanceId`, `storageId` and `placement` to the old card.
-4. DPS/TTK numbers come from one formula
+1. A page calls `useProfile()` → one `GET /api/v1/payload`; meta is derived from it
+   locally. The section routes (`/api/v1/meta`, `/character`, `/containers`, `/catalog`)
+   use `read-model/sections.ts` and build only their own section.
+2. The route gets the shared `Db` from `server/utils/db.ts` (WAL, one migration per process;
+   `cache_size`, `mmap_size` and `temp_store` are tuned in `platform/db/index.ts`).
+3. `buildPayload` (`packages/core/src/modules/read-model/payload.ts`) loads one catalog
+   context (`loadCatalogContext`) and one inventory snapshot (`loadInventorySnapshot`), then
+   reuses the same card index for details, both catalogs and the flat instance lists.
+   Character rows and stats are read once; freshness uses the requested character.
+   A payload is cached per `Db` and rebuilt when `total_changes()` moves (30 s TTL for
+   clock-derived freshness), so repeated page loads do not rebuild 40k stats rows.
+4. The flat `weapons`/`armor`/`containers`/`artifacts` lists are a table view built from the
+   same instances; each row adds `instanceId`, `storageId` and `placement` to the old card.
+5. DPS/TTK numbers come from one formula
    (`packages/core/src/modules/catalog/calc/weapons.ts`) using raw damage and rate of fire;
    no stored display value is substituted.
-5. Container values follow the precedence `container_data` > item stats > `null`; missing
+6. Container values follow the precedence `container_data` > item stats > `null`; missing
    data is `null`, never zero or an estimate.
+
+## Inventory drag and move
+
+`/inventory` drags go through interact.js; `app/features/inventory/ui/grid/useGridDrag.ts`
+owns the shared state, and the pure geometry lives in `app/features/inventory/model`
+(`gridUnder`, `grabPoint`, `ghostForGrid`, `scrollVelocity`). A press that travels past 6 px
+starts the drag; a body-teleported preview (`DragPreview.vue`) follows the pointer at the
+item's real footprint, while the ghost (`GridGhost.vue`) marks the snapped cells and
+whether they are free. The per-move state is provided to the components that draw it
+(`drag-context.ts`), so a pointer move repaints the preview and the ghost, not the page.
+
+A drop is refused locally when the ghost is invalid (out of bounds or colliding); only a
+valid landing becomes a write. The move is applied optimistically from
+`app/features/inventory/model/pending.ts`: the item shows at its target at once, the
+payload refresh runs in the background and then replaces the optimistic state. Loadout
+stats and storage weights are the server's values and update with that refresh. Dragging
+near the viewport edge scrolls the page while the drag continues.
 
 ## Auto-sync scheduler
 
@@ -116,6 +139,12 @@ form → useWrite → POST/PATCH/DELETE /api/v1/...
   and refreshes the payload.
 - `PATCH /api/v1/character` edits identity columns and raw counters through the `stats`
   object (`manual` origin); clearing a value writes `null` and reveals the API value.
+- Inventory writes share one placement validator (`write/placement.ts`) and one intake
+  helper (`write/overflow.ts`): a new instance, a deleted stash's items and any child
+  displaced by a container fill or module change are packed into the intake stash; intake
+  only releases items, so a `grid` target inside it and a swap that would push an occupant
+  there are rejected. The app passes `silent: true` for moves and auto-arrange, so frequent
+  rearranging does not raise a toast; errors still surface.
 - Rollback restores the entity from the snapshot in `event_log` and writes a new `rollback`
   event; rolling back the rollback itself is not offered.
 - Errors use one envelope `{ error: { code, message, details? } }` with English messages;

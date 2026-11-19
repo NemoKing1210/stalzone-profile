@@ -29,18 +29,29 @@ export function migrate(db: Db, migrationsDir: string): MigrateResult {
   const skipped: string[] = [];
   const has = db.prepare(`SELECT 1 FROM _migration WHERE version = ?`);
 
-  for (const file of files) {
-    if (has.get(file)) {
-      skipped.push(file);
-      continue;
+  const previousForeignKeys = Number(db.pragma('foreign_keys', { simple: true })) === 1;
+  db.pragma('foreign_keys = OFF');
+  try {
+    for (const file of files) {
+      if (has.get(file)) {
+        skipped.push(file);
+        continue;
+      }
+      const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+      const run = db.transaction(() => {
+        db.exec(sql);
+        db.prepare(`INSERT INTO _migration (version, applied_at) VALUES (?, ?)`).run(file, new Date().toISOString());
+      });
+      run();
+      applied.push(file);
     }
-    const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
-    const run = db.transaction(() => {
-      db.exec(sql);
-      db.prepare(`INSERT INTO _migration (version, applied_at) VALUES (?, ?)`).run(file, new Date().toISOString());
-    });
-    run();
-    applied.push(file);
+  } finally {
+    db.pragma(`foreign_keys = ${previousForeignKeys ? 'ON' : 'OFF'}`);
+  }
+
+  if (applied.length) {
+    const violations = db.pragma('foreign_key_check') as unknown[];
+    if (violations.length) throw new Error(`foreign key violations after migrations: ${violations.length}`);
   }
 
   return { applied, skipped };

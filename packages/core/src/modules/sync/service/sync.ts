@@ -224,6 +224,28 @@ function syncExbo(db: Db, options: SyncOptions): Promise<SyncResult> {
       fetchImpl: options.fetchImpl,
     })
     .then((snapshot) => {
+      const stored = sourceRepo.getSource(db, 'exbo_base');
+      if (
+        snapshot.cached &&
+        !options.force &&
+        snapshot.commit &&
+        stored?.commit_sha === snapshot.commit
+      ) {
+        sourceRepo.markSourceOk(db, 'exbo_base', {
+          at: snapshot.fetchedAt,
+          commit: snapshot.commit,
+          commitDate: snapshot.commitDate,
+        });
+        return {
+          source: 'exbo_base' as const,
+          status: 'ok' as const,
+          items: 0,
+          commit: snapshot.commit,
+          fetchedAt: snapshot.fetchedAt,
+          cached: true,
+        };
+      }
+
       const labels = snapshot.labels;
       const realm = options.realm ?? 'ru';
       db.transaction(() => {
@@ -386,15 +408,25 @@ async function syncIcons(db: Db, options: SyncOptions): Promise<SyncResult> {
   const dir = ensureDir(options.iconsDir ?? path.resolve(process.cwd(), 'public', 'icons'));
   const fetchImpl = options.fetchImpl ?? defaultFetch;
 
+  const itemsByExternal = new Map(
+    repo.listItems(db, undefined, realm).map((item) => [item.external_id, item]),
+  );
+  const candidateIds = snapshot.items
+    .map((record) => itemsByExternal.get(record.id))
+    .filter((item): item is NonNullable<typeof item> => item != null && ICON_KINDS.has(item.kind))
+    .map((item) => item.id);
+  const iconPaths = repo.iconsByItemIds(db, candidateIds);
+
   const targets: { itemId: number; url: string }[] = [];
   let known = 0;
   for (const record of snapshot.items) {
-    const item = repo.getItemByExternalId(db, record.id, realm);
+    const item = itemsByExternal.get(record.id);
     if (!item || !ICON_KINDS.has(item.kind)) continue;
     known += 1;
-    const existing = repo.getIcon(db, item.id);
-    // A row without its file is a dangling path: download again instead of trusting the row.
-    if (existing && fs.existsSync(path.join(dir, path.basename(existing.path)))) continue;
+    const existing = iconPaths.get(item.id);
+    // A row whose file is missing or empty is a dangling path: download again.
+    const existingFile = existing ? path.join(dir, path.basename(existing)) : null;
+    if (existingFile && fs.existsSync(existingFile) && fs.statSync(existingFile).size > 0) continue;
     const url = remoteIcon(record, realm);
     if (url) targets.push({ itemId: item.id, url });
   }
@@ -406,10 +438,18 @@ async function syncIcons(db: Db, options: SyncOptions): Promise<SyncResult> {
     const file = `${digest}.png`;
     try {
       const full = path.join(dir, file);
-      if (!fs.existsSync(full)) {
+      const missing = !fs.existsSync(full) || fs.statSync(full).size === 0;
+      if (missing) {
         const response = await fetchImpl(url);
         if (response.status !== 200) throw new Error(`HTTP ${response.status}`);
-        fs.writeFileSync(full, Buffer.from(await response.arrayBuffer()));
+        const tmp = `${full}.${process.pid}.${randomUUID()}.tmp`;
+        try {
+          await fs.promises.writeFile(tmp, Buffer.from(await response.arrayBuffer()));
+          await fs.promises.rename(tmp, full);
+        } catch (error) {
+          await fs.promises.rm(tmp, { force: true });
+          throw error;
+        }
       }
       repo.upsertIcon(db, { itemId, path: `/icons/${file}`, mime: 'image/png', sha1: digest, sourceId: 'icons' });
       icons += 1;
@@ -491,10 +531,9 @@ async function syncProfile(db: Db, options: SyncOptions): Promise<SyncResult> {
   };
 }
 
-function priceInput(db: Db, row: PriceRow): repo.PriceQuoteInput {
-  const item = row.exboId ? repo.getItemByExternalId(db, row.exboId) : null;
+function priceInput(row: PriceRow, itemId: number | null): repo.PriceQuoteInput {
   return {
-    itemId: item?.id ?? null,
+    itemId,
     exboId: row.exboId,
     name: row.name,
     quality: row.quality,
@@ -515,11 +554,14 @@ async function syncPrices(db: Db, options: SyncOptions): Promise<SyncResult> {
     return { source: 'scpmodel', status: 'ok', items: 0, fetchedAt: lastAt, ageMin };
   }
 
-  const snapshot = await scpmodelAdapter.fetch({
-    region: options.realm ?? 'ru',
-    fetchImpl: options.fetchImpl,
-  });
-  const inputs = snapshot.rows.map((row) => priceInput(db, row));
+  const realm = options.realm ?? 'ru';
+  const snapshot = await scpmodelAdapter.fetch({ region: realm, fetchImpl: options.fetchImpl });
+  const itemIdByExternal = new Map(
+    repo.listItems(db, undefined, realm).map((item) => [item.external_id, item.id]),
+  );
+  const inputs = snapshot.rows.map((row) =>
+    priceInput(row, row.exboId ? (itemIdByExternal.get(row.exboId) ?? null) : null),
+  );
   repo.insertPriceQuotes(db, inputs);
   return {
     source: 'scpmodel',

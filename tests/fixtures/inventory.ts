@@ -5,12 +5,12 @@ export interface SeedInventory {
   characterId: number;
   itemIds: Record<string, number>;
   instanceIds: Record<string, number>;
-  storageIds: { inventory: number; stash: number };
+  storageIds: { inventory: number; stash: number; overflow: number };
 }
 
 /**
  * Seeds a small new-model profile: one equipped rifle, armor, an artifact
- * container with one installed artifact, and loose items. Every row is
+ * container with one installed artifact, and items in intake. Every row is
  * written through the inventory repositories, so the fixture obeys the
  * same constraints as application writes and creates no journal events.
  */
@@ -70,13 +70,26 @@ export function seedInventory(db: Db): SeedInventory {
   const existingInventory = seed.getInventoryStorage(db, characterId);
   const inventoryId =
     existingInventory?.id ??
-    seed.insertStorage(db, { characterId, kind: 'inventory', name: 'Inventory', width: 8, height: 8 });
+    seed.insertStorage(db, { characterId, kind: 'inventory', name: 'Inventory', width: 8, height: 20 });
   const existingStash = seed
     .listStorages(db, characterId)
     .find((storage) => storage.kind === 'stash' && storage.name === 'Stash');
   const stashId =
     existingStash?.id ??
-    seed.insertStorage(db, { characterId, kind: 'stash', name: 'Stash', width: 8, height: 12, sortOrder: 0 });
+    seed.insertStorage(db, { characterId, kind: 'stash', name: 'Stash', width: 40, height: 80, sortOrder: 0 });
+  const existingOverflow = seed
+    .listStorages(db, characterId)
+    .find((storage) => storage.kind === 'overflow');
+  const overflowId =
+    existingOverflow?.id ??
+    seed.insertStorage(db, {
+      characterId,
+      kind: 'overflow',
+      name: 'Intake',
+      width: 40,
+      height: 80,
+      sortOrder: 0,
+    });
 
   const instance = (key: string, kind: string, extra: Partial<Parameters<typeof seed.insertInventoryItem>[1]> = {}) => {
     const id = seed.insertInventoryItem(db, {
@@ -125,8 +138,16 @@ export function seedInventory(db: Db): SeedInventory {
     containerItemId: instanceIds.backpack!,
     containerSlot: 0,
   });
-  for (const key of ['smg', 'artifact2', 'scope', 'ammo'] as const) {
-    seed.upsertPlacement(db, { itemId: instanceIds[key]!, characterId, location: 'loose' });
+  // Intake holds the former loose items on one column; the offsets exceed every default height.
+  for (const [index, key] of (['smg', 'artifact2', 'scope', 'ammo'] as const).entries()) {
+    seed.upsertPlacement(db, {
+      itemId: instanceIds[key]!,
+      characterId,
+      location: 'grid',
+      storageId: overflowId,
+      x: 0,
+      y: index * 4,
+    });
   }
 
   seed.upsertContainerData(db, instanceIds.backpack!, { type: 'Backpack', slots: 2, eff: 100, protection: 50 });
@@ -135,6 +156,6 @@ export function seedInventory(db: Db): SeedInventory {
     characterId,
     itemIds,
     instanceIds,
-    storageIds: { inventory: inventoryId, stash: stashId },
+    storageIds: { inventory: inventoryId, stash: stashId, overflow: overflowId },
   };
 }

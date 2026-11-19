@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { buildPayload } from '@profile/core';
+import { buildCatalogSection } from '@profile/core';
 import { useDb } from '../../utils/db';
 import { validationError } from '../../utils/errors';
 
@@ -11,6 +11,5 @@ export default defineEventHandler((event) => {
   const parsed = QuerySchema.safeParse(getQuery(event));
   if (!parsed.success) return validationError(event, parsed.error);
 
-  const catalog = buildPayload(useDb()).catalog;
-  return parsed.data.kind === 'armor' ? catalog.armor : catalog.weapons;
+  return buildCatalogSection(useDb(), parsed.data.kind);
 });

@@ -100,7 +100,35 @@ export interface EventSnapshotRow {
   note: string | null;
 }
 
-export function snapshotEvents(db: Db): EventSnapshotRow[] {
+export interface SnapshotLimits {
+  maxRows?: number;
+  maxBytes?: number;
+}
+
+const SNAPSHOT_MAX_ROWS = 20_000;
+const SNAPSHOT_MAX_BYTES = 32 * 1024 * 1024;
+
+/**
+ * A destructive action stores the whole journal in one `before` value. Refuse
+ * before allocating it when the journal has grown past a safe snapshot size.
+ */
+export function snapshotEvents(db: Db, limits: SnapshotLimits = {}): EventSnapshotRow[] {
+  const maxRows = limits.maxRows ?? SNAPSHOT_MAX_ROWS;
+  const maxBytes = limits.maxBytes ?? SNAPSHOT_MAX_BYTES;
+  const totals = db
+    .prepare(
+      `SELECT COUNT(*) AS rows,
+              COALESCE(SUM(LENGTH(COALESCE(before, '')) + LENGTH(COALESCE(after, ''))), 0) AS bytes
+       FROM event_log`,
+    )
+    .get() as { rows: number; bytes: number };
+  if (totals.rows > maxRows || totals.bytes > maxBytes) {
+    throw new WriteError(
+      413,
+      'JOURNAL_TOO_LARGE',
+      `The journal is too large to snapshot (${totals.rows} events, ${totals.bytes} bytes); clear it in smaller steps`,
+    );
+  }
   return db
     .prepare(
       `SELECT id, at, actor, action, entity, entity_id, before, after, note

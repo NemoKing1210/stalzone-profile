@@ -4,7 +4,7 @@ import type { Db } from '../../../platform/db/index.js';
 export interface StorageRow {
   id: number;
   character_id: number;
-  kind: 'inventory' | 'stash';
+  kind: 'inventory' | 'stash' | 'overflow';
   name: string;
   name_norm: string;
   width: number;
@@ -17,7 +17,7 @@ export interface StorageRow {
 
 export interface StorageInput {
   characterId: number;
-  kind: 'inventory' | 'stash';
+  kind: 'inventory' | 'stash' | 'overflow';
   name: string;
   width: number;
   height: number;
@@ -60,11 +60,19 @@ export function getInventoryStorage(db: Db, characterId: number): StorageRow | n
   );
 }
 
+export function getOverflowStorage(db: Db, characterId: number): StorageRow | null {
+  return (
+    (db
+      .prepare(`SELECT * FROM storage WHERE character_id = ? AND kind = 'overflow' LIMIT 1`)
+      .get(characterId) as StorageRow | undefined) ?? null
+  );
+}
+
 export function listStorages(db: Db, characterId: number): StorageRow[] {
   return db
     .prepare(
       `SELECT * FROM storage WHERE character_id = ?
-       ORDER BY CASE kind WHEN 'inventory' THEN 0 ELSE 1 END, sort_order, id`,
+       ORDER BY CASE kind WHEN 'inventory' THEN 0 WHEN 'overflow' THEN 1 ELSE 2 END, sort_order, id`,
     )
     .all(characterId) as StorageRow[];
 }

@@ -40,7 +40,7 @@ describe('maintenance atomicity', () => {
 
     const cleared = clearInventory(db, false);
     expect(listEvents(db).length).toBe(before + 1);
-    expect(inventoryCounts(db, seeded.characterId)).toEqual({ items: 0, storages: 1, placements: 0 });
+    expect(inventoryCounts(db, seeded.characterId)).toEqual({ items: 0, storages: 2, placements: 0 });
 
     const rolled = rollbackEvent(db, cleared.eventId!, false);
     expect(rolled.dryRun).toBe(false);

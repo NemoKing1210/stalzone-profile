@@ -49,6 +49,10 @@ export function openDb(dbPath: string, opts: OpenDbOptions = {}): Db {
   if (dbPath !== ':memory:') {
     db.pragma('journal_mode = WAL');
     db.pragma('synchronous = NORMAL');
+    // A profile is small enough to keep hot pages resident; the map avoids read syscalls.
+    db.pragma('cache_size = -64000');
+    db.pragma('mmap_size = 268435456');
+    db.pragma('temp_store = MEMORY');
   }
   cache.set(key, db);
   return db;
@@ -58,14 +62,26 @@ export function closeDb(dbPath: string): void {
   const key = path.resolve(dbPath);
   for (const suffix of ['', '#ro']) {
     const db = cache.get(key + suffix);
-    if (db?.open) db.close();
+    if (!db?.open) continue;
+    try {
+      db.pragma('optimize');
+    } catch {
+      /* a read-only or already-closing handle cannot optimize */
+    }
+    db.close();
     cache.delete(key + suffix);
   }
 }
 
 export function closeAll(): void {
   for (const db of cache.values()) {
-    if (db.open) db.close();
+    if (!db.open) continue;
+    try {
+      db.pragma('optimize');
+    } catch {
+      /* best effort on shutdown */
+    }
+    db.close();
   }
   cache.clear();
 }
@@ -79,4 +95,13 @@ export function tableExists(db: Db, name: string): boolean {
 
 export function nowIso(): string {
   return new Date().toISOString();
+}
+
+/**
+ * Monotonic per-connection write counter. Any INSERT/UPDATE/DELETE through this
+ * handle changes it, so read-model caches can key on data instead of a TTL.
+ */
+export function dataVersion(db: Db): number {
+  const row = cachedStatement(db, 'SELECT total_changes() AS c').get() as { c: number };
+  return Number(row.c);
 }

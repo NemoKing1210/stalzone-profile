@@ -3,7 +3,7 @@ import type { Db } from '../../../platform/db/index.js';
 import { withTransaction, type WriteResult } from '../../../platform/journal/index.js';
 import { countItems } from '../../catalog/index.js';
 import { createCharacter, getCharacter } from '../../identity/index.js';
-import { createStorage } from '../../inventory/index.js';
+import { createStorage, ensureOverflowStorage } from '../../inventory/index.js';
 
 export interface SetupState {
   /** True until the profile has its character. */
@@ -34,8 +34,10 @@ export function createSetupCharacter(db: Db, input: CharacterCreate): WriteResul
   let result: WriteResult | null = null;
   withTransaction(db, () => {
     result = createCharacter(db, input);
-    createStorage(db, { kind: 'inventory', name: 'Inventory', width: 8, height: 8, dryRun: false });
-    createStorage(db, { kind: 'stash', name: 'Stash', width: 8, height: 12, dryRun: false });
+    const characterId = (result.diff.after as { id: number }).id;
+    createStorage(db, { kind: 'inventory', name: 'Inventory', width: 8, height: 20, dryRun: false });
+    createStorage(db, { kind: 'stash', name: 'Stash', width: 40, height: 80, dryRun: false });
+    ensureOverflowStorage(db, characterId);
   });
   return result!;
 }

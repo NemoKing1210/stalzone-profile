@@ -598,6 +598,12 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
           "missing": [],
           "value": 0,
         },
+        "3": {
+          "max": 0,
+          "min": 0,
+          "missing": [],
+          "value": 0,
+        },
       },
       "warnings": [
         "missing:weight:3",
@@ -607,7 +613,7 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
     },
     "storages": [
       {
-        "height": 8,
+        "height": 20,
         "id": 1,
         "items": [],
         "kind": "inventory",
@@ -624,7 +630,24 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
         "width": 8,
       },
       {
-        "height": 12,
+        "height": 80,
+        "id": 3,
+        "items": [],
+        "kind": "overflow",
+        "maxWeight": null,
+        "name": "Intake",
+        "sortOrder": 0,
+        "updatedAt": "2026-01-01T00:00:00.000Z",
+        "weight": {
+          "max": 0,
+          "min": 0,
+          "missing": [],
+          "value": 0,
+        },
+        "width": 40,
+      },
+      {
+        "height": 80,
         "id": 2,
         "items": [],
         "kind": "stash",
@@ -638,7 +661,7 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
           "missing": [],
           "value": 0,
         },
-        "width": 8,
+        "width": 40,
       },
     ],
     "updatedAt": "2026-01-01T00:00:00.000Z",

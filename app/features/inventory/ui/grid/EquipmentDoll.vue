@@ -1,35 +1,45 @@
 <script setup lang="ts">
 import type { EquipmentRead, EquipmentSlot, InventoryItemRead } from '@profile/shared/contracts';
 
+import { useGridDragContext } from './drag-context';
+
 const props = withDefaults(
   defineProps<{
     equipment: EquipmentRead | null;
-    /** Equipment slot the current drag is hovering, highlighted as a drop target. */
-    activeSlot?: string | null;
+    /** Registers a filled slot with the shared drag layer. */
+    attachTile?: (el: HTMLElement | null, item: InventoryItemRead | null) => void;
   }>(),
-  { activeSlot: null },
+  { attachTile: undefined },
 );
+
+const drag = useGridDragContext();
+
+/** Equipment slot the current drag is hovering; only this component re-renders for it. */
+const activeSlot = computed(() => {
+  const target = drag?.target.value;
+  return target?.location === 'equipment' ? target.slot : null;
+});
 
 defineEmits<{
   select: [item: InventoryItemRead];
-  press: [payload: { item: InventoryItemRead; event: PointerEvent }];
   pick: [item: InventoryItemRead, event: KeyboardEvent];
 }>();
 
 const { t } = useI18n();
 const { rankColor } = useFormat();
 
-const SLOTS: { slot: EquipmentSlot; icon: string; wide?: boolean }[] = [
+/** An empty slot shows either a lucide glyph or the quick-slot number; lucide has no digit icons. */
+const SLOTS: { slot: EquipmentSlot; icon?: string; hotkey?: string; wide?: boolean }[] = [
   { slot: 'primary', icon: 'i-lucide-crosshair', wide: true },
   { slot: 'backpack', icon: 'i-lucide-backpack' },
   { slot: 'secondary', icon: 'i-lucide-crosshair', wide: true },
   { slot: 'armor', icon: 'i-lucide-shield' },
   { slot: 'melee', icon: 'i-lucide-sword', wide: true },
   { slot: 'container', icon: 'i-lucide-box' },
-  { slot: 'quick1', icon: 'i-lucide-1' },
-  { slot: 'quick2', icon: 'i-lucide-2' },
-  { slot: 'quick3', icon: 'i-lucide-3' },
-  { slot: 'quick4', icon: 'i-lucide-4' },
+  { slot: 'quick1', hotkey: '1' },
+  { slot: 'quick2', hotkey: '2' },
+  { slot: 'quick3', hotkey: '3' },
+  { slot: 'quick4', hotkey: '4' },
 ];
 
 function itemIn(slot: EquipmentSlot): InventoryItemRead | null {
@@ -46,18 +56,18 @@ function border(item: InventoryItemRead | null): string {
     <button
       v-for="entry in SLOTS"
       :key="entry.slot"
+      :ref="(el) => props.attachTile?.(el as HTMLElement | null, itemIn(entry.slot))"
       type="button"
-      class="group relative flex min-h-[62px] flex-col items-center justify-center gap-0.5 border bg-ink-800 p-1 text-center transition-colors"
+      class="group relative flex min-h-[62px] touch-none select-none flex-col items-center justify-center gap-0.5 border bg-ink-800 p-1 text-center transition-colors"
       :class="[
         entry.wide ? 'col-span-2' : '',
         itemIn(entry.slot) ? 'hover:bg-ink-700' : '',
-        props.activeSlot === entry.slot ? 'shadow-[inset_0_0_0_2px_var(--sz-accent)]' : '',
+        activeSlot === entry.slot ? 'shadow-[inset_0_0_0_2px_var(--sz-accent)]' : '',
       ]"
       :style="{ borderColor: border(itemIn(entry.slot)) }"
       :data-drop="`equipment:${entry.slot}`"
       :aria-label="`${t(`inventory.slots.${entry.slot}`)}: ${itemIn(entry.slot)?.name ?? t('inventory.slotEmpty')}`"
       @click="itemIn(entry.slot) && $emit('select', itemIn(entry.slot)!)"
-      @pointerdown="itemIn(entry.slot) && $emit('press', { item: itemIn(entry.slot)!, event: $event })"
       @keydown.enter.prevent="itemIn(entry.slot) && $emit('pick', itemIn(entry.slot)!, $event)"
       @keydown.space.prevent="itemIn(entry.slot) && $emit('pick', itemIn(entry.slot)!, $event)"
     >
@@ -66,10 +76,11 @@ function border(item: InventoryItemRead | null): string {
           v-if="itemIn(entry.slot)!.icon"
           :src="itemIn(entry.slot)!.icon!"
           :alt="itemIn(entry.slot)!.name"
-          class="h-8 max-w-full object-contain"
+          class="pointer-events-none h-8 max-w-full object-contain"
           loading="lazy"
+          draggable="false"
         >
-        <UIcon v-else :name="entry.icon" class="size-5 text-[var(--sz-text-dim)]" />
+        <UIcon v-else :name="entry.icon ?? 'i-lucide-package'" class="size-5 text-[var(--sz-text-dim)]" />
         <span class="max-w-full truncate text-[10.5px] leading-tight text-[var(--sz-text)]">
           {{ itemIn(entry.slot)!.name }}
         </span>
@@ -78,7 +89,10 @@ function border(item: InventoryItemRead | null): string {
         </span>
       </template>
       <template v-else>
-        <UIcon :name="entry.icon" class="size-4 text-[var(--sz-text-dim)]" />
+        <span v-if="entry.hotkey" class="font-display text-[15px] leading-none tabular-nums text-[var(--sz-text-dim)]">
+          {{ entry.hotkey }}
+        </span>
+        <UIcon v-else :name="entry.icon" class="size-4 text-[var(--sz-text-dim)]" />
         <span class="sz-caps text-[11px] leading-tight text-[var(--sz-text-dim)]">
           {{ t(`inventory.slots.${entry.slot}`) }}
         </span>

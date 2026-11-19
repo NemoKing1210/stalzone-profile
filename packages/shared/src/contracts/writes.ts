@@ -7,8 +7,8 @@ import {
   ModuleSlotSchema,
   RarityTierSchema,
   SetupRegionSchema,
-  StorageKindSchema,
   SyncSourceSchema,
+  WritableStorageKindSchema,
 } from './primitives.js';
 
 /** Options shared by every write request coming from the site or the API. */
@@ -101,14 +101,11 @@ export const PlacementTargetSchema = z.discriminatedUnion('location', [
     slot: ModuleSlotSchema,
     allowUnverified: z.boolean().default(false),
   }),
-  z.object({
-    location: z.literal('loose'),
-  }),
 ]);
 export type PlacementTarget = z.infer<typeof PlacementTargetSchema>;
 
 export const StorageCreateSchema = WriteOptionsSchema.extend({
-  kind: StorageKindSchema.default('stash'),
+  kind: WritableStorageKindSchema.default('stash'),
   name: z.string().trim().min(1).max(200),
   width: z.number().int().min(1).max(40),
   height: z.number().int().min(1).max(80),
@@ -128,9 +125,7 @@ export const StoragePatchSchema = WriteOptionsSchema.extend({
 });
 export type StoragePatch = z.infer<typeof StoragePatchSchema>;
 
-export const DeleteStorageSchema = WriteOptionsSchema.extend({
-  moveToStorageId: z.number().int().positive().nullish(),
-});
+export const DeleteStorageSchema = WriteOptionsSchema;
 export type DeleteStorage = z.infer<typeof DeleteStorageSchema>;
 
 export const InventoryItemCreateSchema = WriteOptionsSchema.extend({
@@ -250,9 +245,6 @@ export const McpPlacementTargetSchema = z.discriminatedUnion('location', [
     slot: ModuleSlotSchema,
     allow_unverified: z.boolean().default(false),
   }),
-  z.object({
-    location: z.literal('loose'),
-  }),
 ]);
 export type McpPlacementTarget = z.infer<typeof McpPlacementTargetSchema>;
 
@@ -306,7 +298,7 @@ export const MoveInventoryItemInputSchema = McpWriteOptionsSchema.extend({
 export type MoveInventoryItemInput = z.infer<typeof MoveInventoryItemInputSchema>;
 
 export const CreateStorageInputSchema = McpWriteOptionsSchema.extend({
-  kind: StorageKindSchema.default('stash'),
+  kind: WritableStorageKindSchema.default('stash'),
   name: z.string().trim().min(1).max(200),
   width: z.number().int().min(1).max(40).default(8),
   height: z.number().int().min(1).max(80).default(12),
@@ -329,7 +321,6 @@ export type UpdateStorageInput = z.infer<typeof UpdateStorageInputSchema>;
 
 export const DeleteStorageInputSchema = McpWriteOptionsSchema.extend({
   storage_id: z.number().int().positive(),
-  move_to_storage_id: z.number().int().positive().nullable().default(null),
 });
 export type DeleteStorageInput = z.infer<typeof DeleteStorageInputSchema>;
 

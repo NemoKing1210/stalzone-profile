@@ -11,6 +11,7 @@ import {
   type Size,
 } from '../layout/index.js';
 import * as repo from '../repo/index.js';
+import { ensureOverflowStorage, nextOverflowPlacement } from './overflow.js';
 import { inventoryItemSnapshot, placementSnapshot } from './snapshot.js';
 
 export const EQUIPMENT_SLOTS = [
@@ -143,21 +144,18 @@ function toPlacement(
       containerSlot: target.slot,
     };
   }
-  if (target.location === 'weapon_module') {
-    return {
-      itemId: row.id,
-      characterId: row.character_id,
-      location: 'weapon_module',
-      weaponItemId: target.weaponItemId,
-      moduleSlot: target.slot,
-      verified,
-    };
-  }
-  return { itemId: row.id, characterId: row.character_id, location: 'loose' };
+  return {
+    itemId: row.id,
+    characterId: row.character_id,
+    location: 'weapon_module',
+    weaponItemId: target.weaponItemId,
+    moduleSlot: target.slot,
+    verified,
+  };
 }
 
 function samePlacement(current: repo.PlacementRow | null, next: repo.PlacementInput): boolean {
-  if (!current) return next.location === 'loose';
+  if (!current) return false;
   return (
     current.location === next.location &&
     current.storage_id === (next.storageId ?? null) &&
@@ -177,8 +175,7 @@ function targetDescription(target: PlacementTarget): string {
   if (target.location === 'grid') return `storage #${target.storageId} at ${target.x},${target.y}`;
   if (target.location === 'equipment') return `slot ${target.slot}`;
   if (target.location === 'container') return `container slot ${target.slot}`;
-  if (target.location === 'weapon_module') return `module ${target.slot}`;
-  return 'loose';
+  return `module ${target.slot}`;
 }
 
 function validateModuleInstall(
@@ -224,12 +221,15 @@ function resolveSwapPlacement(
   excludeIds: readonly number[],
 ): repo.PlacementInput {
   if (!old || old.location === 'loose') {
-    return { itemId: occupant.id, characterId: occupant.character_id, location: 'loose' };
+    throw new WriteError(422, 'INVALID_PLACEMENT', 'The occupant has no safe place to return to');
   }
   if (old.location === 'grid') {
     const storage = old.storage_id == null ? null : repo.getStorage(db, old.storage_id);
     if (!storage || old.x == null || old.y == null) {
       throw new WriteError(422, 'INVALID_PLACEMENT', 'The occupant cannot move to the old grid location');
+    }
+    if (storage.kind === 'overflow') {
+      throw new WriteError(422, 'INVALID_PLACEMENT', 'The occupant has no safe place to return to');
     }
     const rect = itemRect(old.x, old.y, itemSize(db, occupant), old.rotated === 1);
     if (!fits({ width: storage.width, height: storage.height }, rect)) {
@@ -338,9 +338,15 @@ export function resolveTargetPlacement(
   let occupant: { row: repo.InventoryItemJoined; final: repo.PlacementInput } | null = null;
 
   if (target.location === 'grid') {
+    if (swapAllowed) {
+      throw new WriteError(422, 'INVALID_PLACEMENT', 'Grid moves do not swap; the client resolves grid cells');
+    }
     const storage = repo.getStorage(db, target.storageId);
     if (!storage || storage.character_id !== item.character_id) {
       throw new WriteError(404, 'STORAGE_NOT_FOUND', 'Storage not found');
+    }
+    if (storage.kind === 'overflow') {
+      throw new WriteError(422, 'INVALID_PLACEMENT', 'The intake stash only releases items');
     }
     const rect = itemRect(target.x, target.y, itemSize(db, item), target.rotated);
     if (!fits({ width: storage.width, height: storage.height }, rect)) {
@@ -485,6 +491,7 @@ export function moveInventoryItem(
   let eventId: number | undefined;
   withTransaction(db, () => {
     if (occupant) {
+      // Free the occupied slot first; the final placement is written below.
       repo.upsertPlacement(db, {
         itemId: occupant.row.id,
         characterId: occupant.row.character_id,
@@ -537,10 +544,22 @@ export function setWeaponModule(
       const after = { weaponItemId, slot, attachmentItemId: null, attachment: null };
       return { dryRun: opts.dryRun, diff: { before, after, human: `No module in ${slot}` } };
     }
+    if (!opts.dryRun) ensureOverflowStorage(db, weapon.character_id);
+    const removed = repo.getInventoryItem(db, current.item_id)!;
+    const spot = nextOverflowPlacement(db, weapon.character_id, itemSize(db, removed));
     const after = {
       ...before,
       attachmentItemId: null,
-      attachment: { ...inventoryItemSnapshot(db, current.item_id), placement: { location: 'loose' } },
+      attachment: {
+        ...inventoryItemSnapshot(db, current.item_id),
+        placement: {
+          location: 'grid',
+          storageId: spot.storageId,
+          x: spot.x,
+          y: spot.y,
+          rotated: spot.rotated,
+        },
+      },
     };
     const human = `Removed "${getInventoryItemName(db, current.item_id)}" from ${slot}`;
     if (opts.dryRun) return { dryRun: true, diff: { before, after, human } };
@@ -549,7 +568,11 @@ export function setWeaponModule(
       repo.upsertPlacement(db, {
         itemId: current.item_id,
         characterId: weapon.character_id,
-        location: 'loose',
+        location: 'grid',
+        storageId: spot.storageId,
+        x: spot.x,
+        y: spot.y,
+        rotated: spot.rotated,
       });
       eventId = logEvent(db, {
         actor: 'owner',
@@ -592,13 +615,25 @@ export function setWeaponModule(
   const human = `Installed "${attachment.display_name ?? attachment.item_name}" into ${slot}`;
   if (opts.dryRun) return { dryRun: true, diff: { before, after, human } };
 
+  if (current && !opts.dryRun) ensureOverflowStorage(db, weapon.character_id);
+  const displaced = current
+    ? {
+        itemId: current.item_id,
+        spot: nextOverflowPlacement(db, weapon.character_id, itemSize(db, repo.getInventoryItem(db, current.item_id)!)),
+      }
+    : null;
+
   let eventId: number | undefined;
   withTransaction(db, () => {
-    if (current) {
+    if (displaced) {
       repo.upsertPlacement(db, {
-        itemId: current.item_id,
+        itemId: displaced.itemId,
         characterId: weapon.character_id,
-        location: 'loose',
+        location: 'grid',
+        storageId: displaced.spot.storageId,
+        x: displaced.spot.x,
+        y: displaced.spot.y,
+        rotated: displaced.spot.rotated,
       });
     }
     repo.upsertPlacement(db, {

@@ -47,8 +47,12 @@ export const EquipmentSlotSchema = z.enum([
 ]);
 export type EquipmentSlot = z.infer<typeof EquipmentSlotSchema>;
 
-export const StorageKindSchema = z.enum(['inventory', 'stash']);
+export const StorageKindSchema = z.enum(['inventory', 'stash', 'overflow']);
 export type StorageKind = z.infer<typeof StorageKindSchema>;
+
+/** Kinds a public write may create; the intake is system-owned. */
+export const WritableStorageKindSchema = z.enum(['inventory', 'stash']);
+export type WritableStorageKind = z.infer<typeof WritableStorageKindSchema>;
 
 export const PlacementLocationSchema = z.enum(['grid', 'equipment', 'container', 'weapon_module', 'loose']);
 export type PlacementLocation = z.infer<typeof PlacementLocationSchema>;

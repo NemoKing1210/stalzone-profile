@@ -14,7 +14,6 @@ const props = withDefaults(
 const emit = defineEmits<{
   close: [];
   update: [patch: Record<string, unknown>];
-  moveLoose: [];
   remove: [];
   openContainer: [];
   openWeapon: [];
@@ -151,16 +150,6 @@ function confirmRemove(): void {
         icon="i-lucide-paperclip"
         :label="t('inventory.weaponModules')"
         @click="emit('openWeapon')"
-      />
-      <UButton
-        v-if="props.item.placement.location !== 'loose'"
-        size="xs"
-        color="neutral"
-        variant="ghost"
-        icon="i-lucide-undo-2"
-        :label="t('inventory.moveToLoose')"
-        :disabled="props.busy"
-        @click="emit('moveLoose')"
       />
       <UButton
         size="xs"

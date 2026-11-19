@@ -5,7 +5,8 @@ import { resolveItem, resolveMotifExact } from '../../catalog/index.js';
 import { characterOrThrow } from '../../identity/index.js';
 import { resolveSize, resolveWeight } from '../layout/index.js';
 import * as repo from '../repo/index.js';
-import { placementInputSnapshot, resolveTargetPlacement } from './placement.js';
+import { ensureOverflowStorage, nextOverflowPlacement, packIntoOverflow } from './overflow.js';
+import { itemSize, placementInputSnapshot, resolveTargetPlacement } from './placement.js';
 import { inventoryItemSnapshot, placementSnapshot } from './snapshot.js';
 
 export { inventoryItemSnapshot, itemContainerSnapshot, placementSnapshot } from './snapshot.js';
@@ -18,8 +19,8 @@ function parseRarityPct(quality: string | null): number | null {
   return Number.isFinite(value) && value >= 0 && value <= 175 ? value : null;
 }
 
-function findLooseStack(db: Db, characterId: number, itemId: number): { id: number; qty: number } | null {
-  return repo.findLooseStackRow(db, characterId, itemId);
+function findOverflowStack(db: Db, characterId: number, itemId: number): { id: number; qty: number } | null {
+  return repo.findOverflowStackRow(db, characterId, itemId);
 }
 
 function assertQuantity(input: { kind: string; qty?: number }): void {
@@ -31,7 +32,6 @@ function assertQuantity(input: { kind: string; qty?: number }): void {
 export function createInventoryItem(db: Db, input: InventoryItemCreate): WriteResult {
   const character = characterOrThrow(db);
   assertQuantity(input);
-  const target = input.target ?? { location: 'loose' as const };
 
   const item = resolveItem(db, input.name, input.kind);
   const skin = input.skin ? resolveMotifExact(db, input.skin) : null;
@@ -43,8 +43,8 @@ export function createInventoryItem(db: Db, input: InventoryItemCreate): WriteRe
     throw new WriteError(422, 'NOT_A_CONTAINER', 'Container data belongs to a container item');
   }
 
-  if ((input.kind === 'ammo' || input.kind === 'other') && target.location === 'loose') {
-    const stack = findLooseStack(db, character.id, item.id);
+  if ((input.kind === 'ammo' || input.kind === 'other') && input.target == null) {
+    const stack = findOverflowStack(db, character.id, item.id);
     if (stack) {
       const before = inventoryItemSnapshot(db, stack.id);
       const after = { ...before, qty: stack.qty + (input.qty ?? 1) };
@@ -66,20 +66,39 @@ export function createInventoryItem(db: Db, input: InventoryItemCreate): WriteRe
     }
   }
 
-  const { next } = resolveTargetPlacement(
-    db,
-    {
-      id: -1,
-      item_id: item.id,
-      character_id: character.id,
-      kind: input.kind,
-      category: item.category,
-      level: input.level,
-    },
-    null,
-    target,
-    { swap: false },
-  );
+  if (input.target == null && !input.dryRun) ensureOverflowStorage(db, character.id);
+
+  const layout = repo.getItemLayout(db, item.id);
+  const size = resolveSize(input.kind, item.category, layout ? { width: layout.width, height: layout.height } : null);
+
+  let next: repo.PlacementInput;
+  if (input.target) {
+    next = resolveTargetPlacement(
+      db,
+      {
+        id: -1,
+        item_id: item.id,
+        character_id: character.id,
+        kind: input.kind,
+        category: item.category,
+        level: input.level,
+      },
+      null,
+      input.target,
+      { swap: false },
+    ).next;
+  } else {
+    const spot = nextOverflowPlacement(db, character.id, size);
+    next = {
+      itemId: -1,
+      characterId: character.id,
+      location: 'grid',
+      storageId: spot.storageId,
+      x: spot.x,
+      y: spot.y,
+      rotated: spot.rotated,
+    };
+  }
 
   const after: Record<string, unknown> = {
     id: null,
@@ -100,7 +119,7 @@ export function createInventoryItem(db: Db, input: InventoryItemCreate): WriteRe
     slot: input.slot ?? null,
     icon: null,
     weight: resolveWeight(item.weight, null),
-    size: resolveSize(input.kind, item.category, null),
+    size,
     placement: placementInputSnapshot(next),
     container: input.container
       ? {
@@ -344,16 +363,37 @@ export function deleteInventoryItem(
       placement: placementSnapshot(placement),
     })),
   };
-  const after = children.length ? { deleted: true, movedToLoose: children } : { deleted: true };
+  if (children.length && !opts.dryRun) ensureOverflowStorage(db, row.character_id);
+  const intake = children.length ? repo.getOverflowStorage(db, row.character_id) : null;
+  const packed = children.length
+    ? packIntoOverflow(
+        db,
+        row.character_id,
+        childPlacements.map((placement) => ({
+          id: placement.item_id,
+          size: itemSize(db, repo.getInventoryItem(db, placement.item_id)!),
+        })),
+      )
+    : [];
+
+  const after = children.length ? { deleted: true, movedToOverflow: children } : { deleted: true };
   const human = children.length
-    ? `Removed "${row.display_name ?? row.item_name}", moved ${children.length} item(s) to loose`
+    ? `Removed "${row.display_name ?? row.item_name}", moved ${children.length} item(s) to the intake stash`
     : `Removed "${row.display_name ?? row.item_name}"`;
   if (opts.dryRun) return { dryRun: true, diff: { before: beforeDelete, after, human } };
 
   let eventId: number | undefined;
   withTransaction(db, () => {
-    for (const childId of children) {
-      repo.upsertPlacement(db, { itemId: childId, characterId: row.character_id, location: 'loose' });
+    for (const entry of packed) {
+      repo.upsertPlacement(db, {
+        itemId: entry.id,
+        characterId: row.character_id,
+        location: 'grid',
+        storageId: intake!.id,
+        x: entry.x,
+        y: entry.y,
+        rotated: entry.rotated,
+      });
     }
     repo.deleteInventoryItemRow(db, id);
     eventId = logEvent(db, {

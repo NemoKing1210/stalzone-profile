@@ -3,7 +3,15 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { closeDb, migrate, openDb, type Db } from '@profile/core';
-import { buildPayload, exportProfileJson } from '@profile/core/modules/read-model';
+import {
+  buildCatalogSection,
+  buildCharacterSection,
+  buildContainersSection,
+  buildMetaSection,
+  buildPayload,
+  exportProfileJson,
+} from '@profile/core/modules/read-model';
+import { upsertItem } from '@profile/core/testing';
 import { PayloadSchema } from '@profile/shared/contracts';
 import { seedCatalog } from '../fixtures/seed';
 import { seedInventory } from '../fixtures/inventory';
@@ -34,12 +42,38 @@ describe('read model', () => {
   it('builds the flat lists from the instance model', () => {
     seedInventory(db);
     const payload = PayloadSchema.parse(buildPayload(db));
-    expect(payload.inventory.storages).toHaveLength(2);
+    expect(payload.inventory.storages).toHaveLength(3);
     expect(payload.inventory.equipment.primary).not.toBeNull();
     expect(payload.weapons.map((weapon) => weapon.name)).toEqual(['АК-12', 'ПП-19']);
     expect(payload.armor.map((armor) => armor.name)).toEqual(['Комбинезон']);
     expect(payload.containers.map((container) => container.name)).toEqual(['Рюкзак']);
     expect(payload.artifacts.map((artifact) => artifact.name)).toEqual(['Нервяк', 'Пузырь']);
+  });
+  it('serves each route section without building the full payload', () => {
+    seedInventory(db);
+    const payload = buildPayload(db);
+    expect(buildMetaSection(db)).toEqual({
+      meta: payload.meta,
+      catalogMeta: payload.catalog.meta,
+      freshness: payload.freshness,
+    });
+    expect(buildCharacterSection(db)).toEqual(payload.character);
+    expect(buildContainersSection(db)).toEqual(payload.containers);
+    expect(buildCatalogSection(db, 'weapon')).toEqual(payload.catalog.weapons);
+    expect(buildCatalogSection(db, 'armor')).toEqual(payload.catalog.armor);
+  });
+  it('reuses the payload until the database changes', () => {
+    seedCatalog(db);
+    const first = buildPayload(db);
+    expect(buildPayload(db)).toBe(first);
+
+    upsertItem(db, {
+      externalId: 'cache-bust',
+      name: 'Cache Bust',
+      kind: 'weapon',
+      category: 'weapon/rifle',
+    });
+    expect(buildPayload(db)).not.toBe(first);
   });
   it('drops display-only sections from the export', () => {
     seedCatalog(db);

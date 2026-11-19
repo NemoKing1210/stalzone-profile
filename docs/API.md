@@ -31,7 +31,9 @@ Mutations (`POST/PATCH/PUT/DELETE`) require this host's `Origin` or
 | 401 | `UNAUTHORIZED` / `INVALID_PASSWORD` | no session / wrong password |
 | 403 | `ORIGIN_REQUIRED`, `ORIGIN_MISMATCH` | a mutation from a foreign origin |
 | 404 | `NOT_FOUND`, `ITEM_NOT_FOUND`, `STORAGE_NOT_FOUND`, `DETAIL_NOT_FOUND` | the entity or derived card does not exist |
-| 413 | `CLIENT_LOG_BATCH_TOO_LARGE` | a browser log batch is over 32 KiB |
+| 413 | `PAYLOAD_TOO_LARGE` | a write body is over 2 MiB, including a chunked body without `Content-Length` |
+| 413 | `CLIENT_LOG_BATCH_TOO_LARGE` / `PAYLOAD_TOO_LARGE` | a browser log batch is over 32 KiB |
+| 413 | `JOURNAL_TOO_LARGE` | `journal.clear`/`reset.all` would snapshot over 20,000 events or 32 MiB |
 | 409 | `NO_CHARACTER`, `NOTHING_TO_CLEAR`, `EVENT_NOT_ROLLBACKABLE` and domain conflicts | no character / the cleanup scope is empty / the event predates the inventory redesign / `SLOT_OCCUPIED`, `OUT_OF_BOUNDS`, `CONTAINER_FULL`, `CONTAINER_SLOTS_IN_USE`, `INCOMPATIBLE_ATTACHMENT`, `STORAGE_TOO_SMALL`, `STORAGE_NAME_TAKEN`, `LAYOUT_CONFLICT` |
 | 422 | domain write errors | e.g. `INVALID_PLACEMENT`, `NOT_A_CONTAINER`, `NOT_AN_ARTIFACT`, `NOT_A_WEAPON`, `INVALID_LOGGING_SETTINGS`, `INVALID_LOG_PURGE`, `LOG_FILTER_REQUIRED` |
 | 429 | `RATE_LIMITED`, `CLIENT_LOG_RATE_LIMITED` | too many sign-in attempts / more than 120 browser log entries per minute from one address |
@@ -52,7 +54,7 @@ need user-facing text should do the same or show the message as-is.
 | GET | `/api/v1/items/:id` | item, stats, effects, card, icon |
 | GET | `/api/v1/details/:key` | derived card by key `w:`, `a:`, `art:`, `c:` |
 | GET | `/api/v1/catalog` | weapon and armor catalog |
-| GET | `/api/v1/inventory` | `InventoryRead`: storages, the equipment map, the loose tray and the computed loadout (`InventoryReadSchema`) |
+| GET | `/api/v1/inventory` | `InventoryRead`: storages (including the intake stash), the equipment map and the computed loadout (`InventoryReadSchema`) |
 | GET | `/api/v1/inventory/items/:id` | one inventory instance with its container artifacts or weapon modules |
 | GET | `/api/v1/containers` | container instances with their fill (`ContainerRead` list) for the table page |
 | GET | `/api/v1/prices?names=A,B` | `price_latest` by name |
@@ -82,15 +84,15 @@ text is English.
 
 | Method | Path | Body |
 |---|---|---|
-| POST | `/api/v1/character` | `CharacterCreateSchema`: `nick`, `region` (`ru \| eu \| na \| sea`), optional `faction` (`rise \| frontier \| mercenaries \| covenant` or `null`), `alliance`, `clanName`, `clanRank`, `dryRun`. Creates the character with its default 8×8 inventory and 8×12 stash in one transaction. The profile holds one character: a second create answers `409 CHARACTER_EXISTS` |
-| POST | `/api/v1/inventory/items` | `InventoryItemCreateSchema`: resolves the catalog item, optional `target` (`grid`, `equipment`, `container`, `weapon_module`, `loose`) |
+| POST | `/api/v1/character` | `CharacterCreateSchema`: `nick`, `region` (`ru \| eu \| na \| sea`), optional `faction` (`rise \| frontier \| mercenaries \| covenant` or `null`), `alliance`, `clanName`, `clanRank`, `dryRun`. Creates the character with its default 8×20 inventory, 40×80 intake stash and 40×80 stash in one transaction. The profile holds one character: a second create answers `409 CHARACTER_EXISTS` |
+| POST | `/api/v1/inventory/items` | `InventoryItemCreateSchema`: resolves the catalog item, optional `target` (`grid`, `equipment`, `container`, `weapon_module`); without one the instance lands in intake and a stackable merges with an intake stack |
 | PATCH | `/api/v1/inventory/items/:id` | `InventoryItemPatchSchema`: level, quality, rarity, tier, note, quantity, skin, role, slot, container override |
-| DELETE | `/api/v1/inventory/items/:id` | `DeleteInventoryItemSchema`: `{ qty?, dryRun? }`; a container or weapon returns its children to `loose` first |
-| POST | `/api/v1/inventory/items/:id/move` | `MoveItemSchema`: `target`, optional `swap`, `allowUnverified`, `dryRun` |
-| POST | `/api/v1/inventory/storages` | `StorageCreateSchema`: stash name, width, height, optional `maxWeight` |
-| PATCH | `/api/v1/inventory/storages/:id` | `StoragePatchSchema`: rename, resize, weight limit, order; a shrink over placed items answers `409 STORAGE_TOO_SMALL` |
-| DELETE | `/api/v1/inventory/storages/:id` | `DeleteStorageSchema`: items go to `loose`, or into `moveToStorageId` when they fit |
-| POST | `/api/v1/inventory/storages/:id/auto-arrange` | `AutoArrangeSchema`: packs loose items into the storage by first fit |
+| DELETE | `/api/v1/inventory/items/:id` | `DeleteInventoryItemSchema`: `{ qty?, dryRun? }`; a container or weapon returns its children to intake first |
+| POST | `/api/v1/inventory/items/:id/move` | `MoveItemSchema`: `target`, optional `swap`, `allowUnverified`, `dryRun`. A `grid` target inside intake answers `422 INVALID_PLACEMENT`; so does a swap whose displaced occupant would land there. `swap: true` with a `grid` target is rejected: grid collisions are resolved by the client, not swapped by the server |
+| POST | `/api/v1/inventory/storages` | `StorageCreateSchema`: stash name, width, height, optional `maxWeight`; the public contract cannot create an intake row, and a second inventory answers `409 VALIDATION` |
+| PATCH | `/api/v1/inventory/storages/:id` | `StoragePatchSchema`: rename, resize, weight limit, order; the inventory and intake answer `422 VALIDATION`, and a shrink over placed items answers `409 STORAGE_TOO_SMALL` |
+| DELETE | `/api/v1/inventory/storages/:id` | `DeleteStorageSchema`: deletes a stash and packs its items into intake; the inventory and intake answer `422 VALIDATION` |
+| POST | `/api/v1/inventory/storages/:id/auto-arrange` | `AutoArrangeSchema`: packs intake items into a regular stash by first fit; any other storage answers `422 VALIDATION` |
 | PUT | `/api/v1/inventory/containers/:id/fill` | `ContainerFillWriteSchema`: `{ slots: (id \| null)[], dryRun? }`, the full positional fill |
 | PUT | `/api/v1/inventory/weapons/:id/modules/:slot` | `WeaponModuleWriteSchema`: `{ attachmentItemId: id \| null, allowUnverified?, dryRun? }` |
 | PATCH | `/api/v1/items/:id/layout` | `ItemLayoutWriteSchema`: `{ width, height, weight?, dryRun? }`; a change that breaks placed instances answers `409 LAYOUT_CONFLICT` |

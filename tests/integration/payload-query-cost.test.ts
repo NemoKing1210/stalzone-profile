@@ -52,13 +52,15 @@ function addWeapons(count: number): void {
 }
 
 describe('payload catalog read cost', () => {
-  it('does not issue per-item queries when the catalog grows', () => {
+  it('keeps the whole payload to a fixed statement budget', () => {
     const baseline = countQueries(() => buildPayload(db));
     addWeapons(100);
     const grown = countQueries(() => buildPayload(db));
 
     // A per-item query pattern used to add ~6 statements per catalog item (600 here).
     expect(grown - baseline).toBeLessThanOrEqual(20);
+    // One context per section: the absolute count must not grow with the catalog either.
+    expect(baseline).toBeLessThanOrEqual(20);
   });
 
   it('still exposes the extra catalog rows', () => {

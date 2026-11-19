@@ -3,6 +3,7 @@ import { setWeaponModule } from '@profile/core';
 import { useDb } from '../../../../../../utils/db';
 import { apiError, validationError } from '../../../../../../utils/errors';
 import { requireOrigin } from '../../../../../../utils/auth';
+import { readJsonBodyResult } from '../../../../../../utils/read-body';
 import { handleWrite, parseId } from '../../../../../../utils/write';
 
 export default defineEventHandler(async (event) => {
@@ -15,7 +16,9 @@ export default defineEventHandler(async (event) => {
   const slot = getRouterParam(event, 'slot');
   if (!slot) return apiError(event, 400, 'VALIDATION', 'slot is required');
 
-  const parsed = WeaponModuleWriteSchema.safeParse(await readBody(event).catch(() => null));
+  const read = await readJsonBodyResult(event);
+  if (read.error) return read.error;
+  const parsed = WeaponModuleWriteSchema.safeParse(read.body);
   if (!parsed.success) return validationError(event, parsed.error);
 
   const db = useDb();

@@ -35,7 +35,7 @@ export {
   statValue,
   statsByItemIds,
 } from './modules/catalog/repo/items.js';
-export type { PriceQuoteInput, PriceRow } from './modules/catalog/repo/prices.js';
+export type { PriceQuoteInput, PriceRow, PriceRowsByName } from './modules/catalog/repo/prices.js';
 export {
   bestPrice,
   countPrices,

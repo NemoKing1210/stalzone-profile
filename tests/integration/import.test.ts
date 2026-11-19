@@ -45,13 +45,14 @@ describe('profile export round-trip', () => {
     const parsed = ProfileExportSchema.parse(JSON.parse(JSON.stringify(exported)));
     const inventory = parsed.inventory;
 
-    expect(inventory.storages.map((storage) => storage.kind)).toEqual(['inventory', 'stash']);
+    expect(inventory.storages.map((storage) => storage.kind)).toEqual(['inventory', 'overflow', 'stash']);
     expect(inventory.equipment.primary?.name).toBe('АК-12');
     expect(inventory.equipment.container?.artifacts?.[0]?.name).toBe('Нервяк');
     expect(inventory.equipment.container?.container).toMatchObject({ slots: 2, eff: 100 });
 
     const looseNames = inventory.loose.map((item) => item.name);
-    expect(looseNames).toContain('Патроны 5.45');
+    expect(looseNames).toContain('Куница');
+    expect(looseNames).not.toContain('Патроны 5.45');
     expect(looseNames).not.toContain('ПП-19');
 
     const gridItem = inventory.storages[0]!.items[0];

@@ -54,13 +54,43 @@ export function canDrop(rect: Rect, grid: Size, others: readonly Rect[]): boolea
   return !others.some((other) => overlaps(rect, other));
 }
 
-/** Maps a pointer position to a zero-based cell; a point outside the grid is negative. */
-export function cellAt(clientX: number, clientY: number, grid: GridBounds, columns: number): { x: number; y: number } {
+/**
+ * Maps a pointer position to a zero-based cell; a point outside the grid is negative.
+ * The row height comes from `rows` when it is known; without it the cells are assumed
+ * square, which is the historical behavior for callers that only know the columns.
+ */
+export function cellAt(
+  clientX: number,
+  clientY: number,
+  grid: GridBounds,
+  columns: number,
+  rows?: number,
+): { x: number; y: number } {
   if (columns <= 0 || grid.width <= 0 || grid.height <= 0) return { x: -1, y: -1 };
-  const cell = grid.width / columns;
+  const cellWidth = grid.width / columns;
+  const cellHeight = rows != null && rows > 0 ? grid.height / rows : cellWidth;
   return {
-    x: Math.floor((clientX - grid.left) / cell),
-    y: Math.floor((clientY - grid.top) / cell),
+    x: Math.floor((clientX - grid.left) / cellWidth),
+    y: Math.floor((clientY - grid.top) / cellHeight),
+  };
+}
+
+/** Keeps an item's origin inside the grid so a drag near an edge cannot leave it. */
+export function clampOrigin(origin: { x: number; y: number }, size: Size, grid: Size): { x: number; y: number } {
+  const maxX = Math.max(0, grid.width - size.width);
+  const maxY = Math.max(0, grid.height - size.height);
+  return {
+    x: Math.min(Math.max(0, origin.x), maxX),
+    y: Math.min(Math.max(0, origin.y), maxY),
+  };
+}
+
+/** The cell of an item's footprint the pointer grabbed, so the drop keeps that cell under the pointer. */
+export function grabCell(rect: GridBounds, point: { x: number; y: number }, size: Size): { x: number; y: number } {
+  if (rect.width <= 0 || rect.height <= 0) return { x: Math.floor(size.width / 2), y: Math.floor(size.height / 2) };
+  return {
+    x: Math.min(Math.max(0, Math.floor(((point.x - rect.left) / rect.width) * size.width)), size.width - 1),
+    y: Math.min(Math.max(0, Math.floor(((point.y - rect.top) / rect.height) * size.height)), size.height - 1),
   };
 }
 
@@ -70,4 +100,21 @@ export function itemRects(items: readonly GridItem[]): Rect[] {
     const size = effectiveSize(item.size, item.placement.rotated);
     return { x: item.placement.x, y: item.placement.y, ...size };
   });
+}
+
+/**
+ * The ghost a picked item would draw at a cell, and whether that landing is allowed.
+ * The picked item does not collide with itself, so hovering its own cells stays valid.
+ */
+export function ghostForGrid(
+  grid: Size,
+  picked: { id: number; size: Size },
+  ghost: { x: number; y: number },
+  rotated: boolean,
+  items: readonly (GridItem & { id: number })[],
+): GridGhostPreview {
+  const size = effectiveSize(picked.size, rotated);
+  const rect = { x: ghost.x, y: ghost.y, ...size };
+  const others = itemRects(items.filter((item) => item.id !== picked.id));
+  return { ...rect, valid: canDrop(rect, grid, others) };
 }

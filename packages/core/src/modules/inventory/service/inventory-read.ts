@@ -9,12 +9,12 @@ import type {
   StorageRead,
 } from '@profile/shared/contracts';
 import type { Db } from '../../../platform/db/index.js';
-import { computeLoadout, statValueBaseFrom, statsByItemIds, type ItemStatRow, type LoadoutStats as ComputedLoadout } from '../../catalog/index.js';
+import { computeLoadout, statValueBaseFrom, type ItemStatRow, type LoadoutStats as ComputedLoadout } from '../../catalog/index.js';
 import { getCharacter } from '../../identity/index.js';
 import { resolveSize, resolveWeight } from '../layout/index.js';
 import * as repo from '../repo/index.js';
 import { isEquipmentSlot } from '../write/placement.js';
-import { gatherLoadout } from './loadout.js';
+import { gatherLoadout, loadInventorySnapshot, type InventorySnapshot } from './loadout.js';
 
 const MODULE_SLOTS = ['scope', 'muzzle', 'grip', 'magazine', 'stock', 'tactical', 'other'] as const;
 
@@ -105,20 +105,13 @@ function emptyRange(): RangeValue {
 
 interface NodeSet {
   rows: repo.InventoryItemJoined[];
-  placements: Map<number, repo.PlacementRow | null>;
+  placements: Map<number, repo.PlacementRow>;
   nodes: Map<number, InventoryItemRead>;
 }
 
-function buildNodes(db: Db, characterId: number): NodeSet {
-  const rows = repo.listInventoryItems(db, characterId);
-  const placements = new Map(repo.listPlacements(db, characterId).map((row) => [row.item_id, row]));
-  const itemIds = [...new Set(rows.map((row) => row.item_id))];
-  const layouts = repo.itemLayoutsByItemIds(db, itemIds);
-  const itemStats = statsByItemIds(db, itemIds);
-  const containerOverrides = repo.containerDataByItemIds(
-    db,
-    rows.filter((row) => row.kind === 'container').map((row) => row.id),
-  );
+function buildNodes(db: Db, characterId: number, snapshot?: InventorySnapshot): NodeSet {
+  const snap = snapshot ?? loadInventorySnapshot(db, characterId);
+  const { rows, placements, layouts, stats: itemStats, containers: containerOverrides } = snap;
   const nodes = new Map<number, InventoryItemRead>();
 
   for (const row of rows) {
@@ -216,12 +209,16 @@ function emptyInventoryRead(): InventoryRead {
 export function inventoryRead(db: Db, characterId?: number): InventoryRead {
   const resolved = characterId ?? getCharacter(db)?.id ?? null;
   if (resolved == null) return emptyInventoryRead();
+  return inventoryReadFrom(db, resolved, loadInventorySnapshot(db, resolved));
+}
 
-  const storageRows = repo.listStorages(db, resolved);
-  if (!repo.getInventoryStorage(db, resolved)) return emptyInventoryRead();
+/** Same read model from a snapshot the caller already loaded (the payload uses one). */
+export function inventoryReadFrom(db: Db, characterId: number, snapshot: InventorySnapshot): InventoryRead {
+  const storageRows = snapshot.storages;
+  if (!storageRows.some((storage) => storage.kind === 'inventory')) return emptyInventoryRead();
 
-  const { rows, placements, nodes } = buildNodes(db, resolved);
-  const stats = toContractStats(computeLoadout(gatherLoadout(db, resolved)));
+  const { rows, placements, nodes } = buildNodes(db, characterId, snapshot);
+  const stats = toContractStats(computeLoadout(gatherLoadout(db, characterId, snapshot)));
 
   const storages: StorageRead[] = storageRows.map((storage) => {
     const items = rows
@@ -235,12 +232,24 @@ export function inventoryRead(db: Db, characterId?: number): InventoryRead {
         return (pa?.y ?? 0) - (pb?.y ?? 0) || (pa?.x ?? 0) - (pb?.x ?? 0);
       })
       .map((row) => nodes.get(row.id)!);
+    // Intake is infinite: the stored row keeps its base size, the read grows with the items.
+    const effectiveHeight =
+      storage.kind === 'overflow'
+        ? Math.max(
+            storage.height,
+            ...items.map((item) =>
+              item.placement.location === 'grid'
+                ? item.placement.y + (item.placement.rotated ? item.size.width : item.size.height)
+                : 0,
+            ),
+          )
+        : storage.height;
     return {
       id: storage.id,
       kind: storage.kind,
       name: storage.name,
       width: storage.width,
-      height: storage.height,
+      height: effectiveHeight,
       maxWeight: storage.max_weight,
       sortOrder: storage.sort_order,
       items,

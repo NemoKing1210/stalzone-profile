@@ -118,6 +118,22 @@ export interface ItemCardContext {
   effects: Map<number, string>;
 }
 
+/** Card inputs plus the item rows themselves: one snapshot for details, catalogs and instances. */
+export interface CatalogContext extends ItemCardContext {
+  items: Map<number, ItemRow>;
+}
+
+/** Loads the item rows and every per-card map once for the whole read model. */
+export function loadCatalogContext(db: Db, items: ItemRow[]): CatalogContext {
+  return {
+    items: new Map(items.map((item) => [item.id, item])),
+    ...loadItemCardContext(
+      db,
+      items.map((item) => item.id),
+    ),
+  };
+}
+
 /** Loads stats, icons and effect labels in three statements for any number of items. */
 export function loadItemCardContext(db: Db, itemIds: number[]): ItemCardContext {
   const effects = new Map<number, string>();
@@ -260,19 +276,34 @@ export function cardKey(kind: string, name: string): string {
   return `${prefix}:${name}`;
 }
 
-export function buildDetails(db: Db): Record<string, ItemCard> {
-  const byKind = (['weapon', 'armor', 'artifact', 'container'] as const).map(
-    (kind) => [kind, repo.listItems(db, kind)] as const,
-  );
-  const ctx = loadItemCardContext(
-    db,
-    byKind.flatMap(([, items]) => items.map((item) => item.id)),
-  );
-  const out: Record<string, ItemCard> = {};
-  for (const [kind, items] of byKind) {
-    for (const item of items) out[cardKey(kind, item.name)] = buildItemCardFrom(ctx, item);
+const DETAIL_KINDS_ORDER = ['weapon', 'armor', 'artifact', 'container'] as const;
+
+export interface CardIndex {
+  /** One card per item id, so catalogs reuse the work `details` already did. */
+  byId: Map<number, ItemCard>;
+  details: Record<string, ItemCard>;
+}
+
+export function buildCardIndex(ctx: CatalogContext): CardIndex {
+  const byId = new Map<number, ItemCard>();
+  const details: Record<string, ItemCard> = {};
+  for (const kind of DETAIL_KINDS_ORDER) {
+    for (const item of ctx.items.values()) {
+      if (item.kind !== kind) continue;
+      const card = buildItemCardFrom(ctx, item);
+      byId.set(item.id, card);
+      details[cardKey(kind, item.name)] = card;
+    }
   }
-  return out;
+  return { byId, details };
+}
+
+export function buildDetailsFrom(ctx: CatalogContext): Record<string, ItemCard> {
+  return buildCardIndex(ctx).details;
+}
+
+export function buildDetails(db: Db): Record<string, ItemCard> {
+  return buildDetailsFrom(loadCatalogContext(db, repo.listItems(db)));
 }
 
 const DETAIL_KINDS: Record<string, string> = { w: 'weapon', a: 'armor', art: 'artifact', c: 'container' };
@@ -302,13 +333,17 @@ export function buildDetailEntry(db: Db, key: string): DetailEntry | null {
 const RANK_INDEX = new Map<string, number>(RANK_ORDER.map((rank, index) => [rank, index]));
 
 export function buildCatalog(db: Db, kind: 'weapon' | 'armor'): Record<string, unknown>[] {
-  const items = repo.listItems(db, kind);
-  const ctx = loadItemCardContext(
-    db,
-    items.map((item) => item.id),
-  );
+  return buildCatalogFrom(loadCatalogContext(db, repo.listItems(db, kind)), kind);
+}
+
+export function buildCatalogFrom(
+  ctx: CatalogContext,
+  kind: 'weapon' | 'armor',
+  cards?: Map<number, ItemCard>,
+): Record<string, unknown>[] {
+  const items = [...ctx.items.values()].filter((item) => item.kind === kind);
   const entries = items.map((item) => {
-    const card = buildItemCardFrom(ctx, item);
+    const card = cards?.get(item.id) ?? buildItemCardFrom(ctx, item);
     const row: Record<string, unknown> =
       kind === 'weapon'
         ? (() => {

@@ -2,6 +2,7 @@ import { LoginSchema } from '@profile/shared';
 import { verifyPassword } from '@profile/core';
 import { assertLoginAllowed, createSession, requireOrigin } from '../../utils/auth';
 import { apiError, validationError } from '../../utils/errors';
+import { readJsonBodyResult } from '../../utils/read-body';
 
 export default defineEventHandler(async (event) => {
   const originError = requireOrigin(event);
@@ -10,7 +11,9 @@ export default defineEventHandler(async (event) => {
   const rateError = assertLoginAllowed(event);
   if (rateError) return rateError;
 
-  const parsed = LoginSchema.safeParse(await readBody(event).catch(() => null));
+  const read = await readJsonBodyResult(event);
+  if (read.error) return read.error;
+  const parsed = LoginSchema.safeParse(read.body);
   if (!parsed.success) return validationError(event, parsed.error);
 
   const config = useRuntimeConfig();

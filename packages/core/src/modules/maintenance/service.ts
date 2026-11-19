@@ -86,8 +86,8 @@ export function clearByScope(db: Db, scope: CleanupScope, dryRun: boolean): Writ
 export function clearInventory(db: Db, dryRun: boolean): WriteResult {
   const character = characterOrThrow(db);
   const counts = inventoryCounts(db, character.id);
-  // The default inventory storage is part of the character, not of its content.
-  if (!counts.items && !counts.placements && counts.storages <= 1) {
+  // The inventory and intake storages are part of the character, not of its content.
+  if (!counts.items && !counts.placements && counts.storages <= 2) {
     throw new WriteError(409, 'NOTHING_TO_CLEAR', 'Nothing to clear');
   }
 
@@ -370,7 +370,7 @@ function restoreSnapshot(
       return;
     }
     case 'inventory.autoArrange': {
-      restoreAutoArrangeTx(db, produced, characterOrThrow(db).id);
+      restoreAutoArrangeTx(db, target, characterOrThrow(db).id);
       return;
     }
     case 'catalog.itemLayout.update': {

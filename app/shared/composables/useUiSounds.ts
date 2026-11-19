@@ -109,24 +109,63 @@ function tick(ctx: AudioContext, output: GainNode, when: number, level: number, 
   body.stop(when + 0.06);
 }
 
-function playSound(kind: UiSoundKind, settings: SoundSettings): void {
-  if (!import.meta.client || !settings.enabled) return;
+/** A soft low thud: the sound of an item being set down. */
+function thud(ctx: AudioContext, output: GainNode, when: number, level: number): void {
+  const body = ctx.createOscillator();
+  body.type = 'sine';
+  body.frequency.setValueAtTime(230, when);
+  body.frequency.exponentialRampToValueAtTime(85, when + 0.13);
+
+  const bodyGain = ctx.createGain();
+  bodyGain.gain.setValueAtTime(0.0001, when);
+  bodyGain.gain.exponentialRampToValueAtTime(level, when + 0.008);
+  bodyGain.gain.exponentialRampToValueAtTime(0.0001, when + 0.17);
+
+  body.connect(bodyGain).connect(output);
+  body.start(when);
+  body.stop(when + 0.18);
+}
+
+/** Shared guard: a disabled setting, an absent graph or a repeated press plays nothing. */
+function begin(settings: SoundSettings): { context: AudioContext; master: GainNode; now: number } | null {
+  if (!import.meta.client || !settings.enabled) return null;
 
   const graph = ensureGraph();
-  if (!graph) return;
+  if (!graph) return null;
   if (graph.context.state === 'suspended') void graph.context.resume().catch(() => {});
 
   const now = graph.context.currentTime;
-  if (now - lastPlayedAt < MIN_INTERVAL) return;
+  if (now - lastPlayedAt < MIN_INTERVAL) return null;
   lastPlayedAt = now;
 
   graph.master.gain.value = settings.volume * 0.35;
+  return { context: graph.context, master: graph.master, now };
+}
+
+function playSound(kind: UiSoundKind, settings: SoundSettings): void {
+  const graph = begin(settings);
+  if (!graph) return;
+  const { context: ctx, master: output, now } = graph;
+
   if (kind === 'toggle') {
-    tick(graph.context, graph.master, now, 0.5, 2600);
-    tick(graph.context, graph.master, now + 0.055, 0.35, 3000);
+    tick(ctx, output, now, 0.5, 2600);
+    tick(ctx, output, now + 0.055, 0.35, 3000);
     return;
   }
-  tick(graph.context, graph.master, now, 0.7, 2100);
+  tick(ctx, output, now, 0.7, 2100);
+}
+
+/**
+ * The placement sound: a dull knock and one low thud, deliberately unlike the control
+ * click so a drop is audible without looking at the grid.
+ */
+function playPlace(settings: SoundSettings): void {
+  const graph = begin(settings);
+  if (!graph) return;
+  const { context: ctx, master: output, now } = graph;
+
+  tick(ctx, output, now, 0.28, 1000);
+  thud(ctx, output, now + 0.01, 0.5);
 }
 
 function describeTarget(node: EventTarget | null): SoundTarget | null {
@@ -171,6 +210,11 @@ export function useUiSounds() {
 
   function play(kind: UiSoundKind): void {
     playSound(kind, settings.value);
+  }
+
+  /** The inventory placement thud; shares the enabled flag and the volume. */
+  function place(): void {
+    playPlace(settings.value);
   }
 
   function setEnabled(enabled: boolean): void {
@@ -221,5 +265,5 @@ export function useUiSounds() {
     };
   }
 
-  return { settings, load, play, setEnabled, setVolume, attach };
+  return { settings, load, play, place, setEnabled, setVolume, attach };
 }

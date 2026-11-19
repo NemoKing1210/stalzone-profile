@@ -7,6 +7,7 @@ export {
   addItemStats,
   ensureStatDefinition,
   insertPriceQuote,
+  insertPriceQuotes,
   replaceItemEffects,
   replaceItemStats,
   upsertIcon,

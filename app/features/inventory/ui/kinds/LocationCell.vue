@@ -1,8 +1,13 @@
 <script setup lang="ts">
+import type { StorageKind } from '@profile/shared/contracts';
+
+import { storageLabel } from '../../model/labels';
+
 const props = defineProps<{
   row: {
     location: string | null;
     storageName: string | null;
+    storageKind: StorageKind | null;
     parentName: string | null;
     equipmentSlot: string | null;
     moduleSlot: string | null;
@@ -28,7 +33,11 @@ const MODULE_SLOTS = new Set(['scope', 'muzzle', 'grip', 'magazine', 'stock', 't
 
 const label = computed(() => {
   const row = props.row;
-  if (row.location === 'grid') return row.storageName ?? t('inventory.inGrid');
+  if (row.location === 'grid') {
+    return row.storageKind
+      ? storageLabel({ kind: row.storageKind, name: row.storageName ?? '' }, t)
+      : (row.storageName ?? t('inventory.inGrid'));
+  }
   if (row.location === 'equipment') {
     return row.equipmentSlot && EQUIPMENT_SLOTS.has(row.equipmentSlot)
       ? t(`inventory.slots.${row.equipmentSlot}`)

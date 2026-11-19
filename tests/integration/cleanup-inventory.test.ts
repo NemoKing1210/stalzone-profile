@@ -70,7 +70,7 @@ describe('inventory cleanup', () => {
     expect(result.dryRun).toBe(true);
     expect(result.eventId).toBeUndefined();
     expect(result.diff.before).toEqual(before);
-    expect(inventoryCounts(db, characterId)).toEqual({ items: 8, storages: 2, placements: 8 });
+    expect(inventoryCounts(db, characterId)).toEqual({ items: 8, storages: 3, placements: 8 });
   });
 
   it('clears the new model with one event and restores it exactly', () => {
@@ -79,7 +79,7 @@ describe('inventory cleanup', () => {
 
     expect(result.eventId).toBeTypeOf('number');
     expect(getEvent(db, result.eventId!)).toMatchObject({ action: 'inventory.clear', entity: 'inventory' });
-    expect(inventoryCounts(db, characterId)).toEqual({ items: 0, storages: 1, placements: 0 });
+    expect(inventoryCounts(db, characterId)).toEqual({ items: 0, storages: 2, placements: 0 });
 
     rollbackEvent(db, result.eventId!, false);
     expect(snapshot()).toEqual(before);
@@ -93,7 +93,7 @@ describe('inventory cleanup', () => {
 
   it('reports the inventory scope in cleanupCounts', () => {
     expect(cleanupCounts(db)).toMatchObject({
-      inventory: { items: 8, storages: 2, placements: 8 },
+      inventory: { items: 8, storages: 3, placements: 8 },
     });
   });
 
@@ -180,20 +180,20 @@ describe('new inventory rollbacks', () => {
       { dryRun: false },
     );
     rollbackEvent(db, moved.eventId!, false);
-    const smg = (snapshot().placements as { item_id: number; location: string }[]).find(
+    const smg = (snapshot().placements as { item_id: number; location: string; storage_id: number }[]).find(
       (row) => row.item_id === seeded.instanceIds.smg,
     );
-    expect(smg?.location).toBe('loose');
+    expect(smg).toMatchObject({ location: 'grid', storage_id: seeded.storageIds.overflow });
 
     const installed = setWeaponModule(db, seeded.instanceIds.rifle!, 'scope', seeded.instanceIds.scope!, {
       dryRun: false,
       allowUnverified: true,
     });
     rollbackEvent(db, installed.eventId!, false);
-    const scope = (snapshot().placements as { item_id: number; location: string }[]).find(
+    const scope = (snapshot().placements as { item_id: number; location: string; storage_id: number }[]).find(
       (row) => row.item_id === seeded.instanceIds.scope,
     );
-    expect(scope?.location).toBe('loose');
+    expect(scope).toMatchObject({ location: 'grid', storage_id: seeded.storageIds.overflow });
   });
 
   it('undoes storage create, update and delete', () => {
@@ -203,7 +203,7 @@ describe('new inventory rollbacks', () => {
     );
     expect(created.eventId).toBeTypeOf('number');
     rollbackEvent(db, created.eventId!, false);
-    expect(inventoryCounts(db, characterId).storages).toBe(2);
+    expect(inventoryCounts(db, characterId).storages).toBe(3);
 
     const renamed = updateStorage(
       db,
@@ -256,14 +256,24 @@ describe('new inventory rollbacks', () => {
     );
     expect(artifact1).toMatchObject({ location: 'container', container_slot: 0 });
 
-    const arranged = autoArrangeStorage(db, seeded.storageIds.inventory, { dryRun: false });
+    const arranged = autoArrangeStorage(db, seeded.storageIds.stash, { dryRun: false });
     expect(arranged.eventId).toBeTypeOf('number');
     rollbackEvent(db, arranged.eventId!, false);
-    for (const itemId of [seeded.instanceIds.smg, seeded.instanceIds.artifact2]) {
-      const placement = (snapshot().placements as { item_id: number; location: string }[]).find(
-        (row) => row.item_id === itemId,
-      );
-      expect(placement?.location).toBe('loose');
+    for (const [itemId, y] of [
+      [seeded.instanceIds.smg, 0],
+      [seeded.instanceIds.artifact2, 4],
+      [seeded.instanceIds.scope, 8],
+      [seeded.instanceIds.ammo, 12],
+    ] as const) {
+      const placement = (
+        snapshot().placements as { item_id: number; location: string; storage_id: number; x: number; y: number }[]
+      ).find((row) => row.item_id === itemId);
+      expect(placement).toMatchObject({
+        location: 'grid',
+        storage_id: seeded.storageIds.overflow,
+        x: 0,
+        y,
+      });
     }
   });
 });

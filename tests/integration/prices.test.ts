@@ -11,8 +11,10 @@ import {
   bestPrice,
   latestPriceFetchedAt,
   latestPriceRows,
+  latestPricesForNames,
+  type PriceRowsByName,
 } from '@profile/core';
-import { insertPriceQuote } from '@profile/core/testing';
+import { insertPriceQuote, insertPriceQuotes } from '@profile/core/testing';
 
 let dir: string;
 let db: Db;
@@ -63,5 +65,44 @@ describe('price_latest', () => {
     expect(rows[0]).toMatchObject({ lot_price: 90, fetched_at: fresh });
     expect(bestPrice(db, 'Нервяк', 'Обычный')?.lot_price).toBe(50);
     expect(latestPriceFetchedAt(db)).toBe(fresh);
+  });
+
+  it('keeps one current quote per name, quality and bonus', () => {
+    insertPriceQuotes(db, [
+      { name: 'Нервяк', quality: 'Редкий', bonus: 1, lotPrice: 100, sourceId: 'scpmodel', fetchedAt: '2026-11-15T10:00:00.000Z' },
+    ]);
+    insertPriceQuotes(db, [
+      { name: 'Нервяк', quality: 'Редкий', bonus: 1, lotPrice: 90, sourceId: 'scpmodel', fetchedAt: '2026-11-15T11:00:00.000Z' },
+      { name: 'Нервяк', quality: 'Обычный', bonus: null, lotPrice: 50, sourceId: 'scpmodel', fetchedAt: '2026-11-15T11:00:00.000Z' },
+    ]);
+
+    expect(db.prepare(`SELECT COUNT(*) AS c FROM price_quote`).get()).toEqual({ c: 2 });
+    expect(bestPrice(db, 'Нервяк', 'Редкий')?.lot_price).toBe(90);
+    expect(bestPrice(db, 'Нервяк', 'Обычный')?.lot_price).toBe(50);
+  });
+
+  it('resolves many names with one statement', () => {
+    const names = Array.from({ length: 60 }, (_, index) => `Item ${index}`);
+    for (const [index, name] of names.entries()) {
+      insertPriceQuote(db, { name, currentPrice: 100 + index, sourceId: 'scpmodel', fetchedAt: '2026-11-15T10:00:00.000Z' });
+    }
+
+    const original = db.prepare.bind(db);
+    let prepared = 0;
+    Object.assign(db, {
+      prepare: (sql: string) => {
+        prepared += 1;
+        return original(sql);
+      },
+    });
+    let prices: PriceRowsByName;
+    try {
+      prices = latestPricesForNames(db, names);
+    } finally {
+      Object.assign(db, { prepare: original });
+    }
+
+    expect(prepared).toBeLessThan(10);
+    expect(prices['Item 59']?.[0]?.current_price).toBe(159);
   });
 });

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { canDrop, cellAt, effectiveSize, itemRects, type GridItem } from '~/features/inventory/model/grid';
+import {
+  canDrop,
+  cellAt,
+  clampOrigin,
+  effectiveSize,
+  grabCell,
+  itemRects,
+  type GridItem,
+} from '~/features/inventory/model/grid';
 
 const grid = { width: 8, height: 8 };
 
@@ -46,6 +54,22 @@ describe('cellAt', () => {
 
   it('returns negative coordinates outside the grid', () => {
     expect(cellAt(40, 10, box, 8)).toEqual({ x: -2, y: -1 });
+  });
+});
+
+describe('clampOrigin', () => {
+  it('clamps an item origin inside the grid', () => {
+    expect(clampOrigin({ x: 7, y: 7 }, { width: 3, height: 2 }, { width: 8, height: 8 })).toEqual({ x: 5, y: 6 });
+    expect(clampOrigin({ x: -2, y: -1 }, { width: 1, height: 1 }, { width: 8, height: 8 })).toEqual({ x: 0, y: 0 });
+    expect(clampOrigin({ x: 0, y: 0 }, { width: 9, height: 1 }, { width: 8, height: 8 })).toEqual({ x: 0, y: 0 });
+  });
+});
+
+describe('grabCell', () => {
+  it('maps a point to a cell inside the grabbed footprint', () => {
+    const rect = { left: 100, top: 50, width: 300, height: 100 };
+    expect(grabCell(rect, { x: 250, y: 75 }, { width: 5, height: 2 })).toEqual({ x: 2, y: 0 });
+    expect(grabCell(rect, { x: 90, y: 40 }, { width: 5, height: 2 })).toEqual({ x: 0, y: 0 });
   });
 });
 

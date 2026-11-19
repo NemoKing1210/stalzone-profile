@@ -1,36 +1,41 @@
 import { CAT_RU, rankKey } from '@profile/shared';
 import type { Payload } from '@profile/shared/contracts';
-import type { Db } from '../../platform/db/index.js';
+import { dataVersion, type Db } from '../../platform/db/index.js';
 import {
   armorAtLevel,
-  buildCatalog,
-  buildDetails,
+  buildCardIndex,
+  buildCatalogFrom,
   buildItemCardFrom,
   countItems,
   displayDmg,
   displayDps,
   displayTtk,
   headMultiplier,
-  iconMap,
-  iconsByItemIds,
+  iconMapFrom,
   itemText,
   itemValue,
   itemValueExact,
   itemsByIds,
   latestPriceFetchedAt,
-  loadItemCardContext,
+  listItems,
+  loadCatalogContext,
   protKeyFor,
-  statsByItemIds,
+  type CatalogContext,
   type ItemCardContext,
   type ItemRow,
   type ItemStatRow,
 } from '../catalog/index.js';
-import { getCharacter, getCharacterRead, listCharacterStats } from '../identity/index.js';
 import {
-  containerDataByItemIds,
+  getCharacter,
+  getCharacterReadFrom,
+  listCharacterStats,
+  type CharacterRow,
+  type CharacterStat,
+} from '../identity/index.js';
+import {
   inventoryRead,
-  listInventoryItems,
-  listPlacements,
+  inventoryReadFrom,
+  loadInventorySnapshot,
   placementRead,
   type ContainerDataRow,
   type InventoryItemJoined,
@@ -48,15 +53,9 @@ export interface PayloadFreshness {
 }
 
 const REFERENCE_SOURCES = ['exbo_base', 'wiki', 'motifs'] as const;
+const CARD_KINDS: Record<string, true> = { weapon: true, armor: true, artifact: true, container: true };
 
-/** Catalog rows needed by every item card; loaded once per payload instead of per row. */
-interface CatalogContext {
-  items: Map<number, ItemRow>;
-  stats: Map<number, ItemStatRow[]>;
-  icons: Map<number, string>;
-}
-
-function newest(values: (string | null | undefined)[]): string | null {
+export function newest(values: (string | null | undefined)[]): string | null {
   let best: string | null = null;
   let bestTime = -Infinity;
   for (const value of values) {
@@ -81,7 +80,7 @@ function iconOf(ctx: CatalogContext, item: ItemRow | null): string | null {
   return item ? (ctx.icons.get(item.id) ?? null) : null;
 }
 
-function catalogMeta(sources: Map<string, { last_ok_at: string | null }>, items: number): Json {
+export function catalogMeta(sources: Map<string, { last_ok_at: string | null }>, items: number): Json {
   const updated = newest(REFERENCE_SOURCES.map((id) => sources.get(id)?.last_ok_at ?? null));
   return {
     updated,
@@ -191,7 +190,7 @@ function armorPayload(
   };
 }
 
-function containerPayload(
+export function containerPayload(
   ctx: CatalogContext,
   owned: InventoryItemJoined,
   overrides: Map<number, ContainerDataRow>,
@@ -249,7 +248,7 @@ function artifactPayload(
 }
 
 /** Container slots in slot order; the flat container row mirrors the placement tree. */
-function containerFills(
+export function containerFills(
   items: InventoryItemJoined[],
   placements: PlacementRow[],
 ): Map<number, { name: string; lvl: number }[]> {
@@ -272,14 +271,13 @@ function containerFills(
 }
 
 /** The character section is the identity read model without its surrogate id. */
-function characterPayload(db: Db, characterId?: number): Json {
-  const read = getCharacterRead(db, characterId);
-  if (!read) return {};
-  const { id: _id, ...character } = read;
-  return character;
+export function characterPayload(character: CharacterRow, stats: CharacterStat[]): Json {
+  const read = getCharacterReadFrom(character, stats);
+  const { id: _id, ...rest } = read;
+  return rest;
 }
 
-function freshness(
+export function freshness(
   sources: ReturnType<typeof listSources>,
   latest: string | null,
   characterUpdatedAt: string | null,
@@ -299,12 +297,48 @@ function freshness(
   };
 }
 
+interface CachedPayload {
+  version: number;
+  at: number;
+  payload: Payload;
+}
+
+const PAYLOAD_TTL_MS = 30_000;
+const PAYLOAD_CACHE_LIMIT = 4;
+const payloadCache = new WeakMap<Db, Map<string, CachedPayload>>();
+
+/**
+ * The read model is identical until the connection writes. Rebuild only when
+ * `total_changes()` moves; the TTL refreshes clock-derived freshness fields.
+ */
 export function buildPayload(db: Db, characterId?: number): Payload {
+  let cache = payloadCache.get(db);
+  if (!cache) {
+    cache = new Map();
+    payloadCache.set(db, cache);
+  }
+  const key = characterId == null ? '*' : String(characterId);
+  const version = dataVersion(db);
+  const cached = cache.get(key);
+  if (cached && cached.version === version && Date.now() - cached.at < PAYLOAD_TTL_MS) {
+    return cached.payload;
+  }
+
+  const payload = buildPayloadUncached(db, characterId);
+  cache.delete(key);
+  cache.set(key, { version, at: Date.now(), payload });
+  if (cache.size > PAYLOAD_CACHE_LIMIT) {
+    const oldest = cache.keys().next().value;
+    if (oldest !== undefined) cache.delete(oldest);
+  }
+  return payload;
+}
+
+function buildPayloadUncached(db: Db, characterId?: number): Payload {
   const character = getCharacter(db, characterId);
   const sources = listSources(db);
   const sourceById = new Map(sources.map((source) => [source.id, source]));
   const latestPrice = latestPriceFetchedAt(db);
-  const currentCharacterUpdatedAt = getCharacter(db)?.updated_at ?? null;
 
   if (!character) {
     return {
@@ -318,27 +352,32 @@ export function buildPayload(db: Db, characterId?: number): Payload {
       inventory: inventoryRead(db, characterId),
       details: {},
       icons: {},
-      freshness: freshness(sources, latestPrice, currentCharacterUpdatedAt),
+      freshness: freshness(sources, latestPrice, null),
     } as Payload;
   }
 
   // Every gear row is one instance; the flat arrays are the table view over them.
-  const instances = listInventoryItems(db, character.id);
-  const placements = new Map(listPlacements(db, character.id).map((row) => [row.item_id, row]));
+  const snapshot = loadInventorySnapshot(db, character.id);
+  const instances = snapshot.rows;
+  const placements = snapshot.placements;
   const fills = containerFills(instances, [...placements.values()]);
-  const itemIds = [...new Set(instances.map((row) => row.item_id))];
-  const ctx: CatalogContext = {
-    items: itemsByIds(db, itemIds),
-    stats: statsByItemIds(db, itemIds),
-    icons: iconsByItemIds(db, itemIds),
-  };
-  const cards = loadItemCardContext(db, itemIds);
-  const containerOverrides = containerDataByItemIds(
-    db,
-    instances.filter((row) => row.kind === 'container').map((row) => row.id),
+
+  // One item/stat/icon/effect context serves details, both catalogs and every instance row.
+  const catalogItems = listItems(db);
+  const itemsById = new Map(catalogItems.map((item) => [item.id, item]));
+  const missingIds = [...new Set(instances.map((row) => row.item_id))].filter((id) => !itemsById.has(id));
+  if (missingIds.length) {
+    for (const [id, item] of itemsByIds(db, missingIds)) itemsById.set(id, item);
+  }
+  // Details and catalogs only need the four card kinds; other catalog rows cost a full stats read.
+  const instanceItemIds = new Set(instances.map((row) => row.item_id));
+  const allItems = [...itemsById.values()].filter(
+    (item) => CARD_KINDS[item.kind] === true || instanceItemIds.has(item.id),
   );
-  const catalogWeapons = buildCatalog(db, 'weapon');
-  const catalogArmor = buildCatalog(db, 'armor');
+  const ctx: CatalogContext = loadCatalogContext(db, allItems);
+  const cards = buildCardIndex(ctx);
+  const catalogWeapons = buildCatalogFrom(ctx, 'weapon', cards.byId);
+  const catalogArmor = buildCatalogFrom(ctx, 'armor', cards.byId);
   const stats = listCharacterStats(db, character.id);
   const meta = catalogMeta(sourceById, countItems(db));
 
@@ -348,24 +387,24 @@ export function buildPayload(db: Db, characterId?: number): Payload {
       region: character.region,
       statsFetched: newest(stats.map((stat) => stat.fetched_at)),
     },
-    character: characterPayload(db, character.id),
+    character: characterPayload(character, stats),
     weapons: instances.filter((row) => row.kind === 'weapon').map((row) => weaponPayload(ctx, row, placements)),
-    armor: instances.filter((row) => row.kind === 'armor').map((row) => armorPayload(ctx, cards, row, placements)),
+    armor: instances.filter((row) => row.kind === 'armor').map((row) => armorPayload(ctx, ctx, row, placements)),
     containers: instances
       .filter((row) => row.kind === 'container')
-      .map((row) => containerPayload(ctx, row, containerOverrides, fills, placements)),
+      .map((row) => containerPayload(ctx, row, snapshot.containers, fills, placements)),
     artifacts: instances
       .filter((row) => row.kind === 'artifact')
-      .map((row) => artifactPayload(ctx, cards.effects, row, placements)),
+      .map((row) => artifactPayload(ctx, ctx.effects, row, placements)),
     catalog: {
       weapons: catalogWeapons,
       armor: catalogArmor,
       meta,
     },
-    inventory: inventoryRead(db, character.id),
-    details: buildDetails(db),
-    icons: iconMap(db),
-    freshness: freshness(sources, latestPrice, currentCharacterUpdatedAt),
+    inventory: inventoryReadFrom(db, character.id, snapshot),
+    details: cards.details,
+    icons: iconMapFrom(allItems, ctx.icons),
+    freshness: freshness(sources, latestPrice, character.updated_at),
   } as Payload;
 }
 

@@ -1,29 +1,28 @@
 <script setup lang="ts">
-import type {
-  InventoryItemRead,
-  ModuleSlot,
-  PlacementTarget,
-  StorageRead,
-} from '@profile/shared/contracts';
+import type { InventoryItemRead, ModuleSlot, StorageRead } from '@profile/shared/contracts';
 
 import { ProfilePane } from '~/shared/ui';
-import { canDrop, effectiveSize, itemRects, type GridGhostPreview } from '../../model/grid';
 import type { DropTarget } from '../../model/drag';
+import { storageLabel } from '../../model/labels';
 import { useInventory } from '../../model/useInventory';
 import ContainerPanel from './ContainerPanel.vue';
+import WeightHud from './WeightHud.vue';
+import DragPreview from './DragPreview.vue';
 import EquipmentDoll from './EquipmentDoll.vue';
 import ItemDetailsPanel from './ItemDetailsPanel.vue';
 import ItemGrid from './ItemGrid.vue';
 import LoadoutPanel from './LoadoutPanel.vue';
-import LooseTray from './LooseTray.vue';
 import StorageManager from './StorageManager.vue';
 import WeaponPanel from './WeaponPanel.vue';
+import { provideGridDrag } from './drag-context';
 import { useGridDrag } from './useGridDrag';
 
 const { t } = useI18n();
+const toast = useToast();
 useHead(() => ({ title: `${t('inventory.title')} // ${t('common.appName')}` }));
 
 const inventory = useInventory();
+const { place: playPlace } = useUiSounds();
 
 /* ------------------------------------------------------------------ */
 /* Drag state shared by both grids, the paper-doll and the panels      */
@@ -31,19 +30,26 @@ const inventory = useInventory();
 
 const drag = useGridDrag({
   onDrop: (itemId, target) => dropItem(itemId, target),
-  storageAt: (storageId) => {
-    const storage = inventory.storages.value.find((entry) => entry.id === storageId);
-    return storage ? { width: storage.width, height: storage.height } : null;
-  },
-  homeStorageId: () => inventory.selectedStorage.value?.id ?? inventory.inventoryStorage.value?.id ?? null,
+  storageFor: (storageId) => inventory.storages.value.find((entry) => entry.id === storageId) ?? null,
+  onDropRejected: () =>
+    toast.add({
+      title: t('inventory.dropBlocked'),
+      color: 'warning',
+      icon: 'i-lucide-ban',
+    }),
+  homeStorageId: () => inventory.inventoryStorage.value?.id ?? null,
+  intakeStorageId: () => inventory.overflow.value?.id ?? null,
 });
 
+// The preview, the ghosts and the slot highlights read this context themselves, so a
+// pointer move repaints those components and not the whole screen.
+provideGridDrag(drag);
+
 async function dropItem(itemId: number, target: DropTarget): Promise<void> {
-  const placement: PlacementTarget =
-    target.location === 'loose'
-      ? { location: 'loose' }
-      : target;
-  await inventory.move(itemId, placement);
+  // The screen already shows the landing before the write settles; the thud belongs to
+  // that optimistic placement, and a server rejection still reverts the state with a toast.
+  playPlace();
+  await inventory.move(itemId, target);
 }
 
 function selectItem(item: InventoryItemRead): void {
@@ -56,36 +62,6 @@ function pickItem(item: InventoryItemRead, event: KeyboardEvent): void {
   // While something is picked the global key handler owns Enter/Space (drop or cancel).
   if (drag.picked.value) return;
   drag.start(item, event);
-}
-
-const activeEquipmentSlot = computed(() =>
-  drag.target.value?.location === 'equipment' ? drag.target.value.slot : null,
-);
-const activeContainerSlot = computed(() =>
-  drag.target.value?.location === 'container' ? drag.target.value.slot : null,
-);
-const activeModuleSlot = computed(() =>
-  drag.target.value?.location === 'weapon_module' ? drag.target.value.slot : null,
-);
-const looseActive = computed(() => drag.target.value?.location === 'loose');
-
-/** The dashed preview, valid only inside bounds and clear of every other item. */
-function ghostFor(storage: StorageRead): GridGhostPreview | null {
-  const picked = drag.picked.value;
-  const ghost = drag.ghost.value;
-  const target = drag.target.value;
-  if (!picked || !ghost || !target || target.location !== 'grid' || ghost.storageId !== storage.id) return null;
-
-  const size = effectiveSize(picked.size, drag.rotated.value);
-  const rect = { x: ghost.x, y: ghost.y, ...size };
-  const others = itemRects(
-    storage.items.flatMap((item) =>
-      item.id !== picked.id && item.placement.location === 'grid'
-        ? [{ size: item.size, placement: item.placement }]
-        : [],
-    ),
-  );
-  return { ...rect, valid: canDrop(rect, { width: storage.width, height: storage.height }, others) };
 }
 
 /* ------------------------------------------------------------------ */
@@ -152,11 +128,6 @@ async function updateSelected(patch: Record<string, unknown>): Promise<void> {
   if (item) await inventory.updateItem(item.id, patch);
 }
 
-async function moveSelectedLoose(): Promise<void> {
-  const item = selectedItem.value;
-  if (item) await inventory.move(item.id, { location: 'loose' });
-}
-
 async function removeSelected(): Promise<void> {
   const item = selectedItem.value;
   if (!item) return;
@@ -197,10 +168,12 @@ async function confirmUnverified(): Promise<void> {
 /* Stashes                                                             */
 /* ------------------------------------------------------------------ */
 
-const stashItems = computed(() =>
-  inventory.stashes.value.map((storage) => ({ label: storage.name, value: storage.id })),
+const storageOptions = computed(() =>
+  [inventory.overflow.value, ...inventory.stashes.value]
+    .filter((storage): storage is StorageRead => storage !== null)
+    .map((storage) => ({ label: storageLabel(storage, t), value: storage.id })),
 );
-const stashId = computed<number | undefined>({
+const storageId = computed<number | undefined>({
   get: () => inventory.selectedStorage.value?.id,
   set: (value) => inventory.selectStorage(value ?? null),
 });
@@ -216,8 +189,8 @@ async function updateStash(
   await inventory.updateStorage(id, patch);
 }
 
-async function removeStash(id: number, moveToStorageId: number | null): Promise<void> {
-  const result = await inventory.deleteStorage(id, moveToStorageId);
+async function removeStash(id: number): Promise<void> {
+  const result = await inventory.deleteStorage(id);
   if (result) inventory.selectStorage(null);
 }
 
@@ -227,7 +200,7 @@ function selectStash(id: number): void {
 
 async function arrange(): Promise<void> {
   const storage = inventory.selectedStorage.value;
-  if (storage) await inventory.autoArrange(storage.id);
+  if (storage?.kind === 'stash') await inventory.autoArrange(storage.id);
 }
 
 /** Container names for the loadout panel; every container can live in equipment, a grid or the tray. */
@@ -240,6 +213,7 @@ const containerNames = computed<Record<number, string>>(() => {
 
 <template>
   <section class="space-y-3">
+    <DragPreview />
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
         <h1>{{ t('inventory.title') }}</h1>
@@ -262,14 +236,13 @@ const containerNames = computed<Record<number, string>>(() => {
     </UEmpty>
 
     <template v-else>
-      <div class="grid gap-3 xl:grid-cols-[minmax(250px,300px)_minmax(0,1fr)_minmax(270px,340px)]">
-        <div class="space-y-3">
+      <div class="grid items-start gap-3 xl:grid-cols-2">
+        <div class="min-w-0 space-y-3">
           <ProfilePane :title="t('inventory.equipment')">
             <EquipmentDoll
               :equipment="inventory.equipment.value"
-              :active-slot="activeEquipmentSlot"
+              :attach-tile="drag.attachTile"
               @select="selectItem"
-              @press="drag.pressItem($event.item, $event.event)"
               @pick="pickItem"
             />
           </ProfilePane>
@@ -288,11 +261,6 @@ const containerNames = computed<Record<number, string>>(() => {
             <ContainerPanel
               :container="openContainerItem"
               :candidates="artifactCandidates"
-              :active-slot="
-                drag.target.value?.location === 'container' && drag.target.value.containerItemId === openContainerItem.id
-                  ? activeContainerSlot
-                  : null
-              "
               :busy="inventory.busy.value"
               @fill="applyFill"
               @close="containerOpen = false"
@@ -313,11 +281,6 @@ const containerNames = computed<Record<number, string>>(() => {
             <WeaponPanel
               :weapon="openWeaponItem"
               :attachments="attachmentCandidates"
-              :active-slot="
-                drag.target.value?.location === 'weapon_module' && drag.target.value.weaponItemId === openWeaponItem.id
-                  ? activeModuleSlot
-                  : null
-              "
               :busy="inventory.busy.value"
               @install="installModule"
               @close="weaponOpen = false"
@@ -329,98 +292,106 @@ const containerNames = computed<Record<number, string>>(() => {
           </ProfilePane>
         </div>
 
-        <ProfilePane flush :title="inventory.inventoryStorage.value.name" :hint="t('inventory.grid')">
-          <WeightHud :stats="inventory.stats.value" />
-          <div class="flex justify-center overflow-auto p-2.5">
+        <ProfilePane
+          flush
+          :title="storageLabel(inventory.inventoryStorage.value, t)"
+          :hint="t('inventory.grid')"
+        >
+          <div class="p-2.5">
             <ItemGrid
               :storage="inventory.inventoryStorage.value"
               :selected-id="selectedId"
-              :ghost="ghostFor(inventory.inventoryStorage.value)"
+              :picked-id="drag.picked.value?.id ?? null"
+              :attach-tile="drag.attachTile"
               @select="selectItem"
-              @press="drag.pressItem($event.item, $event.event)"
               @pick="pickItem"
             />
           </div>
+          <WeightHud :stats="inventory.stats.value" edge="top" />
         </ProfilePane>
-
-        <div class="min-w-0">
-          <ProfilePane flush :title="t('inventory.stash')">
-            <template #actions>
-              <USelect
-                v-if="stashItems.length"
-                v-model="stashId"
-                :items="stashItems"
-                size="xs"
-                class="w-32"
-                :aria-label="t('inventory.stashSelector')"
-              />
-              <UButton
-                icon="i-lucide-settings-2"
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                :aria-label="t('inventory.manageStashes')"
-                :title="t('inventory.manageStashes')"
-                @click="storageOpen = true"
-              />
-            </template>
-
-            <template v-if="inventory.selectedStorage.value">
-              <WeightHud :stats="inventory.stats.value" :storage="inventory.selectedStorage.value" />
-              <div class="flex justify-center overflow-auto p-2.5">
-                <ItemGrid
-                  :storage="inventory.selectedStorage.value"
-                  :selected-id="selectedId"
-                  :ghost="ghostFor(inventory.selectedStorage.value)"
-                  @select="selectItem"
-                  @press="drag.pressItem($event.item, $event.event)"
-                  @pick="pickItem"
-                />
-              </div>
-            </template>
-            <div v-else class="space-y-2 p-3">
-              <p class="text-[12px] text-[var(--sz-text-dim)]">{{ t('inventory.noStash') }}</p>
-              <UButton
-                size="xs"
-                icon="i-lucide-plus"
-                :label="t('inventory.createStash')"
-                @click="storageOpen = true"
-              />
-            </div>
-          </ProfilePane>
-        </div>
       </div>
 
-      <ProfilePane :title="t('inventory.loose')" dense>
-        <LooseTray
-          :items="inventory.loose.value"
-          :target-name="inventory.selectedStorage.value?.name ?? null"
-          :busy="inventory.busy.value"
-          :active="looseActive"
-          @select="selectItem"
-          @press="drag.pressItem($event.item, $event.event)"
-          @pick="pickItem"
-          @arrange="arrange"
-        />
+      <ProfilePane
+        flush
+        :title="inventory.selectedStorage.value ? storageLabel(inventory.selectedStorage.value, t) : t('inventory.stash')"
+      >
+        <template #actions>
+          <USelect
+            v-if="storageOptions.length"
+            v-model="storageId"
+            :items="storageOptions"
+            size="xs"
+            class="w-40"
+            :aria-label="t('inventory.stashSelector')"
+          />
+          <UButton
+            v-if="inventory.selectedStorage.value?.kind === 'stash'"
+            icon="i-lucide-align-start-vertical"
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            :aria-label="t('inventory.autoArrange')"
+            :title="t('inventory.autoArrange')"
+            :disabled="!inventory.selectedStorage.value?.items.length || inventory.busy.value"
+            @click="arrange"
+          />
+          <UButton
+            icon="i-lucide-settings-2"
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            :aria-label="t('inventory.manageStashes')"
+            :title="t('inventory.manageStashes')"
+            @click="storageOpen = true"
+          />
+        </template>
+
+        <template v-if="inventory.selectedStorage.value">
+          <div
+            v-if="!inventory.stashes.value.length"
+            class="flex items-center justify-between gap-2 px-3 pt-2"
+          >
+            <p class="text-[11px] text-[var(--sz-text-dim)]">{{ t('inventory.noStash') }}</p>
+            <UButton
+              size="xs"
+              icon="i-lucide-plus"
+              :label="t('inventory.createStash')"
+              @click="storageOpen = true"
+            />
+          </div>
+          <p
+            v-if="inventory.selectedStorage.value.kind === 'overflow'"
+            class="px-3 pt-2 text-[11px] text-[var(--sz-text-muted)]"
+          >
+            {{ t('inventory.overflowHint') }}
+          </p>
+          <WeightHud :storage="inventory.selectedStorage.value" />
+          <div class="p-2.5">
+            <ItemGrid
+              :storage="inventory.selectedStorage.value"
+              :selected-id="selectedId"
+              :picked-id="drag.picked.value?.id ?? null"
+              :drop-enabled="inventory.selectedStorage.value.kind !== 'overflow'"
+              :empty-text="
+                inventory.selectedStorage.value.kind === 'overflow' ? t('inventory.overflowEmpty') : undefined
+              "
+              :attach-tile="drag.attachTile"
+              @select="selectItem"
+              @pick="pickItem"
+            />
+          </div>
+        </template>
+        <div v-else class="space-y-2 p-3">
+          <p class="text-[12px] text-[var(--sz-text-dim)]">{{ t('inventory.noStash') }}</p>
+          <UButton
+            size="xs"
+            icon="i-lucide-plus"
+            :label="t('inventory.createStash')"
+            @click="storageOpen = true"
+          />
+        </div>
       </ProfilePane>
     </template>
-
-    <Teleport to="body">
-      <div
-        v-if="drag.picked.value && drag.pointer.value"
-        class="pointer-events-none fixed z-[100] flex max-w-[140px] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-0.5 border border-[var(--sz-accent)] bg-ink-950/95 px-2 py-1 text-center shadow-lg"
-        :style="{ left: `${drag.pointer.value.x}px`, top: `${drag.pointer.value.y}px` }"
-      >
-        <img
-          v-if="drag.picked.value.icon"
-          :src="drag.picked.value.icon"
-          :alt="drag.picked.value.name"
-          class="max-h-10 max-w-16 object-contain"
-        >
-        <UIcon v-else name="i-lucide-package" class="size-6 text-[var(--sz-text-dim)]" />
-        <span class="line-clamp-2 text-[10px] leading-tight">{{ drag.picked.value.name }}</span>
-      </div>
-    </Teleport>
 
     <UModal v-model:open="detailsOpen" :title="t('inventory.itemDetails')">
       <template #body>
@@ -429,7 +400,6 @@ const containerNames = computed<Record<number, string>>(() => {
           :item="selectedItem"
           :busy="inventory.busy.value"
           @update="updateSelected"
-          @move-loose="moveSelectedLoose"
           @remove="removeSelected"
           @open-container="openContainer(selectedItem.id)"
           @open-weapon="openWeapon(selectedItem.id)"

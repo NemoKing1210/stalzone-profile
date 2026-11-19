@@ -10,6 +10,22 @@ import {
   resolveWeight,
 } from '@profile/core/modules/inventory/layout';
 
+describe('packItems rotation bounds', () => {
+  it('tries a rotated placement below the unrotated height bound', () => {
+    const occupied = [
+      { x: 0, y: 0, width: 2, height: 4 },
+      { x: 2, y: 0, width: 6, height: 6 },
+    ];
+    const { placed, unplaced } = packItems(
+      { width: 8, height: 8 },
+      [{ id: 1, size: { width: 2, height: 5 } }],
+      occupied,
+    );
+    expect(unplaced).toEqual([]);
+    expect(placed).toEqual([{ id: 1, x: 0, y: 6, rotated: true }]);
+  });
+});
+
 describe('inventory layout', () => {
   it('uses category sizes and lets an override win', () => {
     expect(defaultSize('weapon', 'weapon/assault_rifle')).toEqual({ width: 5, height: 2 });

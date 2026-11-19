@@ -100,8 +100,9 @@ describe('createSetupCharacter', () => {
 
     const inventory = inventoryRead(db, character!.id);
     expect(inventory.storages.map((storage) => [storage.kind, storage.name, storage.width, storage.height])).toEqual([
-      ['inventory', 'Inventory', 8, 8],
-      ['stash', 'Stash', 8, 12],
+      ['inventory', 'Inventory', 8, 20],
+      ['overflow', 'Intake', 40, 80],
+      ['stash', 'Stash', 40, 80],
     ]);
   });
 

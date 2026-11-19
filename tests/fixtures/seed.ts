@@ -118,11 +118,14 @@ export function seedCatalog(db: Db): void {
 
     const existingInventory = seed.getInventoryStorage(db, characterId);
     if (!existingInventory) {
-      seed.insertStorage(db, { characterId, kind: 'inventory', name: 'Inventory', width: 8, height: 8 });
+      seed.insertStorage(db, { characterId, kind: 'inventory', name: 'Inventory', width: 8, height: 20 });
     }
-    const hasStash = seed.listStorages(db, characterId).some((storage) => storage.kind === 'stash');
-    if (!hasStash) {
-      seed.insertStorage(db, { characterId, kind: 'stash', name: 'Stash', width: 8, height: 12, sortOrder: 0 });
+    const storageKinds = new Set(seed.listStorages(db, characterId).map((storage) => storage.kind));
+    if (!storageKinds.has('stash')) {
+      seed.insertStorage(db, { characterId, kind: 'stash', name: 'Stash', width: 40, height: 80, sortOrder: 0 });
+    }
+    if (!storageKinds.has('overflow')) {
+      seed.insertStorage(db, { characterId, kind: 'overflow', name: 'Intake', width: 40, height: 80, sortOrder: 0 });
     }
 
     const instanceIds = new Map<string, number>();

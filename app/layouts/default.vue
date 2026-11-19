@@ -24,7 +24,10 @@ const navItems = computed(() =>
 );
 
 const route = useRoute();
-const { meta } = useProfile();
+const { meta, payload } = useProfile();
+const { fmtMoney } = useFormat();
+/** `null` means the profile has no character or the money is unknown; the header shows nothing. */
+const money = computed(() => payload.value?.character?.money ?? null);
 const loggingOut = ref(false);
 
 async function logout(): Promise<void> {
@@ -45,15 +48,17 @@ async function logout(): Promise<void> {
   <div class="sz-atmosphere flex min-h-screen flex-col text-[var(--sz-text)]">
     <header class="sticky top-0 z-40 border-b border-[var(--sz-border)] bg-ink-950">
       <div
-        class="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-4 px-4 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,max-content)_minmax(0,1fr)]"
+        class="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-4 px-4 sm:px-6 min-[1360px]:grid min-[1360px]:grid-cols-[minmax(0,1fr)_minmax(0,max-content)_auto]"
       >
-        <NuxtLink to="/" class="flex h-12 shrink-0 items-center gap-1.5 lg:justify-self-start">
+        <NuxtLink to="/" class="flex h-12 shrink-0 items-center gap-1.5 min-[1360px]:justify-self-start">
           <span class="font-brand text-[17px] leading-none tracking-[0.12em]">{{ t('common.brandLeft') }}</span>
           <span class="hidden text-[17px] leading-none text-[var(--sz-accent)] sm:inline">//</span>
           <span class="hidden font-brand text-[17px] leading-none tracking-[0.12em] sm:inline">{{ t('common.brandRight') }}</span>
         </NuxtLink>
 
-        <div class="sz-nav order-3 w-full min-w-0 overflow-x-auto lg:order-none lg:w-auto lg:justify-self-center">
+        <div
+          class="sz-nav order-3 w-full min-w-0 overflow-x-auto min-[1360px]:order-none min-[1360px]:w-auto min-[1360px]:justify-self-center"
+        >
           <UNavigationMenu
             :items="navItems"
             orientation="horizontal"
@@ -67,7 +72,16 @@ async function logout(): Promise<void> {
           />
         </div>
 
-        <div class="ml-auto flex items-center gap-1 lg:ml-0 lg:justify-self-end">
+        <div class="ml-auto flex items-center gap-1 min-[1360px]:ml-0 min-[1360px]:justify-self-end">
+          <span
+            v-if="money != null"
+            class="inline-flex items-center gap-1 whitespace-nowrap px-1 text-[12px] tabular-nums text-[var(--sz-money)]"
+            :title="t('overview.stats.money')"
+          >
+            <span class="sr-only">{{ t('overview.stats.money') }}</span>
+            <UIcon name="i-lucide-wallet" class="size-3.5" aria-hidden="true" />
+            {{ fmtMoney(money) }}
+          </span>
           <FreshnessBadge
             :data-updated="meta?.freshness?.dataUpdated"
             :prices-age-min="meta?.freshness?.pricesAgeMin"

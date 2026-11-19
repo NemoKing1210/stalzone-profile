@@ -10,6 +10,7 @@ import {
   getInventoryItem,
   getInventoryStorage,
   getItemLayout,
+  getOverflowStorage,
   getPlacement,
   getStorage,
   insertInventoryItem,
@@ -211,5 +212,14 @@ describe('inventory repository', () => {
     expect(listInventoryItems(db, characterId, { kind: 'weapon' }).map((row) => row.id)).toEqual([rifle]);
     expect(listInventoryItems(db, characterId, { location: 'grid' }).map((row) => row.id)).toEqual([rifle]);
     expect(listInventoryItems(db, characterId, { storageId }).map((row) => row.id)).toEqual([rifle]);
+  });
+
+  it('reads the intake storage and orders inventory, intake, then stashes', () => {
+    const other = seed.upsertCharacter(db, { nick: 'intake-repo', region: 'ru' });
+    const inventory = insertStorage(db, { characterId: other, kind: 'inventory', name: 'Inventory', width: 8, height: 20 });
+    const overflow = insertStorage(db, { characterId: other, kind: 'overflow', name: 'Intake', width: 40, height: 80 });
+    const stash = insertStorage(db, { characterId: other, kind: 'stash', name: 'Main', width: 40, height: 80 });
+    expect(getOverflowStorage(db, other)?.id).toBe(overflow);
+    expect(listStorages(db, other).map((row) => row.id)).toEqual([inventory, overflow, stash]);
   });
 });

@@ -25,9 +25,9 @@ only through new migrations in `db/migrations/`.
 |---|---|
 | `character` | identity: nick, region, faction, alliance, clan, money |
 | `character_stat` | raw counters per character and stat, with origin `api` or `manual` |
-| `storage` | the character's own grid: exactly one 8×8 `inventory` plus any number of `stash` storages (default 8×12), each with a unique normalized name |
+| `storage` | the character's own grids: exactly one 8×20 `inventory`, exactly one 40×80 `overflow` (the intake stash) and any number of 40×80 `stash` rows, each with a unique normalized name per kind |
 | `inventory_item` | one row per gear instance (weapon, armor, container, artifact, attachment, ammo, other) with level, quality, rarity, skin, note and display name; `qty > 1` only for `ammo`/`other` |
-| `item_placement` | where an instance is: `grid` (storage, x, y, rotated), `equipment` (slot), `container` (container instance, slot), `weapon_module` (weapon instance, module slot) or `loose`; one row per instance |
+| `item_placement` | where an instance is: `grid` (storage, x, y, rotated), `equipment` (slot), `container` (container instance, slot) or `weapon_module` (weapon instance, module slot); one row per instance. `loose` survives only as a legacy/transient value: it is never a write target, `0008` converts stored rows, and the read model reports any unplaced instance as `loose` |
 | `container_data` | per-container override of type, shield, bonus, protection, slots, efficiency |
 | `attachment_compat` | EXBO/manual attachment ↔ weapon compatibility pairs |
 | `item_layout` | optional catalog-wide grid override: width, height, weight for an `item` |
@@ -57,6 +57,10 @@ references tables that no longer exist, so `rollbackEvent` answers
 `EVENT_NOT_ROLLBACKABLE` for the legacy actions (`owned.*`, `container.fill`,
 `profile.clear`, `dossier.clear`) instead of failing halfway. `0007_logging.sql` adds the
 three STRICT diagnostic tables and seeds the single `log_setting` row.
+`0008_overflow_storage.sql` adds the `overflow` storage kind, resizes the inventory to
+8×20, raises stashes still on the old 8×12 default to 40×80, inserts one `Intake` row per
+character and converts every stored `loose` placement into a deterministic intake grid
+cell (one column, cumulative heights) so no origin collides.
 
 ## Source authority
 
@@ -94,9 +98,19 @@ owns itself.
 - `inventory_item` holds one row per owned thing; only `ammo` and `other` may carry `qty > 1`.
   A weapon, armor, container, artifact or attachment is never collapsed into another row,
   because each carries its own modules, fill, level, quality or placement.
-- `storage` has exactly one `inventory` row per character (partial unique index) and unique
-  `(character_id, kind, name_norm)` names for stashes. The default inventory is 8×8, the
-  default stash 8×12; both are recreated by onboarding and by an inventory clear.
+- `storage` has exactly one `inventory` row and exactly one `overflow` row per character
+  (partial unique indices) and unique `(character_id, kind, name_norm)` names for stashes.
+  The inventory is 8×20; a stash is 40×80 by default. Onboarding and an inventory clear
+  recreate the inventory and the intake row, and the setup wizard creates both in its
+  character transaction. The intake stash is structural: public writes cannot create,
+  rename, resize or delete it, items cannot be moved into it (`422 INVALID_PLACEMENT`), and
+  a catalog layout change is refused while an instance sits in it (`409 LAYOUT_CONFLICT`).
+  Its read height is `max(height, lowest occupied row)` so it grows without a write; its
+  rows carry no carried weight.
+- Deleting a stash, removing an instance that has children, and a container fill or module
+  replacement that displaces an item all pack the orphaned instances into intake with the
+  same first-fit used by auto-arrange. Auto-arrange is the reverse: it packs intake items
+  into a regular stash.
 - `item_placement`: exactly one row per instance. Partial unique indices make two instances
   unable to share a grid cell origin, an equipment slot, a container slot or a weapon module
   slot; a trigger rejects a placement whose `character_id` differs from its instance's.
@@ -113,7 +127,11 @@ owns itself.
   success, while manual rows are never touched. Playtime arrives as seconds or an
   ISO-8601 duration and is stored as hours.
 - `price_latest` is computed, not stored: `ROW_NUMBER()` over
-  `(name_norm, quality_norm, bonus)`, newest by `(fetched_at, id)`.
+  `(name_norm, quality_norm, bonus)`, newest by `(fetched_at, id)`. Only the current quote
+  per key is kept: each prices sync prunes older rows for the same key, so the table does
+  not grow with the sync schedule. The read model never used the history.
+- Reference data is not part of a reset; price pruning is maintenance of the current quote,
+  not a user-visible deletion of profile state.
 - `event_log.before/after` are the rollback contract; the format may change only in a
   backward-compatible way, with a rollback test.
 
@@ -151,7 +169,9 @@ Each writes one `event_log` row and stores what it removed in `before`:
   8×8 inventory storage; its `before` snapshot holds the raw rows, so rollback restores the
   exact previous state, including the old storage ids.
 - `journal.clear` snapshots every event row with its id and raw `before`/`after` strings;
-  rollback replaces the journal with that snapshot.
+  rollback replaces the journal with that snapshot. A snapshot over 20,000 rows or 32 MiB
+  is refused with `413 JOURNAL_TOO_LARGE` before it is allocated, so the operation cannot
+  exhaust memory; the journal is left untouched.
 - `reset.all` stores both snapshots, so even a full reset can be undone.
 - Reference data (`item`, `price_quote`, `icon`, `source`, `sync_schedule`) is never part
   of a reset. A `character` or `all` reset leaves the database without a character, the

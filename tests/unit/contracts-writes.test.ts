@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   CharacterCreateSchema,
+  CreateStorageInputSchema,
+  DeleteStorageSchema,
   InventoryItemCreateSchema,
+  McpPlacementTargetSchema,
+  PlacementTargetSchema,
   StorageCreateSchema,
   SyncSourceSchema,
   WeaponModuleWriteSchema,
@@ -33,5 +37,14 @@ describe('write contracts', () => {
     expect(WeaponModuleWriteSchema.parse({ attachmentItemId: 3 }).allowUnverified).toBe(false);
     expect(WeaponModuleWriteSchema.parse({ attachmentItemId: null, dryRun: true }).attachmentItemId).toBeNull();
     expect(WeaponModuleWriteSchema.parse({ attachmentItemId: 3, allowUnverified: true }).allowUnverified).toBe(true);
+  });
+  it('keeps overflow out of the public create contracts', () => {
+    expect(StorageCreateSchema.safeParse({ name: 'X', width: 40, height: 80, kind: 'overflow' }).success).toBe(false);
+    expect(CreateStorageInputSchema.safeParse({ name: 'X', kind: 'overflow' }).success).toBe(false);
+  });
+  it('closes the loose write target', () => {
+    expect(PlacementTargetSchema.safeParse({ location: 'loose' }).success).toBe(false);
+    expect(McpPlacementTargetSchema.safeParse({ location: 'loose' }).success).toBe(false);
+    expect('moveToStorageId' in DeleteStorageSchema.parse({})).toBe(false);
   });
 });

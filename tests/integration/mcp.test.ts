@@ -139,16 +139,18 @@ describe('MCP registry', () => {
 });
 
 describe('MCP inventory reads and moves', () => {
-  it('returns storages, equipment and the loose tray', async () => {
+  it('returns storages, equipment and the intake tray', async () => {
     const inventory = await localClient(db).getInventory();
-    expect(inventory.storages.map((storage) => storage.kind)).toEqual(['inventory', 'stash']);
+    expect(inventory.storages.map((storage) => storage.kind)).toEqual(['inventory', 'overflow', 'stash']);
     expect(inventory.equipment.primary?.name).toBe('АК-12');
     expect(inventory.equipment.container?.artifacts?.[0]?.name).toBe('Нервяк');
-    expect(inventory.loose.map((item) => item.name)).toContain('ПП-19');
+    const intake = inventory.storages.find((storage) => storage.kind === 'overflow');
+    expect(intake?.items.map((item) => item.name)).toContain('ПП-19');
+    expect(inventory.loose.map((item) => item.name)).not.toContain('ПП-19');
     expect(inventory.stats.carry.total.value).toBeGreaterThan(0);
   });
 
-  it('moves a loose item onto a storage grid and rolls it back', async () => {
+  it('moves an intake item onto a storage grid and refuses a move back', async () => {
     const local = localClient(db);
     const result = await local.moveInventoryItem(seeded.instanceIds.smg!, {
       target: { location: 'grid', storageId: seeded.storageIds.inventory, x: 0, y: 0, rotated: false },
@@ -160,12 +162,14 @@ describe('MCP inventory reads and moves', () => {
     const moved = (await local.listInventoryItems()).find((item) => item.id === seeded.instanceIds.smg);
     expect(moved?.placement).toMatchObject({ location: 'grid', storageId: seeded.storageIds.inventory });
 
-    await local.moveInventoryItem(seeded.instanceIds.smg!, {
-      target: { location: 'loose' },
-      dryRun: false,
-    });
+    await expect(
+      local.moveInventoryItem(seeded.instanceIds.smg!, {
+        target: { location: 'grid', storageId: seeded.storageIds.overflow, x: 0, y: 0, rotated: false },
+        dryRun: false,
+      }),
+    ).rejects.toMatchObject({ code: 'INVALID_PLACEMENT' });
     const restored = (await local.listInventoryItems()).find((item) => item.id === seeded.instanceIds.smg);
-    expect(restored?.placement).toEqual({ location: 'loose' });
+    expect(restored?.placement).toMatchObject({ location: 'grid', storageId: seeded.storageIds.inventory });
   });
 
   it('includes nested artifacts and modules in the flat inventory list', async () => {

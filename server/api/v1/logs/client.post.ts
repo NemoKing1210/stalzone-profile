@@ -5,6 +5,7 @@ import { isClientBatchTooLarge } from '../../../utils/client-log';
 import { useDb } from '../../../utils/db';
 import { apiError, validationError } from '../../../utils/errors';
 import { fixedWindowLimiter } from '../../../utils/log-limit';
+import { readJsonBodyResult } from '../../../utils/read-body';
 
 const limiter = fixedWindowLimiter(120, 60_000);
 
@@ -12,7 +13,9 @@ export default defineEventHandler(async (event) => {
   const originError = requireOrigin(event);
   if (originError) return originError;
 
-  const body = await readBody(event).catch(() => null);
+  const read = await readJsonBodyResult(event, CLIENT_LOG_BATCH_MAX_BYTES);
+  if (read.error) return read.error;
+  const body = read.body;
   const parsed = ClientLogBatchSchema.safeParse(body);
   if (!parsed.success) return validationError(event, parsed.error);
   if (isClientBatchTooLarge(body)) {

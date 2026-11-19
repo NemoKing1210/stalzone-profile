@@ -14,7 +14,34 @@ import type { Db } from '../../../platform/db/index.js';
 import { resolveWeight } from '../layout/index.js';
 import * as repo from '../repo/index.js';
 
-type PlacementMap = Map<number, repo.PlacementRow | null>;
+type PlacementMap = ReadonlyMap<number, repo.PlacementRow | undefined>;
+
+/** Everything the inventory read model and the loadout calculation share for one character. */
+export interface InventorySnapshot {
+  rows: repo.InventoryItemJoined[];
+  placements: Map<number, repo.PlacementRow>;
+  storages: repo.StorageRow[];
+  layouts: Map<number, repo.ItemLayoutRow>;
+  stats: Map<number, ItemStatRow[]>;
+  containers: Map<number, repo.ContainerDataRow>;
+}
+
+/** Loads the six inventory tables once; every read over the same character reuses it. */
+export function loadInventorySnapshot(db: Db, characterId: number): InventorySnapshot {
+  const rows = repo.listInventoryItems(db, characterId);
+  const itemIds = [...new Set(rows.map((row) => row.item_id))];
+  return {
+    rows,
+    placements: new Map(repo.listPlacements(db, characterId).map((row) => [row.item_id, row])),
+    storages: repo.listStorages(db, characterId),
+    layouts: repo.itemLayoutsByItemIds(db, itemIds),
+    stats: statsByItemIds(db, itemIds),
+    containers: repo.containerDataByItemIds(
+      db,
+      rows.filter((row) => row.kind === 'container').map((row) => row.id),
+    ),
+  };
+}
 
 function unitWeight(row: repo.InventoryItemJoined, layouts: Map<number, repo.ItemLayoutRow>): number | null {
   const layout = layouts.get(row.item_id) ?? null;
@@ -69,19 +96,18 @@ function artifactInput(
  * weights, equipped armor/containers and their artifact children. Weights follow the
  * placement tree so a container's contents are counted exactly once.
  */
-export function gatherLoadout(db: Db, characterId: number): LoadoutInput {
-  const rows = repo.listInventoryItems(db, characterId);
-  const storages = new Map(repo.listStorages(db, characterId).map((storage) => [storage.id, storage]));
-  const placements: PlacementMap = new Map(
-    repo.listPlacements(db, characterId).map((row) => [row.item_id, row]),
-  );
-  const itemIds = [...new Set(rows.map((row) => row.item_id))];
-  const layouts = repo.itemLayoutsByItemIds(db, itemIds);
-  const statsById = statsByItemIds(db, itemIds);
-  const overrides = repo.containerDataByItemIds(
-    db,
-    rows.filter((row) => row.kind === 'container').map((row) => row.id),
-  );
+export function gatherLoadout(
+  db: Db,
+  characterId: number,
+  snapshot?: InventorySnapshot,
+): LoadoutInput {
+  const snap = snapshot ?? loadInventorySnapshot(db, characterId);
+  const rows = snap.rows;
+  const storages = new Map(snap.storages.map((storage) => [storage.id, storage]));
+  const placements: PlacementMap = snap.placements;
+  const layouts = snap.layouts;
+  const statsById = snap.stats;
+  const overrides = snap.containers;
 
   const stashMemo = new Map<number, boolean>();
   const inStash = (itemId: number, visiting = new Set<number>()): boolean => {
@@ -92,7 +118,9 @@ export function gatherLoadout(db: Db, characterId: number): LoadoutInput {
     const placement = placements.get(itemId);
     let result = false;
     if (placement?.location === 'grid') {
-      result = placement.storage_id != null && storages.get(placement.storage_id)?.kind === 'stash';
+      result =
+        placement.storage_id != null &&
+        ['stash', 'overflow'].includes(storages.get(placement.storage_id)?.kind ?? '');
     } else if (placement?.location === 'container' && placement.container_item_id != null) {
       result = inStash(placement.container_item_id, visiting);
     } else if (placement?.location === 'weapon_module' && placement.weapon_item_id != null) {

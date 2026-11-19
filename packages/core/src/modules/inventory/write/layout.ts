@@ -26,6 +26,7 @@ export function setItemLayout(
 
   const nextSize: Size = { width: input.width, height: input.height };
   const conflicts: number[] = [];
+  let intake = false;
   const character = getCharacter(db);
   if (character) {
     const instances = repo.listInventoryItems(db, character.id).filter((row) => row.item_id === itemId);
@@ -41,6 +42,11 @@ export function setItemLayout(
       }
       const storage = repo.getStorage(db, placement.storage_id);
       if (!storage) continue;
+      if (storage.kind === 'overflow') {
+        conflicts.push(instance.id);
+        intake = true;
+        continue;
+      }
       const rect = itemRect(placement.x, placement.y, nextSize, placement.rotated === 1);
       if (!fits({ width: storage.width, height: storage.height }, rect)) {
         conflicts.push(instance.id);
@@ -60,6 +66,7 @@ export function setItemLayout(
   if (conflicts.length) {
     throw new WriteError(409, 'LAYOUT_CONFLICT', 'The new size breaks placed items', {
       itemIds: [...new Set(conflicts)],
+      reason: intake ? 'intake' : 'size',
     });
   }
 

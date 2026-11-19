@@ -1,4 +1,4 @@
-import type { H3Event } from 'h3';
+import { setResponseStatus, type H3Event } from 'h3';
 import type { ZodError } from 'zod';
 
 export interface ApiErrorBody {

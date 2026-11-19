@@ -30,6 +30,7 @@ export interface ArmorRow extends InstanceRow, InstanceLocationRow {
 const EMPTY_LOCATION: Omit<InstanceLocationRow, 'location'> = {
   storageId: null,
   storageName: null,
+  storageKind: null,
   parentName: null,
   equipmentSlot: null,
   moduleSlot: null,

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { InventoryItemRead, StorageRead } from '@profile/shared/contracts';
 
-import { effectiveSize, type GridGhostPreview } from '../../model/grid';
+import { effectiveSize } from '../../model/grid';
+import GridGhost from './GridGhost.vue';
 import ItemTile from './ItemTile.vue';
 
 const props = withDefaults(
@@ -9,14 +10,23 @@ const props = withDefaults(
     storage: StorageRead | null;
     selectedId?: number | null;
     emptyText?: string;
-    ghost?: GridGhostPreview | null;
+    /** Intake is read-only: no drop target and no ghost. */
+    dropEnabled?: boolean;
+    pickedId?: number | null;
+    /** Registers each tile with the shared drag layer. */
+    attachTile?: (el: HTMLElement | null, item: InventoryItemRead | null) => void;
   }>(),
-  { selectedId: null, emptyText: undefined, ghost: null },
+  {
+    selectedId: null,
+    emptyText: undefined,
+    dropEnabled: true,
+    pickedId: null,
+    attachTile: undefined,
+  },
 );
 
 defineEmits<{
   select: [item: InventoryItemRead];
-  press: [payload: { item: InventoryItemRead; event: PointerEvent }];
   pick: [item: InventoryItemRead, event: KeyboardEvent];
 }>();
 
@@ -28,19 +38,28 @@ const placed = computed(() =>
   (props.storage?.items ?? []).filter((item) => item.placement.location === 'grid'),
 );
 
+/** Cells divide the block evenly; the aspect ratio keeps them square, whatever the width. */
 const box = computed(() => ({
-  '--sz-cell': 'clamp(28px, 4.2vw, 56px)',
-  width: `calc(var(--sz-cell) * ${columns.value})`,
-  height: `calc(var(--sz-cell) * ${rows.value})`,
+  width: '100%',
+  aspectRatio: `${columns.value} / ${rows.value}`,
   backgroundImage:
     'linear-gradient(to right, var(--sz-border) 1px, transparent 1px), linear-gradient(to bottom, var(--sz-border) 1px, transparent 1px)',
   backgroundSize: `calc(100% / ${columns.value}) calc(100% / ${rows.value})`,
 }));
 
+/** Style objects are reused per geometry, so an unchanged tile keeps its prop identity. */
+const styleCache = new Map<string, Record<string, string>>();
+
 function styleFor(item: InventoryItemRead): Record<string, string> {
   const placement = item.placement;
   if (placement.location !== 'grid') return {};
-  return cells(placement.x, placement.y, effectiveSize(item.size, placement.rotated));
+  const size = effectiveSize(item.size, placement.rotated);
+  const key = `${placement.x}:${placement.y}:${size.width}:${size.height}:${columns.value}:${rows.value}`;
+  const cached = styleCache.get(key);
+  if (cached) return cached;
+  const style = cells(placement.x, placement.y, size);
+  styleCache.set(key, style);
+  return style;
 }
 
 function cells(x: number, y: number, size: { width: number; height: number }): Record<string, string> {
@@ -52,7 +71,6 @@ function cells(x: number, y: number, size: { width: number; height: number }): R
   };
 }
 
-const ghostStyle = computed(() => (props.ghost ? cells(props.ghost.x, props.ghost.y, props.ghost) : null));
 </script>
 
 <template>
@@ -60,24 +78,20 @@ const ghostStyle = computed(() => (props.ghost ? cells(props.ghost.x, props.ghos
     <div
       class="relative border border-[var(--sz-border-strong)] bg-ink-950"
       :style="box"
-      :data-drop="props.storage ? `grid:${props.storage.id}` : undefined"
+      :data-drop="props.storage && props.dropEnabled ? `grid:${props.storage.id}` : undefined"
     >
-      <div
-        v-if="props.ghost && ghostStyle"
-        class="pointer-events-none z-20 border-2"
-        :class="props.ghost.valid ? 'border-[var(--sz-accent)] bg-[var(--sz-accent)]/15' : 'border-[var(--sz-danger)] bg-[var(--sz-danger)]/15'"
-        :style="ghostStyle"
-      />
+      <GridGhost v-if="props.storage" :storage="props.storage" :enabled="props.dropEnabled" />
 
       <ItemTile
         v-for="item in placed"
         :key="item.id"
         :item="item"
         :selected="item.id === props.selectedId"
+        :picked="item.id === props.pickedId"
         :rotated="item.placement.location === 'grid' && item.placement.rotated"
+        :attach="props.attachTile"
         :style="styleFor(item)"
         @select="$emit('select', item)"
-        @press="$emit('press', { item, event: $event })"
         @pick="$emit('pick', item, $event)"
       />
 

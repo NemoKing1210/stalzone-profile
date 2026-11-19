@@ -20,11 +20,11 @@ import {
   createStorage,
   deleteInventoryItem,
   ensureInventoryStorage,
+  ensureOverflowStorage,
   getContainerData,
   getInventoryItem,
   getItemLayout,
   getPlacement,
-  getStorage,
   listStoragePlacements,
   moveInventoryItem,
   replaceExboCompat,
@@ -40,15 +40,10 @@ let dir: string;
 let db: Db;
 let characterId: number;
 let inventoryId: number;
+let overflowId: number;
 let stashId: number;
 let weaponId: number;
-let weapon2Id: number;
-let armorId: number;
-let backpackId: number;
-let artbagId: number;
-let artifactId: number;
 let scopeId: number;
-let mufflerId: number;
 
 function item(
   kind: string,
@@ -102,19 +97,20 @@ beforeEach(() => {
   ensureDefaultSources(db);
   characterId = seed.upsertCharacter(db, { nick: 'tester', region: 'ru' });
   inventoryId = ensureInventoryStorage(db, characterId);
+  overflowId = ensureOverflowStorage(db, characterId);
   stashId = (
     createStorage(db, StorageCreateSchema.parse({ name: 'Stash', width: 8, height: 12, dryRun: false })).diff
       .after as { id: number }
   ).id;
 
   weaponId = item('weapon', 'АК-12', 'weapon/assault_rifle', 3.8, 'rifle');
-  weapon2Id = item('weapon', 'АК-74', 'weapon/assault_rifle', 3.6, 'rifle2');
-  armorId = item('armor', 'Броня', 'armor/combat', 8, 'armor');
-  backpackId = item('container', 'Рюкзак', 'containers/backpacks', 1.2, 'backpack');
-  artbagId = item('container', 'Контейнер', 'containers', 0.8, 'artbag');
-  artifactId = item('artifact', 'Нервяк', 'artefact/gravity', 0.1, 'artifact');
+  item('weapon', 'АК-74', 'weapon/assault_rifle', 3.6, 'rifle2');
+  item('armor', 'Броня', 'armor/combat', 8, 'armor');
+  item('container', 'Рюкзак', 'containers/backpacks', 1.2, 'backpack');
+  item('container', 'Контейнер', 'containers', 0.8, 'artbag');
+  item('artifact', 'Нервяк', 'artefact/gravity', 0.1, 'artifact');
   scopeId = item('attachment', 'Прицел', 'attachment/scope', 0.4, 'scope');
-  mufflerId = item('attachment', 'Глушитель', 'attachment/muzzle', 0.5, 'muffler');
+  item('attachment', 'Глушитель', 'attachment/muzzle', 0.5, 'muffler');
 });
 
 afterEach(() => {
@@ -145,14 +141,14 @@ describe('inventory placement writes', () => {
     const events = eventCount(db);
 
     expectWriteError(() => moveInventoryItem(db, second, grid(stashId, 0, 0), { dryRun: false }), 'SLOT_OCCUPIED');
-    expect(getPlacement(db, second)).toMatchObject({ location: 'loose' });
+    expect(getPlacement(db, second)).toMatchObject({ location: 'grid', storage_id: overflowId });
     expect(eventCount(db)).toBe(events);
   });
 
   it('rejects a grid target outside the storage bounds', () => {
     const rifle = make('weapon', 'АК-12');
     expectWriteError(() => moveInventoryItem(db, rifle, grid(stashId, 4, 0), { dryRun: false }), 'OUT_OF_BOUNDS');
-    expect(getPlacement(db, rifle)).toMatchObject({ location: 'loose' });
+    expect(getPlacement(db, rifle)).toMatchObject({ location: 'grid', storage_id: overflowId });
   });
 
   it('applies rotation before checking bounds and collisions', () => {
@@ -174,6 +170,7 @@ describe('inventory placement writes', () => {
 
     moveInventoryItem(db, first, { location: 'equipment', slot: 'primary' }, { dryRun: false });
     expect(getPlacement(db, first)).toMatchObject({ location: 'equipment', equipment_slot: 'primary' });
+    moveInventoryItem(db, second, grid(inventoryId, 0, 0), { dryRun: false });
 
     moveInventoryItem(
       db,
@@ -182,7 +179,65 @@ describe('inventory placement writes', () => {
       { swap: true, dryRun: false },
     );
     expect(getPlacement(db, second)).toMatchObject({ location: 'equipment', equipment_slot: 'primary' });
-    expect(getPlacement(db, first)).toMatchObject({ location: 'loose' });
+    expect(getPlacement(db, first)).toMatchObject({ location: 'grid', storage_id: inventoryId, x: 0, y: 0 });
+  });
+
+  it('rejects a swap flag on a grid target', () => {
+    const weapon = make('weapon', 'АК-12');
+    expect(() =>
+      moveInventoryItem(db, weapon, grid(inventoryId, 0, 0), { swap: true, dryRun: false }),
+    ).toThrow(/Grid moves do not swap/);
+  });
+
+  it('rolls an equipment swap back to both original placements', () => {
+    const first = make('weapon', 'АК-12');
+    const second = make('weapon', 'АК-74');
+    moveInventoryItem(db, first, { location: 'equipment', slot: 'primary' }, { dryRun: false });
+    moveInventoryItem(db, second, grid(inventoryId, 0, 0), { dryRun: false });
+
+    const swapped = moveInventoryItem(
+      db,
+      second,
+      { location: 'equipment', slot: 'primary' },
+      { swap: true, dryRun: false },
+    );
+    expect(getPlacement(db, first)).toMatchObject({ location: 'grid', storage_id: inventoryId, x: 0, y: 0 });
+
+    rollbackEvent(db, swapped.eventId!, false);
+
+    expect(getPlacement(db, second)).toMatchObject({
+      location: 'grid',
+      storage_id: inventoryId,
+      x: 0,
+      y: 0,
+    });
+    expect(getPlacement(db, first)).toMatchObject({ location: 'equipment', equipment_slot: 'primary' });
+  });
+
+  it('rolls a weapon module swap back to both original placements', () => {
+    const rifle = make('weapon', 'АК-12');
+    const scope = make('attachment', 'Прицел');
+    const replacement = make('attachment', 'Прицел');
+    replaceExboCompat(db, [{ attachmentItemId: scopeId, weaponItemId: weaponId }]);
+    setWeaponModule(db, rifle, 'scope', scope, { dryRun: false });
+    moveInventoryItem(db, replacement, grid(inventoryId, 0, 0), { dryRun: false });
+
+    const installed = setWeaponModule(db, rifle, 'scope', replacement, { dryRun: false });
+    expect(getPlacement(db, scope)).toMatchObject({ location: 'grid', storage_id: overflowId });
+
+    rollbackEvent(db, installed.eventId!, false);
+
+    expect(getPlacement(db, scope)).toMatchObject({
+      location: 'weapon_module',
+      weapon_item_id: rifle,
+      module_slot: 'scope',
+    });
+    expect(getPlacement(db, replacement)).toMatchObject({
+      location: 'grid',
+      storage_id: inventoryId,
+      x: 0,
+      y: 0,
+    });
   });
 
   it('equips armor and rejects a kind the slot does not accept', () => {
@@ -196,7 +251,7 @@ describe('inventory placement writes', () => {
       () => moveInventoryItem(db, rifle, { location: 'equipment', slot: 'armor' }, { dryRun: false }),
       'INVALID_PLACEMENT',
     );
-    expect(getPlacement(db, rifle)).toMatchObject({ location: 'loose' });
+    expect(getPlacement(db, rifle)).toMatchObject({ location: 'grid', storage_id: overflowId });
   });
 
   it('installs an artifact into a container slot and validates kind and capacity', () => {
@@ -227,7 +282,7 @@ describe('inventory placement writes', () => {
     );
   });
 
-  it('replaces a container fill and returns omitted artifacts to loose', () => {
+  it('replaces a container fill and returns omitted artifacts to intake', () => {
     const bag = makeContainer('Контейнер', 3);
     const a = make('artifact', 'Нервяк');
     const b = make('artifact', 'Нервяк');
@@ -239,10 +294,10 @@ describe('inventory placement writes', () => {
     expect(getPlacement(db, c)).toMatchObject({ container_item_id: bag, container_slot: 2 });
 
     const result = setContainerFill(db, bag, [a, null, b], { dryRun: false });
-    expect(result.diff.after).toMatchObject({ containerItemId: bag, movedToLoose: [c] });
+    expect(result.diff.after).toMatchObject({ containerItemId: bag, movedToOverflow: [c] });
     expect(getPlacement(db, a)).toMatchObject({ container_slot: 0 });
     expect(getPlacement(db, b)).toMatchObject({ container_slot: 2 });
-    expect(getPlacement(db, c)).toMatchObject({ location: 'loose' });
+    expect(getPlacement(db, c)).toMatchObject({ location: 'grid', storage_id: overflowId });
     expect(getEvent(db, result.eventId!)?.action).toBe('inventory.container.fill');
 
     const scope = make('attachment', 'Прицел');
@@ -305,10 +360,10 @@ describe('inventory placement writes', () => {
     );
 
     setWeaponModule(db, rifle, 'scope', null, { dryRun: false });
-    expect(getPlacement(db, scope)).toMatchObject({ location: 'loose' });
+    expect(getPlacement(db, scope)).toMatchObject({ location: 'grid', storage_id: overflowId });
   });
 
-  it('returns weapon modules to loose when the weapon is deleted', () => {
+  it('returns weapon modules to intake when the weapon is deleted', () => {
     const rifle = make('weapon', 'АК-12');
     const scope = make('attachment', 'Прицел');
     replaceExboCompat(db, [{ attachmentItemId: scopeId, weaponItemId: weaponId }]);
@@ -316,10 +371,10 @@ describe('inventory placement writes', () => {
 
     deleteInventoryItem(db, rifle, { dryRun: false });
     expect(getInventoryItem(db, rifle)).toBeNull();
-    expect(getPlacement(db, scope)).toMatchObject({ location: 'loose' });
+    expect(getPlacement(db, scope)).toMatchObject({ location: 'grid', storage_id: overflowId });
   });
 
-  it('auto-arranges loose items deterministically and leaves non-fitting items loose', () => {
+  it('auto-arranges intake items deterministically and leaves non-fitting items in intake', () => {
     const smallId = (
       createStorage(db, StorageCreateSchema.parse({ name: 'Small', width: 2, height: 2, dryRun: false })).diff
         .after as { id: number }
@@ -333,7 +388,7 @@ describe('inventory placement writes', () => {
       unplaced: [rifle],
     });
     expect(getPlacement(db, artifact)).toMatchObject({ location: 'grid', storage_id: smallId, x: 0, y: 0 });
-    expect(getPlacement(db, rifle)).toMatchObject({ location: 'loose' });
+    expect(getPlacement(db, rifle)).toMatchObject({ location: 'grid', storage_id: overflowId });
     expect(getEvent(db, result.eventId!)?.action).toBe('inventory.autoArrange');
 
     const again = autoArrangeStorage(db, smallId, { dryRun: false });
@@ -368,7 +423,7 @@ describe('inventory placement writes', () => {
     const events = eventCount(db);
     const result = moveInventoryItem(db, rifle, grid(stashId, 0, 0), { dryRun: true });
     expect(result.dryRun).toBe(true);
-    expect(getPlacement(db, rifle)).toMatchObject({ location: 'loose' });
+    expect(getPlacement(db, rifle)).toMatchObject({ location: 'grid', storage_id: overflowId });
     expect(eventCount(db)).toBe(events);
   });
 
@@ -423,7 +478,7 @@ describe('inventory placement writes', () => {
 
     rollbackEvent(db, shifted.eventId!, false);
     expect(getPlacement(db, a)).toMatchObject({ container_item_id: bag, container_slot: 0 });
-    expect(getPlacement(db, b)).toMatchObject({ location: 'loose' });
+    expect(getPlacement(db, b)).toMatchObject({ location: 'grid', storage_id: overflowId });
   });
 
   it('returns an incoming artifact to its previous container on fill rollback', () => {
@@ -436,7 +491,7 @@ describe('inventory placement writes', () => {
 
     const moved = setContainerFill(db, first, [b], { dryRun: false });
     expect(getPlacement(db, b)).toMatchObject({ container_item_id: first, container_slot: 0 });
-    expect(getPlacement(db, a)).toMatchObject({ location: 'loose' });
+    expect(getPlacement(db, a)).toMatchObject({ location: 'grid', storage_id: overflowId });
 
     rollbackEvent(db, moved.eventId!, false);
     expect(getPlacement(db, b)).toMatchObject({ container_item_id: second, container_slot: 0 });

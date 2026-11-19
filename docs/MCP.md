@@ -70,8 +70,8 @@ The `profile://schema` resource provides tool descriptions and the write rules.
 | `find_items` | `q?`, `kind?`, `rank?`, `slot?`, `limit?` | a list of items |
 | `get_item` | `id` or `name` + `kind?` | item summary, `stats`, `effects`, `icon`, derived `card` |
 | `compare_items` | `a`, `b`, `level` | DPS/TTK and stats of two items |
-| `get_inventory` | — | `InventoryRead`: storages, equipment, loose tray and the computed loadout |
-| `list_storages` | — | storages with their grid items, size and weight |
+| `get_inventory` | — | `InventoryRead`: storages (including the intake stash), equipment and the computed loadout |
+| `list_storages` | — | storages with grid items, weight and effective height (intake reports its expanded height) |
 | `list_inventory_items` | `kind?`, `location?`, `storage_id?` | flat inventory instances with placement, size and container data |
 | `list_containers` | — | container instances and their fill from instance placements |
 | `plan_artifact_build` | preset/effects, slots, budget, mode, quality, unique, requireLot | an artifact plan by price |
@@ -92,7 +92,7 @@ The `profile://schema` resource provides tool descriptions and the write rules.
 | `move_inventory_item` | `item_id`, `target`, `swap?`, `allow_unverified?`, `dry_run?` |
 | `create_storage` | `name`, `kind?` (`stash`), `width?`, `height?`, `max_weight?`, `sort_order?`, `dry_run?` |
 | `update_storage` | `storage_id` plus any of `name`, `width`, `height`, `max_weight`, `sort_order` |
-| `delete_storage` | `storage_id`, `move_to_storage_id?`, `dry_run?` |
+| `delete_storage` | `storage_id`, `dry_run?`; the stash is deleted and its items move to intake |
 | `auto_arrange_storage` | `storage_id`, `dry_run?` |
 | `set_container_artifacts` | `container_item_id`, `slots[]` (instance ids or `null`), `dry_run?` |
 | `update_logging` | `enabled`, `min_level`, `retention_days`, `max_rows`, `capture_client`, `client_console`, `mirror_stdout`, `levels`, `dry_run?` |
@@ -104,13 +104,20 @@ The `profile://schema` resource provides tool descriptions and the write rules.
 | `rebuild_site` | — |
 
 `target` is a discriminated union on `location`: `grid` (`storage_id`, `x`, `y`,
-`rotated?`), `equipment` (`slot`), `container` (`container_item_id`, `slot`), `weapon_module`
-(`weapon_item_id`, `slot`, `allow_unverified?`) or `loose`.
+`rotated?`), `equipment` (`slot`), `container` (`container_item_id`, `slot`) or
+`weapon_module` (`weapon_item_id`, `slot`, `allow_unverified?`). There is no `loose` target.
+
+The intake stash (`kind: 'overflow'`) is structural. `add_inventory_item` puts new
+instances there; `set_container_artifacts`, `set_weapon_module` and `remove_inventory_item`
+return displaced children there; `delete_storage` packs a deleted stash into it;
+`auto_arrange_storage` is the only move in the other direction, packing intake items into a
+regular stash. A `grid` target inside intake answers `422 INVALID_PLACEMENT`, as does a
+swap whose displaced occupant would land there. `update_storage` and `delete_storage` reject
+the inventory and the intake row with `422 VALIDATION`.
 
 An item id that a write takes is an **inventory instance id**, not a catalog item id; the
 exception is `set_item_layout`, which changes the catalog layout shared by every instance.
-`add_inventory_item` puts the new instance in the loose tray; use `move_inventory_item` to
-place it. Quantity belongs to stackables only: gear instances always have `qty: 1`.
+Quantity belongs to stackables only: gear instances always have `qty: 1`.
 
 ## Checks
 

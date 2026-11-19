@@ -33,8 +33,11 @@ export function packItems(grid: Size, items: readonly PackItem[], occupied: read
 
   for (const item of ordered) {
     let position: PackPlacement | null = null;
-    for (let y = 0; y <= grid.height - item.size.height && !position; y += 1) {
-      for (let x = 0; x <= grid.width - item.size.width && !position; x += 1) {
+    // Both orientations are tried at each origin, so the scan must reach every origin
+    // where the smaller dimension fits — not only where the unrotated one does.
+    const minSide = Math.min(item.size.width, item.size.height);
+    for (let y = 0; y <= grid.height - minSide && !position; y += 1) {
+      for (let x = 0; x <= grid.width - minSide && !position; x += 1) {
         for (const rotated of [false, true]) {
           if (rotated && item.size.width === item.size.height) continue;
           const rect = itemRect(x, y, item.size, rotated);

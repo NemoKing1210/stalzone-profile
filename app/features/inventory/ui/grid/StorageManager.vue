@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { StorageRead } from '@profile/shared/contracts';
 
+import { storageLabel } from '../../model/labels';
+
 const props = withDefaults(
   defineProps<{
     stashes: StorageRead[];
@@ -10,14 +12,14 @@ const props = withDefaults(
     defaultWidth?: number;
     defaultHeight?: number;
   }>(),
-  { selectedId: null, busy: false, defaultWidth: 8, defaultHeight: 10 },
+  { selectedId: null, busy: false, defaultWidth: 40, defaultHeight: 80 },
 );
 
 const emit = defineEmits<{
   select: [id: number];
   create: [input: { name: string; width: number; height: number }];
   update: [id: number, patch: { name?: string; width?: number; height?: number; maxWeight?: number | null }];
-  remove: [id: number, moveToStorageId: number | null];
+  remove: [id: number];
   close: [];
 }>();
 
@@ -25,7 +27,7 @@ const { t } = useI18n();
 
 const selected = computed(() => props.stashes.find((stash) => stash.id === props.selectedId) ?? null);
 
-const form = reactive({ name: '', width: 8, height: 10, maxWeight: '' as number | string });
+const form = reactive({ name: '', width: props.defaultWidth, height: props.defaultHeight, maxWeight: '' as number | string });
 const created = reactive({ name: '', width: props.defaultWidth, height: props.defaultHeight });
 
 function fill(): void {
@@ -72,13 +74,10 @@ function create(): void {
   created.height = props.defaultHeight;
 }
 
-/* Deleting a stash returns its items to loose unless another stash is chosen. */
+/* Deleting a stash moves its items to the intake stash. */
 const confirmOpen = ref(false);
-const moveTo = ref<number | 'loose'>('loose');
-const otherStashes = computed(() => props.stashes.filter((stash) => stash.id !== props.selectedId));
 
 function askDelete(): void {
-  moveTo.value = 'loose';
   confirmOpen.value = true;
 }
 
@@ -86,7 +85,7 @@ function confirmDelete(): void {
   const stash = selected.value;
   if (!stash) return;
   confirmOpen.value = false;
-  emit('remove', stash.id, moveTo.value === 'loose' ? null : moveTo.value);
+  emit('remove', stash.id);
 }
 </script>
 
@@ -107,7 +106,7 @@ function confirmDelete(): void {
           "
           @click="emit('select', stash.id)"
         >
-          {{ stash.name }}
+          {{ storageLabel(stash, t) }}
           <span class="tabular-nums text-[10px] text-[var(--sz-text-dim)]">
             {{ stash.width }}×{{ stash.height }}
           </span>
@@ -187,7 +186,8 @@ function confirmDelete(): void {
     <UModal v-model:open="confirmOpen" :title="t('inventory.deleteStashTitle')">
       <template #body>
         <div class="space-y-3 text-[12.5px]">
-          <p>{{ t('inventory.deleteStashDesc', { name: selected?.name ?? '' }) }}</p>
+          <p>{{ t('inventory.deleteStashDesc', { name: selected ? storageLabel(selected, t) : '' }) }}</p>
+          <p class="text-[11px] text-[var(--sz-text-muted)]">{{ t('inventory.deleteStashToOverflow') }}</p>
           <div v-if="selected?.items.length" class="space-y-1">
             <p class="text-[11px] text-[var(--sz-text-muted)]">{{ t('inventory.deleteStashItems') }}</p>
             <ul class="max-h-40 overflow-auto border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] px-2 py-1">
@@ -196,18 +196,6 @@ function confirmDelete(): void {
               </li>
             </ul>
           </div>
-          <label v-if="otherStashes.length" class="block text-[11px] text-[var(--sz-text-muted)]">
-            {{ t('inventory.deleteStashMoveTo') }}
-            <USelect
-              v-model="moveTo"
-              class="mt-0.5 w-full"
-              size="xs"
-              :items="[
-                { label: t('inventory.deleteStashLoose'), value: 'loose' },
-                ...otherStashes.map((stash) => ({ label: stash.name, value: stash.id })),
-              ]"
-            />
-          </label>
         </div>
       </template>
       <template #footer>

@@ -1,4 +1,4 @@
-import { buildPayload } from '@profile/core';
+import { buildCharacterSection } from '@profile/core';
 import { useDb } from '../../utils/db';
 
-export default defineEventHandler(() => buildPayload(useDb()).character);
+export default defineEventHandler(() => buildCharacterSection(useDb()));

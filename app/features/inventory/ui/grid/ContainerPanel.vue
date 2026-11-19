@@ -1,16 +1,25 @@
 <script setup lang="ts">
 import type { InventoryItemRead } from '@profile/shared/contracts';
 
+import { useGridDragContext } from './drag-context';
+
 const props = withDefaults(
   defineProps<{
     container: InventoryItemRead;
     /** Artifacts that can be installed; installed ones are filtered out. */
     candidates?: InventoryItemRead[];
-    activeSlot?: number | null;
     busy?: boolean;
   }>(),
-  { candidates: () => [], activeSlot: null, busy: false },
+  { candidates: () => [], busy: false },
 );
+
+const drag = useGridDragContext();
+
+/** The container slot the drag is hovering in this container, read without the page. */
+const activeSlot = computed(() => {
+  const target = drag?.target.value;
+  return target?.location === 'container' && target.containerItemId === props.container.id ? target.slot : null;
+});
 
 const emit = defineEmits<{ fill: [slots: (number | null)[]]; close: [] }>();
 
@@ -94,7 +103,7 @@ const summary = computed(() => {
           :key="index"
           class="relative flex min-h-[54px] flex-col items-center justify-center gap-0.5 border bg-ink-800 p-1 text-center"
           :class="[
-            props.activeSlot === index ? 'shadow-[inset_0_0_0_2px_var(--sz-accent)]' : '',
+            activeSlot === index ? 'shadow-[inset_0_0_0_2px_var(--sz-accent)]' : '',
             artifactAt(index) ? 'border-[var(--sz-border-strong)]' : 'border-dashed border-[var(--sz-border)]',
           ]"
           :data-drop="`container:${props.container.id}:${index}`"

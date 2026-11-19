@@ -1,8 +1,9 @@
 import type { Db } from '../../../platform/db/index.js';
 import { logEvent, withTransaction, WriteError, type WriteResult } from '../../../platform/journal/index.js';
 import * as repo from '../repo/index.js';
+import { ensureOverflowStorage, packIntoOverflow } from './overflow.js';
 import { placementSnapshot } from './snapshot.js';
-import { effectiveContainerSlots } from './placement.js';
+import { effectiveContainerSlots, itemSize } from './placement.js';
 
 export function setContainerFill(
   db: Db,
@@ -47,7 +48,20 @@ export function setContainerFill(
     )
     .sort((a, b) => (a.container_slot ?? 0) - (b.container_slot ?? 0));
   const previouslyInstalled = new Set(current.map((placement) => placement.item_id));
-  const movedToLoose = [...previouslyInstalled].filter((itemId) => !seen.has(itemId));
+  const leaving = current.filter((placement) => !seen.has(placement.item_id));
+  const movedToOverflow = leaving.map((placement) => placement.item_id);
+  if (leaving.length && !opts.dryRun) ensureOverflowStorage(db, container.character_id);
+  const intake = leaving.length ? repo.getOverflowStorage(db, container.character_id) : null;
+  const packed = leaving.length
+    ? packIntoOverflow(
+        db,
+        container.character_id,
+        leaving.map((placement) => ({
+          id: placement.item_id,
+          size: itemSize(db, repo.getInventoryItem(db, placement.item_id)!),
+        })),
+      )
+    : [];
   /** Wanted artifacts that were outside this container; their old spot is restored on rollback. */
   const incoming = [...seen]
     .filter((itemId) => !previouslyInstalled.has(itemId))
@@ -66,10 +80,10 @@ export function setContainerFill(
     containerItemId,
     capacity,
     slots: slots.map((itemId, index) => ({ slot: index, itemId: itemId ?? null })),
-    movedToLoose,
+    movedToOverflow,
   };
   const human = `Filled "${container.display_name ?? container.item_name}" with ${seen.size} artifact(s)${
-    movedToLoose.length ? `, moved ${movedToLoose.length} to loose` : ''
+    movedToOverflow.length ? `, moved ${movedToOverflow.length} to the intake stash` : ''
   }`;
   if (opts.dryRun) return { dryRun: true, diff: { before, after, human } };
 
@@ -94,6 +108,17 @@ export function setContainerFill(
         containerSlot: index,
       });
     });
+    for (const entry of packed) {
+      repo.upsertPlacement(db, {
+        itemId: entry.id,
+        characterId: container.character_id,
+        location: 'grid',
+        storageId: intake!.id,
+        x: entry.x,
+        y: entry.y,
+        rotated: entry.rotated,
+      });
+    }
     eventId = logEvent(db, {
       actor: 'owner',
       action: 'inventory.container.fill',

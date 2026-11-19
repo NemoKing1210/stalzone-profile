@@ -32,8 +32,8 @@ let dir: string;
 let db: Db;
 let characterId: number;
 
-/** The fixture: 8 instances, two storages (inventory + stash) and 8 placements. */
-const SEEDED = { items: 8, storages: 2, placements: 8 } as const;
+/** The fixture: 8 instances, three storages (inventory, intake, stash) and 8 placements. */
+const SEEDED = { items: 8, storages: 3, placements: 8 } as const;
 
 beforeEach(() => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'profile-cleanup-'));
@@ -77,7 +77,7 @@ describe('cleanup writes', () => {
     const result = clearInventory(db, true);
     expect(result).toMatchObject({ dryRun: true, diff: { after: null } });
     expect(result.eventId).toBeUndefined();
-    expect(result.diff.human).toBe('Inventory cleared: 8 items, 2 storages');
+    expect(result.diff.human).toBe('Inventory cleared: 8 items, 3 storages');
     expect((result.diff.before as { items: unknown[] }).items).toHaveLength(8);
     expect(inventoryCounts(db, characterId)).toEqual(SEEDED);
     expect(listEvents(db)).toHaveLength(eventsBefore);
@@ -87,7 +87,7 @@ describe('cleanup writes', () => {
     const before = clearInventory(db, true).diff.before;
 
     const result = clearInventory(db, false);
-    expect(inventoryCounts(db, characterId)).toEqual({ items: 0, storages: 1, placements: 0 });
+    expect(inventoryCounts(db, characterId)).toEqual({ items: 0, storages: 2, placements: 0 });
     expect(listEvents(db)[0]).toMatchObject({ action: 'inventory.clear', entity: 'inventory', entity_id: 'all' });
 
     rollbackEvent(db, result.eventId!, false);
@@ -139,7 +139,7 @@ describe('cleanup writes', () => {
 
 describe('cleanup dispatcher', () => {
   it('routes a scope to the matching reset', () => {
-    expect(clearByScope(db, 'inventory', true).diff.human).toBe('Inventory cleared: 8 items, 2 storages');
+    expect(clearByScope(db, 'inventory', true).diff.human).toBe('Inventory cleared: 8 items, 3 storages');
     setCharacterStat(db, characterId, 'kil', 1, 'manual');
     expect(clearByScope(db, 'manualStats', true).diff.human).toBe('Manual stats cleared: 1 value');
   });

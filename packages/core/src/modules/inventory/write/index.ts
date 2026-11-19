@@ -14,6 +14,13 @@ export {
   updateInventoryItem,
 } from './item.js';
 export {
+  ensureOverflowStorage,
+  nextOverflowPlacement,
+  packIntoOverflow,
+  placeIntoOverflow,
+} from './overflow.js';
+export type { OverflowSpot } from './overflow.js';
+export {
   EQUIPMENT_SLOTS,
   effectiveContainerSlots,
   isEquipmentSlot,

@@ -1,10 +1,11 @@
 import { norm } from '@profile/shared';
-import type { StorageCreate, StoragePatch } from '@profile/shared/contracts';
+import type { StorageCreate, StorageKind, StoragePatch } from '@profile/shared/contracts';
 import type { Db } from '../../../platform/db/index.js';
 import { logEvent, withTransaction, WriteError, type WriteResult } from '../../../platform/journal/index.js';
 import { characterOrThrow } from '../../identity/index.js';
-import { fits, itemRect, packItems, resolveSize, type Size } from '../layout/index.js';
+import { fits, itemRect, resolveSize, type Size } from '../layout/index.js';
 import * as repo from '../repo/index.js';
+import { ensureOverflowStorage, packIntoOverflow } from './overflow.js';
 import { placementSnapshot } from './snapshot.js';
 
 function storageSnapshot(row: repo.StorageRow): Record<string, unknown> {
@@ -30,7 +31,7 @@ function placementSize(db: Db, placement: repo.PlacementRow): Size {
 function assertNameFree(
   db: Db,
   characterId: number,
-  kind: 'inventory' | 'stash',
+  kind: StorageKind,
   name: string,
   exceptId?: number,
 ): void {
@@ -48,7 +49,7 @@ export function ensureInventoryStorage(db: Db, characterId: number): number {
     kind: 'inventory',
     name: 'Inventory',
     width: 8,
-    height: 8,
+    height: 20,
   });
 }
 
@@ -101,6 +102,9 @@ export function createStorage(db: Db, input: StorageCreate): WriteResult {
 export function updateStorage(db: Db, id: number, patch: StoragePatch): WriteResult {
   const row = repo.getStorage(db, id);
   if (!row) throw new WriteError(404, 'STORAGE_NOT_FOUND', 'Storage not found');
+  if (row.kind !== 'stash') {
+    throw new WriteError(422, 'VALIDATION', 'This storage cannot be edited');
+  }
 
   const merged = {
     name: patch.name ?? row.name,
@@ -168,15 +172,12 @@ export function updateStorage(db: Db, id: number, patch: StoragePatch): WriteRes
   return { dryRun: false, diff: { before, after, human }, eventId };
 }
 
-export function deleteStorage(
-  db: Db,
-  id: number,
-  opts: { moveToStorageId?: number | null; dryRun: boolean },
-): WriteResult {
+/** Deletes a stash and packs everything it held into intake; only intake is exempt. */
+export function deleteStorage(db: Db, id: number, opts: { dryRun: boolean }): WriteResult {
   const row = repo.getStorage(db, id);
   if (!row) throw new WriteError(404, 'STORAGE_NOT_FOUND', 'Storage not found');
-  if (row.kind === 'inventory') {
-    throw new WriteError(422, 'VALIDATION', 'The inventory storage cannot be deleted');
+  if (row.kind !== 'stash') {
+    throw new WriteError(422, 'VALIDATION', 'This storage cannot be deleted');
   }
 
   const placements = repo.listStoragePlacements(db, id);
@@ -189,64 +190,35 @@ export function deleteStorage(
     })),
   };
 
-  let target: repo.StorageRow | null = null;
-  let placed: { id: number; x: number; y: number; rotated: boolean }[] = [];
-  let movedToLoose = placements.map((placement) => placement.item_id);
+  if (placements.length && !opts.dryRun) ensureOverflowStorage(db, row.character_id);
+  const intake = placements.length ? repo.getOverflowStorage(db, row.character_id) : null;
+  const packed = placements.length
+    ? packIntoOverflow(
+        db,
+        row.character_id,
+        placements.map((placement) => ({ id: placement.item_id, size: placementSize(db, placement) })),
+      )
+    : [];
 
-  if (opts.moveToStorageId != null) {
-    if (opts.moveToStorageId === id) {
-      throw new WriteError(422, 'VALIDATION', 'Cannot move the items into the storage being deleted');
-    }
-    target = repo.getStorage(db, opts.moveToStorageId);
-    if (!target) throw new WriteError(404, 'STORAGE_NOT_FOUND', 'Target storage not found');
-    if (target.character_id !== row.character_id) {
-      throw new WriteError(422, 'VALIDATION', 'Target storage belongs to another character');
-    }
-    const occupied = repo
-      .listStoragePlacements(db, target.id)
-      .filter((placement) => placement.x != null && placement.y != null)
-      .map((placement) =>
-        itemRect(placement.x!, placement.y!, placementSize(db, placement), placement.rotated === 1),
-      );
-    const packed = packItems(
-      { width: target.width, height: target.height },
-      placements.map((placement) => ({ id: placement.item_id, size: placementSize(db, placement) })),
-      occupied,
-    );
-    placed = packed.placed;
-    movedToLoose = packed.unplaced;
-  }
-
-  const after =
-    target && opts.moveToStorageId != null
-      ? {
-          deleted: true,
-          movedTo: target.id,
-          moved: placed.map((entry) => entry.id),
-          movedToLoose,
-        }
-      : { deleted: true, movedToLoose };
-  const movedCount = placements.length - movedToLoose.length;
+  const moved = placements.map((placement) => placement.item_id);
+  const after = { deleted: true, movedTo: intake?.id ?? null, moved };
   const human = placements.length
-    ? `Deleted "${row.name}", moved ${movedCount} item(s)${movedToLoose.length ? `, ${movedToLoose.length} to loose` : ''}`
+    ? `Deleted "${row.name}", moved ${placements.length} item(s) to the intake stash`
     : `Deleted "${row.name}"`;
   if (opts.dryRun) return { dryRun: true, diff: { before, after, human } };
 
   let eventId: number | undefined;
   withTransaction(db, () => {
-    for (const entry of placed) {
+    for (const entry of packed) {
       repo.upsertPlacement(db, {
         itemId: entry.id,
         characterId: row.character_id,
         location: 'grid',
-        storageId: target!.id,
+        storageId: intake!.id,
         x: entry.x,
         y: entry.y,
         rotated: entry.rotated,
       });
-    }
-    for (const itemId of movedToLoose) {
-      repo.upsertPlacement(db, { itemId, characterId: row.character_id, location: 'loose' });
     }
     repo.deleteStorageRow(db, id);
     eventId = logEvent(db, {

@@ -1,9 +1,9 @@
 import type { PlacementRead, PlacementTarget } from '@profile/shared/contracts';
 
-import { cellAt, type GridBounds, type Size } from './grid';
+import { cellAt, grabCell, type GridBounds, type Size } from './grid';
 
-/** Where a drag can be dropped: every write target plus the loose tray. */
-export type DropTarget = PlacementTarget | { location: 'loose' };
+/** Where a drag can be dropped: every write target. */
+export type DropTarget = PlacementTarget;
 
 export interface Point {
   x: number;
@@ -63,7 +63,54 @@ export function isSameTarget(placement: PlacementRead, target: DropTarget): bool
   if (placement.location === 'weapon_module' && target.location === 'weapon_module') {
     return placement.weaponItemId === target.weaponItemId && placement.slot === target.slot;
   }
-  return placement.location === 'loose' && target.location === 'loose';
+  return false;
+}
+
+/**
+ * The rotation a pick starts with. A storage item keeps what it has; an intake item and
+ * anything outside a grid start unrotated, because the landing chooses a fresh rotation.
+ */
+export function pickRotation(placement: PlacementRead, intakeStorageId: number | null): boolean {
+  if (placement.location !== 'grid' || placement.storageId === intakeStorageId) return false;
+  return placement.rotated;
+}
+
+export interface StartSpot {
+  ghost: (Point & { storageId: number }) | null;
+  target: DropTarget | null;
+  rotated: boolean;
+}
+
+/**
+ * Where a pick starts. A storage item starts on its own cells; an intake item and
+ * everything outside a grid start on the home grid, because intake only releases
+ * items and the other locations have no cells of their own.
+ */
+export function startPlacement(
+  placement: PlacementRead,
+  options: { homeStorageId: number | null; intakeStorageId: number | null },
+): StartSpot {
+  if (placement.location === 'grid' && placement.storageId !== options.intakeStorageId) {
+    const rotated = placement.rotated;
+    return {
+      ghost: { x: placement.x, y: placement.y, storageId: placement.storageId },
+      target: {
+        location: 'grid',
+        storageId: placement.storageId,
+        x: placement.x,
+        y: placement.y,
+        rotated,
+      },
+      rotated,
+    };
+  }
+  const home = options.homeStorageId;
+  if (home == null) return { ghost: null, target: null, rotated: false };
+  return {
+    ghost: { x: 0, y: 0, storageId: home },
+    target: { location: 'grid', storageId: home, x: 0, y: 0, rotated: false },
+    rotated: false,
+  };
 }
 
 /** The parts of a pointer event the cell math needs; plain objects work in tests. */
@@ -81,4 +128,77 @@ export interface MeasuredElement {
 export function pointerToCell(event: PointerPosition, element: MeasuredElement, columns: number): Point {
   const rect = element.getBoundingClientRect();
   return cellAt(event.clientX, event.clientY, rect, columns);
+}
+
+/** The on-screen size of one cell in a grid box measured in pixels. */
+export function cellPixels(rect: Size, grid: Size): Size {
+  return {
+    width: grid.width > 0 ? rect.width / grid.width : 0,
+    height: grid.height > 0 ? rect.height / grid.height : 0,
+  };
+}
+
+/** A grid box measured on screen, with the storage it shows. */
+export interface GridBox extends GridBounds {
+  storageId: number;
+  columns: number;
+  rows: number;
+}
+
+export interface GridHit {
+  storageId: number;
+  x: number;
+  y: number;
+}
+
+/**
+ * The grid box under the pointer and the cell inside it. Resolving the target from
+ * geometry rather than from the element on top keeps the ghost following the pointer
+ * even when a tile, a preview or a pane edge sits above the grid.
+ */
+export function gridUnder(pointer: Point, boxes: readonly GridBox[]): GridHit | null {
+  for (const box of boxes) {
+    if (pointer.x < box.left || pointer.x >= box.left + box.width) continue;
+    if (pointer.y < box.top || pointer.y >= box.top + box.height) continue;
+    const cell = cellAt(pointer.x, pointer.y, box, box.columns, box.rows);
+    return { storageId: box.storageId, x: cell.x, y: cell.y };
+  }
+  return null;
+}
+
+export type GrabSource = 'grid' | 'slot';
+
+/**
+ * The footprint cell held under the pointer. A grid tile maps its own rectangle onto
+ * its cells; an equipment or container slot is not a grid, so the card is centered.
+ */
+export function grabPoint(source: GrabSource, rect: GridBounds, pointer: Point, size: Size): Point {
+  if (source === 'grid') return grabCell(rect, pointer, size);
+  return centerGrab(size);
+}
+
+/** The footprint cell at the middle of an item; a slot-sourced card hangs from it. */
+export function centerGrab(size: Size): Point {
+  return { x: Math.floor(size.width / 2), y: Math.floor(size.height / 2) };
+}
+
+export interface PreviewBox {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * The floating drag preview: it follows the pointer at the item's real footprint,
+ * holding the cell the pointer grabbed under the cursor. The snapped landing stays
+ * with the ghost, so the preview and the ghost answer different questions.
+ */
+export function previewBox(pointer: Point, grab: Point, cell: Size, size: Size): PreviewBox {
+  return {
+    left: pointer.x - grab.x * cell.width,
+    top: pointer.y - grab.y * cell.height,
+    width: size.width * cell.width,
+    height: size.height * cell.height,
+  };
 }

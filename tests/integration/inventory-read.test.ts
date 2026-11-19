@@ -34,18 +34,20 @@ afterEach(() => {
 });
 
 describe('inventory read', () => {
-  it('returns the storages, equipment map and loose tray', () => {
+  it('returns the storages, equipment map and empty loose tray', () => {
     const read = inventoryRead(db, data.characterId);
-    expect(read.storages.map((storage) => storage.kind)).toEqual(['inventory', 'stash']);
+    expect(read.storages.map((storage) => storage.kind)).toEqual(['inventory', 'overflow', 'stash']);
     expect(read.equipment.primary?.id).toBe(data.instanceIds.rifle);
     expect(read.equipment.armor?.id).toBe(data.instanceIds.armor);
     expect(read.equipment.container?.id).toBe(data.instanceIds.backpack);
     expect(read.equipment.secondary).toBeNull();
-    expect(read.loose.map((item) => item.id).sort()).toEqual(
+    const intake = read.storages.find((storage) => storage.id === data.storageIds.overflow);
+    expect(intake?.items.map((item) => item.id).sort()).toEqual(
       [data.instanceIds.smg, data.instanceIds.artifact2, data.instanceIds.scope, data.instanceIds.ammo]
         .map(Number)
         .sort(),
     );
+    expect(read.loose).toEqual([]);
   });
 
   it('describes an equipped rifle with its equipment placement', () => {
@@ -72,13 +74,19 @@ describe('inventory read', () => {
     expect(before.stats.effects.speed_modifier?.positive.value).toBeCloseTo(7.8, 2);
     const carriedBefore = before.stats.carry.carried.value;
 
-    moveInventoryItem(db, data.instanceIds.backpack!, { location: 'loose' }, { dryRun: false });
+    moveInventoryItem(
+      db,
+      data.instanceIds.backpack!,
+      { location: 'grid', storageId: data.storageIds.inventory, x: 0, y: 0, rotated: false },
+      { dryRun: false },
+    );
 
     const after = inventoryRead(db, data.characterId);
     expect(after.stats.effects.speed_modifier).toBeUndefined();
     expect(after.stats.carry.carried.value).toBe(carriedBefore);
-    expect(after.stats.carry.carried.value).toBeCloseTo(12.5, 2);
-    expect(after.loose.map((item) => item.id)).toContain(data.instanceIds.backpack);
+    expect(after.stats.carry.carried.value).toBeCloseTo(9.3, 2);
+    const inventory = after.storages.find((storage) => storage.id === data.storageIds.inventory);
+    expect(inventory?.items.map((item) => item.id)).toContain(data.instanceIds.backpack);
   });
 
   it('sums the armor, backpack and artifact carry bonuses and floors the safe limit', () => {
@@ -200,12 +208,12 @@ describe('inventory read', () => {
     const payload = buildPayload(db, data.characterId);
     expect(() => InventoryReadSchema.parse(payload.inventory)).not.toThrow();
     expect(() => PayloadSchema.parse(payload)).not.toThrow();
-    expect(payload.inventory.storages).toHaveLength(2);
+    expect(payload.inventory.storages).toHaveLength(3);
     expect(Array.isArray(payload.weapons)).toBe(true);
   });
 
   it('counts items, storages and placements', () => {
-    expect(inventoryCounts(db, data.characterId)).toEqual({ items: 8, storages: 2, placements: 8 });
+    expect(inventoryCounts(db, data.characterId)).toEqual({ items: 8, storages: 3, placements: 8 });
     expect(hasInventory(db, data.characterId)).toBe(true);
     expect(hasInventory(db, 999_999)).toBe(false);
   });

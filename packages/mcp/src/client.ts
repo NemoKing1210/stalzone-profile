@@ -91,7 +91,6 @@ export interface RemoveInventoryItemInput {
 }
 
 export interface DeleteStorageInput {
-  moveToStorageId?: number | null;
   dryRun: boolean;
 }
 

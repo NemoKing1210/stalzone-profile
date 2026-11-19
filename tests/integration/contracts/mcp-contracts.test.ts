@@ -113,13 +113,21 @@ describe('MCP inventory input contracts', () => {
     });
   });
 
+  it('has no loose target and no storage-to-storage move option', () => {
+    expect(() =>
+      MoveInventoryItemInputSchema.parse({ item_id: 2, target: { location: 'loose' } }),
+    ).toThrow();
+    expect(
+      DeleteStorageInputSchema.parse({ storage_id: 2, move_to_storage_id: 3 }),
+    ).not.toHaveProperty('move_to_storage_id');
+  });
+
   it('defaults storage writes and keeps the inventory storage undeletable by contract', () => {
     const created = CreateStorageInputSchema.parse({ name: 'Stash 2' });
     expect(created).toMatchObject({ kind: 'stash', width: 8, height: 12, dry_run: true, confirm: false });
     expect(UpdateStorageInputSchema.parse({ storage_id: 2, name: 'Renamed' }).name).toBe('Renamed');
     expect(DeleteStorageInputSchema.parse({ storage_id: 2 })).toMatchObject({
       storage_id: 2,
-      move_to_storage_id: null,
       dry_run: true,
     });
     expect(AutoArrangeStorageInputSchema.parse({ storage_id: 2 }).dry_run).toBe(true);

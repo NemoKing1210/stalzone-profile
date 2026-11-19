@@ -198,6 +198,26 @@ describe('exbo_base sync', () => {
     });
     expect(repo.getSource(db, 'exbo_base')).toMatchObject({ commit_sha: 'abc', status: 'ok' });
   });
+
+  it('skips the database upsert when the cached commit is already stored', async () => {
+    const routes = {
+      'commits/main': { sha: 'abc', commit: { committer: { date: '2026-01-01T00:00:00.000Z' } } },
+      'git/trees/main?recursive=1': { tree: [{ path: 'ru/items/assault_rifle/ak-12.json' }] },
+      'ru/items/assault_rifle/ak-12.json': EXBO_ITEM,
+      'ru/stats.json': [],
+    };
+    let itemDownloads = 0;
+    const fetchImpl = async (url: string) => {
+      if (url.includes('ak-12.json')) itemDownloads += 1;
+      return fakeFetch(routes)(url);
+    };
+
+    await runSync(db, 'exbo_base', { fetchImpl, cacheDir: path.join(dir, 'cache') });
+    const again = await runSync(db, 'exbo_base', { fetchImpl, cacheDir: path.join(dir, 'cache') });
+
+    expect(again).toMatchObject({ status: 'ok', items: 0, cached: true, commit: 'abc' });
+    expect(itemDownloads).toBe(1);
+  });
 });
 
 describe('EXBO attachment compatibility', () => {
@@ -645,6 +665,30 @@ describe('scpmodel sync', () => {
     expect(row?.item_id).toBeTruthy();
     expect(row?.lot_count).toBe(3);
   });
+
+  it('writes many quotes with a bounded number of prepared statements', async () => {
+    const rows = Array.from({ length: 100 }, (_, index) => ({
+      item_key: `k${index}`,
+      item_id: `k${index}`,
+      name: `Item ${index}`,
+      current_price: 100 + index,
+    }));
+    const original = db.prepare.bind(db);
+    let prepared = 0;
+    Object.assign(db, {
+      prepare: (sql: string) => {
+        prepared += 1;
+        return original(sql);
+      },
+    });
+    try {
+      const result = await runSync(db, 'scpmodel', { fetchImpl: async () => jsonResponse(rows) });
+      expect(result.items).toBe(100);
+    } finally {
+      Object.assign(db, { prepare: original });
+    }
+    expect(prepared).toBeLessThan(20);
+  });
 });
 
 describe('unknown source', () => {
@@ -712,6 +756,22 @@ describe('icons sync', () => {
     expect(again).toMatchObject({ status: 'ok', icons: 1 });
     expect(calls.icon).toBe(2);
     expect(fs.existsSync(file)).toBe(true);
+  });
+
+  it('re-downloads a truncated icon file and leaves no temp files', async () => {
+    const iconsDir = path.join(dir, 'icons');
+    const fetchImpl = exboFetch(async () => new Response(new Uint8Array([137, 80, 78, 71]), { status: 200 }));
+    await runSync(db, 'exbo_base', { fetchImpl, cacheDir: cacheDir() });
+    await runSync(db, 'icons', { fetchImpl, cacheDir: cacheDir(), iconsDir });
+
+    const item = repo.findItemByKindName(db, 'weapon', 'АК-12')!;
+    const file = path.join(iconsDir, path.basename(repo.getIcon(db, item.id)!.path));
+    fs.writeFileSync(file, Buffer.alloc(0));
+
+    const again = await runSync(db, 'icons', { fetchImpl, cacheDir: cacheDir(), iconsDir });
+    expect(again).toMatchObject({ status: 'ok', icons: 1 });
+    expect(fs.statSync(file).size).toBeGreaterThan(0);
+    expect(fs.readdirSync(iconsDir).filter((name) => name.endsWith('.tmp'))).toEqual([]);
   });
 
   it('refuses to report an empty catalog as a successful icon sync', async () => {

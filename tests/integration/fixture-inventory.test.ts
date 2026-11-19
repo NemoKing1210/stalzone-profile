@@ -27,11 +27,16 @@ afterEach(() => {
 });
 
 describe('inventory fixture', () => {
-  it('seeds a character, two storages and the equipment tree', () => {
+  it('seeds a character, three storages and the equipment tree', () => {
     const seeded = seedInventory(db);
     expect(seeded.storageIds.inventory).toBeGreaterThan(0);
     expect(seeded.storageIds.stash).toBeGreaterThan(0);
-    expect(listStorages(db, seeded.characterId).map((row) => row.kind)).toEqual(['inventory', 'stash']);
+    expect(seeded.storageIds.overflow).toBeGreaterThan(0);
+    expect(listStorages(db, seeded.characterId).map((row) => row.kind)).toEqual([
+      'inventory',
+      'overflow',
+      'stash',
+    ]);
     expect(listInventoryItems(db, seeded.characterId)).toHaveLength(8);
 
     expect(getPlacement(db, seeded.instanceIds.rifle)).toMatchObject({
@@ -51,7 +56,10 @@ describe('inventory fixture', () => {
       container_item_id: seeded.instanceIds.backpack,
       container_slot: 0,
     });
-    expect(getPlacement(db, seeded.instanceIds.artifact2)).toMatchObject({ location: 'loose' });
+    expect(getPlacement(db, seeded.instanceIds.artifact2)).toMatchObject({
+      location: 'grid',
+      storage_id: seeded.storageIds.overflow,
+    });
     expect(getContainerData(db, seeded.instanceIds.backpack)).toMatchObject({ slots: 2, eff: 100 });
     expect(getInventoryItem(db, seeded.instanceIds.ammo)?.qty).toBe(30);
   });
