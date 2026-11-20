@@ -3,8 +3,8 @@ import { ProfileItemCard } from '~/entities/item';
 
 import type { DeviceRow } from '../../model/kinds/devices';
 
-const props = defineProps<{ row: DeviceRow; selected: boolean; priority: boolean }>();
-defineEmits<{ select: [] }>();
+const props = defineProps<{ row: DeviceRow; priority: boolean }>();
+defineEmits<{ open: [] }>();
 
 const { t } = useI18n();
 const { g2 } = useFormat();
@@ -22,8 +22,7 @@ const stats = computed(() => [
     :category="row.type"
     :icon="row.icon"
     :stats="stats"
-    :selected="selected"
     :priority="priority"
-    @select="$emit('select')"
+    @open="$emit('open')"
   />
 </template>
