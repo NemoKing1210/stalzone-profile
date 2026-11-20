@@ -97,7 +97,7 @@ function entryItemCount(entry: ChangelogEntry): number {
     </header>
 
     <div
-      class="flex flex-wrap items-center gap-x-2 gap-y-2 border border-[var(--sz-border)] bg-[var(--sz-surface)] px-3 py-2 lg:sticky lg:top-12 lg:z-20"
+      class="flex flex-wrap items-center gap-x-2 gap-y-2 border border-[var(--sz-border)] bg-[var(--sz-surface)] px-3 py-2 lg:sticky lg:top-0 lg:z-20"
     >
       <div role="group" :aria-label="t('changelog.filters')" class="flex flex-wrap gap-1.5">
         <button
@@ -197,7 +197,7 @@ function entryItemCount(entry: ChangelogEntry): number {
               v-for="entry in group.entries"
               :id="entry.id"
               :key="entry.id"
-              class="scroll-mt-24 border bg-[var(--sz-surface)]"
+              class="scroll-mt-14 border bg-[var(--sz-surface)]"
               :class="entry.date ? 'border-[var(--sz-border)]' : 'border-[var(--sz-accent)]'"
             >
               <header

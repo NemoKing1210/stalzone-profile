@@ -9,6 +9,8 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Fixed
 
+- The changelog filter bar sticks flush to the viewport top on desktop, and an entry hash
+  lands just below the 50 px bar instead of behind it.
 - Inventory drags no longer snap back: a write forces a payload refetch instead of
   accepting the fresh cache, and an optimistic move is cleared only when the refreshed
   payload actually shows its target.
