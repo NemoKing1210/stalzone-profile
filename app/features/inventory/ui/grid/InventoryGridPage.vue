@@ -21,7 +21,7 @@ import AddOwnedModal from '../AddOwnedModal.vue';
 import ItemGrid from './ItemGrid.vue';
 import LoadoutPanel from './LoadoutPanel.vue';
 import StorageManager from './StorageManager.vue';
-import ContainerFilterBar from './ContainerFilterBar.vue';
+import GridFilterRow from './GridFilterRow.vue';
 import { nextPane, resolvePane, type LeftPane } from '../../model/panes';
 import { provideGridDrag } from './drag-context';
 import { useGridDrag } from './useGridDrag';
@@ -337,7 +337,7 @@ const containerNames = computed<Record<number, string>>(() => {
     <template v-else>
       <div class="grid items-stretch gap-3 xl:grid-cols-2">
         <ProfilePane
-          class="lg:h-[calc(100vh-11.5rem)] min-h-[460px] min-w-0"
+          class="lg:h-[calc(100vh-11.5rem)] min-h-[460px] min-w-0 [&>header]:h-[52px] [&>header]:flex-nowrap sm:[&>header]:h-9"
           flush
           :title="leftPane === 'equipment' ? t('inventory.equipment') : stashPaneTitle"
         >
@@ -398,7 +398,7 @@ const containerNames = computed<Record<number, string>>(() => {
           </template>
 
           <div class="h-full overflow-auto">
-            <div class="p-2">
+            <div class="p-2.5">
             <template v-if="leftPane === 'equipment'">
               <EquipmentDoll
                 :equipment="inventory.equipment.value"
@@ -422,43 +422,24 @@ const containerNames = computed<Record<number, string>>(() => {
                 <p class="text-[11px] text-[var(--sz-text-dim)]">{{ t('inventory.noStash') }}</p>
                 <UButton size="xs" icon="i-lucide-plus" :label="t('inventory.createStash')" @click="storageOpen = true" />
               </div>
+              <GridFilterRow
+                :filter="containerFilters.filterFor(inventory.selectedStorage.value.id)"
+                :items="inventory.selectedStorage.value.items"
+                :order="tidyOrder.order"
+                :orders="tidyItems"
+                :busy="inventory.busy.value"
+                :overflow="inventory.selectedStorage.value.kind === 'overflow'"
+                @update="(next) => setFilter(inventory.selectedStorage.value!.id, next)"
+                @update:order="tidyOrder.order = $event as typeof tidyOrder.order"
+                @tidy="tidy(inventory.selectedStorage.value)"
+              />
               <p
                 v-if="inventory.selectedStorage.value.kind === 'overflow'"
                 class="mb-2 text-[11px] text-[var(--sz-text-muted)]"
               >
                 {{ t('inventory.overflowHint') }}
               </p>
-              <div class="mb-2 mt-2 flex flex-wrap items-center gap-1.5 border-b border-[var(--sz-border)] pb-2">
-                <ContainerFilterBar
-                  :filter="containerFilters.filterFor(inventory.selectedStorage.value.id)"
-                  :items="inventory.selectedStorage.value.items"
-                  @update="(next) => setFilter(inventory.selectedStorage.value!.id, next)"
-                />
-                <div
-                  v-if="inventory.selectedStorage.value.kind !== 'overflow'"
-                  class="ml-auto flex items-center gap-1"
-                >
-                  <USelect
-                    v-model="tidyOrder.order"
-                    :items="tidyItems"
-                    size="xs"
-                    class="w-32"
-                    :aria-label="t('inventory.tidyOrder')"
-                  />
-                  <UButton
-                    icon="i-lucide-list-restart"
-                    size="xs"
-                    color="neutral"
-                    variant="outline"
-                    :label="t('inventory.tidy')"
-                    :loading="inventory.busy.value"
-                    :disabled="!inventory.selectedStorage.value.items.length || inventory.busy.value"
-                    @click="tidy(inventory.selectedStorage.value)"
-                  />
-                </div>
-              </div>
-              <div class="mt-2">
-                <ItemGrid
+              <ItemGrid
                   :storage="inventory.selectedStorage.value"
                   :filter="containerFilters.filterFor(inventory.selectedStorage.value.id)"
                   :picked-id="drag.picked.value?.id ?? null"
@@ -475,7 +456,6 @@ const containerNames = computed<Record<number, string>>(() => {
                   @pick="pickItem"
                   @menu="itemMenu"
                 />
-              </div>
             </template>
 
             <div v-else class="space-y-2">
@@ -491,38 +471,22 @@ const containerNames = computed<Record<number, string>>(() => {
         </ProfilePane>
 
         <ProfilePane
-          class="lg:h-[calc(100vh-11.5rem)] min-h-[460px] min-w-0"
+          class="lg:h-[calc(100vh-11.5rem)] min-h-[460px] min-w-0 [&>header]:h-[52px] [&>header]:flex-nowrap sm:[&>header]:h-9"
           flush
           :title="storageLabel(inventory.inventoryStorage.value, t)"
         >
           <div class="h-full overflow-auto">
             <div class="p-2.5">
-            <div class="mb-2 flex flex-wrap items-center gap-1.5 border-b border-[var(--sz-border)] pb-2">
-              <ContainerFilterBar
-                :filter="containerFilters.filterFor(inventory.inventoryStorage.value.id)"
-                :items="inventory.inventoryStorage.value.items"
-                @update="(next) => setFilter(inventory.inventoryStorage.value!.id, next)"
-              />
-              <div class="ml-auto flex items-center gap-1">
-                <USelect
-                  v-model="tidyOrder.order"
-                  :items="tidyItems"
-                  size="xs"
-                  class="w-32"
-                  :aria-label="t('inventory.tidyOrder')"
-                />
-                <UButton
-                  icon="i-lucide-list-restart"
-                  size="xs"
-                  color="neutral"
-                  variant="outline"
-                  :label="t('inventory.tidy')"
-                  :loading="inventory.busy.value"
-                  :disabled="!inventory.inventoryStorage.value.items.length || inventory.busy.value"
-                  @click="tidy(inventory.inventoryStorage.value)"
-                />
-              </div>
-            </div>
+            <GridFilterRow
+              :filter="containerFilters.filterFor(inventory.inventoryStorage.value.id)"
+              :items="inventory.inventoryStorage.value.items"
+              :order="tidyOrder.order"
+              :orders="tidyItems"
+              :busy="inventory.busy.value"
+              @update="(next) => setFilter(inventory.inventoryStorage.value!.id, next)"
+              @update:order="tidyOrder.order = $event as typeof tidyOrder.order"
+              @tidy="tidy(inventory.inventoryStorage.value)"
+            />
             <ItemGrid
               :storage="inventory.inventoryStorage.value"
               :filter="containerFilters.filterFor(inventory.inventoryStorage.value.id)"

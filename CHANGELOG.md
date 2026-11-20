@@ -26,6 +26,9 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
+- The stash and carried-inventory panes share a fixed header height (52 px touch / 36 px
+  pointer) and one filter row component, so both rows start and wrap identically; intake
+  keeps the tidy controls visible but disabled with its release hint below the row.
 - Data tables scroll inside their own bounded box: `/weapons` list mode, the event log and
   `/logs` keep an opaque header at the top of the box while rows pass underneath.
 - Item cards and grid tiles keep no selection frame: a single click changes nothing, while a
