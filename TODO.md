@@ -11,7 +11,6 @@ Entry format:
 
 ## Now
 
-- [ ] inventory: the stash tabs live in the left pane's header instead of the scrolling body — the strip replaces the static stash title, keeps `role="tablist"`, the accent-filled active tab with its count and the auto-arrange/manage buttons, and scrolls inside the header instead of wrapping into the pane when there are many stashes — proven by a manual RU/EN pass on `/inventory` with one and six-plus stashes at 600 and 1400 px, plus `npm run typecheck` and `npx eslint app`.
 - [ ] ui: the settings and guide tab strips mark the active tab with the nav's 2px accent underline along the bottom of the strip, from one shared tab-style constant instead of the two copied `:ui` objects — proven by the manual RU/EN pass on `/settings` and `/guide` at 600 and 1400 px, `npm run typecheck` and `npx eslint app`.
 
 ## Next
@@ -34,6 +33,7 @@ _Nothing agreed._
 
 _Newest first; keep at most ten entries._
 
+- inventory: the stash tabs moved into the left pane's header in place of the title, keeping the tablist, accent active tab with count and the auto-arrange/manage buttons, and scrolling horizontally with many stashes — proven by the EN/RU browser pass at 600/1400 px with one and eight stashes, `npm run typecheck` and `npx eslint`. — `feat(inventory): move the stash tabs into the pane header`
 - inventory: each pane scrolls in one unpadded container, so the track rides the pane border and the grid keeps the full width; all scroll areas share a square-thumb themed scrollbar with a dimmer hover and Firefox `thin`/colours — proven in Chromium at 600/1400 px in both themes (computed styles and pane/scroll widths); no Firefox binary was available for the manual pass. — `feat(inventory): unify pane scrolling and scrollbars`
 - changelog: the filter bar sticks flush to the viewport top on desktop and the entry cards' scroll margin matches its real height, so `#<entry>` lands below it — proven by the EN/RU browser pass at 600/1400 px, `npm run typecheck` and `npx eslint`. — `fix(changelog): stick the filter bar to the viewport top`
 - ui: the side menu collapses as a 200 ms width change with fading/clipping labels, no brand in the 64 px rail, centred icons with corner count chips, and a footer built from the same accent-bordered rows as the top — proven by the browser pass in EN/RU, both themes and 600/1400 px in both rail states, `npm run typecheck` and `npx eslint`. — `feat(nav): rebuild the collapsible side menu`

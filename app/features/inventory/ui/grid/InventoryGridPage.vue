@@ -332,6 +332,39 @@ const containerNames = computed<Record<number, string>>(() => {
           flush
           :title="leftPane === 'equipment' ? t('inventory.equipment') : stashPaneTitle"
         >
+          <template v-if="leftPane === 'stash'" #header>
+            <div
+              v-if="tabs.length"
+              role="tablist"
+              :aria-label="t('inventory.stashSelector')"
+              class="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto whitespace-nowrap"
+            >
+              <button
+                v-for="tab in tabs"
+                :key="tab.storage.id"
+                type="button"
+                role="tab"
+                class="inline-flex min-h-7 shrink-0 items-center gap-1.5 border px-2 text-[11.5px] leading-none transition-colors"
+                :class="
+                  tab.active
+                    ? 'border-[var(--sz-accent)] bg-[var(--sz-accent)] text-[var(--sz-on-accent)]'
+                    : 'border-[var(--sz-border)] bg-ink-800 text-[var(--sz-text-muted)] hover:bg-ink-700 hover:text-[var(--sz-text)]'
+                "
+                :aria-selected="tab.active"
+                :aria-current="tab.active ? 'page' : undefined"
+                @click="selectStash(tab.storage.id)"
+              >
+                <span class="truncate">{{ storageLabel(tab.storage, t) }}</span>
+                <span
+                  class="tabular-nums text-[10px]"
+                  :class="tab.active ? 'text-[var(--sz-on-accent)]/80' : 'text-[var(--sz-text-dim)]'"
+                >
+                  {{ tab.storage.items.length }}
+                </span>
+              </button>
+            </div>
+            <h2 v-else class="sz-caps min-w-0 truncate text-[var(--sz-text-muted)]">{{ stashPaneTitle }}</h2>
+          </template>
           <template v-if="leftPane === 'stash'" #actions>
             <UButton
               v-if="inventory.selectedStorage.value?.kind === 'stash'"
@@ -380,37 +413,6 @@ const containerNames = computed<Record<number, string>>(() => {
               >
                 <p class="text-[11px] text-[var(--sz-text-dim)]">{{ t('inventory.noStash') }}</p>
                 <UButton size="xs" icon="i-lucide-plus" :label="t('inventory.createStash')" @click="storageOpen = true" />
-              </div>
-              <!-- Stash tabs: the active stash is filled with the accent, so the current pane is obvious. -->
-              <div
-                v-if="tabs.length"
-                class="mb-2 flex flex-wrap items-center gap-1"
-                role="tablist"
-                :aria-label="t('inventory.stashSelector')"
-              >
-                <button
-                  v-for="tab in tabs"
-                  :key="tab.storage.id"
-                  type="button"
-                  role="tab"
-                  class="inline-flex min-h-8 items-center gap-1.5 border px-2 text-[11.5px] leading-none transition-colors"
-                  :class="
-                    tab.active
-                      ? 'border-[var(--sz-accent)] bg-[var(--sz-accent)] text-[var(--sz-on-accent)]'
-                      : 'border-[var(--sz-border)] bg-ink-800 text-[var(--sz-text-muted)] hover:bg-ink-700 hover:text-[var(--sz-text)]'
-                  "
-                  :aria-selected="tab.active"
-                  :aria-current="tab.active ? 'page' : undefined"
-                  @click="selectStash(tab.storage.id)"
-                >
-                  <span class="truncate">{{ storageLabel(tab.storage, t) }}</span>
-                  <span
-                    class="tabular-nums text-[10px]"
-                    :class="tab.active ? 'text-[var(--sz-on-accent)]/80' : 'text-[var(--sz-text-dim)]'"
-                  >
-                    {{ tab.storage.items.length }}
-                  </span>
-                </button>
               </div>
               <p
                 v-if="inventory.selectedStorage.value.kind === 'overflow'"

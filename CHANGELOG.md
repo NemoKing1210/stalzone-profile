@@ -17,6 +17,9 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
+- Inventory: the stash tab strip lives in the left pane's header in place of the title,
+  keeps the accent-filled active tab and its count, keeps auto-arrange/manage, and scrolls
+  horizontally instead of wrapping when there are many stashes.
 - Inventory panes scroll in one unpadded container per pane, so the track rides the pane
   border and the grid keeps the full width; every scroll area uses one themed scrollbar
   (square thumb on the track, dimmer on hover, `thin` in Firefox).
