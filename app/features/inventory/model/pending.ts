@@ -160,11 +160,51 @@ export function applyPending(inventory: InventoryRead, moves: readonly PendingMo
   return moves.reduce((current, move) => relocateItem(current, move.itemId, move.target), inventory);
 }
 
+/** Whether a payload placement is exactly the target a settled move asked for. */
+function placementMatchesTarget(placement: PlacementRead, target: PendingMove['target']): boolean {
+  if (target.location === 'grid') {
+    return (
+      placement.location === 'grid' &&
+      placement.storageId === target.storageId &&
+      placement.x === target.x &&
+      placement.y === target.y &&
+      placement.rotated === target.rotated
+    );
+  }
+  if (target.location === 'equipment') {
+    return placement.location === 'equipment' && placement.slot === target.slot;
+  }
+  if (target.location === 'container') {
+    return (
+      placement.location === 'container' &&
+      placement.containerItemId === target.containerItemId &&
+      placement.slotIndex === target.slot
+    );
+  }
+  return (
+    placement.location === 'weapon_module' &&
+    placement.weaponItemId === target.weaponItemId &&
+    placement.slot === target.slot
+  );
+}
+
 /**
  * Drops the moves the answered refresh can already see: their write settled before the
- * refresh was requested. A move still in flight (or settled after the request started)
- * stays optimistic, because that payload cannot contain it.
+ * refresh was requested and the payload actually shows the target. A move still in flight
+ * (or settled after the request started) stays optimistic, because that payload cannot
+ * contain it; so does a settled move whose payload predates the write — otherwise a stale
+ * response would silently snap the item back to its source cell.
  */
-export function clearPending(moves: readonly PendingMove[], refreshAt: number): PendingMove[] {
-  return moves.filter((move) => move.settledAt == null || move.settledAt > refreshAt);
+export function clearPending(
+  moves: readonly PendingMove[],
+  refreshAt: number,
+  inventory?: InventoryRead | null,
+): PendingMove[] {
+  return moves.filter((move) => {
+    if (move.settledAt == null || move.settledAt > refreshAt) return true;
+    if (!inventory) return false;
+    const item = findInventoryItem(inventory, move.itemId);
+    if (!item) return false;
+    return !placementMatchesTarget(item.placement, move.target);
+  });
 }

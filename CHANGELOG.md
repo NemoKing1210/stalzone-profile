@@ -7,6 +7,12 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ## [Unreleased]
 
+### Fixed
+
+- Inventory drags no longer snap back: a write forces a payload refetch instead of
+  accepting the fresh cache, and an optimistic move is cleared only when the refreshed
+  payload actually shows its target.
+
 ### Changed
 
 - Catalog binding treats EXBO's `weapon_style/` and `armor_style/` rows as cosmetic

@@ -189,4 +189,17 @@ describe('clearPending', () => {
     ];
     expect(clearPending(moves, 9).map((move) => move.itemId)).toEqual([10]);
   });
+
+  it('keeps a settled move the refreshed payload has not applied yet', () => {
+    const moves = [{ itemId: 10, target, settledAt: 2 }];
+
+    expect(clearPending(moves, 5, fixture())).toHaveLength(1);
+    expect(clearPending(moves, 5, relocateItem(fixture(), 10, target))).toEqual([]);
+  });
+
+  it('clears a settled move the payload shows at its equipment slot', () => {
+    const moves = [{ itemId: 20, target: { location: 'equipment' as const, slot: 'primary' as const }, settledAt: 2 }];
+
+    expect(clearPending(moves, 5, fixture())).toEqual([]);
+  });
 });

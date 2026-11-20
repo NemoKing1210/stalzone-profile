@@ -32,7 +32,10 @@ export const useProfileStore = defineStore('profile', () => {
   });
 
   async function refresh(): Promise<void> {
-    await query.refresh();
+    // `refresh()` honours `staleTime` and can answer with the data that was already
+    // there, so a write that immediately follows would reconcile against a payload
+    // from before it. Every caller here wants the server's current state.
+    await query.refetch();
   }
 
   async function invalidate(): Promise<void> {

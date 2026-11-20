@@ -86,7 +86,7 @@ export function useInventory() {
       // with the server's payload.
       await refresh();
     } finally {
-      const kept = clearPending([...pending.value.values()], refreshAt);
+      const kept = clearPending([...pending.value.values()], refreshAt, payload.value?.inventory ?? null);
       pending.value = new Map(kept.map((keptEntry) => [keptEntry.itemId, keptEntry]));
     }
     return result;
