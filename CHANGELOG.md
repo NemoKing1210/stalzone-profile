@@ -50,6 +50,9 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- `docs/superpowers/specs/2026-11-21-chat-assistant-design.md` records the approved
+  assistant design: allow-listed and redacted data only, every write confirmed, keys in env,
+  threads/prompts in the profile DB and an MCP tool loop.
 - `docs/PERFORMANCE.md` records a measured baseline (cold/warm `buildPayload`, payload
   bytes, per-page TTFB/FCP/DOM counts) with a budget and two measured follow-ups; the
   capture script is `scripts/perf-audit.ts`.
