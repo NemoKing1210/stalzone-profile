@@ -150,3 +150,147 @@ describe('tidy storage', () => {
     expect(getStorage(db, intake)?.kind).toBe('overflow');
   });
 });
+
+describe('tidy placement order and rollback', () => {
+  function makeItem(name: string, kind: 'weapon' | 'artifact' | 'armor', category: string): { itemId: number; instance: number } {
+    const itemId = seed.upsertItem(db, { sourceId: 'local', externalId: `tidy-order:${name}`, name, kind, category });
+    const instance = seed.insertInventoryItem(db, { characterId, itemId, kind });
+    return { itemId, instance };
+  }
+
+  function storage(width: number, height: number): number {
+    return seed.insertStorage(db, { characterId, kind: 'stash', name: `S${width}x${height}`, width, height, sortOrder: 0 });
+  }
+
+  it('parks every moved item so a reordered origin cannot collide', () => {
+    const box = storage(8, 8);
+    const rifle = makeItem('A rifle', 'weapon', 'weapon/assault_rifle').instance;
+    const artifact = makeItem('B artifact', 'artifact', 'artefact/gravity').instance;
+    upsertPlacement(db, { itemId: rifle, characterId, location: 'grid', storageId: box, x: 3, y: 0 });
+    upsertPlacement(db, { itemId: artifact, characterId, location: 'grid', storageId: box, x: 0, y: 0 });
+
+    const result = tidyStorage(db, box, TidyStorageSchema.parse({ order: 'name', dryRun: false }));
+    expect(result.eventId).toBeTypeOf('number');
+    expect(getPlacement(db, rifle)).toMatchObject({ x: 0, y: 0 });
+    expect(getPlacement(db, artifact)).toMatchObject({ x: 5, y: 0 });
+    expect(db.prepare(`SELECT COUNT(*) AS n FROM item_placement WHERE storage_id = ? AND location = 'loose'`).get(box)).toEqual({ n: 0 });
+
+    rollbackEvent(db, result.eventId!, false);
+    expect(getPlacement(db, rifle)).toMatchObject({ x: 3, y: 0 });
+    expect(getPlacement(db, artifact)).toMatchObject({ x: 0, y: 0 });
+  });
+
+  it('parks the snapshot before a rollback so item order cannot collide', () => {
+    const box = storage(8, 8);
+    const rifle = makeItem('B rifle', 'weapon', 'weapon/assault_rifle').instance;
+    const artifact = makeItem('A artifact', 'artifact', 'artefact/gravity').instance;
+    upsertPlacement(db, { itemId: rifle, characterId, location: 'grid', storageId: box, x: 0, y: 0 });
+    upsertPlacement(db, { itemId: artifact, characterId, location: 'grid', storageId: box, x: 5, y: 0 });
+
+    const result = tidyStorage(db, box, TidyStorageSchema.parse({ order: 'name', dryRun: false }));
+    expect(getPlacement(db, artifact)).toMatchObject({ x: 0, y: 0 });
+    expect(getPlacement(db, rifle)).toMatchObject({ x: 1, y: 0 });
+
+    rollbackEvent(db, result.eventId!, false);
+    expect(getPlacement(db, rifle)).toMatchObject({ x: 0, y: 0 });
+    expect(getPlacement(db, artifact)).toMatchObject({ x: 5, y: 0 });
+  });
+
+  it('refuses a rollback whose snapshot target is now occupied by another item', () => {
+    const box = storage(10, 10);
+    const rifle = makeItem('rifle', 'weapon', 'weapon/assault_rifle').instance;
+    const artifact = makeItem('artifact', 'artifact', 'artefact/gravity').instance;
+    upsertPlacement(db, { itemId: rifle, characterId, location: 'grid', storageId: box, x: 0, y: 0 });
+    upsertPlacement(db, { itemId: artifact, characterId, location: 'grid', storageId: box, x: 5, y: 5 });
+
+    const result = tidyStorage(db, box, TidyStorageSchema.parse({ order: 'kind', dryRun: false }));
+    const armor = makeItem('armor', 'armor', 'armor/combat').instance;
+    upsertPlacement(db, { itemId: armor, characterId, location: 'grid', storageId: box, x: 5, y: 5 });
+
+    expectWriteError(() => rollbackEvent(db, result.eventId!, false), 'ROLLBACK_CONFLICT');
+    expect(getPlacement(db, armor)).toMatchObject({ x: 5, y: 5 });
+  });
+});
+
+describe('tidy property loop', () => {
+  function rectsOverlap(a: { x: number; y: number; w: number; h: number }, b: typeof a): boolean {
+    return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  }
+
+  it('keeps fifty seeded layouts complete, disjoint and exactly rollbackable', () => {
+    let state = 0x5eed;
+    const random = (): number => {
+      state = (state * 1664525 + 1013904223) >>> 0;
+      return state / 0x1_0000_0000;
+    };
+    const orders = ['kind', 'name', 'rank', 'footprint'] as const;
+
+    for (let layout = 0; layout < 50; layout += 1) {
+      const width = 8;
+      const height = 8;
+      const box = seed.insertStorage(db, {
+        characterId,
+        kind: 'stash',
+        name: `Prop ${layout}`,
+        width,
+        height,
+        sortOrder: 0,
+      });
+      const occupied: { x: number; y: number; w: number; h: number }[] = [];
+      const originals = new Map<number, { x: number; y: number }>();
+      for (let index = 0; index < 8; index += 1) {
+        const w = 1 + Math.floor(random() * 3);
+        const h = 1 + Math.floor(random() * 3);
+        let placed: { x: number; y: number } | null = null;
+        for (let attempt = 0; attempt < 40 && !placed; attempt += 1) {
+          const x = Math.floor(random() * (width - w + 1));
+          const y = Math.floor(random() * (height - h + 1));
+          const candidate = { x, y, w, h };
+          if (!occupied.some((rect) => rectsOverlap(candidate, rect))) placed = { x, y };
+        }
+        if (!placed) continue;
+        const itemId = seed.upsertItem(db, {
+          sourceId: 'local',
+          externalId: `prop:${layout}:${index}`,
+          name: `item-${index}`,
+          kind: 'artifact',
+          category: 'artefact/gravity',
+        });
+        seed.upsertItemLayout(db, itemId, { width: w, height: h });
+        const instance = seed.insertInventoryItem(db, { characterId, itemId, kind: 'artifact' });
+        upsertPlacement(db, { itemId: instance, characterId, location: 'grid', storageId: box, x: placed.x, y: placed.y });
+        occupied.push({ x: placed.x, y: placed.y, w, h });
+        originals.set(instance, placed);
+      }
+
+      const result = tidyStorage(db, box, TidyStorageSchema.parse({ order: orders[layout % orders.length], dryRun: false }));
+      const rows = db
+        .prepare(`SELECT item_id, x, y, rotated, location FROM item_placement WHERE storage_id = ?`)
+        .all(box) as { item_id: number; x: number; y: number; rotated: number; location: string }[];
+      expect(rows).toHaveLength(originals.size);
+      expect(rows.every((row) => row.location === 'grid')).toBe(true);
+      const sizes = new Map<number, { w: number; h: number }>();
+      for (const row of rows) {
+        const placement = getPlacement(db, row.item_id);
+        const found = occupied.find((rect) => rect.x === originals.get(row.item_id)?.x && rect.y === originals.get(row.item_id)?.y);
+        sizes.set(row.item_id, { w: found?.w ?? 1, h: found?.h ?? 1 });
+        expect(placement?.location).toBe('grid');
+      }
+      const cells = rows.map((row) => {
+        const size = sizes.get(row.item_id)!;
+        const rotated = row.rotated === 1;
+        return { x: row.x, y: row.y, w: rotated ? size.h : size.w, h: rotated ? size.w : size.h };
+      });
+      for (let left = 0; left < cells.length; left += 1) {
+        for (let right = left + 1; right < cells.length; right += 1) {
+          expect(rectsOverlap(cells[left]!, cells[right]!)).toBe(false);
+        }
+      }
+      expect(db.prepare(`PRAGMA foreign_key_check`).all()).toEqual([]);
+      if (result.eventId) {
+        rollbackEvent(db, result.eventId, false);
+        for (const [instance, at] of originals) expect(getPlacement(db, instance)).toMatchObject(at);
+      }
+    }
+  });
+});

@@ -122,3 +122,20 @@ export function restorePlacementRow(db: Db, row: PlacementRow): void {
        updated_at = excluded.updated_at`,
   ).run(row);
 }
+
+/**
+ * Frees the grid cells of the given items inside the caller's transaction: every row becomes
+ * a loose placement with no storage and no origin. Bulk rewrites (tidy, and its rollback)
+ * park all moved rows first, so the final positions can be written in any order without
+ * tripping the unique grid-origin index. Parking never survives the transaction.
+ */
+export function parkPlacements(db: Db, itemIds: readonly number[]): void {
+  if (!itemIds.length) return;
+  const park = db.prepare(
+    `UPDATE item_placement
+        SET location = 'loose', storage_id = NULL, x = NULL, y = NULL, updated_at = ?
+      WHERE item_id = ?`,
+  );
+  const at = new Date().toISOString();
+  for (const itemId of itemIds) park.run(at, itemId);
+}
