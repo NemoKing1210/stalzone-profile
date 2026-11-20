@@ -2,6 +2,7 @@
 import { FreshnessBadge } from '~/entities/source';
 import { useProfileData } from '~/stores/profile-data';
 import { navCounts } from '~/shared/lib/nav';
+import { factionEmblem, factionLabel } from '~/shared/lib/factions';
 
 const props = withDefaults(
   defineProps<{
@@ -25,6 +26,9 @@ const { theme, toggleTheme } = useTheme();
 const counts = computed(() => navCounts(payload.value));
 const money = computed(() => payload.value?.character?.money ?? null);
 const nick = computed(() => payload.value?.character?.nick ?? null);
+const character = computed(() => payload.value?.character ?? {});
+const factionName = computed(() => factionLabel(t, character.value.faction));
+const factionEmblemImg = computed(() => factionEmblem(character.value.faction));
 const loggingOut = ref(false);
 /** The 64 px icon rail: no labels, no brand, only icons. */
 const rail = computed(() => props.collapsed && !props.mobile);
@@ -154,7 +158,13 @@ async function logout(): Promise<void> {
 
     <div class="shrink-0 space-y-2 border-t border-[var(--sz-border)] p-2">
       <div v-if="!rail" class="space-y-1">
-        <p v-if="nick" class="truncate px-1 text-[12px] text-[var(--sz-text)]">{{ nick }}</p>
+        <div v-if="nick" class="flex min-w-0 items-center gap-1.5 px-1">
+          <p class="min-w-0 flex-1 truncate text-[12px] text-[var(--sz-text)]">{{ nick }}</p>
+          <span v-if="factionName" class="flex shrink-0 items-center gap-1" :title="factionName">
+            <img v-if="factionEmblemImg" :src="factionEmblemImg.src" alt="" width="14" height="14" class="size-3.5 object-contain">
+            <span class="sz-caps text-[10px] text-[var(--sz-text-dim)]">{{ factionName }}</span>
+          </span>
+        </div>
         <div class="flex flex-wrap items-center gap-x-2 gap-y-1 px-1">
           <span
             v-if="money != null"

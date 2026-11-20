@@ -104,7 +104,7 @@ function tdClass(column: InventoryColumn<TRow>): string | undefined {
     column.strong ? 'font-medium' : '',
     column.wide ? 'min-w-48' : '',
     column.truncate ? 'max-w-72 truncate' : '',
-    column.icon ? 'w-8' : '',
+    column.icon ? 'w-16' : '',
   ].filter(Boolean);
   return classes.length ? classes.join(' ') : undefined;
 }

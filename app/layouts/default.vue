@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import SiteNav from './SiteNav.vue';
 import CommandPalette from './CommandPalette.vue';
+import { ZoneRadio } from '~/features/radio';
 import { useProfileData } from '~/stores/profile-data';
 
 const { t } = useI18n();

@@ -53,6 +53,12 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- The ZONE FM radio is mounted again in the default layout; its FAB, bar, track list,
+  persistence and Media Session behaviour are unchanged.
+- The side panel shows the character's faction emblem and name beside the nick, and its
+  navigation lists drop the row separators.
+- List-mode catalog rows use a 48 px framed well with a 44 px image and a matching empty
+  tile; the shared icon column widened to fit it.
 - `/chat` keeps assistant threads and messages in the profile DB, renders tool results as
   item rows with rank badges, inventory and price tables, and asks to confirm every write
   with its dry-run diff before the MCP tool runs.
