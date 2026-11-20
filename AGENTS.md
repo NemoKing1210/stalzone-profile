@@ -143,6 +143,53 @@ Rules that keep the tiers honest:
 - UI changes are checked by typecheck, lint and a manual pass over the affected pages;
   there is no browser test layer.
 
+## Task list (TODO.md)
+
+`TODO.md` in the repository root is the queue of planned work. `docs/superpowers/` holds
+designs and implementation plans; the queue holds only the actionable lines that come out
+of them. The owner sets the priorities; the rules below define what counts as real work.
+
+- **Simplest first.** Work the list from the top: unblockers, one-line fixes and cheap
+  checks before large or risky changes. A task may leave the top only when it is blocked,
+  and then it moves down with the blocker named; the owner may reprioritize explicitly.
+- **Only real work.** A task comes from the owner, a reproduced defect, a failing check or
+  a documented gap. Do not invent work and do not copy an audit or a plan wholesale — link
+  it and list the concrete outcomes.
+- **"Add a task" means this file.** When the owner says "add a task", "add these tasks" or
+  an equivalent phrase in any language, write the entries into `TODO.md` in the format
+  below. It is a request to record work, not to start it: implement a task only when the
+  owner asks to execute it or to work the list.
+- **One entry per outcome.** `- [ ] <area>: <result> — <how it is proven>`: one line,
+  imperative, an observable result and the test or command that proves it. No dates,
+  estimates or owner names; there is one owner.
+- **Work it as a normal change.** TDD, the verification tier that fits, and the updates
+  listed under **What to update along with code**. A task line never overrides a hard
+  invariant.
+- **Plan the large ones.** A small fix follows the normal TDD loop. A large task, or one
+  that adds functionality, changes a contract or migration or spans several modules,
+  starts with a plan: what it touches, the data/API/MCP shape, the edge cases and rollback,
+  the tests that will prove it, and which existing behavior must not move. Get the owner's
+  agreement before the first code edit, as **How to change code** requires.
+- **Quality and reliability are the bar.** Prefer the boring, complete implementation:
+  every caller migrated, no dead code, stubs or `TODO`s, errors handled where they belong,
+  no swallowed failures. A task is not done because the happy path works.
+- **Guard against regressions.** Before calling a task done, prove the old behavior still
+  holds: run the affected suites from the Tier 2 table, not just the new test, and add a
+  regression test for the defect or edge the task introduces. Any deliberate behavior
+  change is named in the reply and in `CHANGELOG.md`, never passed off as a side effect.
+- **Review the result.** Read your own diff against the plan — contracts, invariants, error
+  paths, rollback, tests and docs — before reporting completion. Interface work (screens,
+  components, layout, i18n) additionally gets a manual pass in a browser over the affected
+  pages and states, both locales and narrow widths; typecheck and lint are not a review.
+  When a review skill or subagent is available, use it — review is evidence, not a rubber
+  stamp.
+- **Close it in the same change.** Tick the box, add the `CHANGELOG.md` entry and append
+  the line to `Done` with the commit subject. A task is done when the tier ran green and
+  the documentation moved, not when the code exists.
+- **Prune on the way.** `Done` keeps the ten most recent entries; delete the older ones —
+  git history is the archive. Rewrite or delete an entry whose work has become wrong or
+  obsolete. Never delete an open task without an owner decision.
+
 ## Code map
 
 | Path                         | Responsibility                                                           |
@@ -401,3 +448,5 @@ Rules:
    consent.
 6. A schema, API/MCP or displayed-number change has its plan and owner approval, and the
    matching `docs/` and `/guide` entries are updated.
+7. `TODO.md` reflects reality: the finished task is ticked, moved to `Done` and has its
+   changelog entry; no open task was silently dropped.

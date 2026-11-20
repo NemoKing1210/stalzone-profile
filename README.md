@@ -64,6 +64,7 @@ terminal.
 | Rebuilding or migrating a database                 | [Migration](docs/MIGRATION.md)         |
 | Interface text and locales                         | [i18n](docs/I18N.md)                   |
 | How to change the code safely                      | [AGENTS.md](AGENTS.md)                 |
+| Planned work and its order                         | [TODO.md](TODO.md)                     |
 | Notable changes                                    | [Changelog](CHANGELOG.md)              |
 
 ## Layout
