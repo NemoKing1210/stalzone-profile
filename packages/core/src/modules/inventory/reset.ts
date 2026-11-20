@@ -4,6 +4,7 @@ import { WriteError } from '../../platform/journal/index.js';
 import * as repo from './repo/index.js';
 import { nextOverflowPlacement, packIntoOverflow } from './write/overflow.js';
 import { itemSize } from './write/placement.js';
+import { findCollision, itemRect } from './layout/index.js';
 import { inventorySnapshot } from './write/storage.js';
 import { INTAKE_GRID_HEIGHT, INVENTORY_GRID_HEIGHT, INVENTORY_GRID_WIDTH } from '@profile/shared/contracts';
 
@@ -435,7 +436,40 @@ export function restoreTidyTx(
   snapshot: Record<string, unknown>,
   characterId: number,
 ): void {
-  for (const entry of (snapshot.placements as PlacementEntry[] | undefined) ?? []) {
+  const entries = (snapshot.placements as PlacementEntry[] | undefined) ?? [];
+  const storageId = Number(snapshot.storageId);
+  // Park every snapshot item first so the restore order cannot collide with a snapshot
+  // item still sitting on the target cell.
+  repo.parkPlacements(db, entries.map((entry) => entry.itemId));
+  // A cell written after the event is not part of the snapshot: restoring onto it would
+  // overwrite foreign state (or trip the unique index), so refuse with a typed conflict.
+  if (entries.length && Number.isInteger(storageId)) {
+    const snapshotIds = new Set(entries.map((entry) => entry.itemId));
+    const foreign = repo
+      .listStoragePlacements(db, storageId)
+      .filter((placement) => !snapshotIds.has(placement.item_id) && placement.x != null && placement.y != null)
+      .flatMap((placement) => {
+        const row = repo.getInventoryItem(db, placement.item_id);
+        if (!row || placement.x == null || placement.y == null) return [];
+        return [itemRect(placement.x, placement.y, itemSize(db, row), placement.rotated === 1)];
+      });
+    for (const entry of entries) {
+      const target = entry.placement;
+      if (target.location !== 'grid' || Number(target.storageId) !== storageId) continue;
+      if (target.x == null || target.y == null) continue;
+      const row = repo.getInventoryItem(db, entry.itemId);
+      if (!row) continue;
+      const rect = itemRect(Number(target.x), Number(target.y), itemSize(db, row), Boolean(target.rotated));
+      if (findCollision(rect, foreign)) {
+        throw new WriteError(
+          409,
+          'ROLLBACK_CONFLICT',
+          'The storage changed after this event; move the new items out and roll back again',
+        );
+      }
+    }
+  }
+  for (const entry of entries) {
     restorePlacementSnapshot(db, entry.itemId, entry.placement, characterId);
   }
 }

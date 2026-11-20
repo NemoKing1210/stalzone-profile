@@ -123,6 +123,7 @@
     "ITEM_NOT_FOUND": "Item not found",
     "EVENT_NOT_FOUND": "Event not found",
     "EVENT_NOT_ROLLBACKABLE": "This event predates the inventory redesign and cannot be rolled back",
+    "ROLLBACK_CONFLICT": "The storage changed after this event; move the new items out and roll back again",
     "NOT_ROLLBACKABLE": "This event cannot be rolled back",
     "NOTHING_TO_CLEAR": "Nothing to clear",
     "DB_UNAVAILABLE": "The database is unavailable",

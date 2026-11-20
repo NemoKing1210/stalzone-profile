@@ -39,6 +39,7 @@ _Nothing agreed._
 
 _Newest first; keep at most ten entries._
 
+- inventory: tidy and its rollback park every moved row before writing the new cells, so write and restore are order-independent; a snapshot cell occupied by a later write answers `409 ROLLBACK_CONFLICT` — proven by the two reproductions, the 50-layout property loop, the conflict test, typecheck/lint and a manual tidy + journal rollback on the stash. — `fix(inventory): park rows during tidy and rollback`
 - ui(shell): the ZONE FM radio is mounted again from the layout — proven by the element check in Chromium; the radio internals are untouched. — `fix(shell): mount the ZONE FM radio again`
 - ui(nav): the account row shows the faction emblem and name beside the nick, and both navigation lists drop their separators — proven by the browser shell pass and typecheck. — `feat(nav): show the faction and drop list separators`
 - catalog(ui): list rows use the 48 px bordered icon well with a 44 px image and an empty-tile fallback, with the column widened to 16 — proven by the browser list pass and the column tests. — `feat(catalog): enlarge the list icon well`

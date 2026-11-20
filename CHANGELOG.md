@@ -9,6 +9,10 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Fixed
 
+- Tidy and its rollback park every moved row before writing the new cells, so reordered
+  origins and item-id rollback order can no longer trip the unique grid-origin index. A
+  rollback whose snapshot cell now holds an item written after the event answers
+  `409 ROLLBACK_CONFLICT` with a localized message instead of a raw SQLite error.
 - The changelog filter bar sticks flush to the viewport top on desktop, and an entry hash
   lands just below the 50 px bar instead of behind it.
 - Inventory drags no longer snap back: a write forces a payload refetch instead of

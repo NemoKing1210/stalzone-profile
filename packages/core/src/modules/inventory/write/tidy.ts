@@ -82,6 +82,9 @@ export function tidyStorage(db: Db, storageId: number, input: TidyStorage): Writ
 
   let eventId: number | undefined;
   withTransaction(db, () => {
+    // Free every moved origin before writing the new cells: otherwise an item whose new
+    // cells belong to another item that has not been written yet trips the unique origin.
+    repo.parkPlacements(db, moves.map((entry) => entry.id));
     for (const entry of moves) {
       repo.upsertPlacement(db, {
         itemId: entry.id,

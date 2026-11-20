@@ -34,7 +34,7 @@ Mutations (`POST/PATCH/PUT/DELETE`) require this host's `Origin` or
 | 413 | `PAYLOAD_TOO_LARGE` | a write body is over 2 MiB, including a chunked body without `Content-Length` |
 | 413 | `CLIENT_LOG_BATCH_TOO_LARGE` / `PAYLOAD_TOO_LARGE` | a browser log batch is over 32 KiB |
 | 413 | `JOURNAL_TOO_LARGE` | `journal.clear`/`reset.all` would snapshot over 20,000 events or 32 MiB |
-| 409 | `NO_CHARACTER`, `NOTHING_TO_CLEAR`, `EVENT_NOT_ROLLBACKABLE` and domain conflicts | no character / the cleanup scope is empty / the event predates the inventory redesign / `SLOT_OCCUPIED`, `OUT_OF_BOUNDS`, `CONTAINER_FULL`, `CONTAINER_SLOTS_IN_USE`, `INCOMPATIBLE_ATTACHMENT`, `STORAGE_TOO_SMALL`, `STORAGE_NAME_TAKEN`, `LAYOUT_CONFLICT` |
+| 409 | `NO_CHARACTER`, `NOTHING_TO_CLEAR`, `EVENT_NOT_ROLLBACKABLE`, `ROLLBACK_CONFLICT` and domain conflicts | no character / the cleanup scope is empty / the event predates the inventory redesign / the storage gained items on a snapshot cell since the event / `SLOT_OCCUPIED`, `OUT_OF_BOUNDS`, `CONTAINER_FULL`, `CONTAINER_SLOTS_IN_USE`, `INCOMPATIBLE_ATTACHMENT`, `STORAGE_TOO_SMALL`, `STORAGE_NAME_TAKEN`, `LAYOUT_CONFLICT` |
 | 422 | domain write errors | e.g. `INVALID_PLACEMENT`, `NOT_A_CONTAINER`, `NOT_AN_ARTIFACT`, `NOT_A_WEAPON`, `INVALID_LOGGING_SETTINGS`, `INVALID_LOG_PURGE`, `LOG_FILTER_REQUIRED` |
 | 429 | `RATE_LIMITED`, `CLIENT_LOG_RATE_LIMITED` | too many sign-in attempts / more than 120 browser log entries per minute from one address |
 
