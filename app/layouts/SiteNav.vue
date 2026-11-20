@@ -39,6 +39,7 @@ interface NavEntry {
 
 const sections = computed<NavEntry[]>(() => [
   { key: 'overview', label: t('nav.overview'), icon: 'i-lucide-house', to: '/' },
+  { key: 'chat', label: t('nav.chat'), icon: 'i-lucide-message-circle', to: '/chat' },
   { key: 'inventory', label: t('nav.inventory'), icon: 'i-lucide-package', to: '/inventory', count: counts.value.inventory },
   { key: 'weapons', label: t('nav.weapons'), icon: 'i-lucide-crosshair', to: '/weapons', count: counts.value.weapons },
   { key: 'devices', label: t('nav.devices'), icon: 'i-lucide-radar', to: '/devices', count: counts.value.devices },

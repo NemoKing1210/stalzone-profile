@@ -100,6 +100,15 @@ export const GUIDE_SITE: GuideSitePage[] = [
     ],
   },
   {
+    id: 'chat',
+    route: '/chat',
+    icon: 'i-lucide-message-circle',
+    kind: 'main',
+    titleKey: 'guide.site.chat.title',
+    summaryKey: 'guide.site.chat.summary',
+    capabilityKeys: ['guide.site.chat.caps.threads', 'guide.site.chat.caps.tools', 'guide.site.chat.caps.confirm'],
+  },
+  {
     id: 'inventory',
     route: '/inventory',
     icon: 'i-lucide-package',
@@ -379,6 +388,9 @@ export const GUIDE_API: GuideApiEndpoint[] = [
   { method: 'PATCH', path: '/api/v1/chat/settings', group: 'write', descriptionKey: 'guide.api.chat.settings' },
   { method: 'GET', path: '/api/v1/chat/prompts', group: 'read', descriptionKey: 'guide.api.chat.promptsRead' },
   { method: 'PATCH', path: '/api/v1/chat/prompts', group: 'write', descriptionKey: 'guide.api.chat.prompts' },
+  { method: 'GET', path: '/api/v1/chat/threads', group: 'read', descriptionKey: 'guide.api.chat.threadsRead' },
+  { method: 'GET', path: '/api/v1/chat/threads/:id', group: 'read', descriptionKey: 'guide.api.chat.threadRead' },
+  { method: 'POST', path: '/api/v1/chat/turn', group: 'write', descriptionKey: 'guide.api.chat.turn' },
   { method: 'POST', path: '/api/v1/chat/test', group: 'write', descriptionKey: 'guide.api.chat.test' },
   // Administration: scoped profile resets and source sync.
   { method: 'GET', path: '/api/v1/admin/cleanup', group: 'admin', descriptionKey: 'guide.api.admin.cleanupRead' },

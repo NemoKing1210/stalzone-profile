@@ -199,6 +199,48 @@ const TOOL_DOCS: Record<string, string> = {
     clear_logs: 'Delete logs by filter or entirely (dry_run by default)',
 };
 
+/** Tools that change profile data; the assistant pauses for confirmation on each. */
+export const WRITE_TOOL_NAMES = [
+  'add_inventory_item',
+  'update_inventory_item',
+  'remove_inventory_item',
+  'move_inventory_item',
+  'create_storage',
+  'update_storage',
+  'delete_storage',
+  'set_container_artifacts',
+  'set_weapon_module',
+  'set_item_layout',
+  'auto_arrange_storage',
+  'sync_source',
+  'rebuild_site',
+  'rollback_event',
+  'update_logging',
+  'clear_logs',
+] as const;
+
+const WRITE_TOOL_SET = new Set<string>(WRITE_TOOL_NAMES);
+
+export function isWriteTool(name: string): boolean {
+  return WRITE_TOOL_SET.has(name);
+}
+
+/** Provider-facing function definitions: the registry still validates every argument. */
+export function toolDefinitions(allowList?: readonly string[]): {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+}[] {
+  const allowed = allowList && allowList.length ? new Set(allowList) : null;
+  return Object.entries(TOOL_DOCS)
+    .filter(([name]) => (allowed ? allowed.has(name) || isWriteTool(name) : true))
+    .map(([name, description]) => ({
+      name,
+      description,
+      parameters: { type: 'object', properties: {}, additionalProperties: true },
+    }));
+}
+
 function ok(data: unknown) {
   return {
     content: [{ type: 'text' as const, text: JSON.stringify(data) }],

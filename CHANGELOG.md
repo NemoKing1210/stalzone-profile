@@ -50,6 +50,12 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- `/chat` keeps assistant threads and messages in the profile DB, renders tool results as
+  item rows with rank badges, inventory and price tables, and asks to confirm every write
+  with its dry-run diff before the MCP tool runs.
+- An assistant turn runs through the in-process MCP registry: read tools execute freely,
+  the first write returns its dry-run diff, and only a confirmed call writes (audited by the
+  owning service), while a decline is returned to the model.
 - Assistant prompts and skills live in the profile DB: a default system prompt plus
   inventory, pricing and write skills, editable in Settings → Assistant. Each save appends a
   version, `chat.prompt.update` is audited, the composed prompt injects every enabled skill

@@ -38,6 +38,7 @@
   },
   "nav": {
     "overview": "Overview",
+    "chat": "Assistant",
     "inventory": "Inventory",
     "weapons": "Weapons",
     "devices": "Devices",
@@ -579,6 +580,33 @@
     "fillNext": "Fill the container slots",
     "noItems": "Nothing found in the catalog."
   },
+  "chat": {
+    "pageTitle": "Assistant",
+    "title": "Assistant",
+    "summary": "Ask about the profile or ask for a change. Reads run freely; every write shows its dry-run diff and waits for confirmation.",
+    "threads": "Threads",
+    "newThread": "New thread",
+    "newTitle": "New thread",
+    "noThreads": "No threads yet.",
+    "empty": "Ask about the character, inventory, prices or a planned change.",
+    "placeholder": "Ask the assistant…",
+    "failed": "Assistant request failed",
+    "failedDescription": "Check Settings → Assistant and the provider connection.",
+    "pendingTitle": "Confirmation required",
+    "confirm": "Confirm write",
+    "decline": "Decline",
+    "confirmed": "Confirmed.",
+    "declined": "Declined.",
+    "noLot": "no lot",
+    "columns": {
+      "name": "Name",
+      "price": "Price",
+      "lots": "Lots",
+      "level": "Lvl.",
+      "qty": "Qty",
+      "location": "Location"
+    }
+  },
   "settings": {
     "pageTitle": "Settings",
     "title": "Settings",
@@ -1117,6 +1145,15 @@
           "freshness": "Owned counts link to the four gear screens; the payload, price and catalog dates show how fresh the data is."
         }
       },
+      "chat": {
+        "title": "Assistant",
+        "summary": "Threads with the in-app assistant; it reads through the MCP tools and acts through the same services.",
+        "caps": {
+          "threads": "Threads and messages persist in the profile database; the left pane switches threads and starts a new one.",
+          "tools": "Read tools run freely and their results render as item rows, inventory tables and price lists, not raw JSON.",
+          "confirm": "A write first returns its dry-run diff and waits; Confirm runs it with the journal, Decline sends the refusal back to the model."
+        }
+      },
       "inventory": {
         "title": "Inventory",
         "summary": "Equipment, the carried grid, stashes and the read-only intake stash, drawn like the game.",
@@ -1353,6 +1390,9 @@
         "settings": "Update the assistant settings; one audited journal entry makes the change rollbackable.",
         "promptsRead": "Active system prompt, skills and the composed prompt sent with a request.",
         "prompts": "Append a prompt version and activate it; the previous pointer is rollbackable.",
+        "threadsRead": "Assistant threads, newest first.",
+        "threadRead": "One thread with its ordered messages, including tool payloads.",
+        "turn": "Run one assistant turn: reads execute, the first write returns its dry-run diff and waits for confirm.",
         "test": "Send one model-list request to the configured provider and report its status."
       }
     },
