@@ -119,7 +119,7 @@ async function logout(): Promise<void> {
     </div>
 
     <nav class="min-h-0 flex-1 overflow-y-auto py-2" :aria-label="t('nav.sections')">
-      <ul class="divide-y divide-[var(--sz-border)] border-y border-[var(--sz-border)]">
+      <ul>
         <li v-for="entry in sections" :key="entry.key">
           <NuxtLink
             :to="entry.to"
@@ -185,7 +185,7 @@ async function logout(): Promise<void> {
         </div>
       </div>
 
-      <ul class="divide-y divide-[var(--sz-border)] border-y border-[var(--sz-border)]">
+      <ul>
         <li>
           <button
             type="button"
