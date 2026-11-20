@@ -97,7 +97,7 @@ function entryItemCount(entry: ChangelogEntry): number {
     </header>
 
     <div
-      class="flex flex-wrap items-center gap-x-2 gap-y-2 border border-[var(--sz-border)] bg-[var(--sz-surface)] px-3 py-2 lg:sticky lg:top-0 lg:z-20"
+      class="flex flex-wrap items-center gap-x-2 gap-y-2 border border-[var(--sz-border)] bg-[var(--sz-surface)] px-3 py-2 lg:sticky lg:top-0 lg:z-20 lg:pr-24"
     >
       <div role="group" :aria-label="t('changelog.filters')" class="flex flex-wrap gap-1.5">
         <button

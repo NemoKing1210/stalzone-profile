@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import SiteNav from './SiteNav.vue';
 import CommandPalette from './CommandPalette.vue';
+import TopBarTools from './TopBarTools.vue';
 import { ZoneRadio } from '~/features/radio';
 import { useProfileData } from '~/stores/profile-data';
 
@@ -84,7 +85,14 @@ const sideWidth = computed(() => (collapsed.value ? COLLAPSED_WIDTH : EXPANDED_W
         <span class="text-[17px] leading-none text-[var(--sz-accent)]">//</span>
         <span class="font-brand text-[17px] leading-none tracking-[0.12em]">{{ t('common.brandRight') }}</span>
       </NuxtLink>
+      <div class="ml-auto">
+        <TopBarTools />
+      </div>
     </header>
+
+    <div class="fixed right-3 top-2 z-40 hidden border border-[var(--sz-border)] bg-ink-950/90 p-1 lg:flex">
+      <TopBarTools />
+    </div>
 
     <div
       v-if="mobileOpen"
@@ -108,7 +116,7 @@ const sideWidth = computed(() => (collapsed.value ? COLLAPSED_WIDTH : EXPANDED_W
       class="min-h-screen transition-[padding] duration-200 ease-[cubic-bezier(.2,.8,.2,1)] lg:pl-[var(--sz-side-width)]"
       :style="{ '--sz-side-width': sideWidth }"
     >
-      <main class="mx-auto w-full max-w-[1600px] px-4 py-4 sm:px-6">
+      <main class="mx-auto w-full max-w-[1600px] px-4 py-4 sm:px-6 lg:pt-14">
         <slot />
       </main>
     </div>

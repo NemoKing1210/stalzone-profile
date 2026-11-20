@@ -39,6 +39,7 @@ _Nothing agreed._
 
 _Newest first; keep at most ten entries._
 
+- ui(shell): the language and theme switches moved to a fixed top-right cluster (mobile header on small screens), the side panel keeps the account heading, main gained desktop top padding and the inventory panes/changelog bar were adjusted so nothing overlaps or scrolls at 1349 px — proven by typecheck/lint and the Chromium pass at 360/1349 px in both themes. — `feat(shell): move the locale and theme switches to the top bar`
 - inventory: tidy and its rollback park every moved row before writing the new cells, so write and restore are order-independent; a snapshot cell occupied by a later write answers `409 ROLLBACK_CONFLICT` — proven by the two reproductions, the 50-layout property loop, the conflict test, typecheck/lint and a manual tidy + journal rollback on the stash. — `fix(inventory): park rows during tidy and rollback`
 - ui(shell): the ZONE FM radio is mounted again from the layout — proven by the element check in Chromium; the radio internals are untouched. — `fix(shell): mount the ZONE FM radio again`
 - ui(nav): the account row shows the faction emblem and name beside the nick, and both navigation lists drop their separators — proven by the browser shell pass and typecheck. — `feat(nav): show the faction and drop list separators`

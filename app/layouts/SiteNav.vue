@@ -21,7 +21,6 @@ const emit = defineEmits<{
 const { t } = useI18n();
 const { meta, payload } = useProfileData();
 const { fmtMoney } = useFormat();
-const { theme, toggleTheme } = useTheme();
 
 const counts = computed(() => navCounts(payload.value));
 const money = computed(() => payload.value?.character?.money ?? null);
@@ -179,35 +178,10 @@ async function logout(): Promise<void> {
             :prices-age-min="meta?.freshness?.pricesAgeMin"
           />
         </div>
-        <div class="flex items-center justify-between gap-1 px-1 pt-1">
-          <LocaleSwitcher />
-          <span class="text-[10px] uppercase tracking-[0.12em] text-[var(--sz-text-dim)]">{{ t('nav.account') }}</span>
-        </div>
+        <p class="px-1 pt-1 text-[10px] uppercase tracking-[0.12em] text-[var(--sz-text-dim)]">{{ t('nav.account') }}</p>
       </div>
 
       <ul>
-        <li>
-          <button
-            type="button"
-            class="group relative flex min-h-9 w-full items-center border-l-2 border-transparent text-[11px] uppercase tracking-[0.12em] text-[var(--sz-text-muted)] transition-colors hover:bg-[var(--sz-surface-alt)] hover:text-[var(--sz-text)]"
-            :class="rail ? 'justify-center px-0' : 'gap-2 px-2'"
-            :aria-label="t('settings.themeTitle')"
-            :title="rail ? t('settings.themeTitle') : undefined"
-            @click="toggleTheme"
-          >
-            <UIcon
-              :name="theme === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon'"
-              class="size-4 shrink-0"
-              aria-hidden="true"
-            />
-            <span
-              class="min-w-0 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-200 ease-[cubic-bezier(.2,.8,.2,1)]"
-              :class="rail ? 'max-w-0 opacity-0' : 'max-w-[10rem] flex-1 opacity-100'"
-            >
-              {{ t('settings.themeTitle') }}
-            </span>
-          </button>
-        </li>
         <li>
           <NuxtLink
             to="/settings"
