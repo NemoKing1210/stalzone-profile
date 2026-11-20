@@ -84,6 +84,27 @@ describe('intake storage', () => {
     expect(inventoryRead(db, characterId).storages.find((row) => row.id === overflowId)?.items[0]?.qty).toBe(15);
   });
 
+  it('packs two wide items inside the eight intake columns', () => {
+    const first = catalog('wide-a', 'Широкий A');
+    const second = catalog('wide-b', 'Широкий B');
+    setItemLayout(db, first, { width: 6, height: 2 }, { dryRun: false });
+    setItemLayout(db, second, { width: 6, height: 2 }, { dryRun: false });
+
+    const a = add('Широкий A');
+    const b = add('Широкий B');
+
+    const items = inventoryRead(db, characterId).storages.find((row) => row.id === overflowId)!.items;
+    for (const id of [a, b]) {
+      const item = items.find((entry) => entry.id === id)!;
+      const placement = item.placement;
+      expect(placement.location).toBe('grid');
+      if (placement.location !== 'grid') continue;
+      const width = placement.rotated ? item.size.height : item.size.width;
+      expect(placement.x).toBeGreaterThanOrEqual(0);
+      expect(placement.x + width).toBeLessThanOrEqual(8);
+    }
+  });
+
   it('expands the intake read height past 80 rows', () => {
     const itemId = catalog('tall', 'Высокий');
     const id = seed.insertInventoryItem(db, { characterId, itemId, kind: 'other' });

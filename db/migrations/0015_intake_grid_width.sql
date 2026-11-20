@@ -42,3 +42,6 @@ SELECT item_id, character_id, 'grid', storage_id, 0, new_y, 0,
 FROM intake_repack;
 
 DROP TABLE intake_repack;
+
+CREATE UNIQUE INDEX placement_grid_origin
+  ON item_placement (storage_id, x, y) WHERE location = 'grid';
