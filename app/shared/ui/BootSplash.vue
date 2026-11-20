@@ -3,7 +3,6 @@ const { t } = useI18n();
 
 const visible = ref(true);
 const leaving = ref(false);
-const nuxtApp = useNuxtApp();
 let safety: ReturnType<typeof setTimeout> | undefined;
 
 /**
@@ -13,15 +12,11 @@ let safety: ReturnType<typeof setTimeout> | undefined;
  * used because it waits for an idle slot, which a background tab may postpone for seconds.
  */
 onMounted(() => {
-  /** A rejected mount never reaches `app:mounted`; the panel must still leave the DOM. */
-  safety = setTimeout(hide, 6_000);
-  if (!nuxtApp.isHydrating) {
-    void dismiss();
-    return;
-  }
-  nuxtApp.hook('app:mounted', () => {
-    void dismiss();
-  });
+  // `onMounted` on the app-level component already runs after the hydrated tree exists;
+  // waiting for `app:mounted` left the panel up until the failsafe when that hook is late.
+  // Keep a short failsafe for a stuck font promise, then dismiss unconditionally.
+  safety = setTimeout(hide, 2_000);
+  void dismiss();
 });
 
 async function dismiss(): Promise<void> {
