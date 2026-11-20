@@ -50,6 +50,9 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- `docs/PERFORMANCE.md` records a measured baseline (cold/warm `buildPayload`, payload
+  bytes, per-page TTFB/FCP/DOM counts) with a budget and two measured follow-ups; the
+  capture script is `scripts/perf-audit.ts`.
 - A command palette opens on `Ctrl+Space` and `Ctrl/Cmd+K` (the binding is configurable
   per browser in Settings → Appearance) and runs navigation, money edits, a profile sync,
   item creation, theme/locale/density switches and stash selection with groups, fuzzy
