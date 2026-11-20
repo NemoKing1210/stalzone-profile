@@ -17,6 +17,8 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
+- Settings and guide tab strips share one style constant: the active tab carries the nav's
+  2 px accent underline along the strip's bottom, and the strip scrolls with full labels.
 - Inventory: the stash tab strip lives in the left pane's header in place of the title,
   keeps the accent-filled active tab and its count, keeps auto-arrange/manage, and scrolls
   horizontally instead of wrapping when there are many stashes.

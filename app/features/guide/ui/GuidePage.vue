@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useProfileData } from '~/stores/profile-data';
 import { ProfilePane } from '~/shared/ui';
+import { TAB_STRIP_UI } from '~/shared/lib/tabStrip';
 
 import {
   GUIDE_API,
@@ -162,12 +163,7 @@ function flowArrow(index: number, length: number): boolean {
       v-model="activeTab"
       :items="tabItems"
       variant="link"
-      :ui="{
-        root: 'gap-0',
-        list: 'gap-0 overflow-x-auto overflow-y-clip [overflow-clip-margin:1px] border-b border-[var(--sz-border)]',
-        trigger: 'sz-caps rounded-none px-3 py-2.5 text-[var(--sz-text-muted)] hover:text-[var(--sz-text)]',
-        content: 'p-0 pt-4',
-      }"
+      :ui="TAB_STRIP_UI"
     >
       <template #content="{ item }">
         <ProfilePane
