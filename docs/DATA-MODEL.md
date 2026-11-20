@@ -26,7 +26,7 @@ only through new migrations in `db/migrations/`.
 |---|---|
 | `character` | identity: nick, region, faction, alliance, clan, money |
 | `character_stat` | raw counters per character and stat, with origin `api` or `manual` |
-| `storage` | the character's own grids: exactly one 8×20 `inventory`, exactly one 40×80 `overflow` (the intake stash) and any number of 8×200 `stash` rows, each with a unique normalized name per kind; a stash size is fixed after creation |
+| `storage` | the character's own grids: exactly one 8×20 `inventory`, exactly one 8×80 `overflow` (the intake stash, which grows with its contents) and any number of 8×200 `stash` rows, each with a unique normalized name per kind; a stash size is fixed after creation |
 | `inventory_item` | one row per gear instance (weapon, armor, container, artifact, attachment, ammo, other) with level, quality, rarity, skin, display name and the catalog's slot; `qty > 1` only for `ammo`/`other`. No free-text note or role columns |
 | `item_placement` | where an instance is: `grid` (storage, x, y, rotated), `equipment` (slot), `container` (container instance, slot) or `weapon_module` (weapon instance, module slot); one row per instance. `loose` survives only as a legacy/transient value: it is never a write target, `0008` converts stored rows, and the read model reports any unplaced instance as `loose` |
 | `container_data` | per-container override of type, shield, bonus, protection, slots, efficiency |
@@ -68,8 +68,10 @@ a bearer-token write; NULL for MCP, CLI and tests) and `summary` (JSON
 `{ kind, fields }` derived from the snapshot pair) — plus an index on `request_id`. Existing
 rows keep NULL context and stay readable; `/api/v1/events` derives the summary for them at
 read time. `0010_stash_grid_dimensions.sql` rebuilds `storage` with a 1..200 height check,
-normalizes the carried grid to 8×20 and every stash to 8×200, and leaves the 40×80 intake
-unchanged.
+normalizes the carried grid to 8×20 and every stash to 8×200, and leaves the then-40×80
+intake unchanged. `0015_intake_grid_width.sql` resizes the intake to eight columns, keeps its
+80-row base height and repacks every intake placement into one column (x=0, unrotated,
+cumulative y) through a temp copy, then rebuilds the unique grid-origin index.
 
 ## Source authority
 
@@ -109,7 +111,8 @@ owns itself.
   because each carries its own modules, fill, level, quality or placement.
 - `storage` has exactly one `inventory` row and exactly one `overflow` row per character
   (partial unique indices) and unique `(character_id, kind, name_norm)` names for stashes.
-  The inventory is 8×20; a stash is 40×80 by default. Onboarding and an inventory clear
+  The inventory is 8×20; every stash is 8×200 and the intake is 8×80, growing with its
+  contents. Onboarding and an inventory clear
   recreate the inventory and the intake row, and the setup wizard creates both in its
   character transaction. The intake stash is structural: public writes cannot create,
   rename, resize or delete it, items cannot be moved into it (`422 INVALID_PLACEMENT`), and

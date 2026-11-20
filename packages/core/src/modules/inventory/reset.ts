@@ -5,7 +5,7 @@ import * as repo from './repo/index.js';
 import { nextOverflowPlacement, packIntoOverflow } from './write/overflow.js';
 import { itemSize } from './write/placement.js';
 import { inventorySnapshot } from './write/storage.js';
-import { INVENTORY_GRID_HEIGHT, INVENTORY_GRID_WIDTH } from '@profile/shared/contracts';
+import { INTAKE_GRID_HEIGHT, INVENTORY_GRID_HEIGHT, INVENTORY_GRID_WIDTH } from '@profile/shared/contracts';
 
 /**
  * Reset, rollback and restore helpers for the instance inventory.
@@ -34,7 +34,7 @@ export function clearInventoryTx(db: Db, characterId: number): Record<string, un
   db.prepare(`DELETE FROM inventory_item WHERE character_id = ?`).run(characterId);
   db.prepare(`DELETE FROM storage WHERE character_id = ?`).run(characterId);
   repo.insertStorage(db, { characterId, kind: 'inventory', name: 'Inventory', width: INVENTORY_GRID_WIDTH, height: INVENTORY_GRID_HEIGHT });
-  repo.insertStorage(db, { characterId, kind: 'overflow', name: 'Intake', width: 40, height: 80 });
+  repo.insertStorage(db, { characterId, kind: 'overflow', name: 'Intake', width: INVENTORY_GRID_WIDTH, height: INTAKE_GRID_HEIGHT });
   return snapshot;
 }
 
@@ -280,8 +280,8 @@ function ensureIntakeRow(db: Db, characterId: number): number {
     characterId,
     kind: 'overflow',
     name: 'Intake',
-    width: 40,
-    height: 80,
+    width: INVENTORY_GRID_WIDTH,
+    height: INTAKE_GRID_HEIGHT,
     sortOrder: 0,
   });
 }

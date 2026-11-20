@@ -10,6 +10,7 @@ import {
   type Size,
 } from '../layout/index.js';
 import * as repo from '../repo/index.js';
+import { INTAKE_GRID_HEIGHT, INVENTORY_GRID_WIDTH } from '@profile/shared/contracts';
 
 export interface OverflowSpot {
   storageId: number;
@@ -19,8 +20,6 @@ export interface OverflowSpot {
 }
 
 const OVERFLOW_NAME = 'Intake';
-const OVERFLOW_WIDTH = 40;
-const OVERFLOW_HEIGHT = 80;
 
 function sizeOf(db: Db, itemId: number): Size {
   const item = repo.getInventoryItem(db, itemId);
@@ -67,8 +66,8 @@ export function ensureOverflowStorage(db: Db, characterId: number): number {
       characterId,
       kind: 'overflow',
       name: OVERFLOW_NAME,
-      width: OVERFLOW_WIDTH,
-      height: OVERFLOW_HEIGHT,
+      width: INVENTORY_GRID_WIDTH,
+      height: INTAKE_GRID_HEIGHT,
       sortOrder: 0,
     });
     logEvent(db, {
@@ -82,8 +81,8 @@ export function ensureOverflowStorage(db: Db, characterId: number): number {
         characterId,
         kind: 'overflow',
         name: OVERFLOW_NAME,
-        width: OVERFLOW_WIDTH,
-        height: OVERFLOW_HEIGHT,
+        width: INVENTORY_GRID_WIDTH,
+        height: INTAKE_GRID_HEIGHT,
         maxWeight: null,
         sortOrder: 0,
       },
@@ -94,23 +93,23 @@ export function ensureOverflowStorage(db: Db, characterId: number): number {
 
 /** Finds a free origin without writing; used by dry runs and by creates. */
 export function nextOverflowPlacement(db: Db, characterId: number, size: Size): OverflowSpot {
-  const storageId = intakeOrThrow(db, characterId).id;
-  const occupied = occupiedRects(db, storageId);
-  const height = Math.max(OVERFLOW_HEIGHT, bottomOf(occupied) + Math.max(size.width, size.height));
-  const { placed } = packItems({ width: OVERFLOW_WIDTH, height }, [{ id: 0, size }], occupied);
+  const storage = intakeOrThrow(db, characterId);
+  const occupied = occupiedRects(db, storage.id);
+  const height = Math.max(storage.height, bottomOf(occupied) + Math.max(size.width, size.height));
+  const { placed } = packItems({ width: storage.width, height }, [{ id: 0, size }], occupied);
   const spot = placed[0];
   if (!spot) throw cannotHold();
-  return { storageId, x: spot.x, y: spot.y, rotated: spot.rotated };
+  return { storageId: storage.id, x: spot.x, y: spot.y, rotated: spot.rotated };
 }
 
 /** Packs a batch into intake in one pass; the caller writes the placements. */
 export function packIntoOverflow(db: Db, characterId: number, items: readonly PackItem[]): PackPlacement[] {
-  const storageId = intakeOrThrow(db, characterId).id;
+  const storage = intakeOrThrow(db, characterId);
   const exclude = new Set(items.map((item) => item.id));
-  const occupied = occupiedRects(db, storageId, exclude);
+  const occupied = occupiedRects(db, storage.id, exclude);
   const added = items.reduce((sum, item) => sum + Math.max(item.size.width, item.size.height), 0);
-  const height = Math.max(OVERFLOW_HEIGHT, bottomOf(occupied) + added);
-  const { placed, unplaced } = packItems({ width: OVERFLOW_WIDTH, height }, items, occupied);
+  const height = Math.max(storage.height, bottomOf(occupied) + added);
+  const { placed, unplaced } = packItems({ width: storage.width, height }, items, occupied);
   if (unplaced.length) throw cannotHold();
   return placed;
 }

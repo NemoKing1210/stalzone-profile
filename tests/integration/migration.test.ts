@@ -2,7 +2,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { closeDb, migrate, openDb, type Db } from '@profile/core';
+import { closeDb, ensureDefaultSources, migrate, openDb, type Db } from '@profile/core';
+import * as seed from '@profile/core/testing';
 
 const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
 const NOW = '2026-01-01T00:00:00.000Z';
@@ -281,5 +282,69 @@ describe('overflow storage migration', () => {
         )
         .get(placed.item_id),
     ).toEqual({ kind: 'overflow' });
+  });
+});
+
+describe('intake grid width migration', () => {
+  it('resizes intake to eight columns and repacks its origins into one column', () => {
+    const through14 = fs
+      .readdirSync(migrationsDir)
+      .filter((file) => /^00(?:0[6-9]|1[0-4])_.*\.sql$/.test(file))
+      .sort();
+    copyMigrations(through14);
+    migrate(db, workDir);
+    ensureDefaultSources(db);
+
+    const characterId = seed.upsertCharacter(db, { nick: 'Owner', region: 'ru' });
+    const itemId = seed.upsertItem(db, {
+      sourceId: 'local',
+      externalId: 'migration:intake:item',
+      name: 'Коробка',
+      kind: 'other',
+    });
+    const storageId = seed.insertStorage(db, {
+      characterId,
+      kind: 'overflow',
+      name: 'Intake',
+      width: 40,
+      height: 80,
+      sortOrder: 0,
+    });
+    const first = seed.insertInventoryItem(db, { characterId, itemId, kind: 'other' });
+    const second = seed.insertInventoryItem(db, { characterId, itemId, kind: 'other' });
+    seed.upsertPlacement(db, {
+      itemId: first,
+      characterId,
+      location: 'grid',
+      storageId,
+      x: 39,
+      y: 5,
+      rotated: true,
+    });
+    seed.upsertPlacement(db, {
+      itemId: second,
+      characterId,
+      location: 'grid',
+      storageId,
+      x: 20,
+      y: 5,
+      rotated: false,
+    });
+
+    copyMigrations(['0015_intake_grid_width.sql']);
+    migrate(db, workDir);
+
+    expect(db.prepare(`SELECT width, height FROM storage WHERE id = ?`).get(storageId)).toEqual({
+      width: 8,
+      height: 80,
+    });
+    const placements = db
+      .prepare(`SELECT item_id, x, y, rotated FROM item_placement WHERE storage_id = ? ORDER BY y`)
+      .all(storageId) as { item_id: number; x: number; y: number; rotated: number }[];
+    expect(placements).toEqual([
+      { item_id: second, x: 0, y: 0, rotated: 0 },
+      { item_id: first, x: 0, y: 1, rotated: 0 },
+    ]);
+    expect(db.pragma('foreign_key_check')).toEqual([]);
   });
 });

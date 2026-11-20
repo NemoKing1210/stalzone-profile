@@ -22,6 +22,9 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
+- The intake stash is eight cells wide like the carried grid and every stash; its packer
+  reads the stored row dimensions, migration `0015` resizes existing intake rows and repacks
+  their placements into one column, and onboarding/reset create the same 8×80 row.
 - Character registration and playtime are typed: a date input for `reg-tim` and an
   hours/`PT…H` field for `pla-tim`. The contract rejects a non-ISO date and keeps playtime
   as numeric hours; migration `0012` normalises existing stat rows and the derived `hours`

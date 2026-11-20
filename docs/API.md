@@ -84,7 +84,7 @@ text is English.
 
 | Method | Path | Body |
 |---|---|---|
-| POST | `/api/v1/character` | `CharacterCreateSchema`: `nick`, `region` (`ru \| eu \| na \| sea`), optional `faction` (`rise \| frontier \| mercenaries \| covenant` or `null`), `alliance`, `clanName`, `clanRank`, `dryRun`. Creates the character with its default 8×20 carried grid, 40×80 intake and 8×200 stash in one transaction. The profile holds one character: a second create answers `409 CHARACTER_EXISTS` |
+| POST | `/api/v1/character` | `CharacterCreateSchema`: `nick`, `region` (`ru \| eu \| na \| sea`), optional `faction` (`rise \| frontier \| mercenaries \| covenant` or `null`), `alliance`, `clanName`, `clanRank`, `dryRun`. Creates the character with its default 8×20 carried grid, 8×80 intake and 8×200 stash in one transaction. The profile holds one character: a second create answers `409 CHARACTER_EXISTS` |
 | POST | `/api/v1/inventory/items` | `InventoryItemCreateSchema` (strict): resolves the catalog item, takes `slot` from it, and accepts `level` for weapons/armor, `qty` for `ammo`/`other`, `rarityPct` for artifacts, and `skin` only when the motif's base is this item; optional `target` (`grid`, `equipment`, `container`, `weapon_module`); without one the instance lands in intake and a stackable merges with an intake stack |
 | PATCH | `/api/v1/inventory/items/:id` | `InventoryItemPatchSchema` (strict): level, rarityPct (artifacts), quantity (stacks), a matching skin, display name, container override; `quality`/`rarityTier` remain accepted only for legacy callers and are derived server-side; `note`, `role` and `slot` are rejected |
 | DELETE | `/api/v1/inventory/items/:id` | `DeleteInventoryItemSchema`: `{ qty?, dryRun? }`; a container or weapon returns its children to intake first |

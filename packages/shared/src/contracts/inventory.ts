@@ -13,6 +13,8 @@ export const INVENTORY_GRID_WIDTH = 8;
 export const INVENTORY_GRID_HEIGHT = 20;
 /** A new stash is always 8×200 and its size cannot be changed after creation. */
 export const STASH_GRID_HEIGHT = 200;
+/** The read-only intake grows with its contents; its base height is 80 rows. */
+export const INTAKE_GRID_HEIGHT = 80;
 
 export const ContainerFillReadSchema = z.object({
   name: z.string(),

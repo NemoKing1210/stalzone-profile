@@ -66,7 +66,7 @@ function add(name: string, kind = 'other', qty = 1): number {
 describe('intake storage', () => {
   it('creates one intake per character', () => {
     expect(ensureOverflowStorage(db, characterId)).toBe(overflowId);
-    expect(getOverflowStorage(db, characterId)).toMatchObject({ kind: 'overflow', width: 40, height: 80 });
+    expect(getOverflowStorage(db, characterId)).toMatchObject({ kind: 'overflow', width: 8, height: 80 });
     expect(listStorages(db, characterId).map((row) => row.kind)).toEqual(['inventory', 'overflow']);
   });
 
