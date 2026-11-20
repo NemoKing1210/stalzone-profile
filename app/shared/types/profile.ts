@@ -76,7 +76,6 @@ export interface WeaponPayload {
   storageId?: number | null;
   placement?: { location: string; [key: string]: unknown };
   qty?: number;
-  note?: string | null;
   quality?: string | null;
   skin?: string | null;
   lvl: number;
@@ -92,7 +91,6 @@ export interface WeaponPayload {
   type: string | null;
   rank: string | null;
   slot: string | null;
-  role: string | null;
   weight: number | null;
   icon: string | null;
   [key: string]: unknown;
@@ -105,7 +103,6 @@ export interface ArmorPayload {
   storageId?: number | null;
   placement?: { location: string; [key: string]: unknown };
   qty?: number;
-  note?: string | null;
   quality?: string | null;
   skin?: string | null;
   lvl: number;
@@ -126,7 +123,6 @@ export interface ArtifactPayload {
   storageId?: number | null;
   placement?: { location: string; [key: string]: unknown };
   qty?: number;
-  note?: string | null;
   quality?: string | null;
   skin?: string | null;
   type: string | null;
@@ -145,7 +141,6 @@ export interface ContainerPayload {
   storageId?: number | null;
   placement?: { location: string; [key: string]: unknown };
   qty?: number;
-  note?: string | null;
   quality?: string | null;
   skin?: string | null;
   type: string | null;

@@ -97,3 +97,31 @@ export function qualityKey(raw: string | null | undefined): number | null {
   const i = QUALITY_ORDER.findIndex((q) => q.toLowerCase() === String(raw).trim().toLowerCase());
   return i === -1 ? null : i;
 }
+
+/** Artifact rarity tiers, ordered from the common roll to the best one. */
+export const RARITY_TIERS = [
+  'ordinary',
+  'unordinary',
+  'special',
+  'rare',
+  'exclusive',
+  'legendary',
+  'unique',
+] as const;
+export type RarityTierKey = (typeof RARITY_TIERS)[number];
+
+/**
+ * The tier an artifact's rarity percentage belongs to. The roll boundaries are the game's:
+ * 100 / 115 / 130 / 145 / 160 / 175, with 175 itself reading as the top tier. A missing
+ * percentage has no tier; the caller must not invent one.
+ */
+export function rarityTierForPct(pct: number | null | undefined): RarityTierKey | null {
+  if (pct == null || !Number.isFinite(pct) || pct < 0) return null;
+  if (pct <= 100) return 'ordinary';
+  if (pct <= 115) return 'unordinary';
+  if (pct <= 130) return 'special';
+  if (pct <= 145) return 'rare';
+  if (pct <= 160) return 'exclusive';
+  if (pct < 175) return 'legendary';
+  return 'unique';
+}
