@@ -3,8 +3,8 @@ import { ProfileItemCard } from '~/entities/item';
 
 import type { ArmorRow } from '../../model/kinds/armor';
 
-const props = defineProps<{ row: ArmorRow; selected: boolean; priority: boolean }>();
-defineEmits<{ select: [] }>();
+const props = defineProps<{ row: ArmorRow; priority: boolean }>();
+defineEmits<{ open: [] }>();
 
 const { t } = useI18n();
 const { g1, g2 } = useFormat();
@@ -24,8 +24,7 @@ const stats = computed(() => [
     :level="row.lvl"
     :icon="row.icon"
     :stats="stats"
-    :selected="selected"
     :priority="priority"
-    @select="$emit('select')"
+    @open="$emit('open')"
   />
 </template>

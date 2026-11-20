@@ -3,8 +3,8 @@ import { ProfileItemCard } from '~/entities/item';
 
 import type { ContainerRow } from '../../model/kinds/containers';
 
-const props = defineProps<{ row: ContainerRow; selected: boolean; priority: boolean }>();
-defineEmits<{ select: [] }>();
+const props = defineProps<{ row: ContainerRow; priority: boolean }>();
+defineEmits<{ open: [] }>();
 
 const { t } = useI18n();
 const { g2, num } = useFormat();
@@ -24,8 +24,7 @@ const stats = computed(() => [
     :icon="row.icon"
     :description="row.bonus ?? undefined"
     :stats="stats"
-    :selected="selected"
     :priority="priority"
-    @select="$emit('select')"
+    @open="$emit('open')"
   />
 </template>

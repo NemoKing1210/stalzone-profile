@@ -3,8 +3,8 @@ import { ProfileItemCard } from '~/entities/item';
 
 import type { ArtifactRow } from '../../model/kinds/artifacts';
 
-const props = defineProps<{ row: ArtifactRow; selected: boolean; priority: boolean }>();
-defineEmits<{ select: [] }>();
+const props = defineProps<{ row: ArtifactRow; priority: boolean }>();
+defineEmits<{ open: [] }>();
 
 const stats = computed(() => [
   { label: '', value: props.row.q ?? '—' },
@@ -20,8 +20,7 @@ const stats = computed(() => [
     :icon="row.icon"
     :description="row.effects ?? undefined"
     :stats="stats"
-    :selected="selected"
     :priority="priority"
-    @select="$emit('select')"
+    @open="$emit('open')"
   />
 </template>
