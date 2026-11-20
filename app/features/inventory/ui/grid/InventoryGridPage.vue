@@ -69,12 +69,7 @@ async function dropItem(itemId: number, target: DropTarget): Promise<void> {
   await inventory.move(itemId, target);
 }
 
-function selectItem(item: InventoryItemRead): void {
-  if (drag.shouldIgnoreClick() || drag.picked.value) return;
-  selectedId.value = item.id;
-}
-
-/** The details panel opens on a double click; a single click only selects the card. */
+/** The details panel opens on a double click or Enter; a single click changes nothing. */
 function openItem(item: InventoryItemRead): void {
   if (drag.shouldIgnoreClick() || drag.picked.value) return;
   selectedId.value = item.id;
@@ -410,7 +405,6 @@ const containerNames = computed<Record<number, string>>(() => {
                 :storages="inventory.storages.value"
                 :busy="inventory.busy.value"
                 :attach-tile="drag.attachTile"
-                @select="selectItem"
                 @open="openItem"
                 @pick="pickItem"
                 @menu="itemMenu"
@@ -467,7 +461,6 @@ const containerNames = computed<Record<number, string>>(() => {
                 <ItemGrid
                   :storage="inventory.selectedStorage.value"
                   :filter="containerFilters.filterFor(inventory.selectedStorage.value.id)"
-                  :selected-id="selectedId"
                   :picked-id="drag.picked.value?.id ?? null"
                   :storages="inventory.storages.value"
                   :equipment="inventory.equipment.value"
@@ -478,7 +471,6 @@ const containerNames = computed<Record<number, string>>(() => {
                     inventory.selectedStorage.value.kind === 'overflow' ? t('inventory.overflowEmpty') : undefined
                   "
                   :attach-tile="drag.attachTile"
-                  @select="selectItem"
                   @open="openItem"
                   @pick="pickItem"
                   @menu="itemMenu"
@@ -534,14 +526,12 @@ const containerNames = computed<Record<number, string>>(() => {
             <ItemGrid
               :storage="inventory.inventoryStorage.value"
               :filter="containerFilters.filterFor(inventory.inventoryStorage.value.id)"
-              :selected-id="selectedId"
               :picked-id="drag.picked.value?.id ?? null"
               :storages="inventory.storages.value"
               :equipment="inventory.equipment.value"
               :busy="inventory.busy.value"
               :details="details"
               :attach-tile="drag.attachTile"
-              @select="selectItem"
               @open="openItem"
               @pick="pickItem"
               @menu="itemMenu"

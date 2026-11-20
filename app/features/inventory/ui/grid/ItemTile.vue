@@ -4,29 +4,21 @@ import type { InventoryItemRead } from '@profile/shared/contracts';
 import { findDetailsCard } from '~/entities/item/model/details';
 
 import { effectiveSize } from '../../model/grid';
-import { tileGesture } from '../../model/tile';
 
 const props = withDefaults(
   defineProps<{
     item: InventoryItemRead;
     /** `payload.details`: the catalog card behind the instance, read for type and caliber. */
     details?: Record<string, unknown> | null;
-    selected?: boolean;
     picked?: boolean;
     rotated?: boolean;
     /** Registers the tile with the drag layer; the tile itself moves under the pointer. */
     attach?: (el: HTMLElement | null, item: InventoryItemRead | null) => void;
   }>(),
-  { details: null, selected: false, picked: false, rotated: false, attach: undefined },
+  { details: null, picked: false, rotated: false, attach: undefined },
 );
 
-const emit = defineEmits<{ select: []; open: []; pick: [event: KeyboardEvent] }>();
-
-/** A single click selects; a double click opens the panel. Enter opens, Space picks up. */
-function gesture(event: 'click' | 'dblclick'): void {
-  if (tileGesture(event) === 'open') emit('open');
-  else emit('select');
-}
+defineEmits<{ open: []; pick: [event: KeyboardEvent] }>();
 
 const { t } = useI18n();
 const { rankColor, rankTextColor } = useFormat();
@@ -70,10 +62,9 @@ const label = computed(() =>
 /** The rank edge is a hint, not a frame: the card keeps its grid lines visible through it. */
 const edge = computed(() => (rank.value ? `${rank.value}b3` : 'var(--sz-border-strong)'));
 
-/** Selected wins over the resting highlight; picked has to vanish while the drag copy flies. */
+/** Picked has to vanish while the drag copy flies; every resting tile keeps the same frame. */
 const stateClass = computed(() => {
   if (props.picked) return 'invisible';
-  if (props.selected) return 'z-10 shadow-[inset_0_0_0_2px_var(--sz-accent)]';
   return 'shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]';
 });
 
@@ -112,8 +103,7 @@ watch(
     :data-size="`${size.width}x${size.height}`"
     draggable="false"
     @dragstart.prevent
-    @click="gesture('click')"
-    @dblclick="gesture('dblclick')"
+    @dblclick="$emit('open')"
     @keydown.enter.prevent="$emit('open')"
     @keydown.space.prevent="$emit('pick', $event)"
   >

@@ -364,9 +364,8 @@ function openArtifact(name: string, level: number): void {
                   v-for="(row, index) in section.rows"
                   :key="row.key"
                   :row="row"
-                  :selected="selected?.key === row.key"
                   :priority="section === sections[0] && index === 0"
-                  @select="openRow(row)"
+                  @open="openRow(row)"
                 />
               </div>
             </section>

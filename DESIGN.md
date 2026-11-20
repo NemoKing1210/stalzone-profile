@@ -229,7 +229,7 @@ Freshness:
 
 Rules:
 
-- The accent is used for: active navigation/category, selected row/card outline, focus ring,
+- The accent is used for: active navigation/category, selected table row outline, focus ring,
   primary button fill, links, the thin progress fill. It is not used for positive values.
 - Positive/negative/warning colors are fixed. A user cannot recolour them.
 - Red is never the primary accent. The preset list excludes red because red already means
@@ -300,7 +300,7 @@ Rules:
 - Borders: 1px `--sz-border`; selected/active 1px `--sz-border-strong` plus the accent; active
   navigation/category uses a 2px accent inset bar.
 - Elevation: no drop shadows. Panel headers get `inset 0 1px 0 rgba(255,255,255,.04)`.
-  Selected cards get `inset 0 0 0 1px accent`. Modal backdrop: `rgba(0,0,0,.72)` plus
+  Modal backdrop: `rgba(0,0,0,.72)` plus
   `backdrop-filter: blur(3px)`.
 - Row height: 28px dense, 32px default. Touch rows: 44px minimum.
 
@@ -518,11 +518,12 @@ data fetching.
 
 4. **`ProfileItemCard.vue`** — an inventory card.
    Props: `name`, `rank`, `category`, `level`, `icon?`, `stats` (array of `{ label, value,
-   tone? }`), `selected?`, `to?`/`clickable?`.
+   tone? }`), `to?`/`clickable?`.
    Renders: category caps, `RarityName`, a 16:9 icon/silhouette well (game icons when present,
    a generic Lucide silhouette otherwise), a footer with 2–3 stats (weight green, caliber
-   neutral). Selected: 1px accent inset and a 2px left accent bar. Hover: surface-alt. Click
-   and keyboard selection are handled by a real `<button>`; the card is not a naked div.
+   neutral). Opens the details modal on a double click or Enter; a single click changes
+   nothing and leaves no selection frame. Hover: surface-alt. Click
+   and keyboard handling live on a real `<button>`; the card is not a naked div.
 
 5. **`StorageBar.vue`** — the "Personal storage 38 / 90" bar.
    Props: `label`, `value`, `max`, `unit?`, `tone?`.
@@ -689,8 +690,9 @@ A three-pane instrument. The page title is the nick; faction, clan and realm sit
   weight, class); effects/modifiers with green/red tones; a "no selection" state that shows
   aggregate counts instead of an empty void.
 - Right pane: toolbar (Owned/Catalog segmented control, grid/list toggle, search, rank filter,
-  sort), then the item grid (owned) or the dense table (catalog / list mode). Selected row or
-  card is accent-outlined. Edit action appears on owned items only.
+  sort), then the item grid (owned) or the dense table (catalog / list mode). The selected
+  table row is accent-outlined; a grid card opens its modal on double click or Enter and
+  carries no selection frame. Edit action appears on owned items only.
 - Footer: count bar (`shown / total`, storage weight when available) and one real hint.
 - The item detail modal remains for mobile and for details opened from builds/containers; on
   desktop the center pane is the primary detail surface. Selection is not encoded in the URL

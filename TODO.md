@@ -39,6 +39,7 @@ _Nothing agreed._
 
 _Newest first; keep at most ten entries._
 
+- inventory(ui): cards and grid tiles keep no selection frame — a single click does nothing, double click/Enter opens the details, and `tileGesture`, the selected props and their pass-throughs are gone; DESIGN §4.1/§4.3/§6.2/§8 follow the code — proven by typecheck/lint, the 45-file unit suite and the Chromium pass (catalog grid click/dblclick, inventory tile click/dblclick). — `refactor(inventory): drop the card selection state`
 - ui(shell): the language and theme switches moved to a fixed top-right cluster (mobile header on small screens), the side panel keeps the account heading, main gained desktop top padding and the inventory panes/changelog bar were adjusted so nothing overlaps or scrolls at 1349 px — proven by typecheck/lint and the Chromium pass at 360/1349 px in both themes. — `feat(shell): move the locale and theme switches to the top bar`
 - inventory: tidy and its rollback park every moved row before writing the new cells, so write and restore are order-independent; a snapshot cell occupied by a later write answers `409 ROLLBACK_CONFLICT` — proven by the two reproductions, the 50-layout property loop, the conflict test, typecheck/lint and a manual tidy + journal rollback on the stash. — `fix(inventory): park rows during tidy and rollback`
 - ui(shell): the ZONE FM radio is mounted again from the layout — proven by the element check in Chromium; the radio internals are untouched. — `fix(shell): mount the ZONE FM radio again`

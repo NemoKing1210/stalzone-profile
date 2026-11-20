@@ -17,7 +17,6 @@ withDefaults(
     icon?: string | null;
     stats?: ItemStat[];
     description?: string;
-    selected?: boolean;
     priority?: boolean;
   }>(),
   {
@@ -27,12 +26,11 @@ withDefaults(
     icon: undefined,
     stats: undefined,
     description: undefined,
-    selected: false,
     priority: false,
   },
 );
 
-defineEmits<{ select: [] }>();
+defineEmits<{ open: [] }>();
 
 function toneClass(tone: ItemStat['tone']): string {
   return {
@@ -48,11 +46,9 @@ function toneClass(tone: ItemStat['tone']): string {
   <button
     type="button"
     class="group relative flex min-h-[112px] w-full flex-col border border-[var(--sz-border)] bg-ink-800 p-2 text-left transition-colors hover:bg-ink-700 active:bg-ink-700"
-    :class="selected ? 'shadow-[inset_0_0_0_1px_var(--sz-accent)]' : ''"
-    :aria-pressed="selected"
-    @click="$emit('select')"
+    @dblclick="$emit('open')"
+    @keydown.enter.prevent="$emit('open')"
   >
-    <span v-if="selected" class="pointer-events-none absolute inset-y-0 left-0 w-0.5 bg-[var(--sz-accent)]" />
     <span class="flex items-center justify-between gap-2">
       <span class="sz-caps min-w-0 truncate text-[var(--sz-text-muted)]" :title="category ?? undefined">
         {{ category || '—' }}

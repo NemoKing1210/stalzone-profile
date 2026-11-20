@@ -4,7 +4,6 @@ import type { EquipmentRead, EquipmentSlot, InventoryItemRead, StorageRead } fro
 import { EQUIPMENT_GRID, equipmentLayout } from '../../model/equipmentLayout';
 import { highlightedSlots } from '../../model/slotHighlights';
 import type { ItemMenuAction } from '../../model/menu';
-import { tileGesture } from '../../model/tile';
 import { useGridDragContext } from './drag-context';
 import ItemContextMenu from './ItemContextMenu.vue';
 
@@ -21,7 +20,6 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-  select: [item: InventoryItemRead];
   open: [item: InventoryItemRead];
   pick: [item: InventoryItemRead, event: KeyboardEvent];
   menu: [item: InventoryItemRead, action: ItemMenuAction];
@@ -72,10 +70,8 @@ function cellStyle(cell: { x: number; y: number; width: number; height: number }
   };
 }
 
-function gesture(item: InventoryItemRead | null, event: 'click' | 'dblclick'): void {
-  if (!item) return;
-  if (tileGesture(event) === 'open') emit('open', item);
-  else emit('select', item);
+function gesture(item: InventoryItemRead | null): void {
+  if (item) emit('open', item);
 }
 
 function border(item: InventoryItemRead | null): string {
@@ -114,8 +110,7 @@ function border(item: InventoryItemRead | null): string {
           :data-drop="`equipment:${cell.slot}`"
           :data-size="itemIn(cell.slot) ? `${itemIn(cell.slot)!.size.width}x${itemIn(cell.slot)!.size.height}` : undefined"
           :aria-label="`${t(`inventory.slots.${cell.slot}`)}: ${itemIn(cell.slot)?.name ?? t('inventory.slotEmpty')}`"
-          @click="gesture(itemIn(cell.slot), 'click')"
-          @dblclick="gesture(itemIn(cell.slot), 'dblclick')"
+          @dblclick="gesture(itemIn(cell.slot))"
           @keydown.enter.prevent="itemIn(cell.slot) && emit('open', itemIn(cell.slot)!)"
           @keydown.space.prevent="itemIn(cell.slot) && emit('pick', itemIn(cell.slot)!, $event)"
         >

@@ -11,7 +11,6 @@ import ItemTile from './ItemTile.vue';
 const props = withDefaults(
   defineProps<{
     storage: StorageRead | null;
-    selectedId?: number | null;
     emptyText?: string;
     /** Intake is read-only: no drop target and no ghost. */
     dropEnabled?: boolean;
@@ -31,7 +30,6 @@ const props = withDefaults(
     filter?: ContainerFilter | null;
   }>(),
   {
-    selectedId: null,
     emptyText: undefined,
     dropEnabled: true,
     pickedId: null,
@@ -46,7 +44,6 @@ const props = withDefaults(
 );
 
 defineEmits<{
-  select: [item: InventoryItemRead];
   open: [item: InventoryItemRead];
   pick: [item: InventoryItemRead, event: KeyboardEvent];
   menu: [item: InventoryItemRead, action: ItemMenuAction];
@@ -146,12 +143,10 @@ function cells(x: number, y: number, size: { width: number; height: number }): R
         <ItemTile
           :item="item"
           :details="props.details"
-          :selected="item.id === props.selectedId"
           :picked="item.id === props.pickedId"
           :rotated="item.placement.location === 'grid' && item.placement.rotated"
           :attach="props.attachTile"
           :style="styleFor(item)"
-          @select="$emit('select', item)"
           @open="$emit('open', item)"
           @pick="$emit('pick', item, $event)"
         />

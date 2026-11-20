@@ -26,7 +26,12 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
-- The intake stash is eight cells wide like the carried grid and every stash; its packer
+- Item cards and grid tiles keep no selection frame: a single click changes nothing, while a
+  double click or Enter opens the details; drag, hover and press states are unchanged.
+- The language and theme switches live in a fixed top-right cluster on desktop and at the
+  right end of the mobile header; the side panel keeps the account heading above its
+  Settings/Logs/Sign-out list.
+- The intake stash is eight cells wide as the carried grid and every stash; its packer
   reads the stored row dimensions, migration `0015` resizes existing intake rows and repacks
   their placements into one column, and onboarding/reset create the same 8×80 row.
 - Character registration and playtime are typed: a date input for `reg-tim` and an
