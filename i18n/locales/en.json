@@ -278,6 +278,7 @@
     "weightRange": "{min}–{max} kg",
     "missing": "Missing data",
     "breakdown": "Breakdown",
+    "attached": "attached: {count}",
     "base": "Base",
     "bonus": "Bonus",
     "overweight": "Over the carrying capacity",
@@ -383,7 +384,15 @@
     "storageManager": "Stash manager",
     "unverifiedTitle": "Compatibility is unknown",
     "unverifiedDesc": "The source has no compatibility record for this attachment and weapon. Install it anyway? The module will be marked unverified.",
-    "unverifiedConfirm": "Install anyway"
+    "unverifiedConfirm": "Install anyway",
+    "menuHint": "Right-click a card for actions.",
+    "menu": {
+      "details": "Open card",
+      "equip": "Equip",
+      "moveTo": "Move to",
+      "noRoom": "No room",
+      "noStorage": "No other storage"
+    }
   },
   "items": {
     "cardTitle": "Item card",

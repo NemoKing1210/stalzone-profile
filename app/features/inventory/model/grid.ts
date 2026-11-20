@@ -103,6 +103,28 @@ export function itemRects(items: readonly GridItem[]): Rect[] {
 }
 
 /**
+ * The first cell a row-by-row scan reaches where the item fits, upright before rotated.
+ * The item itself is ignored, so a menu can re-pack an item already inside the storage.
+ */
+export function firstFreeSpot(
+  grid: Size,
+  item: { id?: number; size: Size },
+  items: readonly (GridItem & { id: number })[],
+): GridPlacement | null {
+  const others = itemRects(items.filter((entry) => entry.id !== item.id));
+  for (let y = 0; y < grid.height; y += 1) {
+    for (let x = 0; x < grid.width; x += 1) {
+      for (const rotated of [false, true]) {
+        const size = effectiveSize(item.size, rotated);
+        if (rotated && size.width === item.size.width && size.height === item.size.height) continue;
+        if (canDrop({ x, y, ...size }, grid, others)) return { x, y, rotated };
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * The ghost a picked item would draw at a cell, and whether that landing is allowed.
  * The picked item does not collide with itself, so hovering its own cells stays valid.
  */

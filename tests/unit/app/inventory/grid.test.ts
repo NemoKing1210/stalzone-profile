@@ -4,6 +4,7 @@ import {
   cellAt,
   clampOrigin,
   effectiveSize,
+  firstFreeSpot,
   grabCell,
   itemRects,
   type GridItem,
@@ -83,5 +84,50 @@ describe('itemRects', () => {
       { x: 1, y: 2, width: 5, height: 2 },
       { x: 4, y: 0, width: 3, height: 2 },
     ]);
+  });
+});
+
+describe('firstFreeSpot', () => {
+  const item = (id: number, width: number, height: number, x: number, y: number, rotated = false) => ({
+    id,
+    size: { width, height },
+    placement: { x, y, rotated },
+  });
+
+  it('starts at the top-left corner of an empty grid', () => {
+    expect(firstFreeSpot(grid, { id: 9, size: { width: 2, height: 2 } }, [])).toEqual({
+      x: 0,
+      y: 0,
+      rotated: false,
+    });
+  });
+
+  it('continues the scan after a blocked corner', () => {
+    expect(firstFreeSpot({ width: 3, height: 4 }, { id: 9, size: { width: 2, height: 2 } }, [item(1, 2, 2, 0, 0)])).toEqual({
+      x: 0,
+      y: 2,
+      rotated: false,
+    });
+  });
+
+  it('falls back to a rotated landing when only that fits', () => {
+    expect(firstFreeSpot({ width: 2, height: 3 }, { id: 9, size: { width: 3, height: 2 } }, [])).toEqual({
+      x: 0,
+      y: 0,
+      rotated: true,
+    });
+  });
+
+  it('ignores the item itself so it can be re-packed', () => {
+    const own = item(9, 2, 2, 0, 0);
+    expect(firstFreeSpot({ width: 2, height: 2 }, { id: 9, size: { width: 2, height: 2 } }, [own])).toEqual({
+      x: 0,
+      y: 0,
+      rotated: false,
+    });
+  });
+
+  it('returns null when nothing fits', () => {
+    expect(firstFreeSpot({ width: 1, height: 1 }, { id: 9, size: { width: 2, height: 2 } }, [])).toBeNull();
   });
 });

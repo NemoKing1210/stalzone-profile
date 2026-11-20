@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import type { InventoryItemRead, StorageRead } from '@profile/shared/contracts';
+import type { EquipmentRead, InventoryItemRead, StorageRead } from '@profile/shared/contracts';
 
 import { effectiveSize } from '../../model/grid';
+import type { ItemMenuAction } from '../../model/menu';
 import GridGhost from './GridGhost.vue';
+import ItemContextMenu from './ItemContextMenu.vue';
 import ItemTile from './ItemTile.vue';
 
 const props = withDefaults(
@@ -13,6 +15,13 @@ const props = withDefaults(
     /** Intake is read-only: no drop target and no ghost. */
     dropEnabled?: boolean;
     pickedId?: number | null;
+    /** Every storage, read by the tile context menu's "Move to" submenu. */
+    storages?: StorageRead[];
+    /** Equipment slots, read by the tile context menu's "Equip" action. */
+    equipment?: EquipmentRead | null;
+    busy?: boolean;
+    /** `payload.details`: type and caliber for the tiles that show them. */
+    details?: Record<string, unknown> | null;
     /** Registers each tile with the shared drag layer. */
     attachTile?: (el: HTMLElement | null, item: InventoryItemRead | null) => void;
   }>(),
@@ -21,6 +30,10 @@ const props = withDefaults(
     emptyText: undefined,
     dropEnabled: true,
     pickedId: null,
+    storages: () => [],
+    equipment: null,
+    busy: false,
+    details: null,
     attachTile: undefined,
   },
 );
@@ -28,6 +41,7 @@ const props = withDefaults(
 defineEmits<{
   select: [item: InventoryItemRead];
   pick: [item: InventoryItemRead, event: KeyboardEvent];
+  menu: [item: InventoryItemRead, action: ItemMenuAction];
 }>();
 
 const { t } = useI18n();
@@ -82,18 +96,27 @@ function cells(x: number, y: number, size: { width: number; height: number }): R
     >
       <GridGhost v-if="props.storage" :storage="props.storage" :enabled="props.dropEnabled" />
 
-      <ItemTile
+      <ItemContextMenu
         v-for="item in placed"
         :key="item.id"
         :item="item"
-        :selected="item.id === props.selectedId"
-        :picked="item.id === props.pickedId"
-        :rotated="item.placement.location === 'grid' && item.placement.rotated"
-        :attach="props.attachTile"
-        :style="styleFor(item)"
-        @select="$emit('select', item)"
-        @pick="$emit('pick', item, $event)"
-      />
+        :storages="props.storages"
+        :equipment="props.equipment"
+        :busy="props.busy"
+        @action="$emit('menu', item, $event)"
+      >
+        <ItemTile
+          :item="item"
+          :details="props.details"
+          :selected="item.id === props.selectedId"
+          :picked="item.id === props.pickedId"
+          :rotated="item.placement.location === 'grid' && item.placement.rotated"
+          :attach="props.attachTile"
+          :style="styleFor(item)"
+          @select="$emit('select', item)"
+          @pick="$emit('pick', item, $event)"
+        />
+      </ItemContextMenu>
 
       <p
         v-if="!placed.length"

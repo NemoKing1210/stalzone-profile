@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { InventoryItemRead, ModuleSlot, StorageRead } from '@profile/shared/contracts';
 
-import { ProfilePane } from '~/shared/ui';
+import { ConfirmActionModal, ProfilePane } from '~/shared/ui';
 import type { DropTarget } from '../../model/drag';
 import { storageLabel } from '../../model/labels';
+import type { ItemMenuAction } from '../../model/menu';
 import { useInventory } from '../../model/useInventory';
 import ContainerPanel from './ContainerPanel.vue';
 import WeightHud from './WeightHud.vue';
@@ -23,6 +24,9 @@ useHead(() => ({ title: `${t('inventory.title')} // ${t('common.appName')}` }));
 
 const inventory = useInventory();
 const { place: playPlace } = useUiSounds();
+/** Catalog cards behind the instances: the tiles read type and caliber from them. */
+const { payload } = useProfile();
+const details = computed(() => payload.value?.details ?? null);
 
 /* ------------------------------------------------------------------ */
 /* Drag state shared by both grids, the paper-doll and the panels      */
@@ -64,6 +68,27 @@ function pickItem(item: InventoryItemRead, event: KeyboardEvent): void {
   drag.start(item, event);
 }
 
+/** Context-menu commands: the screen owns every write, the menu only names the intent. */
+function itemMenu(item: InventoryItemRead, action: ItemMenuAction): void {
+  switch (action.kind) {
+    case 'details':
+      selectItem(item);
+      break;
+    case 'container':
+      openContainer(item.id);
+      break;
+    case 'weapon':
+      openWeapon(item.id);
+      break;
+    case 'move':
+      void inventory.move(item.id, action.target);
+      break;
+    case 'remove':
+      removal.value = item;
+      break;
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /* Item lookup: the payload refreshes after every write, so keep ids   */
 /* ------------------------------------------------------------------ */
@@ -75,6 +100,7 @@ const containerOpen = ref(false);
 const weaponId = ref<number | null>(null);
 const weaponOpen = ref(false);
 const storageOpen = ref(false);
+const removal = ref<InventoryItemRead | null>(null);
 
 function flatten(item: InventoryItemRead, into: Map<number, InventoryItemRead>): void {
   into.set(item.id, item);
@@ -133,6 +159,18 @@ async function removeSelected(): Promise<void> {
   if (!item) return;
   const result = await inventory.removeItem(item.id);
   if (result) {
+    detailsOpen.value = false;
+    selectedId.value = null;
+  }
+}
+
+async function confirmRemoval(): Promise<void> {
+  const item = removal.value;
+  if (!item) return;
+  const result = await inventory.removeItem(item.id);
+  if (!result) return;
+  removal.value = null;
+  if (selectedId.value === item.id) {
     detailsOpen.value = false;
     selectedId.value = null;
   }
@@ -213,11 +251,12 @@ const containerNames = computed<Record<number, string>>(() => {
 
 <template>
   <section class="space-y-3">
-    <DragPreview />
+    <DragPreview :details="details" />
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
         <h1>{{ t('inventory.title') }}</h1>
         <p class="text-[12.5px] text-[var(--sz-text-muted)]">{{ t('inventory.summary') }}</p>
+        <p class="text-[11px] text-[var(--sz-text-muted)]">{{ t('inventory.menuHint') }}</p>
       </div>
       <p v-if="drag.picked.value" class="text-[11px] text-[var(--sz-text-muted)]">
         {{ t('inventory.dragHint') }}
@@ -241,9 +280,12 @@ const containerNames = computed<Record<number, string>>(() => {
           <ProfilePane :title="t('inventory.equipment')">
             <EquipmentDoll
               :equipment="inventory.equipment.value"
+              :storages="inventory.storages.value"
+              :busy="inventory.busy.value"
               :attach-tile="drag.attachTile"
               @select="selectItem"
               @pick="pickItem"
+              @menu="itemMenu"
             />
           </ProfilePane>
 
@@ -302,9 +344,14 @@ const containerNames = computed<Record<number, string>>(() => {
               :storage="inventory.inventoryStorage.value"
               :selected-id="selectedId"
               :picked-id="drag.picked.value?.id ?? null"
+              :storages="inventory.storages.value"
+              :equipment="inventory.equipment.value"
+              :busy="inventory.busy.value"
+              :details="details"
               :attach-tile="drag.attachTile"
               @select="selectItem"
               @pick="pickItem"
+              @menu="itemMenu"
             />
           </div>
           <WeightHud :stats="inventory.stats.value" edge="top" />
@@ -371,6 +418,10 @@ const containerNames = computed<Record<number, string>>(() => {
               :storage="inventory.selectedStorage.value"
               :selected-id="selectedId"
               :picked-id="drag.picked.value?.id ?? null"
+              :storages="inventory.storages.value"
+              :equipment="inventory.equipment.value"
+              :busy="inventory.busy.value"
+              :details="details"
               :drop-enabled="inventory.selectedStorage.value.kind !== 'overflow'"
               :empty-text="
                 inventory.selectedStorage.value.kind === 'overflow' ? t('inventory.overflowEmpty') : undefined
@@ -378,6 +429,7 @@ const containerNames = computed<Record<number, string>>(() => {
               :attach-tile="drag.attachTile"
               @select="selectItem"
               @pick="pickItem"
+              @menu="itemMenu"
             />
           </div>
         </template>
@@ -406,6 +458,15 @@ const containerNames = computed<Record<number, string>>(() => {
         />
       </template>
     </UModal>
+
+    <ConfirmActionModal
+      :open="removal !== null"
+      :title="t('inventory.removeItemTitle')"
+      :description="t('inventory.removeItemDesc', { name: removal?.name ?? '' })"
+      :loading="inventory.busy.value"
+      @update:open="(value: boolean) => !value && (removal = null)"
+      @confirm="confirmRemoval"
+    />
 
     <UModal v-model:open="storageOpen" :title="t('inventory.storageManager')">
       <template #body>

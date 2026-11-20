@@ -1,15 +1,20 @@
 <script setup lang="ts">
-import type { EquipmentRead, EquipmentSlot, InventoryItemRead } from '@profile/shared/contracts';
+import type { EquipmentRead, EquipmentSlot, InventoryItemRead, StorageRead } from '@profile/shared/contracts';
 
+import type { ItemMenuAction } from '../../model/menu';
 import { useGridDragContext } from './drag-context';
+import ItemContextMenu from './ItemContextMenu.vue';
 
 const props = withDefaults(
   defineProps<{
     equipment: EquipmentRead | null;
+    /** Every storage, read by the slot context menu's "Move to" submenu. */
+    storages?: StorageRead[];
+    busy?: boolean;
     /** Registers a filled slot with the shared drag layer. */
     attachTile?: (el: HTMLElement | null, item: InventoryItemRead | null) => void;
   }>(),
-  { attachTile: undefined },
+  { storages: () => [], busy: false, attachTile: undefined },
 );
 
 const drag = useGridDragContext();
@@ -23,6 +28,7 @@ const activeSlot = computed(() => {
 defineEmits<{
   select: [item: InventoryItemRead];
   pick: [item: InventoryItemRead, event: KeyboardEvent];
+  menu: [item: InventoryItemRead, action: ItemMenuAction];
 }>();
 
 const { t } = useI18n();
@@ -53,50 +59,58 @@ function border(item: InventoryItemRead | null): string {
 
 <template>
   <div class="grid grid-cols-3 gap-1">
-    <button
+    <ItemContextMenu
       v-for="entry in SLOTS"
       :key="entry.slot"
-      :ref="(el) => props.attachTile?.(el as HTMLElement | null, itemIn(entry.slot))"
-      type="button"
-      class="group relative flex min-h-[62px] touch-none select-none flex-col items-center justify-center gap-0.5 border bg-ink-800 p-1 text-center transition-colors"
-      :class="[
-        entry.wide ? 'col-span-2' : '',
-        itemIn(entry.slot) ? 'hover:bg-ink-700' : '',
-        activeSlot === entry.slot ? 'shadow-[inset_0_0_0_2px_var(--sz-accent)]' : '',
-      ]"
-      :style="{ borderColor: border(itemIn(entry.slot)) }"
-      :data-drop="`equipment:${entry.slot}`"
-      :aria-label="`${t(`inventory.slots.${entry.slot}`)}: ${itemIn(entry.slot)?.name ?? t('inventory.slotEmpty')}`"
-      @click="itemIn(entry.slot) && $emit('select', itemIn(entry.slot)!)"
-      @keydown.enter.prevent="itemIn(entry.slot) && $emit('pick', itemIn(entry.slot)!, $event)"
-      @keydown.space.prevent="itemIn(entry.slot) && $emit('pick', itemIn(entry.slot)!, $event)"
+      :item="itemIn(entry.slot)"
+      :storages="props.storages"
+      :equipment="props.equipment"
+      :busy="props.busy"
+      @action="itemIn(entry.slot) && $emit('menu', itemIn(entry.slot)!, $event)"
     >
-      <template v-if="itemIn(entry.slot)">
-        <img
-          v-if="itemIn(entry.slot)!.icon"
-          :src="itemIn(entry.slot)!.icon!"
-          :alt="itemIn(entry.slot)!.name"
-          class="pointer-events-none h-8 max-w-full object-contain"
-          loading="lazy"
-          draggable="false"
-        >
-        <UIcon v-else :name="entry.icon ?? 'i-lucide-package'" class="size-5 text-[var(--sz-text-dim)]" />
-        <span class="max-w-full truncate text-[10.5px] leading-tight text-[var(--sz-text)]">
-          {{ itemIn(entry.slot)!.name }}
-        </span>
-        <span class="text-[10px] leading-none tabular-nums text-[var(--sz-text-muted)]">
-          {{ t('items.level', { level: itemIn(entry.slot)!.level }) }}
-        </span>
-      </template>
-      <template v-else>
-        <span v-if="entry.hotkey" class="font-display text-[15px] leading-none tabular-nums text-[var(--sz-text-dim)]">
-          {{ entry.hotkey }}
-        </span>
-        <UIcon v-else :name="entry.icon" class="size-4 text-[var(--sz-text-dim)]" />
-        <span class="sz-caps text-[11px] leading-tight text-[var(--sz-text-dim)]">
-          {{ t(`inventory.slots.${entry.slot}`) }}
-        </span>
-      </template>
-    </button>
+      <button
+        :ref="(el) => props.attachTile?.(el as HTMLElement | null, itemIn(entry.slot))"
+        type="button"
+        class="group relative flex min-h-[62px] touch-none select-none flex-col items-center justify-center gap-0.5 border bg-ink-800 p-1 text-center transition-colors"
+        :class="[
+          entry.wide ? 'col-span-2' : '',
+          itemIn(entry.slot) ? 'hover:bg-ink-700' : '',
+          activeSlot === entry.slot ? 'shadow-[inset_0_0_0_2px_var(--sz-accent)]' : '',
+        ]"
+        :style="{ borderColor: border(itemIn(entry.slot)) }"
+        :data-drop="`equipment:${entry.slot}`"
+        :aria-label="`${t(`inventory.slots.${entry.slot}`)}: ${itemIn(entry.slot)?.name ?? t('inventory.slotEmpty')}`"
+        @click="itemIn(entry.slot) && $emit('select', itemIn(entry.slot)!)"
+        @keydown.enter.prevent="itemIn(entry.slot) && $emit('pick', itemIn(entry.slot)!, $event)"
+        @keydown.space.prevent="itemIn(entry.slot) && $emit('pick', itemIn(entry.slot)!, $event)"
+      >
+        <template v-if="itemIn(entry.slot)">
+          <img
+            v-if="itemIn(entry.slot)!.icon"
+            :src="itemIn(entry.slot)!.icon!"
+            :alt="itemIn(entry.slot)!.name"
+            class="pointer-events-none h-8 max-w-full object-contain"
+            loading="lazy"
+            draggable="false"
+          >
+          <UIcon v-else :name="entry.icon ?? 'i-lucide-package'" class="size-5 text-[var(--sz-text-dim)]" />
+          <span class="max-w-full truncate text-[10.5px] leading-tight text-[var(--sz-text)]">
+            {{ itemIn(entry.slot)!.name }}
+          </span>
+          <span class="text-[10px] leading-none tabular-nums text-[var(--sz-text-muted)]">
+            {{ t('items.level', { level: itemIn(entry.slot)!.level }) }}
+          </span>
+        </template>
+        <template v-else>
+          <span v-if="entry.hotkey" class="font-display text-[15px] leading-none tabular-nums text-[var(--sz-text-dim)]">
+            {{ entry.hotkey }}
+          </span>
+          <UIcon v-else :name="entry.icon" class="size-4 text-[var(--sz-text-dim)]" />
+          <span class="sz-caps text-[11px] leading-tight text-[var(--sz-text-dim)]">
+            {{ t(`inventory.slots.${entry.slot}`) }}
+          </span>
+        </template>
+      </button>
+    </ItemContextMenu>
   </div>
 </template>
