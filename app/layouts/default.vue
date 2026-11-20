@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import SiteNav from './SiteNav.vue';
+import CommandPalette from './CommandPalette.vue';
 import { useProfileData } from '~/stores/profile-data';
 
 const { t } = useI18n();
@@ -112,5 +113,6 @@ const sideWidth = computed(() => (collapsed.value ? COLLAPSED_WIDTH : EXPANDED_W
     </div>
 
     <ZoneRadio />
+    <CommandPalette />
   </div>
 </template>

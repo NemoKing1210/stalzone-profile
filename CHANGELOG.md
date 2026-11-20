@@ -37,6 +37,11 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- A command palette opens on `Ctrl+Space` and `Ctrl/Cmd+K` (the binding is configurable
+  per browser in Settings → Appearance) and runs navigation, money edits, a profile sync,
+  item creation, theme/locale/density switches and stash selection with groups, fuzzy
+  filtering, icons and owned counts. It refuses to open while a text field is focused,
+  yields Escape to the inventory grid, and every profile write asks first.
 - A `/devices` screen lists every device-category catalog item — detectors, night vision
   and the САК-1 — from a new `catalog.devices` payload group; those rows leave `/weapons`
   and `/armor`, and the payload, guide and both locales carry the group.

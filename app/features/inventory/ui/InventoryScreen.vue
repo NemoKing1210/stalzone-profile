@@ -170,6 +170,10 @@ const emptyText = computed(() =>
 );
 
 const addOpen = ref(false);
+const route = useRoute();
+onMounted(() => {
+  if (route.query.add === '1' && ui.value.actions) addOpen.value = true;
+});
 const selectedKey = ref<string | null>(null);
 const dialogOpen = ref(false);
 const editTarget = ref<InstanceEditTarget | null>(null);

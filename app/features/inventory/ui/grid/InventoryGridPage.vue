@@ -118,6 +118,15 @@ function setLeftPane(pane: LeftPane): void {
   leftState.pane = pane;
 }
 
+// The command palette opens a stash by URL; an invalid id leaves the current selection alone.
+onMounted(() => {
+  const id = Number(useRoute().query.stash);
+  if (Number.isInteger(id) && id > 0) {
+    setLeftPane('stash');
+    inventory.selectStorage(id);
+  }
+});
+
 function toggleLeftPane(): void {
   setLeftPane(nextPane(leftPane.value));
 }

@@ -20,6 +20,7 @@ import {
 } from '../../model/drag';
 import { scrollVelocity } from '../../model/autoscroll';
 import { filteredDropBlocked } from '../../model/containerFilters';
+import { isPaletteOpen } from '~/shared/lib/paletteShortcut';
 import { clampOrigin, effectiveSize, ghostForGrid, type GridBounds, type Size } from '../../model/grid';
 
 type InteractApi = (typeof import('interactjs'))['default'];
@@ -513,6 +514,8 @@ export function useGridDrag(options: GridDragOptions) {
   }
 
   function onKeydown(event: KeyboardEvent): void {
+    // An open palette owns Escape and the arrow keys; the grid must not cancel its pick too.
+    if (isPaletteOpen()) return;
     if (event === pickEvent) {
       pickEvent = null;
       return;

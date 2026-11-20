@@ -27,6 +27,14 @@ const hasCharacter = computed(() => Object.keys(character.value).length > 0);
 const metaInfo = computed(() => payload.value?.meta ?? {});
 const catalogMeta = computed(() => meta.value?.catalogMeta ?? null);
 const editOpen = ref(false);
+const route = useRoute();
+watch(
+  () => route.query.edit,
+  (value) => {
+    if (value) editOpen.value = true;
+  },
+  { immediate: true },
+);
 
 const syncing = ref(false);
 const syncFailure = ref<ProfileSyncFailure | null>(null);

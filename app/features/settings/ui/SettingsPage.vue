@@ -2,6 +2,12 @@
 import { ProfilePane } from '~/shared/ui';
 import { DEFAULT_ACCENT } from '~/shared/lib/accents';
 import { TAB_STRIP_UI } from '~/shared/lib/tabStrip';
+import {
+  normalizePaletteShortcut,
+  persistPaletteShortcut,
+  readPaletteShortcut,
+  type PaletteShortcut,
+} from '~/shared/lib/paletteShortcut';
 import AppearanceChoiceGroup from './AppearanceChoiceGroup.vue';
 import LoggingSettingsPanel from './LoggingSettingsPanel.vue';
 import SourcesSection from './SourcesSection.vue';
@@ -53,6 +59,31 @@ const densityOptions = computed(() =>
     label: id === 'compact' ? t('settings.densityCompact') : t('settings.densityComfortable'),
   })),
 );
+
+const paletteShortcut = ref<PaletteShortcut>('both');
+const paletteOptions = computed(() => [
+  { id: 'both', label: t('settings.paletteBoth') },
+  { id: 'ctrl-space', label: t('settings.paletteCtrlSpace') },
+  { id: 'ctrl-k', label: t('settings.paletteCtrlK') },
+]);
+
+onMounted(() => {
+  try {
+    paletteShortcut.value = readPaletteShortcut(window.localStorage);
+  } catch {
+    paletteShortcut.value = 'both';
+  }
+});
+
+function setPaletteShortcut(value: unknown): void {
+  paletteShortcut.value = normalizePaletteShortcut(value);
+  if (!import.meta.client) return;
+  try {
+    persistPaletteShortcut(window.localStorage, paletteShortcut.value);
+  } catch {
+    /* private mode: the choice applies for this page */
+  }
+}
 
 const POSITION_LABEL_KEYS: Record<string, string> = {
   'top-left': 'settings.notificationPositionTopLeft',
@@ -223,6 +254,22 @@ const tabItems = computed(() => [
                 :model-value="density"
                 :options="densityOptions"
                 @update:model-value="setDensity"
+              />
+            </div>
+
+            <div class="mt-4 border-t border-[var(--sz-border)] pt-3">
+              <h3 class="sz-caps text-[var(--sz-text-muted)]">{{ t('settings.paletteTitle') }}</h3>
+              <p class="mt-1 text-[12.5px] leading-relaxed text-[var(--sz-text-muted)]">
+                {{ t('settings.paletteText') }}
+              </p>
+
+              <AppearanceChoiceGroup
+                class="mt-3"
+                name="palette-shortcut"
+                :label="t('settings.paletteTitle')"
+                :model-value="paletteShortcut"
+                :options="paletteOptions"
+                @update:model-value="setPaletteShortcut"
               />
             </div>
 
