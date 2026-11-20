@@ -117,17 +117,21 @@ describe('character patch form', () => {
     });
   });
 
-  it('keeps non-numeric counters as trimmed text and rejects over-long text', () => {
+  it('converts playtime to hours and keeps registration as an ISO date', () => {
     const state = form({ stats: { ...form().stats, 'pla-tim': '  PT123H  ', 'reg-tim': ' 2024-06-01 ' } });
     const patch = toCharacterPatch(state);
-    expect(patch.stats?.['pla-tim']).toBe('PT123H');
+    expect(patch.stats?.['pla-tim']).toBe(123);
     expect(patch.stats?.['reg-tim']).toBe('2024-06-01');
 
-    const tooLong = form({ stats: { ...form().stats, 'pla-tim': 'x'.repeat(501) } });
-    expect(characterFormIssues(tooLong, form())).toContainEqual({
+    const invalidPlaytime = form({ stats: { ...form().stats, 'pla-tim': 'many hours' } });
+    expect(characterFormIssues(invalidPlaytime, form())).toContainEqual({
       field: 'stats.pla-tim',
-      code: 'tooLong',
-      max: 500,
+      code: 'invalid',
+    });
+    const invalidDate = form({ stats: { ...form().stats, 'reg-tim': '01.06.2024' } });
+    expect(characterFormIssues(invalidDate, form())).toContainEqual({
+      field: 'stats.reg-tim',
+      code: 'invalid',
     });
   });
 

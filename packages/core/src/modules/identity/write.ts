@@ -3,6 +3,7 @@ import type { Db } from '../../platform/db/index.js';
 import { logEvent, withTransaction, WriteError, type WriteResult } from '../../platform/journal/index.js';
 import * as repo from './repo/characters.js';
 import type { CharacterColumnPatch, CharacterRow } from './repo/characters.js';
+import { parseIsoDurationHours } from './service/character-stats.js';
 
 const CHARACTER_FIELDS = [
   ['nick', 'nick'],
@@ -217,9 +218,11 @@ export function patchCharacter(db: Db, patch: CharacterPatch): WriteResult {
       continue;
     }
     if (!manual.has(statId) && before.stats[statId] === value) continue;
-    stats[statId] = value;
+    const canonical =
+      statId === 'pla-tim' && typeof value === 'string' ? (parseIsoDurationHours(value) ?? value) : value;
+    stats[statId] = canonical;
     manual.add(statId);
-    statWrites[statId] = value;
+    statWrites[statId] = canonical;
   }
 
   const identityChanged =

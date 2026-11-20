@@ -51,7 +51,7 @@ describe('character stats form', () => {
     expect(toCharacterStatsPatch({ kil: '300', 'reg-tim': '2024-06-01', 'pla-tim': 'PT123H' })).toMatchObject({
       kil: 300,
       'reg-tim': '2024-06-01',
-      'pla-tim': 'PT123H',
+      'pla-tim': 123,
     });
   });
 });

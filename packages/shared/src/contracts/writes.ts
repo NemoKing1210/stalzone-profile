@@ -30,6 +30,41 @@ export type CleanupRequest = z.infer<typeof CleanupRequestSchema>;
 /* Site/API write schemas (camelCase, dryRun defaults to false)        */
 /* ------------------------------------------------------------------ */
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const ISO_DURATION = /^PT(?:\d+H)?(?:\d+M)?(?:\d+S)?$/i;
+
+function isIsoDate(value: string): boolean {
+  if (!ISO_DATE.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+/**
+ * The two calendar counters have one canonical form: registration as an ISO date in
+ * `value_text`, playtime as hours in `value_num`. The API accepts `PT…H` for playtime and
+ * converts it, but rejects any other text so a raw value never reaches the table.
+ */
+function validateCharacterStats(
+  stats: Record<string, number | string | null> | undefined,
+  ctx: z.RefinementCtx,
+): void {
+  if (!stats) return;
+  const registered = stats['reg-tim'];
+  if (registered !== undefined && registered !== null) {
+    if (typeof registered !== 'string' || !isIsoDate(registered)) {
+      ctx.addIssue({ code: 'custom', path: ['stats', 'reg-tim'], message: 'Registration must be YYYY-MM-DD' });
+    }
+  }
+  const playtime = stats['pla-tim'];
+  if (playtime !== undefined && playtime !== null) {
+    if (typeof playtime === 'string' && !ISO_DURATION.test(playtime)) {
+      ctx.addIssue({ code: 'custom', path: ['stats', 'pla-tim'], message: 'Playtime must be PT…H or hours' });
+    } else if (typeof playtime !== 'string' && (!Number.isFinite(playtime) || playtime < 0)) {
+      ctx.addIssue({ code: 'custom', path: ['stats', 'pla-tim'], message: 'Playtime must be non-negative hours' });
+    }
+  }
+}
+
 export const CharacterPatchSchema = WriteOptionsSchema.extend({
   nick: z.string().min(1).max(64).optional(),
   region: z.enum(['ru', 'eu', 'na', 'sea', 'global']).optional(),
@@ -42,9 +77,11 @@ export const CharacterPatchSchema = WriteOptionsSchema.extend({
   stats: z
     .record(z.string().min(1).max(200), z.union([z.number().finite(), z.string().min(1).max(500), z.null()]))
     .optional(),
-}).refine((value) => Object.keys(value).some((key) => key !== 'dryRun'), {
-  message: 'At least one field must be changed',
-});
+})
+  .superRefine((value, ctx) => validateCharacterStats(value.stats, ctx))
+  .refine((value) => Object.keys(value).some((key) => key !== 'dryRun'), {
+    message: 'At least one field must be changed',
+  });
 
 export type CharacterPatch = z.infer<typeof CharacterPatchSchema>;
 

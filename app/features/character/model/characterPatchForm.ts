@@ -3,6 +3,8 @@ import { factionEmblem, factionValue, NO_FACTION, type FactionChoice } from '~/s
 import type { ProfileCharacter } from '~/shared/types/profile';
 
 import {
+  durationHoursInput,
+  isIsoDateInput,
   isNumericStatField,
   STAT_FIELDS,
   toCharacterStatsPatch,
@@ -194,6 +196,10 @@ function statIssues(state: CharacterFormState): CharacterFormIssue[] {
       } else if (numeric > COUNTER_MAX) {
         issues.push({ field: `stats.${field}`, code: 'tooBig', max: COUNTER_MAX });
       }
+    } else if (field === 'reg-tim') {
+      if (!isIsoDateInput(String(value))) issues.push({ field: 'stats.reg-tim', code: 'invalid' });
+    } else if (field === 'pla-tim') {
+      if (durationHoursInput(value) == null) issues.push({ field: 'stats.pla-tim', code: 'invalid' });
     } else if (typeof value === 'string' && value.trim().length > 500) {
       issues.push({ field: `stats.${field}`, code: 'tooLong', max: 500 });
     }

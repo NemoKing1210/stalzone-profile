@@ -161,7 +161,7 @@
     { "statId": "sho-fir", "valueNum": 1000, "origin": "api" },
     { "statId": "sho-hit", "valueNum": 250, "origin": "api" },
     { "statId": "sho-hea", "valueNum": 50, "origin": "api" },
-    { "statId": "pla-tim", "valueText": "PT123H", "origin": "api" },
+    { "statId": "pla-tim", "valueNum": 123, "origin": "api" },
     { "statId": "ach-gai", "valueNum": 42, "origin": "api" },
     { "statId": "reg-tim", "valueText": "2024-06-01", "origin": "api" }
   ],

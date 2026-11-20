@@ -159,6 +159,14 @@ describe('character patch', () => {
     expect(CharacterPatchSchema.safeParse({ hours: 120 }).success).toBe(false);
     expect(CharacterPatchSchema.safeParse({}).success).toBe(false);
   });
+
+  it('keeps registration ISO and playtime as hours or PT…H', () => {
+    expect(CharacterPatchSchema.safeParse({ stats: { 'reg-tim': '2024-13-40' } }).success).toBe(false);
+    expect(CharacterPatchSchema.safeParse({ stats: { 'reg-tim': '01.06.2024' } }).success).toBe(false);
+    expect(CharacterPatchSchema.safeParse({ stats: { 'pla-tim': 'many hours' } }).success).toBe(false);
+    expect(CharacterPatchSchema.safeParse({ stats: { 'pla-tim': 'PT123H' } }).success).toBe(true);
+    expect(CharacterPatchSchema.safeParse({ stats: { 'pla-tim': 123 } }).success).toBe(true);
+  });
 });
 
 describe('container fill', () => {

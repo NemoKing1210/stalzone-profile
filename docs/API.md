@@ -107,8 +107,9 @@ text is English.
 four faction slugs or `null`, `alliance`, `clanName`, `clanRank`, `money`, `maxMoney`)
 and `stats`, a map of raw
 counter id → number/string/`null`. Writing a value sets the `manual` origin; `null` clears
-it and reveals the API value. Derived fields (K/D, accuracy, headshot share, hours) are
-read-only and rejected in the patch.
+it and reveals the API value. `reg-tim` must be an ISO date (`YYYY-MM-DD`) in `value_text`;
+`pla-tim` accepts hours or `PT…H` and is stored as hours in `value_num`. Derived fields
+(K/D, accuracy, headshot share, hours) are read-only and rejected in the patch.
 
 Cleanup resets one scope and writes one `event_log` row whose `before` is the rollback
 snapshot. The scope defaults to `inventory`:

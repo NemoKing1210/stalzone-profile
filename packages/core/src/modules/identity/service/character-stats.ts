@@ -63,11 +63,10 @@ export function parseIsoDurationHours(value: string | null | undefined): number 
 }
 
 export function deriveCharacterFields(stats: Record<string, EffectiveStat>): DerivedCharacterFields {
-  const numericPlaytime = numeric(stats, 'pla-tim');
-  const textPlaytime = text(stats, 'pla-tim');
   return {
     arrived: text(stats, 'reg-tim'),
-    hours: numericPlaytime ?? parseIsoDurationHours(textPlaytime),
+    // Playtime is stored once, as hours; a legacy duration text is not a fallback.
+    hours: numeric(stats, 'pla-tim'),
     kd: ratio(numeric(stats, 'kil'), numeric(stats, 'dea')),
     accuracy: ratio(numeric(stats, 'sho-hit'), numeric(stats, 'sho-fir'), 100),
     headshot: ratio(numeric(stats, 'sho-hea'), numeric(stats, 'sho-hit'), 100),

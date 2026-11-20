@@ -134,7 +134,10 @@ owns itself.
   editable stats — K/D, accuracy, headshot share and hours are derived at read time.
   The `profile` sync owns only `origin='api'` rows: it deletes and rewrites them on every
   success, while manual rows are never touched. Playtime arrives as seconds or an
-  ISO-8601 duration and is stored as hours.
+  ISO-8601 duration and is stored as hours. The two calendar counters have one canonical
+  form: `reg-tim` is an ISO date (`YYYY-MM-DD`) in `value_text`, `pla-tim` is hours in
+  `value_num`; the API accepts `PT…H` for playtime and converts it, and rejects a
+  non-ISO registration instead of storing it raw.
 - `price_latest` is computed, not stored: `ROW_NUMBER()` over
   `(name_norm, quality_norm, bonus)`, newest by `(fetched_at, id)`. Only the current quote
   per key is kept: each prices sync prunes older rows for the same key, so the table does
@@ -199,9 +202,9 @@ assembles the typed rows, and `catalog-view.ts` derives item cards and detail ca
 time (`details[key]`, weapon/armor/artifact/container cards).
 
 - Derived character fields come from stat ids: `reg-tim` (in the Zone since), `pla-tim`
-  (hours), `kil`/`dea` (K/D), `sho-hit`/`sho-fir` (accuracy), `sho-hea`/`sho-hit` (headshot
-  share), `ach-gai` (achievements count). Achievement points have no stat id in phase 1 and
-  are `null`.
+  (hours, numeric only — no text fallback), `kil`/`dea` (K/D), `sho-hit`/`sho-fir` (accuracy),
+  `sho-hea`/`sho-hit` (headshot share), `ach-gai` (achievements count). Achievement points
+  have no stat id in phase 1 and are `null`.
 - Container display precedence: `container_data` override > `container.*` item stats >
   `null`. Fill comes from `item_placement` rows of the container instance; the payload has no
   per-fill timestamp, so `artifactsAsOf` is `null`.

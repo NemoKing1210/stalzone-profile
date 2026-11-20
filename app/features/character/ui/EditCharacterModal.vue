@@ -181,6 +181,20 @@ async function submit(): Promise<void> {
                   @update:model-value="(value) => setStatNumber(field, value)"
                 />
                 <UInput
+                  v-else-if="field === 'reg-tim'"
+                  type="date"
+                  :model-value="statText(field)"
+                  class="w-full"
+                  @update:model-value="(value) => setStatText(field, value)"
+                />
+                <UInput
+                  v-else-if="field === 'pla-tim'"
+                  :model-value="statText(field)"
+                  placeholder="PT123H"
+                  class="w-full"
+                  @update:model-value="(value) => setStatText(field, value)"
+                />
+                <UInput
                   v-else
                   :model-value="statText(field)"
                   maxlength="500"

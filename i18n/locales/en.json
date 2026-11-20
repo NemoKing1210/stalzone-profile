@@ -1486,9 +1486,9 @@
       "sho-fir": "Shots fired",
       "sho-hit": "Shots hit",
       "sho-hea": "Headshots hit",
-      "pla-tim": "Playtime (PT123H or hours)",
+      "pla-tim": "Playtime",
       "ach-gai": "Achievements count",
-      "reg-tim": "Registered (YYYY-MM-DD)"
+      "reg-tim": "Registered"
     },
     "containerOverride": "Container override",
     "containerType": "Type",

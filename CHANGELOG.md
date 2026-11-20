@@ -22,6 +22,10 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
+- Character registration and playtime are typed: a date input for `reg-tim` and an
+  hours/`PT…H` field for `pla-tim`. The contract rejects a non-ISO date and keeps playtime
+  as numeric hours; migration `0012` normalises existing stat rows and the derived `hours`
+  no longer falls back to legacy text.
 - Inventory add/edit forms follow the kind: level and a skin (only motifs bound to the
   chosen item) for weapons/armor, one rarity percentage with a server-derived tier for
   artifacts, quantity for stacks; the slot is read from the catalog. `/inventory` gains one

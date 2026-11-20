@@ -143,6 +143,24 @@ describe('patchCharacter and the fetched profile marker', () => {
   });
 });
 
+describe('patchCharacter calendar counters', () => {
+  it('stores PT…H playtime as numeric hours and keeps registration text ISO', () => {
+    upsertCharacter(db, { nick: 'Tester', region: 'ru' });
+
+    patchCharacter(db, CharacterPatchSchema.parse({ stats: { 'pla-tim': 'PT5H30M', 'reg-tim': '2024-06-01' } }));
+
+    expect(getCharacterRead(db)).toMatchObject({
+      hours: 5.5,
+      arrived: '2024-06-01',
+      stats: { 'pla-tim': 5.5, 'reg-tim': '2024-06-01' },
+    });
+    const row = db
+      .prepare(`SELECT value_num, value_text FROM character_stat WHERE stat_id = 'pla-tim' AND origin = 'manual'`)
+      .get() as { value_num: number | null; value_text: string | null };
+    expect(row).toEqual({ value_num: 5.5, value_text: null });
+  });
+});
+
 describe('patchCharacter clearing a manual stat', () => {
   function seededCharacter(): { id: number } {
     createCharacter(db, CharacterCreateSchema.parse({ nick: 'Tester', region: 'ru' }));

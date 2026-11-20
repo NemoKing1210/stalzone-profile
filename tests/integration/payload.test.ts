@@ -59,7 +59,7 @@ describe('buildPayload contract', () => {
       achievementPoints: null,
       arrived: '2024-06-01',
     });
-    expect(payload.character.stats).toMatchObject({ kil: 250, dea: 100, 'pla-tim': 'PT123H' });
+    expect(payload.character.stats).toMatchObject({ kil: 250, dea: 100, 'pla-tim': 123 });
   });
 
   it('carries the stored profile fetch marker into the character section', () => {
