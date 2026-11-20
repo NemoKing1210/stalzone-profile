@@ -56,7 +56,7 @@ function reset(): void {
         v-for="mode in modes"
         :key="mode.value"
         size="xs"
-        color="neutral"
+        :color="filters.mode === mode.value ? 'primary' : 'neutral'"
         :variant="filters.mode === mode.value ? 'solid' : 'outline'"
         @click="update({ mode: mode.value })"
       >
@@ -68,7 +68,7 @@ function reset(): void {
       <UButton
         icon="i-lucide-layout-grid"
         size="xs"
-        color="neutral"
+        :color="filters.view === 'grid' ? 'primary' : 'neutral'"
         :variant="filters.view === 'grid' ? 'solid' : 'ghost'"
         :aria-label="t('common.viewGrid')"
         :aria-pressed="filters.view === 'grid'"
@@ -77,7 +77,7 @@ function reset(): void {
       <UButton
         icon="i-lucide-list"
         size="xs"
-        color="neutral"
+        :color="filters.view === 'list' ? 'primary' : 'neutral'"
         :variant="filters.view === 'list' ? 'solid' : 'ghost'"
         :aria-label="t('common.viewList')"
         :aria-pressed="filters.view === 'list'"

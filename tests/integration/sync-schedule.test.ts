@@ -88,10 +88,17 @@ describe('sync diagnostics', () => {
     ]);
     expect(diagnostics.sources.find((source) => source.id === 'exbo_base')!.url).toContain('github.com');
     expect(diagnostics.sources.find((source) => source.id === 'local')!.url).toBeNull();
-    for (const source of diagnostics.sources) {
-      if (['scpmodel', 'icons', 'profile'].includes(source.id)) expect(typeof source.records).toBe('number');
-      else expect(source.records).toBeNull();
-    }
+    const byId = new Map(diagnostics.sources.map((source) => [source.id, source]));
+    expect(byId.get('exbo_base')).toMatchObject({ recordMetric: 'catalog_items', records: diagnostics.catalogItems });
+    expect(typeof byId.get('wiki')!.records).toBe('number');
+    expect(byId.get('wiki')!.recordMetric).toBe('stat_rows');
+    expect(byId.get('motifs')).toMatchObject({ recordMetric: 'motif_items' });
+    expect(byId.get('scpmodel')).toMatchObject({ recordMetric: 'price_quotes' });
+    expect(byId.get('icons')).toMatchObject({ recordMetric: 'icons' });
+    expect(byId.get('profile')).toMatchObject({ recordMetric: 'character_stats' });
+    expect(typeof byId.get('profile')!.records).toBe('number');
+    expect(byId.get('local')).toMatchObject({ recordMetric: 'inventory_items' });
+    expect(typeof byId.get('local')!.records).toBe('number');
   });
 
   it('returns null for the profile count without a character', () => {
@@ -99,9 +106,9 @@ describe('sync diagnostics', () => {
     db.prepare('DELETE FROM character_stat').run();
     db.prepare('DELETE FROM character').run();
     const diagnostics = syncDiagnostics(db, { profileApiConfigured: true });
-    for (const id of ['profile', 'exbo_base', 'wiki', 'motifs', 'local']) {
-      expect(diagnostics.sources.find((source) => source.id === id)!.records).toBeNull();
-    }
+    expect(diagnostics.sources.find((source) => source.id === 'profile')!.records).toBeNull();
+    expect(diagnostics.sources.find((source) => source.id === 'local')!.records).toBeNull();
+    expect(diagnostics.sources.find((source) => source.id === 'exbo_base')!.records).toBeGreaterThan(0);
   });
 
   it('reports ready profile only when credentials and a supported character exist', () => {

@@ -96,7 +96,7 @@ function equipment(overrides: Partial<EquipmentRead> = {}): EquipmentRead {
 
 describe('equipmentSlotsFor', () => {
   it('sends a firearm to the weapon slots', () => {
-    expect(equipmentSlotsFor(item(1, { location: 'loose' }, { category: 'weapon/shotgun' }))).toEqual(['primary', 'secondary']);
+    expect(equipmentSlotsFor(item(1, { location: 'loose' }, { category: 'weapon/shotgun' }))).toEqual(['primary']);
   });
 
   it('puts a melee weapon in the melee slot first', () => {
@@ -129,17 +129,17 @@ describe('equipmentSlotsFor', () => {
 });
 
 describe('equipTarget', () => {
-  it('prefers an empty slot', () => {
-    const primary = item(1, { location: 'equipment', slot: 'primary' });
-    expect(equipTarget(item(2, { location: 'loose' }, { category: 'weapon/rifle' }), equipment({ primary }))).toEqual({
+  it('sends a pistol to the empty secondary slot', () => {
+    expect(equipTarget(item(2, { location: 'loose' }, { category: 'weapon/pistol' }), equipment())).toEqual({
       slot: 'secondary',
     });
   });
 
-  it('falls back to the first compatible slot when all are taken', () => {
-    const primary = item(1, { location: 'equipment', slot: 'primary' });
+  it('keeps a pistol in the secondary slot when it is occupied', () => {
     const secondary = item(2, { location: 'equipment', slot: 'secondary' });
-    expect(equipTarget(item(3, { location: 'loose' }), equipment({ primary, secondary }))).toEqual({ slot: 'primary' });
+    expect(
+      equipTarget(item(3, { location: 'loose' }, { category: 'weapon/pistol' }), equipment({ secondary })),
+    ).toEqual({ slot: 'secondary' });
   });
 
   it('does nothing for an item that is already worn', () => {

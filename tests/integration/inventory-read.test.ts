@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { closeDb, migrate, openDb, type Db } from '@profile/core';
 import { buildPayload } from '@profile/core/modules/read-model';
 import {
+  getPlacement,
   hasInventory,
   inventoryCounts,
   inventoryItemRead,
@@ -13,6 +14,7 @@ import {
   setContainerFill,
   updateInventoryItem,
 } from '@profile/core/modules/inventory';
+import { visibleContainerItems } from '~/features/inventory/model/containerFilters';
 import { InventoryReadSchema, PayloadSchema } from '@profile/shared/contracts';
 import * as seed from '@profile/core/testing';
 import { seedInventory, type SeedInventory } from '../fixtures/inventory';
@@ -48,6 +50,18 @@ describe('inventory read', () => {
         .sort(),
     );
     expect(read.loose).toEqual([]);
+  });
+
+  it('filtering a storage changes no placement row and leaves hidden items in the read', () => {
+    const read = inventoryRead(db, data.characterId);
+    const stash = read.storages.find((storage) => storage.id === data.storageIds.overflow)!;
+    const before = stash.items.map((item) => getPlacement(db, item.id));
+    const visible = visibleContainerItems(stash.items, { kind: 'weapon', rank: 'ALL', quality: 'all' });
+    expect(visible.length).toBeLessThan(stash.items.length);
+    expect(stash.items.map((item) => getPlacement(db, item.id))).toEqual(before);
+    expect(read.storages.find((storage) => storage.id === data.storageIds.overflow)?.items).toHaveLength(
+      stash.items.length,
+    );
   });
 
   it('describes an equipped rifle with its equipment placement', () => {

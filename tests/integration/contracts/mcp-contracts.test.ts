@@ -124,7 +124,9 @@ describe('MCP inventory input contracts', () => {
 
   it('defaults storage writes and keeps the inventory storage undeletable by contract', () => {
     const created = CreateStorageInputSchema.parse({ name: 'Stash 2' });
-    expect(created).toMatchObject({ kind: 'stash', width: 8, height: 12, dry_run: true, confirm: false });
+    expect(created).toMatchObject({ kind: 'stash', dry_run: true, confirm: false });
+    expect(created).not.toHaveProperty('width');
+    expect(created).not.toHaveProperty('height');
     expect(UpdateStorageInputSchema.parse({ storage_id: 2, name: 'Renamed' }).name).toBe('Renamed');
     expect(DeleteStorageInputSchema.parse({ storage_id: 2 })).toMatchObject({
       storage_id: 2,

@@ -105,7 +105,7 @@ beforeEach(() => {
   inventoryId = ensureInventoryStorage(db, characterId);
   overflowId = ensureOverflowStorage(db, characterId);
   stashId = (
-    createStorage(db, StorageCreateSchema.parse({ name: 'Stash', width: 8, height: 12, dryRun: false })).diff
+    createStorage(db, StorageCreateSchema.parse({ name: 'Stash', dryRun: false })).diff
       .after as { id: number }
   ).id;
 
@@ -263,6 +263,7 @@ describe('inventory placement writes', () => {
   it('accepts exactly the slot and kind pairs the shared table allows', () => {
     const candidates = [
       { kind: 'weapon', name: 'Слот-винтовка', category: 'weapon/assault_rifle' },
+      { kind: 'weapon', name: 'Слот-пистолет', category: 'weapon/pistol' },
       { kind: 'weapon', name: 'Слот-нож', category: 'weapon/melee' },
       { kind: 'armor', name: 'Слот-броня', category: 'armor/combat' },
       { kind: 'container', name: 'Слот-рюкзак', category: 'containers/backpacks' },
@@ -426,10 +427,14 @@ describe('inventory placement writes', () => {
   });
 
   it('auto-arranges intake items deterministically and leaves non-fitting items in intake', () => {
-    const smallId = (
-      createStorage(db, StorageCreateSchema.parse({ name: 'Small', width: 2, height: 2, dryRun: false })).diff
-        .after as { id: number }
-    ).id;
+    const smallId = seed.insertStorage(db, {
+      characterId,
+      kind: 'stash',
+      name: 'Small',
+      width: 2,
+      height: 2,
+      sortOrder: 0,
+    });
     const artifact = make('artifact', 'Нервяк');
     const rifle = make('weapon', 'АК-12');
 

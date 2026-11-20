@@ -1,8 +1,15 @@
 <script setup lang="ts">
+import { useMutation } from '@pinia/colada';
+import { $fetch as request } from 'ofetch';
+
 const route = useRoute();
 const state = reactive({ password: '' });
-const pending = ref(false);
 const error = ref<string | null>(null);
+const login = useMutation({
+  mutation: (password: string) =>
+    request('/api/auth/login', { method: 'POST', body: { password } }),
+});
+const pending = computed(() => login.isLoading.value);
 const { t } = useI18n();
 const { message: apiMessage } = useApiError();
 
@@ -16,17 +23,17 @@ function nextPath(): string {
 }
 
 async function submit(): Promise<void> {
-  if (pending.value) return;
-  pending.value = true;
+  if (login.isLoading.value) return;
   error.value = null;
   try {
-    await $fetch('/api/auth/login', { method: 'POST', body: { password: state.password } });
+    await login.mutateAsync(state.password);
     await navigateTo(nextPath(), { external: true });
   } catch (err: unknown) {
-    const data = (err as { data?: { error?: { code?: string; message?: string } } })?.data?.error;
-    error.value = apiMessage(data?.code, data?.message || t('auth.error'));
-  } finally {
-    pending.value = false;
+    const data =
+      err && typeof err === 'object' && 'data' in err
+        ? (err as { data?: { error?: { code?: string; message?: string } } }).data
+        : undefined;
+    error.value = apiMessage(data?.error?.code, data?.error?.message || t('auth.error'));
   }
 }
 </script>

@@ -97,23 +97,24 @@ describe('inventory storage and item writes', () => {
 
   it('creates and renames a stash, rejecting a duplicate normalized name', () => {    const created = createStorage(
       db,
-      StorageCreateSchema.parse({ name: 'Мой Склад', width: 8, height: 12, dryRun: false }),
+      StorageCreateSchema.parse({ name: 'Мой Склад', dryRun: false }),
     );
     const stashId = idOf(created);
     expect(created.eventId).toBeDefined();
     expect(getStorage(db, stashId)?.name).toBe('Мой Склад');
+    expect(getStorage(db, stashId)).toMatchObject({ width: 8, height: 200 });
 
     updateStorage(db, stashId, StoragePatchSchema.parse({ name: 'Новый Склад', dryRun: false }));
     expect(getStorage(db, stashId)?.name).toBe('Новый Склад');
 
     expectWriteError(
-      () => createStorage(db, StorageCreateSchema.parse({ name: 'новый склад', width: 8, height: 12, dryRun: false })),
+      () => createStorage(db, StorageCreateSchema.parse({ name: 'новый склад', dryRun: false })),
       'STORAGE_NAME_TAKEN',
     );
   });
 
   it('moves a deleted stash contents to intake and lists them', () => {
-    const stashId = idOf(createStorage(db, StorageCreateSchema.parse({ name: 'Stash', width: 8, height: 12, dryRun: false })));
+    const stashId = idOf(createStorage(db, StorageCreateSchema.parse({ name: 'Stash', dryRun: false })));
     const rifleId = idOf(createInventoryItem(db, InventoryItemCreateSchema.parse({ name: 'АК-12', kind: 'weapon', dryRun: false })));
     upsertPlacement(db, { itemId: rifleId, characterId, location: 'grid', storageId: stashId, x: 0, y: 0 });
 
@@ -132,16 +133,12 @@ describe('inventory storage and item writes', () => {
     expect(listEvents(db).map((event) => event.action)).toContain('inventory.storage.delete');
   });
 
-  it('rejects a storage shrink that would leave an item out of bounds', () => {
-    const stashId = idOf(createStorage(db, StorageCreateSchema.parse({ name: 'Wide', width: 6, height: 6, dryRun: false })));
-    const rifleId = idOf(createInventoryItem(db, InventoryItemCreateSchema.parse({ name: 'АК-12', kind: 'weapon', dryRun: false })));
-    upsertPlacement(db, { itemId: rifleId, characterId, location: 'grid', storageId: stashId, x: 0, y: 0 });
-
-    expectWriteError(
-      () => updateStorage(db, stashId, StoragePatchSchema.parse({ width: 4, dryRun: false })),
-      'STORAGE_TOO_SMALL',
+  it('ignores width/height on create and rejects a resize patch', () => {
+    const stashId = idOf(
+      createStorage(db, StorageCreateSchema.parse({ name: 'Wide', width: 6, height: 6, dryRun: false })),
     );
-    expect(getStorage(db, stashId)?.width).toBe(6);
+    expect(getStorage(db, stashId)).toMatchObject({ width: 8, height: 200 });
+    expect(() => StoragePatchSchema.parse({ width: 4, dryRun: false })).toThrow(/At least one field/);
   });
 
   it('creates two rows for two identical gear instances', () => {
@@ -161,7 +158,7 @@ describe('inventory storage and item writes', () => {
     expect(stacks).toHaveLength(1);
     expect(getInventoryItem(db, firstId)?.qty).toBe(15);
 
-    const stashId = idOf(createStorage(db, StorageCreateSchema.parse({ name: 'Stash', width: 8, height: 12, dryRun: false })));
+    const stashId = idOf(createStorage(db, StorageCreateSchema.parse({ name: 'Stash', dryRun: false })));
     upsertPlacement(db, { itemId: firstId, characterId, location: 'grid', storageId: stashId, x: 0, y: 0 });
     createInventoryItem(db, InventoryItemCreateSchema.parse({ name: 'Патроны', kind: 'ammo', qty: 7, dryRun: false }));
     stacks = listInventoryItems(db, characterId, { kind: 'ammo' });
@@ -249,7 +246,7 @@ describe('inventory storage and item writes', () => {
   });
 
   it('snapshots storages, items, placements, container data and layouts', () => {
-    const stashId = idOf(createStorage(db, StorageCreateSchema.parse({ name: 'Stash', width: 8, height: 12, dryRun: false })));
+    const stashId = idOf(createStorage(db, StorageCreateSchema.parse({ name: 'Stash', dryRun: false })));
     const bagId = idOf(createInventoryItem(db, InventoryItemCreateSchema.parse({ name: 'Рюкзак', kind: 'container', dryRun: false })));
     const rifleId = idOf(createInventoryItem(db, InventoryItemCreateSchema.parse({ name: 'АК-12', kind: 'weapon', dryRun: false })));
     upsertPlacement(db, { itemId: rifleId, characterId, location: 'grid', storageId: stashId, x: 0, y: 0 });

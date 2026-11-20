@@ -199,7 +199,7 @@ describe('new inventory rollbacks', () => {
   it('undoes storage create, update and delete', () => {
     const created = createStorage(
       db,
-      StorageCreateSchema.parse({ name: 'Stash 2', width: 4, height: 4, dryRun: false }),
+      StorageCreateSchema.parse({ name: 'Stash 2', dryRun: false }),
     );
     expect(created.eventId).toBeTypeOf('number');
     rollbackEvent(db, created.eventId!, false);

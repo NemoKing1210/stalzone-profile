@@ -32,4 +32,5 @@ export {
 export type { EquipmentSlot } from './placement.js';
 export { setContainerFill } from './container.js';
 export { autoArrangeStorage } from './auto.js';
+export { tidyStorage } from './tidy.js';
 export { setItemLayout } from './layout.js';

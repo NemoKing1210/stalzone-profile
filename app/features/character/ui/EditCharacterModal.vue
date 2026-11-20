@@ -1,9 +1,22 @@
 <script setup lang="ts">
-import { CharacterPatchSchema } from '@profile/shared/contracts';
-import { factionSelectItems, factionValue, NO_FACTION, type FactionChoice } from '~/shared/lib/factions';
+import { factionSelectItems } from '~/shared/lib/factions';
+import { MODAL_WIDTH } from '~/shared/lib/modalWidth';
 import type { ProfileCharacter } from '~/shared/types/profile';
-import type { WriteResult } from '~/shared/composables/useWrite';
-import { STAT_FIELDS, toCharacterStatsPatch, type StatField } from '../model/characterStatsForm';
+import type { WriteResult } from '@profile/shared/contracts';
+import { isNumericStatField, STAT_FIELDS, type StatField } from '../model/characterStatsForm';
+import {
+  canSubmitCharacterForm,
+  characterFormChanged,
+  characterFormFrom,
+  characterFormIssues,
+  characterFormMessage,
+  clampCounter,
+  COUNTER_MAX,
+  TEXT_MAX,
+  toCharacterPatch,
+  type CharacterFormField,
+  type CharacterFormState,
+} from '../model/characterPatchForm';
 
 const open = defineModel<boolean>('open', { default: false });
 const props = defineProps<{ character: ProfileCharacter }>();
@@ -14,40 +27,41 @@ const { t } = useI18n();
 const { dec, num } = useFormat();
 
 const REGIONS = ['ru', 'eu', 'na', 'sea', 'global'] as const;
-type Region = (typeof REGIONS)[number];
 
-function isRegion(value: string | undefined): value is Region {
-  return value != null && (REGIONS as readonly string[]).includes(value);
-}
-
-function setStat(field: StatField, value: string | number | null | undefined): void {
-  form.stats[field] = value === '' || value == null ? null : value;
-}
-
-function emptyStats(): Record<StatField, string | number | null> {
-  return Object.fromEntries(STAT_FIELDS.map((field) => [field, null])) as Record<StatField, string | number | null>;
-}
-
-const form = reactive({
-  nick: '',
-  region: 'ru' as Region,
-  /** Sentinel for "no faction": reka-ui rejects an empty string item value. */
-  faction: NO_FACTION as FactionChoice,
-  alliance: null as string | null | undefined,
-  clanName: null as string | null | undefined,
-  clanRank: null as string | null | undefined,
-  money: null as number | null,
-  maxMoney: null as number | null,
-  stats: emptyStats(),
-  dryRun: false,
-});
-
+const form = reactive<CharacterFormState>(characterFormFrom(props.character));
+const baseline = ref<CharacterFormState>(characterFormFrom(props.character));
 const lastResult = ref<WriteResult | null>(null);
 
-/** The form keeps the "no faction" sentinel; validation must see `null`. */
-const validationState = computed(() => ({ ...form, faction: factionValue(form.faction) }));
+const factionItems = computed(() => factionSelectItems(t));
+const selectedFaction = computed(() => factionItems.value.find((item) => item.value === form.faction) ?? null);
+const regionItems = computed(() =>
+  REGIONS.map((region) => ({ label: t(`forms.regions.${region}`), value: region })),
+);
 
-const regionItems = computed(() => REGIONS.map((region) => ({ label: t(`forms.regions.${region}`), value: region })));
+const issues = computed(() => characterFormIssues(form, baseline.value));
+const changed = computed(() => characterFormChanged(form, baseline.value));
+const submitEnabled = computed(() => canSubmitCharacterForm(form, baseline.value));
+
+/** Message key for the field, or `undefined` when the field is fine. */
+function errorFor(field: CharacterFormField): string | undefined {
+  const issue = issues.value.find((entry) => entry.field === field);
+  if (!issue) return undefined;
+  const message = characterFormMessage(issue);
+  return t(message.key, message.params ?? {});
+}
+
+function statText(field: StatField): string {
+  const value = form.stats[field];
+  return value == null ? '' : String(value);
+}
+
+function setStatNumber(field: StatField, value: number | null | undefined): void {
+  form.stats[field] = clampCounter(value);
+}
+
+function setStatText(field: StatField, value: string | number): void {
+  form.stats[field] = String(value);
+}
 
 const derived = computed(() => [
   { label: t('overview.stats.kd'), value: dec(props.character.kd) },
@@ -67,36 +81,17 @@ watch(
 );
 
 function reset(): void {
-  const character = props.character;
-  form.nick = character.nick ?? '';
-  form.region = isRegion(character.region) ? character.region : 'ru';
-  form.faction = character.faction ?? NO_FACTION;
-  form.alliance = character.alliance ?? null;
-  form.clanName = character.clanName ?? null;
-  form.clanRank = character.clanRank ?? null;
-  form.money = character.money ?? null;
-  form.maxMoney = character.maxMoney ?? null;
-  form.stats = emptyStats();
-  for (const field of STAT_FIELDS) form.stats[field] = character.stats?.[field] ?? null;
-  form.dryRun = false;
+  const next = characterFormFrom(props.character);
+  Object.assign(form, next);
+  baseline.value = characterFormFrom(props.character);
   lastResult.value = null;
 }
 
 async function submit(): Promise<void> {
+  if (!submitEnabled.value) return;
   const result = await write<WriteResult>('/api/v1/character', {
     method: 'PATCH',
-    body: {
-      ...(form.nick ? { nick: form.nick } : {}),
-      region: form.region,
-      faction: factionValue(form.faction),
-      alliance: form.alliance ?? null,
-      clanName: form.clanName ?? null,
-      clanRank: form.clanRank ?? null,
-      money: form.money,
-      maxMoney: form.maxMoney,
-      stats: toCharacterStatsPatch(form.stats),
-      dryRun: form.dryRun,
-    },
+    body: { ...toCharacterPatch(form), dryRun: form.dryRun },
   });
   if (!result) return;
 
@@ -113,35 +108,55 @@ async function submit(): Promise<void> {
     v-model:open="open"
     :title="t('forms.characterTitle')"
     :description="t('forms.characterDescription')"
+    :ui="{ content: MODAL_WIDTH.form }"
     scrollable
   >
     <template #body>
-      <UForm id="character-form" :schema="CharacterPatchSchema" :state="validationState" class="space-y-4" @submit="submit">
+      <UForm id="character-form" :state="form" class="space-y-4" @submit.prevent="submit">
         <div class="space-y-3">
           <p class="sz-caps text-[var(--sz-text-muted)]">{{ t('forms.sectionProfile') }}</p>
           <div class="grid gap-3 sm:grid-cols-2">
-            <UFormField :label="t('forms.nick')" name="nick">
-              <UInput v-model="form.nick" class="w-full" />
+            <UFormField :label="t('forms.nick')" name="nick" required :error="errorFor('nick')">
+              <UInput v-model="form.nick" maxlength="64" class="w-full" />
             </UFormField>
-            <UFormField :label="t('forms.region')" name="region">
+            <UFormField :label="t('forms.region')" name="region" :error="errorFor('region')">
               <USelect v-model="form.region" :items="regionItems" class="w-full" />
             </UFormField>
-            <UFormField :label="t('forms.faction')" name="faction">
+            <UFormField :label="t('forms.faction')" name="faction" :error="errorFor('faction')">
               <USelect
                 v-model="form.faction"
-                :items="factionSelectItems(t)"
+                :items="factionItems"
                 :placeholder="t('forms.chooseFaction')"
                 class="w-full"
-              />
+              >
+                <template #leading>
+                  <img
+                    v-if="selectedFaction?.emblem"
+                    :src="selectedFaction.emblem"
+                    :alt="selectedFaction.label"
+                    width="18"
+                    height="18"
+                    class="size-[18px] shrink-0 object-contain">
+                </template>
+                <template #item-leading="{ item }">
+                  <img
+                    v-if="item.emblem"
+                    :src="item.emblem"
+                    alt=""
+                    width="18"
+                    height="18"
+                    class="size-[18px] shrink-0 object-contain">
+                </template>
+              </USelect>
             </UFormField>
-            <UFormField :label="t('forms.alliance')" name="alliance">
-              <UInput v-model.nullable="form.alliance" class="w-full" />
+            <UFormField :label="t('forms.alliance')" name="alliance" :error="errorFor('alliance')">
+              <UInput v-model="form.alliance" :maxlength="TEXT_MAX" class="w-full" />
             </UFormField>
-            <UFormField :label="t('forms.clanName')" name="clanName">
-              <UInput v-model.nullable="form.clanName" class="w-full" />
+            <UFormField :label="t('forms.clanName')" name="clanName" :error="errorFor('clanName')">
+              <UInput v-model="form.clanName" :maxlength="TEXT_MAX" class="w-full" />
             </UFormField>
-            <UFormField :label="t('forms.clanRank')" name="clanRank">
-              <UInput v-model.nullable="form.clanRank" class="w-full" />
+            <UFormField :label="t('forms.clanRank')" name="clanRank" :error="errorFor('clanRank')">
+              <UInput v-model="form.clanRank" :maxlength="TEXT_MAX" class="w-full" />
             </UFormField>
           </div>
         </div>
@@ -149,13 +164,31 @@ async function submit(): Promise<void> {
         <div class="space-y-3 border-t border-[var(--sz-border)] pt-3">
           <p class="sz-caps text-[var(--sz-text-muted)]">{{ t('forms.stats') }}</p>
           <div class="grid gap-3 sm:grid-cols-2">
-            <UFormField v-for="field in STAT_FIELDS" :key="field" :label="t(`forms.stat.${field}`)" :name="`stats.${field}`">
-              <UInput
-                :model-value="form.stats[field] == null ? '' : String(form.stats[field])"
-                class="w-full"
-                @update:model-value="(value) => setStat(field, value)"
-              />
-            </UFormField>
+            <template v-for="field in STAT_FIELDS" :key="field">
+              <UFormField
+                :label="t(`forms.stat.${field}`)"
+                :name="`stats.${field}`"
+                :error="errorFor(`stats.${field}`)"
+              >
+                <UInputNumber
+                  v-if="isNumericStatField(field)"
+                  :model-value="typeof form.stats[field] === 'number' ? form.stats[field] : null"
+                  :min="0"
+                  :max="COUNTER_MAX"
+                  :step="1"
+                  :step-snapping="false"
+                  class="w-full"
+                  @update:model-value="(value) => setStatNumber(field, value)"
+                />
+                <UInput
+                  v-else
+                  :model-value="statText(field)"
+                  maxlength="500"
+                  class="w-full"
+                  @update:model-value="(value) => setStatText(field, value)"
+                />
+              </UFormField>
+            </template>
           </div>
         </div>
 
@@ -172,11 +205,25 @@ async function submit(): Promise<void> {
         <div class="space-y-3 border-t border-[var(--sz-border)] pt-3">
           <p class="sz-caps text-[var(--sz-text-muted)]">{{ t('forms.sectionMoney') }}</p>
           <div class="grid gap-3 sm:grid-cols-2">
-            <UFormField :label="t('forms.money')" name="money">
-              <UInputNumber v-model="form.money" :min="0" :step="1000" class="w-full" />
+            <UFormField :label="t('forms.money')" name="money" :error="errorFor('money')">
+              <UInputNumber
+                v-model="form.money"
+                :min="0"
+                :max="COUNTER_MAX"
+                :step="1000"
+                :step-snapping="false"
+                class="w-full"
+              />
             </UFormField>
-            <UFormField :label="t('forms.maxMoney')" name="maxMoney">
-              <UInputNumber v-model="form.maxMoney" :min="0" :step="1000" class="w-full" />
+            <UFormField :label="t('forms.maxMoney')" name="maxMoney" :error="errorFor('maxMoney')">
+              <UInputNumber
+                v-model="form.maxMoney"
+                :min="0"
+                :max="COUNTER_MAX"
+                :step="1000"
+                :step-snapping="false"
+                class="w-full"
+              />
             </UFormField>
           </div>
         </div>
@@ -184,6 +231,14 @@ async function submit(): Promise<void> {
         <div class="space-y-3 border-t border-[var(--sz-border)] pt-3">
           <p class="sz-caps text-[var(--sz-text-muted)]">{{ t('forms.sectionNotes') }}</p>
         </div>
+
+        <UAlert
+          v-if="!changed"
+          color="neutral"
+          variant="subtle"
+          icon="i-lucide-info"
+          :title="t('forms.noChanges')"
+        />
 
         <UFormField name="dryRun">
           <USwitch v-model="form.dryRun" :label="t('common.dryRun')" />
@@ -204,7 +259,13 @@ async function submit(): Promise<void> {
       <div class="flex w-full flex-wrap items-center justify-end gap-2">
         <UButton type="button" color="neutral" variant="ghost" :label="t('common.reset')" @click="reset" />
         <UButton type="button" color="neutral" variant="ghost" :label="t('common.cancel')" @click="open = false" />
-        <UButton type="submit" form="character-form" :loading="busy" :label="form.dryRun ? t('common.check') : t('common.save')" />
+        <UButton
+          type="submit"
+          form="character-form"
+          :loading="busy"
+          :disabled="!submitEnabled || busy"
+          :label="form.dryRun ? t('common.check') : t('common.save')"
+        />
       </div>
     </template>
   </UModal>

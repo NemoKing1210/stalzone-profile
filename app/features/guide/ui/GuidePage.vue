@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useProfileData } from '~/stores/profile-data';
 import { ProfilePane } from '~/shared/ui';
 
 import {
@@ -19,8 +20,14 @@ import {
 const { t } = useI18n();
 useHead(() => ({ title: `${t('guide.title')} // ${t('common.appName')}` }));
 
-const { payload } = useProfile();
+const { payload } = useProfileData();
 const { formatDate, num } = useFormat();
+
+/** One section at a time; the strip replaces the old jump links and long scroll. */
+const activeTab = ref('site');
+const tabItems = computed(() =>
+  GUIDE_SECTIONS.map((section) => ({ label: t(section.titleKey), icon: section.icon, value: section.id })),
+);
 
 /** Static counts describe the reference; the live strip describes this profile. */
 const heroStats = computed(() => [
@@ -98,9 +105,17 @@ const METHOD_CLASS: Record<GuideApiMethod, string> = {
   DELETE: 'border-[var(--sz-danger)] text-[var(--sz-danger-text)]',
 };
 
+function sectionKey(sectionId: string, part: 'hintKey' | 'introKey'): string {
+  return GUIDE_SECTIONS.find((section) => section.id === sectionId)?.[part] ?? '';
+}
+
 function sectionHint(sectionId: string, count?: number): string {
-  const key = GUIDE_SECTIONS.find((section) => section.id === sectionId)?.hintKey ?? '';
+  const key = sectionKey(sectionId, 'hintKey');
   return count == null ? t(key) : t(key, { count });
+}
+
+function sectionIntro(sectionId: string): string {
+  return t(sectionKey(sectionId, 'introKey'));
 }
 
 function flowArrow(index: number, length: number): boolean {
@@ -125,19 +140,6 @@ function flowArrow(index: number, length: number): boolean {
           </div>
         </dl>
       </div>
-
-      <nav :aria-label="t('guide.jump')" class="flex flex-wrap items-center gap-x-1.5 gap-y-1 border-t border-[var(--sz-border)] px-3 py-2">
-        <span class="sz-caps mr-1 text-[var(--sz-text-dim)]">{{ t('guide.jump') }}</span>
-        <a
-          v-for="section in GUIDE_SECTIONS"
-          :key="section.id"
-          :href="`#${section.id}`"
-          class="inline-flex items-center gap-1 whitespace-nowrap border border-transparent px-1.5 py-1 text-[11px] leading-none text-[var(--sz-text-muted)] hover:border-[var(--sz-border)] hover:bg-[var(--sz-surface-alt)] hover:text-[var(--sz-text)]"
-        >
-          <UIcon :name="section.icon" class="size-3.5" />
-          {{ t(section.titleKey) }}
-        </a>
-      </nav>
     </header>
 
     <ProfilePane :title="t('guide.live.title')" dense>
@@ -154,13 +156,27 @@ function flowArrow(index: number, length: number): boolean {
       </dl>
     </ProfilePane>
 
-    <ProfilePane
-      id="site"
-      :title="t('guide.sections.site.title')"
-      :hint="sectionHint('site')"
-      class="scroll-mt-16"
+    <h2 class="sr-only">{{ t('guide.tabs.label') }}</h2>
+
+    <UTabs
+      v-model="activeTab"
+      :items="tabItems"
+      variant="link"
+      :ui="{
+        root: 'gap-0',
+        list: 'gap-0 overflow-x-auto overflow-y-clip [overflow-clip-margin:1px] border-b border-[var(--sz-border)]',
+        trigger: 'sz-caps rounded-none px-3 py-2.5 text-[var(--sz-text-muted)] hover:text-[var(--sz-text)]',
+        content: 'p-0 pt-4',
+      }"
     >
-      <div class="grid gap-2 lg:grid-cols-2 2xl:grid-cols-3">
+      <template #content="{ item }">
+        <ProfilePane
+          v-if="item.value === 'site'"
+          :title="t('guide.sections.site.title')"
+          :hint="sectionHint('site')"
+        >
+          <p class="mb-3 text-[12px] leading-relaxed text-[var(--sz-text-muted)]">{{ sectionIntro('site') }}</p>
+          <div class="grid gap-2 lg:grid-cols-2 2xl:grid-cols-3">
         <article
           v-for="page in GUIDE_SITE"
           :key="page.id"
@@ -202,15 +218,15 @@ function flowArrow(index: number, length: number): boolean {
           </div>
         </article>
       </div>
-    </ProfilePane>
+        </ProfilePane>
 
-    <ProfilePane
-      id="flow"
-      :title="t('guide.sections.flow.title')"
-      :hint="sectionHint('flow')"
-      class="scroll-mt-16"
-    >
-      <div class="space-y-4">
+        <ProfilePane
+          v-if="item.value === 'flow'"
+          :title="t('guide.sections.flow.title')"
+          :hint="sectionHint('flow')"
+        >
+          <p class="mb-3 text-[12px] leading-relaxed text-[var(--sz-text-muted)]">{{ sectionIntro('flow') }}</p>
+          <div class="space-y-4">
         <section>
           <h3 class="mb-2 flex items-center gap-2 text-[12.5px] font-medium text-[var(--sz-text-muted)]">
             <span class="h-2 w-2 shrink-0" :style="{ background: 'var(--sz-info)' }" />
@@ -302,15 +318,15 @@ function flowArrow(index: number, length: number): boolean {
           </p>
         </div>
       </div>
-    </ProfilePane>
+        </ProfilePane>
 
-    <ProfilePane
-      id="api"
-      :title="t('guide.sections.api.title')"
-      :hint="sectionHint('api', GUIDE_API.length)"
-      class="scroll-mt-16"
-    >
-      <p class="mb-3 text-[12px] leading-relaxed text-[var(--sz-text-muted)]">{{ t('guide.api.note') }}</p>
+        <ProfilePane
+          v-if="item.value === 'api'"
+          :title="t('guide.sections.api.title')"
+          :hint="sectionHint('api', GUIDE_API.length)"
+        >
+          <p class="mb-3 text-[12px] leading-relaxed text-[var(--sz-text-muted)]">{{ sectionIntro('api') }}</p>
+          <p class="mb-3 text-[12px] leading-relaxed text-[var(--sz-text-muted)]">{{ t('guide.api.note') }}</p>
       <div class="space-y-3">
         <section v-for="group in apiGroups" :key="group.id">
           <h3 class="mb-1.5 flex items-center gap-2 text-[12.5px] font-medium text-[var(--sz-text-muted)]">
@@ -346,15 +362,15 @@ function flowArrow(index: number, length: number): boolean {
           </ul>
         </section>
       </div>
-    </ProfilePane>
+        </ProfilePane>
 
-    <ProfilePane
-      id="mcp"
-      :title="t('guide.sections.mcp.title')"
-      :hint="sectionHint('mcp', GUIDE_MCP.length)"
-      class="scroll-mt-16"
-    >
-      <div class="grid gap-3 lg:grid-cols-2">
+        <ProfilePane
+          v-if="item.value === 'mcp'"
+          :title="t('guide.sections.mcp.title')"
+          :hint="sectionHint('mcp', GUIDE_MCP.length)"
+        >
+          <p class="mb-3 text-[12px] leading-relaxed text-[var(--sz-text-muted)]">{{ sectionIntro('mcp') }}</p>
+          <div class="grid gap-3 lg:grid-cols-2">
         <section v-for="group in mcpGroups" :key="group.id">
           <h3 class="mb-1.5 flex items-center gap-2 text-[12.5px] font-medium text-[var(--sz-text-muted)]">
             <span
@@ -393,15 +409,15 @@ function flowArrow(index: number, length: number): boolean {
           </li>
         </ul>
       </div>
-    </ProfilePane>
+        </ProfilePane>
 
-    <ProfilePane
-      id="cli"
-      :title="t('guide.sections.cli.title')"
-      :hint="sectionHint('cli')"
-      class="scroll-mt-16"
-    >
-      <div class="space-y-3">
+        <ProfilePane
+          v-if="item.value === 'cli'"
+          :title="t('guide.sections.cli.title')"
+          :hint="sectionHint('cli')"
+        >
+          <p class="mb-3 text-[12px] leading-relaxed text-[var(--sz-text-muted)]">{{ sectionIntro('cli') }}</p>
+          <div class="space-y-3">
         <section v-for="group in cliGroups" :key="group.id">
           <h3 class="mb-1.5 text-[12.5px] font-medium text-[var(--sz-text-muted)]">{{ t(`guide.cli.groups.${group.id}`) }}</h3>
           <ul class="border border-[var(--sz-border)]">
@@ -427,17 +443,17 @@ function flowArrow(index: number, length: number): boolean {
         </section>
       </div>
       <p class="mt-2 text-[12px] leading-relaxed text-[var(--sz-text-dim)]">{{ t('guide.cli.note') }}</p>
-    </ProfilePane>
+        </ProfilePane>
 
-    <ProfilePane
-      id="sources"
-      :title="t('guide.sections.sources.title')"
-      :hint="sectionHint('sources')"
-      class="scroll-mt-16"
-    >
-      <div
-        class="hidden gap-x-3 border border-[var(--sz-border)] bg-[var(--sz-surface-header)] px-2 py-1 sm:grid sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_minmax(0,15rem)]"
-      >
+        <ProfilePane
+          v-if="item.value === 'sources'"
+          :title="t('guide.sections.sources.title')"
+          :hint="sectionHint('sources')"
+        >
+          <p class="mb-3 text-[12px] leading-relaxed text-[var(--sz-text-muted)]">{{ sectionIntro('sources') }}</p>
+          <div
+            class="hidden gap-x-3 border border-[var(--sz-border)] bg-[var(--sz-surface-header)] px-2 py-1 sm:grid sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_minmax(0,15rem)]"
+          >
         <span class="sz-caps text-[var(--sz-text-muted)]">{{ t('guide.sources.columns.source') }}</span>
         <span class="sz-caps text-[var(--sz-text-muted)]">{{ t('guide.sources.columns.updates') }}</span>
         <span class="sz-caps text-[var(--sz-text-muted)]">{{ t('guide.sources.columns.trigger') }}</span>
@@ -474,15 +490,15 @@ function flowArrow(index: number, length: number): boolean {
         </span>
       </div>
       <p class="mt-2 text-[12px] leading-relaxed text-[var(--sz-text-muted)]">{{ t('guide.sources.note') }}</p>
-    </ProfilePane>
+        </ProfilePane>
 
-    <ProfilePane
-      id="principles"
-      :title="t('guide.sections.principles.title')"
-      :hint="sectionHint('principles')"
-      class="scroll-mt-16"
-    >
-      <div class="grid gap-2 lg:grid-cols-2 2xl:grid-cols-3">
+        <ProfilePane
+          v-if="item.value === 'principles'"
+          :title="t('guide.sections.principles.title')"
+          :hint="sectionHint('principles')"
+        >
+          <p class="mb-3 text-[12px] leading-relaxed text-[var(--sz-text-muted)]">{{ sectionIntro('principles') }}</p>
+          <div class="grid gap-2 lg:grid-cols-2 2xl:grid-cols-3">
         <article
           v-for="principle in GUIDE_PRINCIPLES"
           :key="principle.id"
@@ -505,6 +521,8 @@ function flowArrow(index: number, length: number): boolean {
         </p>
         <p class="mt-1 text-[12px] leading-relaxed text-[var(--sz-text-muted)]">{{ t('guide.keep.text') }}</p>
       </div>
-    </ProfilePane>
+        </ProfilePane>
+      </template>
+    </UTabs>
   </section>
 </template>

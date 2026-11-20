@@ -29,6 +29,7 @@ export default withNuxt(
       },
       'boundaries/elements': [
         { type: 'shared', pattern: 'app/shared' },
+        { type: 'stores', pattern: 'app/stores' },
         { type: 'entities', pattern: 'app/entities/*', capture: ['entity'] },
         { type: 'features', pattern: 'app/features/*', capture: ['feature'] },
         { type: 'pages', pattern: 'app/pages' },
@@ -69,15 +70,22 @@ export default withNuxt(
           message: APP_LAYER_MESSAGE,
           policies: [
             { from: { element: { type: 'shared' } }, allow: { to: { element: { type: 'shared' } } } },
+            {
+              from: { element: { type: 'stores' } },
+              allow: { to: { element: { types: ['shared', 'stores'] } } },
+            },
             { from: { element: { type: 'entities' } }, allow: { to: { element: { types: ['shared', 'entities'] } } } },
-            { from: { element: { type: 'features' } }, allow: { to: { element: { types: ['shared', 'entities'] } } } },
+            {
+              from: { element: { type: 'features' } },
+              allow: { to: { element: { types: ['shared', 'stores', 'entities'] } } },
+            },
             {
               from: { element: { type: 'pages' } },
-              allow: { to: { element: { types: ['shared', 'entities', 'features'] } } },
+              allow: { to: { element: { types: ['shared', 'stores', 'entities', 'features'] } } },
             },
             {
               from: { element: { type: 'app-shell' } },
-              allow: { to: { element: { types: ['shared', 'entities', 'features', 'pages', 'app-shell'] } } },
+              allow: { to: { element: { types: ['shared', 'stores', 'entities', 'features', 'pages', 'app-shell'] } } },
             },
           ],
         },

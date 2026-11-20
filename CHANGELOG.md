@@ -9,6 +9,37 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- The shell now uses a side navigation: persistent and collapsible on wide screens, a
+  drawer on narrow ones, with every section, the owned-count badges, account area,
+  settings, logs, theme switch and sign-out in one place. The footer is removed.
+- The client data layer is Pinia + Pinia Colada. One payload query, one write mutation and
+  one query-key map replace the hand-written payload fetch and the screens' ad-hoc
+  `$fetch`/`useAsyncData` reads; a successful write invalidates the profile key.
+- A light theme ships beside the dark one: both `--sz-*` token sets, a persisted switch
+  that is restored before hydration, light rank colours, and server-rendered HTML that
+  already follows the stored theme. Appearance gains theme, font, density and notification
+  position/duration/stack controls.
+- Inventory: fixed 8-wide grids, 8×200 stashes without width/height inputs, stash tabs, a
+  stash weight block, per-container kind/rank/quality filters with a same-storage drop
+  guard, and an explicit audited tidy-up write with before/after and overflow reporting.
+  Equipment slots now follow primary/secondary/melee weapon classes and highlight every
+  compatible slot while dragging.
+- Weapons and armor show the current-level and +15 values side by side from the payload,
+  with thin comparison bars under DPS, TTK and bullet protection scaled inside the
+  filtered visible set. TTK uses the inverted (shorter-is-better) scale.
+- Character: faction emblems are local static assets with an unknown-slug fallback; the
+  Edit profile action moved to the page header, and the rebuilt modal validates each field
+  with `CharacterPatchSchema`, localizes field errors and disables save for an untouched or
+  invalid form.
+- The settings journal stores request id, origin and a display-only summary; the page gains
+  filters, expandable rows and a readable before/after diff. Rollback snapshots remain the
+  contract and the new tidy action is rollbackable.
+- Sources show the named record metric for each source, freshness buckets, a sortable card
+  list, relative update ages and a jump to the data the source feeds.
+- `/guide` is a tabbed reference (site, flows, API, MCP, CLI, sources, guarantees) with
+  current copy and every page, route, tool, script and source.
+- Tutorial copy for self-evident interactions is removed from both locale catalogs;
+  `DESIGN.md` §9 and `AGENTS.md` now state the rule.
 - A branded boot splash covers the shell from the server paint until Nuxt reports the app
   hydrated: a trefoil mark, the `STALZONE // PROFILE` wordmark, an indeterminate 3px accent
   rule and a localized "Loading profile" label. It is skipped without scripting, waits for

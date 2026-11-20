@@ -49,7 +49,11 @@ describe('detailRows', () => {
   });
 
   it('gives each kind its own stat set', () => {
-    expect(keys('armor', { card: { cls: 'Heavy', prot: 80 } })).toEqual(['cls', 'prot']);
+    expect(keys('armor', { card: { cls: 'Heavy' }, row: { armor: 80, armor15: 120 } })).toEqual([
+      'cls',
+      'armor',
+      'armor15',
+    ]);
     expect(keys('artifact', { item: item({ kind: 'artifact', rarityPct: 42, weight: 0.1 }) })).toEqual([
       'rarityPct',
       'weight',

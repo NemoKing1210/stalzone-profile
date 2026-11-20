@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { useQuery } from '@pinia/colada';
 import { ConfirmActionModal, ProfilePane } from '~/shared/ui';
+import { QUERY_KEYS } from '~/stores/keys';
 
 import type { CleanupCounts, CleanupScope } from '@profile/shared/contracts';
 import { cleanupCountsView } from '../model/cleanupCounts';
@@ -27,12 +29,13 @@ const { write, busy: writeBusy } = useWrite();
 const {
   data: counts,
   status: countsStatus,
-  refresh: refreshCounts,
-} = useAsyncData<CleanupCounts | null>('cleanup-counts', () => $fetch<CleanupCounts>('/api/v1/admin/cleanup'), {
-  default: () => null,
-  immediate: false,
+  refetch: refreshCounts,
+} = useQuery({
+  key: QUERY_KEYS.cleanup,
+  query: () => $fetch<CleanupCounts>('/api/v1/admin/cleanup'),
+  enabled: false,
 });
-onMounted(() => refreshCounts());
+onMounted(() => void refreshCounts());
 
 const view = computed(() => cleanupCountsView(countsStatus.value, counts.value));
 

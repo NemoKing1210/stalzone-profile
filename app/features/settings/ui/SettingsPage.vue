@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ProfilePane } from '~/shared/ui';
 import { DEFAULT_ACCENT } from '~/shared/lib/accents';
+import AppearanceChoiceGroup from './AppearanceChoiceGroup.vue';
 import LoggingSettingsPanel from './LoggingSettingsPanel.vue';
 import SourcesSection from './SourcesSection.vue';
 
@@ -9,12 +10,90 @@ useHead(() => ({ title: `${t('settings.pageTitle')} // ${t('common.appName')}` }
 
 const { accent, presets, setAccent, resetAccent } = useAccent();
 const { settings: soundSettings, play: playSound, setEnabled: setSoundEnabled, setVolume: setSoundVolume } = useUiSounds();
+const { theme, setTheme } = useTheme();
+const {
+  font,
+  density,
+  notifications,
+  fonts,
+  densities,
+  positions,
+  durations,
+  setFont,
+  setDensity,
+  setNotificationPosition,
+  setNotificationDuration,
+  setNotificationStack,
+} = useAppearance();
+const toast = useToast();
 
 const soundVolume = computed(() => Math.round(soundSettings.value.volume * 100));
 
 function setSoundVolumePercent(value: number | undefined): void {
   if (typeof value !== 'number' || !Number.isFinite(value)) return;
   setSoundVolume(value / 100);
+}
+
+const themeOptions = computed(() => [
+  { id: 'dark', label: t('settings.themeDark') },
+  { id: 'light', label: t('settings.themeLight') },
+]);
+
+const fontOptions = computed(() =>
+  fonts.map((id) => ({
+    id,
+    label: id === 'oswald' ? t('settings.fontOswald') : t('settings.fontCondensed'),
+  })),
+);
+
+const densityOptions = computed(() =>
+  densities.map((id) => ({
+    id,
+    label: id === 'compact' ? t('settings.densityCompact') : t('settings.densityComfortable'),
+  })),
+);
+
+const POSITION_LABEL_KEYS: Record<string, string> = {
+  'top-left': 'settings.notificationPositionTopLeft',
+  'top-center': 'settings.notificationPositionTopCenter',
+  'top-right': 'settings.notificationPositionTopRight',
+  'bottom-left': 'settings.notificationPositionBottomLeft',
+  'bottom-center': 'settings.notificationPositionBottomCenter',
+  'bottom-right': 'settings.notificationPositionBottomRight',
+};
+
+const positionOptions = computed(() =>
+  positions.map((id) => ({
+    value: id,
+    label: t(POSITION_LABEL_KEYS[id] ?? 'settings.notificationPosition'),
+  })),
+);
+
+const durationOptions = computed<{ value: number; label: string }[]>(() =>
+  durations.map((ms) => ({
+    value: ms,
+    label: t('settings.notificationSeconds', { seconds: ms / 1000 }),
+  })),
+);
+
+/** Two notifications show stacking; clearing in between shows the replace mode. */
+function previewNotifications(): void {
+  const add = (): void => {
+    toast.add({
+      title: t('settings.notificationPreviewTitle'),
+      description: t('settings.notificationPreviewText'),
+      duration: notifications.value.duration,
+    });
+  };
+
+  if (notifications.value.stack === 'replace') toast.clear();
+  add();
+  if (notifications.value.stack === 'stack') {
+    add();
+  } else {
+    toast.clear();
+    add();
+  }
 }
 
 /** The page owns the tab in the URL and its validation; the screen only renders it. */
@@ -101,6 +180,103 @@ const tabItems = computed(() => [
                 :label="t('settings.accentReset')"
                 @click="resetAccent"
               />
+            </div>
+
+            <div class="mt-4 border-t border-[var(--sz-border)] pt-3">
+              <h3 class="sz-caps text-[var(--sz-text-muted)]">{{ t('settings.themeTitle') }}</h3>
+              <p class="mt-1 text-[12.5px] leading-relaxed text-[var(--sz-text-muted)]">
+                {{ t('settings.themeText') }}
+              </p>
+
+              <AppearanceChoiceGroup
+                class="mt-3 sm:grid-cols-2"
+                name="theme"
+                :label="t('settings.themeTitle')"
+                :model-value="theme"
+                :options="themeOptions"
+                @update:model-value="setTheme"
+              />
+            </div>
+
+            <div class="mt-4 border-t border-[var(--sz-border)] pt-3">
+              <h3 class="sz-caps text-[var(--sz-text-muted)]">{{ t('settings.fontTitle') }}</h3>
+              <p class="mt-1 text-[12.5px] leading-relaxed text-[var(--sz-text-muted)]">
+                {{ t('settings.fontText') }}
+              </p>
+
+              <AppearanceChoiceGroup
+                class="mt-3 sm:grid-cols-2"
+                name="interface-font"
+                :label="t('settings.fontTitle')"
+                :model-value="font"
+                :options="fontOptions"
+                @update:model-value="setFont"
+              />
+            </div>
+
+            <div class="mt-4 border-t border-[var(--sz-border)] pt-3">
+              <h3 class="sz-caps text-[var(--sz-text-muted)]">{{ t('settings.densityTitle') }}</h3>
+              <p class="mt-1 text-[12.5px] leading-relaxed text-[var(--sz-text-muted)]">
+                {{ t('settings.densityText') }}
+              </p>
+
+              <AppearanceChoiceGroup
+                class="mt-3 sm:grid-cols-2"
+                name="density"
+                :label="t('settings.densityTitle')"
+                :model-value="density"
+                :options="densityOptions"
+                @update:model-value="setDensity"
+              />
+            </div>
+
+            <div class="mt-4 border-t border-[var(--sz-border)] pt-3">
+              <h3 class="sz-caps text-[var(--sz-text-muted)]">{{ t('settings.notificationsTitle') }}</h3>
+              <p class="mt-1 text-[12.5px] leading-relaxed text-[var(--sz-text-muted)]">
+                {{ t('settings.notificationsText') }}
+              </p>
+
+              <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                <div class="block">
+                  <span class="sz-caps text-[var(--sz-text-muted)]">{{ t('settings.notificationPosition') }}</span>
+                  <USelect
+                    class="mt-1 w-full"
+                    :model-value="notifications.position"
+                    :items="positionOptions"
+                    :aria-label="t('settings.notificationPosition')"
+                    @update:model-value="setNotificationPosition"
+                  />
+                </div>
+                <div class="block">
+                  <span class="sz-caps text-[var(--sz-text-muted)]">{{ t('settings.notificationDuration') }}</span>
+                  <USelect
+                    class="mt-1 w-full"
+                    :model-value="notifications.duration"
+                    :items="durationOptions"
+                    :aria-label="t('settings.notificationDuration')"
+                    @update:model-value="setNotificationDuration"
+                  />
+                </div>
+              </div>
+
+              <div class="mt-3 flex flex-wrap items-center gap-x-5 gap-y-3">
+                <USwitch
+                  :model-value="notifications.stack === 'stack'"
+                  :label="t('settings.notificationStack')"
+                  @update:model-value="(value) => setNotificationStack(value ? 'stack' : 'replace')"
+                />
+                <UButton
+                  :label="t('settings.notificationPreview')"
+                  icon="i-lucide-bell"
+                  color="neutral"
+                  variant="outline"
+                  size="sm"
+                  @click="previewNotifications"
+                />
+              </div>
+              <p class="mt-1 text-[11px] leading-relaxed text-[var(--sz-text-dim)]">
+                {{ t('settings.notificationStackHint') }}
+              </p>
             </div>
 
             <div class="mt-4 border-t border-[var(--sz-border)] pt-3">

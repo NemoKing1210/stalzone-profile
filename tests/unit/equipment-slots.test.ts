@@ -4,6 +4,7 @@ import { acceptsEquipment, equipmentSlotsFor, type EquipmentSlot } from '@profil
 const rifle = { kind: 'weapon', category: 'weapon/assault_rifle' };
 const uncategorizedWeapon = { kind: 'weapon', category: null };
 const melee = { kind: 'weapon', category: 'weapon/melee' };
+const pistol = { kind: 'weapon', category: 'weapon/pistol' };
 const armor = { kind: 'armor', category: 'armor/combat' };
 const backpack = { kind: 'container', category: 'containers/backpacks' };
 const artifactBag = { kind: 'container', category: 'containers' };
@@ -17,7 +18,7 @@ describe('equipment compatibility table', () => {
   it.each<[EquipmentSlot, { kind: string; category: string | null }]>([
     ['primary', rifle],
     ['primary', uncategorizedWeapon],
-    ['secondary', rifle],
+    ['secondary', pistol],
     ['melee', melee],
     ['armor', armor],
     ['backpack', backpack],
@@ -32,6 +33,9 @@ describe('equipment compatibility table', () => {
 
   it.each<[EquipmentSlot, { kind: string; category: string | null }]>([
     ['primary', melee],
+    ['secondary', rifle],
+    ['primary', pistol],
+    ['melee', pistol],
     ['primary', armor],
     ['primary', artifactBag],
     ['secondary', backpack],
@@ -52,7 +56,8 @@ describe('equipment compatibility table', () => {
   });
 
   it('maps an item to the slots the server accepts, most specific first', () => {
-    expect(equipmentSlotsFor(rifle)).toEqual(['primary', 'secondary']);
+    expect(equipmentSlotsFor(rifle)).toEqual(['primary']);
+    expect(equipmentSlotsFor(pistol)).toEqual(['secondary']);
     expect(equipmentSlotsFor(melee)).toEqual(['melee']);
     expect(equipmentSlotsFor(armor)).toEqual(['armor']);
     expect(equipmentSlotsFor(backpack)).toEqual(['backpack']);

@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { useQuery } from '@pinia/colada';
 import type { OwnedKind } from '~/shared/types/profile';
-import type { WriteResult } from '~/shared/composables/useWrite';
+import { MODAL_WIDTH } from '~/shared/lib/modalWidth';
+import { useProfileData } from '~/stores/profile-data';
+import type { WriteResult } from '@profile/shared/contracts';
 
 const open = defineModel<boolean>('open', { default: false });
 const props = defineProps<{ kind: OwnedKind }>();
@@ -8,7 +11,7 @@ const emit = defineEmits<{ saved: []; created: [{ instanceId: number; name: stri
 
 const { t } = useI18n();
 const { write, busy } = useWrite();
-const { payload } = useProfile();
+const { payload } = useProfileData();
 
 interface CatalogItem {
   id: number;
@@ -18,8 +21,7 @@ interface CatalogItem {
 }
 
 const search = ref('');
-const items = ref<CatalogItem[]>([]);
-const loading = ref(false);
+const debouncedSearch = ref('');
 const selected = ref<CatalogItem | null>(null);
 
 const form = reactive({
@@ -37,10 +39,21 @@ const catalogEmpty = computed(() => {
   return Number(meta?.items ?? 0) === 0;
 });
 
-const { data: motifs } = useFetch<{ name: string }[]>('/api/v1/items', {
-  query: { kind: 'motif', limit: 200 },
-  key: 'motif-items',
-  default: () => [],
+const request = useRequestFetch();
+const { data: itemsPage, isLoading: loading, refetch: refetchItems } = useQuery({
+  key: () => ['catalog', 'items', props.kind, debouncedSearch.value],
+  query: () =>
+    request<CatalogItem[]>('/api/v1/items', {
+      query: { q: debouncedSearch.value || undefined, kind: props.kind, limit: 20 },
+    }),
+  enabled: () => open.value,
+});
+const items = computed(() => itemsPage.value ?? []);
+
+const { data: motifs } = useQuery({
+  key: ['catalog', 'motifs'],
+  query: () => request<{ name: string }[]>('/api/v1/items', { query: { kind: 'motif', limit: 200 } }),
+  enabled: () => open.value,
 });
 const skinItems = computed(() => (motifs.value ?? []).map((motif) => motif.name));
 /** Skins belong to weapons and armor; containers and artifacts have none. */
@@ -49,24 +62,13 @@ const hasSkins = computed(() => props.kind === 'weapon' || props.kind === 'armor
 let timer: ReturnType<typeof setTimeout> | undefined;
 onBeforeUnmount(() => clearTimeout(timer));
 
-async function loadItems(): Promise<void> {
-  loading.value = true;
-  try {
-    items.value = await $fetch<CatalogItem[]>('/api/v1/items', {
-      query: { q: search.value.trim() || undefined, kind: props.kind, limit: 20 },
-    });
-  } catch {
-    items.value = [];
-  } finally {
-    loading.value = false;
-  }
-}
-
 watch(search, () => {
   // A different query means a different result list; the old pick must not stay armed.
   selected.value = null;
   clearTimeout(timer);
-  timer = setTimeout(loadItems, 250);
+  timer = setTimeout(() => {
+    debouncedSearch.value = search.value.trim();
+  }, 250);
 });
 
 watch(open, (value) => {
@@ -83,7 +85,8 @@ function reset(): void {
   form.role = null;
   form.slot = null;
   form.note = null;
-  void loadItems();
+  debouncedSearch.value = '';
+  void refetchItems();
 }
 
 async function submit(): Promise<void> {
@@ -115,7 +118,13 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <UModal v-model:open="open" :title="t('owned.addTitle')" :description="t('owned.addDescription')" scrollable>
+  <UModal
+    v-model:open="open"
+    :title="t('owned.addTitle')"
+    :description="t('owned.addDescription')"
+    :ui="{ content: MODAL_WIDTH.form }"
+    scrollable
+  >
     <template #body>
       <div v-if="catalogEmpty" class="space-y-3">
         <UAlert color="warning" variant="subtle" icon="i-lucide-package-x" :title="t('owned.catalogRequired')" />

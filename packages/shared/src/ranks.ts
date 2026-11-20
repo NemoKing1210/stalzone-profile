@@ -11,13 +11,14 @@ export const RANK_RU: Record<RankKey, string> = {
   legend: 'Легенда',
 };
 
+/** CSS tokens, so a rank border follows the active light/dark theme. */
 export const RANK_COLOR: Record<RankKey, string> = {
-  default: '#6f7767',
-  newbie: '#63b356',
-  stalker: '#4a9fd8',
-  veteran: '#a06fc4',
-  master: '#c2564f',
-  legend: '#e0a63c',
+  default: 'var(--sz-rank-default)',
+  newbie: 'var(--sz-rank-newbie)',
+  stalker: 'var(--sz-rank-stalker)',
+  veteran: 'var(--sz-rank-veteran)',
+  master: 'var(--sz-rank-master)',
+  legend: 'var(--sz-rank-legend)',
 };
 
 export const QUALITY_ORDER = ['Обычный', 'Необычный', 'Особый', 'Редкий', 'Исключительный', 'Легендарный'];

@@ -38,6 +38,7 @@ import {
   restoreItemLayoutTx,
   restoreMoveTx,
   restoreStorageTx,
+  restoreTidyTx,
   restoreWeaponModuleTx,
   updateInventoryTx,
   updateStorageTx,
@@ -371,6 +372,10 @@ function restoreSnapshot(
     }
     case 'inventory.autoArrange': {
       restoreAutoArrangeTx(db, target, characterOrThrow(db).id);
+      return;
+    }
+    case 'inventory.storage.tidy': {
+      restoreTidyTx(db, target, characterOrThrow(db).id);
       return;
     }
     case 'catalog.itemLayout.update': {

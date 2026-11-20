@@ -1,44 +1,53 @@
-import type { WriteDiff, WriteResult } from '@profile/shared/contracts';
+import { useMutation } from '@pinia/colada';
+import { defineStore } from 'pinia';
+import type { WriteResult } from '@profile/shared/contracts';
 
-export type { WriteDiff, WriteResult };
+import { useProfileStore } from './profile';
 
 interface WriteOptions {
   method: 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   body?: Record<string, unknown>;
-  /** Skip the success toast; errors still surface. Used for frequent moves. */
   silent?: boolean;
-  /** 'await' (default) refreshes before resolving; 'none' leaves the refresh to the caller. */
   reconcile?: 'await' | 'none';
+}
+
+interface WriteVariables {
+  url: string;
+  options: WriteOptions;
 }
 
 interface ApiErrorData {
   error?: { code?: string; message?: string; details?: { suggestions?: string[] } };
 }
 
-/** The last failed write, so a caller can offer a targeted retry (for example an unverified install). */
 export interface WriteErrorInfo {
   code?: string;
   message?: string;
 }
 
-/** Single write path for the edit forms: toast, diff and payload refresh in one place. */
-export function useWrite() {
+/**
+ * The one write path for the app. Screens call `useWrite()`, which is this store:
+ * one Pinia Colada mutation, one toast policy and one profile invalidation rule.
+ */
+export const useWriteStore = defineStore('write', () => {
   const toast = useToast();
-  const { refresh } = useProfile();
   const { t } = useI18n();
   const { message: apiMessage } = useApiError();
-  const busy = ref(false);
+  const profile = useProfileStore();
   const lastError = ref<WriteErrorInfo | null>(null);
 
-  async function write<T = WriteResult>(url: string, options: WriteOptions): Promise<T | null> {
-    busy.value = true;
-    lastError.value = null;
-    try {
-      const result = await $fetch<T>(url, {
+  const mutation = useMutation({
+    mutation: ({ url, options }: WriteVariables) =>
+      $fetch<WriteResult>(url, {
         method: options.method,
         body: options.body,
-      });
+      }),
+  });
 
+  async function write<T = WriteResult>(url: string, options: WriteOptions): Promise<T | null> {
+    lastError.value = null;
+    try {
+      const result = await mutation.mutateAsync({ url, options });
       const writeResult = result as unknown as WriteResult;
       if (writeResult?.dryRun) {
         toast.add({
@@ -56,9 +65,9 @@ export function useWrite() {
             icon: 'i-lucide-check',
           });
         }
-        if (options.reconcile !== 'none') await refresh();
+        if (options.reconcile !== 'none') await profile.invalidate();
       }
-      return result;
+      return result as T;
     } catch (error) {
       const data = (error as { data?: ApiErrorData }).data;
       lastError.value = { code: data?.error?.code, message: data?.error?.message };
@@ -73,10 +82,8 @@ export function useWrite() {
         icon: 'i-lucide-triangle-alert',
       });
       return null;
-    } finally {
-      busy.value = false;
     }
   }
 
-  return { write, busy, lastError };
-}
+  return { write, busy: computed(() => mutation.isLoading.value), lastError };
+});

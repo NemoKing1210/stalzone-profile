@@ -8,11 +8,17 @@
  * file and both locale catalogs.
  */
 
+/**
+ * A guide tab. The page renders one section at a time; `titleKey` is both the tab
+ * label and the panel heading, `hintKey` the panel counter and `introKey` the one
+ * paragraph that says what the section covers.
+ */
 export interface GuideSection {
   id: string;
   icon: string;
   titleKey: string;
   hintKey: string;
+  introKey: string;
 }
 
 export interface GuideSitePage {
@@ -103,6 +109,9 @@ export const GUIDE_SITE: GuideSitePage[] = [
     capabilityKeys: [
       'guide.site.inventory.caps.equipment',
       'guide.site.inventory.caps.grid',
+      'guide.site.inventory.caps.stash',
+      'guide.site.inventory.caps.filter',
+      'guide.site.inventory.caps.tidy',
       'guide.site.inventory.caps.intake',
       'guide.site.inventory.caps.loadout',
     ],
@@ -328,6 +337,12 @@ export const GUIDE_API: GuideApiEndpoint[] = [
     path: '/api/v1/inventory/storages/:id/auto-arrange',
     group: 'write',
     descriptionKey: 'guide.api.writes.storageAutoArrange',
+  },
+  {
+    method: 'POST',
+    path: '/api/v1/inventory/storages/:id/tidy',
+    group: 'write',
+    descriptionKey: 'guide.api.writes.storageTidy',
   },
   {
     method: 'PUT',
@@ -565,17 +580,54 @@ export const GUIDE_WRITE_FLOW: GuideFlowStep[] = [
 ];
 
 export const GUIDE_SECTIONS: GuideSection[] = [
-  { id: 'site', icon: 'i-lucide-layout-grid', titleKey: 'guide.sections.site.title', hintKey: 'guide.sections.site.hint' },
-  { id: 'flow', icon: 'i-lucide-workflow', titleKey: 'guide.sections.flow.title', hintKey: 'guide.sections.flow.hint' },
-  { id: 'api', icon: 'i-lucide-braces', titleKey: 'guide.sections.api.title', hintKey: 'guide.sections.api.hint' },
-  { id: 'mcp', icon: 'i-lucide-bot', titleKey: 'guide.sections.mcp.title', hintKey: 'guide.sections.mcp.hint' },
-  { id: 'cli', icon: 'i-lucide-terminal', titleKey: 'guide.sections.cli.title', hintKey: 'guide.sections.cli.hint' },
-  { id: 'sources', icon: 'i-lucide-cloud', titleKey: 'guide.sections.sources.title', hintKey: 'guide.sections.sources.hint' },
+  {
+    id: 'site',
+    icon: 'i-lucide-layout-grid',
+    titleKey: 'guide.sections.site.title',
+    hintKey: 'guide.sections.site.hint',
+    introKey: 'guide.sections.site.intro',
+  },
+  {
+    id: 'flow',
+    icon: 'i-lucide-workflow',
+    titleKey: 'guide.sections.flow.title',
+    hintKey: 'guide.sections.flow.hint',
+    introKey: 'guide.sections.flow.intro',
+  },
+  {
+    id: 'api',
+    icon: 'i-lucide-braces',
+    titleKey: 'guide.sections.api.title',
+    hintKey: 'guide.sections.api.hint',
+    introKey: 'guide.sections.api.intro',
+  },
+  {
+    id: 'mcp',
+    icon: 'i-lucide-bot',
+    titleKey: 'guide.sections.mcp.title',
+    hintKey: 'guide.sections.mcp.hint',
+    introKey: 'guide.sections.mcp.intro',
+  },
+  {
+    id: 'cli',
+    icon: 'i-lucide-terminal',
+    titleKey: 'guide.sections.cli.title',
+    hintKey: 'guide.sections.cli.hint',
+    introKey: 'guide.sections.cli.intro',
+  },
+  {
+    id: 'sources',
+    icon: 'i-lucide-cloud',
+    titleKey: 'guide.sections.sources.title',
+    hintKey: 'guide.sections.sources.hint',
+    introKey: 'guide.sections.sources.intro',
+  },
   {
     id: 'principles',
     icon: 'i-lucide-scale',
     titleKey: 'guide.sections.principles.title',
     hintKey: 'guide.sections.principles.hint',
+    introKey: 'guide.sections.principles.intro',
   },
 ];
 
@@ -587,7 +639,7 @@ export const GUIDE_TEXT_KEYS: readonly string[] = [
   'guide.title',
   'guide.subtitle',
   'guide.lead',
-  'guide.jump',
+  'guide.tabs.label',
   'guide.stats.pages',
   'guide.stats.endpoints',
   'guide.stats.tools',
@@ -659,6 +711,7 @@ export function guideI18nKeys(): string[] {
   for (const section of GUIDE_SECTIONS) {
     keys.add(section.titleKey);
     keys.add(section.hintKey);
+    keys.add(section.introKey);
   }
 
   return [...keys].sort();

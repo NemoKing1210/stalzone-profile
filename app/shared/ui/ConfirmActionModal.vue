@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { MODAL_WIDTH } from '~/shared/lib/modalWidth';
+
 const open = defineModel<boolean>('open', { default: false });
 const { t } = useI18n();
 
@@ -26,7 +28,12 @@ watch(open, (value) => {
 </script>
 
 <template>
-  <UModal v-model:open="open" :title="props.title" :description="props.description">
+  <UModal
+    v-model:open="open"
+    :title="props.title"
+    :description="props.description"
+    :ui="{ content: MODAL_WIDTH.narrow }"
+  >
     <template v-if="props.requireText" #body>
       <div class="space-y-2">
         <p v-if="props.requireHint" class="text-[12.5px] text-[var(--sz-text-muted)]">{{ props.requireHint }}</p>

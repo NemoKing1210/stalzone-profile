@@ -1,12 +1,15 @@
 <script setup lang="ts">
+import { useMutation, useQuery } from '@pinia/colada';
 import type {
   SourceDiagnostic,
   SyncDiagnostics,
   SyncResult,
   SyncScheduleValues,
 } from '@profile/shared/contracts';
+import { QUERY_KEYS } from '~/stores/keys';
 import { ProfilePane, StatRow } from '~/shared/ui';
-import { SOURCE_ORDER, canSyncSource, sourceKey } from '../model/sources';
+import { useProfileData } from '~/stores/profile-data';
+import { SOURCE_ORDER, canSyncSource, sortSources, sourceKey, type SourceSort } from '../model/sources';
 import AutoSyncPanel from './AutoSyncPanel.vue';
 import SourceCard from './SourceCard.vue';
 
@@ -14,22 +17,57 @@ const { t } = useI18n();
 const toast = useToast();
 const { message: apiMessage } = useApiError();
 const { formatAge, formatDate } = useFormat();
-const { payload, meta, refresh: refreshProfile } = useProfile();
+const { payload, meta, refresh: refreshProfile } = useProfileData();
 const { write, busy: saving } = useWrite();
 
-const { data, refresh } = useFetch<SyncDiagnostics>('/api/v1/admin/sync', { key: 'sync-diagnostics' });
+const request = useRequestFetch();
+const { data, refetch: refresh } = useQuery({
+  key: QUERY_KEYS.syncDiagnostics,
+  query: () => request<SyncDiagnostics>('/api/v1/admin/sync'),
+});
 const diagnostics = computed(() => data.value ?? null);
+const syncRun = useMutation({
+  mutation: ({ id, force }: { id: string; force: boolean }) =>
+    $fetch<{ results: SyncResult[] }>('/api/v1/admin/sync', {
+      method: 'POST',
+      body: { source: id, force },
+    }),
+});
 
 /** Relative labels wait for the client clock, so SSR and the first client render agree. */
 const now = ref<number | null>(null);
 const force = ref(false);
 const syncing = ref<string | null>(null);
+const sourceSort = ref<SourceSort>('default');
+const SOURCE_SORT_KEY = 'profile:settings-source-sort';
+onMounted(() => {
+  try {
+    const stored = localStorage.getItem(SOURCE_SORT_KEY);
+    if (stored === 'freshness' || stored === 'name' || stored === 'default') sourceSort.value = stored;
+  } catch {
+    /* storage unavailable: keep the canonical order */
+  }
+});
+watch(sourceSort, (value) => {
+  try {
+    localStorage.setItem(SOURCE_SORT_KEY, value);
+  } catch {
+    /* the choice still applies for this page */
+  }
+});
+
+const sortItems = computed(() => [
+  { label: t('settings.sources.sortDefault'), value: 'default' },
+  { label: t('settings.sources.sortFreshness'), value: 'freshness' },
+  { label: t('settings.sources.sortName'), value: 'name' },
+]);
 
 const sources = computed(() => {
   const list = diagnostics.value?.sources ?? [];
-  return SOURCE_ORDER.map((id) => list.find((source) => source.id === id)).filter(
+  const ordered = SOURCE_ORDER.map((id) => list.find((source) => source.id === id)).filter(
     (source): source is SourceDiagnostic => Boolean(source),
   );
+  return sortSources(ordered, sourceSort.value, now.value);
 });
 
 const profileReason = computed(() => diagnostics.value?.bundles.find((bundle) => bundle.id === 'profile')?.reason ?? null);
@@ -67,10 +105,7 @@ function sourceTitle(id: string): string {
 async function syncSource(id: string): Promise<void> {
   syncing.value = id;
   try {
-    const response = await $fetch<{ results: SyncResult[] }>('/api/v1/admin/sync', {
-      method: 'POST',
-      body: { source: id, force: force.value },
-    });
+    const response = await syncRun.mutateAsync({ id, force: force.value });
     const failed = response.results.filter((result) => result.status !== 'ok');
     if (!failed.length) {
       const items = response.results.reduce((total, result) => total + result.items, 0);
@@ -94,10 +129,13 @@ async function syncSource(id: string): Promise<void> {
     }
     await Promise.all([refresh(), refreshProfile()]);
   } catch (error) {
-    const data = (error as { data?: { error?: { code?: string; message?: string } } }).data?.error;
+    const data =
+      error && typeof error === 'object' && 'data' in error
+        ? (error as { data?: { error?: { code?: string; message?: string } } }).data
+        : undefined;
     toast.add({
       title: t('settings.toast.syncFailed'),
-      description: apiMessage(data?.code, data?.message || t('settings.toast.syncFailedDescription')),
+      description: apiMessage(data?.error?.code, data?.error?.message || t('settings.toast.syncFailedDescription')),
       color: 'error',
       icon: 'i-lucide-triangle-alert',
     });
@@ -156,6 +194,13 @@ onUnmounted(() => {
       <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
         <USwitch v-model="force" :label="t('settings.sources.force')" />
         <span class="text-[11px] text-[var(--sz-text-muted)]">{{ t('settings.sources.forceHint') }}</span>
+        <USelect
+          v-model="sourceSort"
+          :items="sortItems"
+          size="xs"
+          class="w-48"
+          :aria-label="t('settings.sources.sort')"
+        />
         <span v-if="syncing" class="text-[11px] text-[var(--sz-warning-text)]">
           {{ t('settings.sources.running') }}
         </span>

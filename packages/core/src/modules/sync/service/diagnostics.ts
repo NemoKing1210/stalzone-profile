@@ -1,4 +1,4 @@
-import type { SourceDiagnostic, SyncDiagnostics } from '@profile/shared/contracts';
+import type { SourceDiagnostic, SourceRecordMetric, SyncDiagnostics } from '@profile/shared/contracts';
 import type { Db } from '../../../platform/db/index.js';
 import { countItems } from '../../catalog/index.js';
 import * as identity from '../../identity/index.js';
@@ -12,19 +12,46 @@ function count(db: Db, sql: string, parameter?: number | string): number {
   return row.c;
 }
 
-/**
- * A per-source item count is only honest where the source owns its rows. Item-backed
- * sources share `item` and `upsertItem` rewrites `source_id`, so their count would
- * describe attribution; the UI shows the global catalog size instead.
- */
-function recordsFor(db: Db, id: string, characterId: number | null): number | null {
-  if (id === 'scpmodel') return count(db, "SELECT COUNT(*) AS c FROM price_latest WHERE source_id = 'scpmodel'");
-  if (id === 'icons') return count(db, 'SELECT COUNT(*) AS c FROM icon');
-  if (id === 'profile') {
-    if (characterId == null) return null;
-    return count(db, "SELECT COUNT(*) AS c FROM character_stat WHERE character_id = ? AND origin = 'api'", characterId);
+/** What each source owns in the database, named so the UI never presents a count as bytes. */
+function recordsFor(
+  db: Db,
+  id: string,
+  characterId: number | null,
+): { records: number | null; metric: SourceRecordMetric | null } {
+  if (id === 'exbo_base') {
+    return { records: countItems(db), metric: 'catalog_items' };
   }
-  return null;
+  if (id === 'wiki') {
+    return { records: count(db, "SELECT COUNT(*) AS c FROM item_stat WHERE source_id = 'wiki'"), metric: 'stat_rows' };
+  }
+  if (id === 'motifs') {
+    return { records: count(db, "SELECT COUNT(*) AS c FROM item WHERE kind = 'motif'"), metric: 'motif_items' };
+  }
+  if (id === 'scpmodel') {
+    return {
+      records: count(db, "SELECT COUNT(*) AS c FROM price_latest WHERE source_id = 'scpmodel'"),
+      metric: 'price_quotes',
+    };
+  }
+  if (id === 'icons') return { records: count(db, 'SELECT COUNT(*) AS c FROM icon'), metric: 'icons' };
+  if (id === 'profile') {
+    if (characterId == null) return { records: null, metric: 'character_stats' };
+    return {
+      records: count(
+        db,
+        "SELECT COUNT(*) AS c FROM character_stat WHERE character_id = ? AND origin = 'api'",
+        characterId,
+      ),
+      metric: 'character_stats',
+    };
+  }
+  if (id === 'local' && characterId != null) {
+    return {
+      records: count(db, 'SELECT COUNT(*) AS c FROM inventory_item WHERE character_id = ?', characterId),
+      metric: 'inventory_items',
+    };
+  }
+  return { records: null, metric: null };
 }
 
 export function syncDiagnostics(
@@ -61,8 +88,10 @@ export function syncDiagnostics(
           commit: null,
           commitDate: null,
           records: null,
+          recordMetric: null,
         };
       }
+      const measured = recordsFor(db, id, characterId);
       return {
         id: row.id,
         kind: row.kind,
@@ -73,7 +102,8 @@ export function syncDiagnostics(
         lastError: row.last_error,
         commit: row.commit_sha,
         commitDate: row.commit_date,
-        records: recordsFor(db, id, characterId),
+        records: measured.records,
+        recordMetric: measured.metric,
       };
     }),
     catalogItems: countItems(db),

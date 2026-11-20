@@ -28,8 +28,8 @@ const FIELDS: Record<DetailKind, readonly FieldDefinition[]> = {
   ],
   armor: [
     { key: 'cls', labelKey: 'items.fields.cls' },
-    { key: 'prot', labelKey: 'items.fields.prot' },
-    { key: 'armor15', labelKey: 'items.plus15' },
+    { key: 'armor', labelKey: 'items.bulletProtection' },
+    { key: 'armor15', labelKey: 'table.armor15' },
     { key: 'dur', labelKey: 'items.fields.dur' },
     { key: 'weight', labelKey: 'items.fields.weight' },
   ],

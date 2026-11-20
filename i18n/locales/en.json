@@ -47,9 +47,13 @@
     "guide": "Guide",
     "settings": "Settings",
     "logout": "Sign out",
-    "footer": "Personal STALZONE profile. Data is updated manually; prices are read-only.",
-    "currentSection": "Current section: {path}",
-    "logs": "Diagnostic log"
+    "logs": "Diagnostic log",
+    "sections": "Main sections",
+    "account": "Account",
+    "ownedCount": "{label}: {count} owned",
+    "collapse": "Collapse menu",
+    "expand": "Expand menu",
+    "openMenu": "Open menu"
   },
   "accents": {
     "green": "Zone green",
@@ -194,19 +198,17 @@
   "weapons": {
     "pageTitle": "Weapons",
     "title": "Weapons",
-    "summary": "{shown} of {total} · DPS and TTK are recalculated for each weapon's upgrade level",
+    "summary": "{shown} of {total} · owned weapons show the current level and +15; catalog rows show the level-15 figures",
     "emptyCatalog": "The weapon catalog is empty. Load the EXBO base.",
     "emptyOwned": "No weapons in the profile yet. Add them through the API or MCP.",
-    "hint": "Click a row to open the item card from the source profile. Sorting and filters are saved in the browser.",
     "editAria": "Edit {name}"
   },
   "armor": {
     "pageTitle": "Armor",
     "title": "Armor",
-    "summary": "{shown} of {total} · bullet protection at the current upgrade level and at +15",
+    "summary": "{shown} of {total} · owned armor shows bullet protection at the current level and +15; catalog rows show the level-15 figure",
     "emptyCatalog": "The armor catalog is empty. Load the EXBO base.",
-    "emptyOwned": "No armor in the profile yet. Add it through the API or MCP.",
-    "hint": "Click a row to open the armor card from the source profile: protection, modifiers and the bullet-protection curve."
+    "emptyOwned": "No armor in the profile yet. Add it through the API or MCP."
   },
   "containers": {
     "pageTitle": "Containers",
@@ -246,7 +248,6 @@
     "typeFallback": "type not specified",
     "effectsEmpty": "no effect data",
     "emptyDescription": "No artifacts in the profile yet. Add them through the API or MCP.",
-    "hint": "Click a card to open the source artifact card with value ranges.",
     "editAria": "Edit {name}",
     "openAria": "Open the card for {name}",
     "filtersTitle": "Filters",
@@ -271,6 +272,7 @@
     "noInventory": "This character has no inventory yet. Set the character up to create the grid.",
     "openSetup": "Open setup",
     "carried": "Weight",
+    "stashWeight": "{name} weight: {value}",
     "carry": "Carrying capacity",
     "safeLimit": "Safe limit",
     "weightValue": "{value} kg",
@@ -369,7 +371,29 @@
     "height": "Height",
     "maxWeight": "Weight limit, kg",
     "noLimit": "no limit",
-    "resizeHint": "A smaller grid is rejected while items still occupy the removed cells.",
+    "fixedSizeHint": "Every stash is 8 × 200 cells and its size is fixed. Move items to the carried grid or another stash instead.",
+    "tidy": "Tidy up",
+    "tidyOrder": "Tidy order",
+    "tidyOrders": {
+      "kind": "Kind, then name",
+      "name": "Name",
+      "rank": "Rank, then name",
+      "footprint": "Largest first"
+    },
+    "tidyDoneTitle": "Storage tidied",
+    "tidyOverflowTitle": "Some items did not fit",
+    "tidyOverflow": "{count} item(s) kept their cells because no free space was large enough.",
+    "filter": {
+      "label": "Show",
+      "kind": "Item kind",
+      "rank": "Rank",
+      "quality": "Quality",
+      "allKinds": "All kinds",
+      "allQualities": "All qualities",
+      "active": "Filtered view: same-storage drops are paused",
+      "noMatch": "No item matches this filter. Hidden items still occupy their cells.",
+      "dropBlocked": "This container is filtered. Clear its filter or move the item to another storage."
+    },
     "deleteStash": "Delete stash",
     "newStash": "New stash",
     "createStash": "Create stash",
@@ -383,7 +407,15 @@
     "unverifiedTitle": "Compatibility is unknown",
     "unverifiedDesc": "The source has no compatibility record for this attachment and weapon. Install it anyway? The module will be marked unverified.",
     "unverifiedConfirm": "Install anyway",
-    "menuHint": "Right-click a card for actions.",
+    "filterKinds": {
+      "weapon": "Weapons",
+      "armor": "Armor",
+      "container": "Containers",
+      "artifact": "Artifacts",
+      "attachment": "Attachments",
+      "ammo": "Ammo",
+      "other": "Consumables"
+    },
     "menu": {
       "details": "Open card",
       "equip": "Equip",
@@ -514,6 +546,34 @@
     "soundsEnabled": "Interface sounds",
     "soundsVolume": "Volume",
     "soundsPreview": "Test sound",
+    "themeTitle": "Theme",
+    "themeText": "Dark is the game's native look. Light keeps the same structure on warm paper with the same contrast floor.",
+    "themeDark": "Dark",
+    "themeLight": "Light",
+    "fontTitle": "Interface font",
+    "fontText": "Both faces ship with the app as local files, so switching never waits for a font host.",
+    "fontCondensed": "Roboto Condensed",
+    "fontOswald": "Oswald",
+    "densityTitle": "Density",
+    "densityText": "Compact tightens line height, page padding and table rows without shrinking the text.",
+    "densityComfortable": "Comfortable",
+    "densityCompact": "Compact",
+    "notificationsTitle": "Notifications",
+    "notificationsText": "Where a notification appears, how long it stays and whether a new one replaces the previous.",
+    "notificationPosition": "Position",
+    "notificationPositionTopLeft": "Top left",
+    "notificationPositionTopCenter": "Top centre",
+    "notificationPositionTopRight": "Top right",
+    "notificationPositionBottomLeft": "Bottom left",
+    "notificationPositionBottomCenter": "Bottom centre",
+    "notificationPositionBottomRight": "Bottom right",
+    "notificationDuration": "Duration",
+    "notificationSeconds": "{seconds} s",
+    "notificationStack": "Stack notifications",
+    "notificationStackHint": "On: new notifications stack. Off: a new notification replaces the previous one.",
+    "notificationPreview": "Test notifications",
+    "notificationPreviewTitle": "Test notification",
+    "notificationPreviewText": "This is how a notification looks and how long it stays.",
     "dataSources": "Data sources",
     "sources": {
       "intro": "These sources fill the catalog, prices, icons and profile statistics. Auto-update runs only while the server process is on.",
@@ -540,6 +600,27 @@
       "commit": "Snapshot",
       "records": "Records",
       "recordsNone": "—",
+      "metrics": {
+        "catalog_items": "Catalog items",
+        "stat_rows": "Stat rows",
+        "motif_items": "Motif items",
+        "price_quotes": "Price quotes",
+        "icons": "Icons",
+        "character_stats": "API character stats",
+        "inventory_items": "Inventory items"
+      },
+      "freshness": {
+        "fresh": "Fresh",
+        "ageing": "Ageing",
+        "stale": "Stale",
+        "never": "Never"
+      },
+      "updatedAgo": "Updated {age} ago",
+      "sort": "Sort sources",
+      "sortDefault": "Source order",
+      "sortFreshness": "Freshness first",
+      "sortName": "Name",
+      "openData": "Open the data this source feeds",
       "syncNow": "Sync now",
       "syncAll": "Sync all",
       "force": "Force (ignore cache/TTL)",
@@ -745,8 +826,9 @@
     "columns": {
       "at": "When",
       "action": "Action",
-      "entityId": "Entity",
+      "entity": "Entity",
       "actor": "Who",
+      "origin": "Origin",
       "note": "Note"
     },
     "actions": {
@@ -763,8 +845,69 @@
       "characterDelete": "Character deleted",
       "journalClear": "Journal cleared",
       "resetAll": "Full reset",
+      "rollback": "Rollback",
+      "itemCreate": "Item added",
+      "itemUpdate": "Item changed",
+      "itemDelete": "Item deleted",
+      "itemMove": "Item moved",
+      "itemModule": "Weapon module changed",
+      "storageCreate": "Stash created",
+      "storageUpdate": "Stash changed",
+      "storageDelete": "Stash deleted",
+      "storageTidy": "Stash tidied",
+      "autoArrange": "Stash auto-arranged",
+      "inventoryClear": "Inventory cleared",
+      "itemLayout": "Item layout changed",
+      "loggingSettings": "Logging settings changed",
+      "logClear": "Diagnostic log cleared",
+      "syncSchedule": "Sync schedule changed"
+    },
+    "count": "Showing {shown} of {total}",
+    "filters": {
+      "allActions": "All actions",
+      "allEntities": "All entities",
+      "allActors": "Everyone",
+      "search": "Search action, entity, id, note, request",
+      "window": "Period",
+      "clear": "Reset filters"
+    },
+    "windows": {
+      "all": "All time",
+      "24h": "24 hours",
+      "7d": "7 days",
+      "30d": "30 days"
+    },
+    "detail": {
+      "summary": "Change",
+      "requestId": "Request",
+      "origin": "Origin"
+    },
+    "diff": {
+      "title": "Changes",
+      "field": "Field",
+      "before": "Before",
+      "after": "After",
+      "root": "Value",
+      "empty": "No field changed.",
+      "truncated": "Only the first {count} changes are shown.",
+      "raw": "Raw snapshot",
+      "rawTruncated": "Snapshot shortened for display; the stored rollback value is complete."
+    },
+    "origins": {
+      "http": "Web session",
+      "api": "API token",
+      "mcp": "MCP",
+      "cli": "CLI"
+    },
+    "summary": {
+      "create": "Created",
+      "update": "Changed",
+      "delete": "Deleted",
+      "clear": "Cleared",
       "rollback": "Rollback"
     },
+    "expandAria": "Show details for event {id}",
+    "collapseAria": "Hide details for event {id}",
     "rollbackAria": "Roll back event {id}",
     "empty": "No changes yet.",
     "emptyTitle": "The log is empty",
@@ -798,7 +941,9 @@
     "title": "Project guide",
     "subtitle": "Every screen, endpoint, tool and source of this profile, and how they connect.",
     "lead": "The profile is one SQLite database behind one Nuxt process. The site, the REST API, MCP and the CLI are four ways to read and change the same data; this page is the map.",
-    "jump": "Jump to a section",
+    "tabs": {
+      "label": "Guide sections"
+    },
     "stats": {
       "pages": "Site screens",
       "endpoints": "REST endpoints",
@@ -814,31 +959,38 @@
     "sections": {
       "site": {
         "title": "Site map",
-        "hint": "What each screen does"
+        "hint": "What each screen does",
+        "intro": "Every route the app serves today: the main screens, the diagnostic log and the two system screens. The side nav groups the main ones and collapses to an icon rail; on narrow screens it becomes a drawer."
       },
       "flow": {
         "title": "How it connects",
-        "hint": "Read and write paths"
+        "hint": "Read and write paths",
+        "intro": "How a public source becomes a screen, and how a write from the browser, an agent or a terminal reaches SQLite and returns a diff with its journal event."
       },
       "api": {
         "title": "REST API",
-        "hint": "{count} endpoints"
+        "hint": "{count} endpoints",
+        "intro": "The Nitro routes under /api, grouped by session, reads, writes and administration. Every mutation goes through the owning module and writes one event."
       },
       "mcp": {
         "title": "MCP server",
-        "hint": "{count} tools for an agent"
+        "hint": "{count} tools for an agent",
+        "intro": "The MCP server exposes the same profile to an agent over stdio or HTTP: read tools, confirmed write tools and the same dry-run contract as the REST API."
       },
       "cli": {
         "title": "Commands",
-        "hint": "Development and maintenance"
+        "hint": "Development and maintenance",
+        "intro": "The npm scripts in package.json: develop and build, migrate and sync, inspect logs and verify the repository."
       },
       "sources": {
         "title": "Data sources",
-        "hint": "Public game data and freshness"
+        "hint": "Public game data and freshness",
+        "intro": "The public origins behind the data, what each one updates and when it runs. Settings → Sources shows the same list with status and the last attempt; a failure keeps the old rows."
       },
       "principles": {
         "title": "Guarantees",
-        "hint": "Rules the code must not break"
+        "hint": "Rules the code must not break",
+        "intro": "The owner-level rules the code must not break, and the tests that keep this page honest."
       }
     },
     "site": {
@@ -851,39 +1003,42 @@
         "title": "Overview",
         "summary": "The character sheet: identity, career numbers and the state of the data.",
         "caps": {
-          "profile": "Nickname, region, faction, clan, rank and storage.",
-          "kpis": "Hours, K/D, accuracy and headshot share; achievements, money and the date the character entered the Zone.",
-          "edit": "Edit the profile and raw counters; clearing a value reveals the API value again.",
-          "freshness": "Section counts, catalog update date and the age of the latest prices."
+          "profile": "Nickname, faction, clan, clan rank and region; an absent faction reads as a missing value.",
+          "kpis": "Hours, K/D, accuracy and headshot share as the headline numbers; achievements, money, maximum money and the date the character entered the Zone below.",
+          "edit": "Edit identity fields and raw counters; clearing a counter restores the value from the API.",
+          "freshness": "Owned counts link to the four gear screens; the payload, price and catalog dates show how fresh the data is."
         }
       },
       "inventory": {
         "title": "Inventory",
-        "summary": "Equipment, carried grid, stashes and the intake stash, arranged like the game.",
+        "summary": "Equipment, the carried grid, stashes and the read-only intake stash, drawn like the game.",
         "caps": {
           "equipment": "A paper-doll of the ten equipment slots with level, rank and quality.",
-          "grid": "The left column toggles between the equipment slots and the selected stash; the carried grid stays on the right, both drawn at one cell width.",
+          "grid": "The left pane switches between the paper-doll and the selected stash, the carried grid stays on the right, and both are eight cells wide (the carried grid is 8×20, a stash 8×200); items move by drag and drop or with the keyboard: Space picks up, arrows move, R rotates, Enter places and Escape cancels.",
+          "stash": "Stash tabs pick the left-pane stash — intake first, then the regular stashes; the storage manager creates and deletes stashes and changes their weight limit, and the wand packs items waiting in intake into the selected one.",
+          "filter": "Filter either grid by kind, rank and quality without moving anything; hidden items keep their cells and a same-container drop is refused until the filter is cleared.",
+          "tidy": "Tidy repacks one storage in the chosen order (kind, name, rank or footprint); an item that cannot be placed stays at its cells and the toast reports how many stayed.",
           "intake": "New and displaced items land in a read-only intake stash that only releases them and grows as it fills.",
-          "loadout": "Carry weight, protection, artifact effects and container warnings from one formula."
+          "loadout": "Carry weight, protection, artifact effects and container warnings come from the computed loadout."
         }
       },
       "weapons": {
         "title": "Weapons",
-        "summary": "Catalog and owned weapons with DPS and TTK recalculated at the upgrade level.",
+        "summary": "Catalog and owned weapons with damage, DPS and TTK at +15, plus each owned copy's level and location.",
         "caps": {
           "catalog": "Owned gear and the full catalog side by side; switch modes without leaving the page.",
-          "dps": "DPS and TTK are recalculated at the row's upgrade level from one formula.",
-          "filters": "Search, type and rank filters, sorting and grouping; the last view is restored per browser.",
+          "dps": "DPS and TTK columns are the +15 catalog values from the one calculator; an owned copy's own level is a separate column.",
+          "filters": "Search, type and rank filters, sorting, grouping and a grid/list toggle; the last view is restored per browser.",
           "manage": "Add a copy from the catalog, edit level, quality or note, remove a copy; the item card opens from the row."
         }
       },
       "armor": {
         "title": "Armor",
-        "summary": "Catalog and owned armor with bullet protection at the current level and at +15.",
+        "summary": "Catalog and owned armor with protection figures, the +15 value and the bullet-protection curve.",
         "caps": {
           "catalog": "Owned armor and the full catalog with the same list controls as weapons.",
-          "protection": "Bullet protection at the current upgrade level and at +15.",
-          "curve": "The armor card shows modifiers and the full bullet-protection curve.",
+          "protection": "Protection figures come from the catalog card; the +15 column shows the top refinement.",
+          "curve": "The armor item card shows modifiers and the full bullet-protection curve.",
           "manage": "Add, edit and remove copies; filters and sorting persist in the browser."
         }
       },
@@ -891,9 +1046,9 @@
         "title": "Containers",
         "summary": "Slots, efficiency, weight and the current fill of every container.",
         "caps": {
-          "list": "Every container with slots, efficiency, weight and the fill date.",
+          "list": "Every container with slots, efficiency, weight and its current fill.",
           "fill": "Open a container to replace its fill; artifacts are picked by name and level.",
-          "effect": "Effective value = slots × efficiency, shown next to the current fill.",
+          "effect": "The container card lists slots, efficiency, protection, shield and bonus next to the fill.",
           "manage": "Add a container from the catalog, edit it, and clear or replace the fill."
         }
       },
@@ -909,12 +1064,12 @@
       },
       "settings": {
         "title": "Settings",
-        "summary": "Appearance, sources, data, journal and resets.",
+        "summary": "Appearance, sources, data, journal, resets and logging.",
         "caps": {
-          "appearance": "Five accent presets stored per browser; semantic colours never change.",
+          "appearance": "Accent presets, light/dark theme, font and density, notification position and duration, and sound — all stored per browser; semantic colours do not change.",
           "sources": "A reference for every source with status, freshness, counts and origin, plus a manual sync and an auto-update schedule.",
           "data": "Download the typed JSON export, see freshness and learn how backups work.",
-          "journal": "Every write is listed with actor and note; each event can be rolled back.",
+          "journal": "Every write with actor, origin, request id and a before/after diff; filter by action, entity, actor, time or text, expand a row and roll the event back.",
           "cleanup": "Reset inventory, manual stats, character, journal or everything in one journalled transaction.",
           "logging": "Logging: level, retention, row cap, browser capture and per-category overrides."
         }
@@ -930,10 +1085,10 @@
       },
       "guide": {
         "title": "Guide",
-        "summary": "This page: screens, endpoints, tools, commands, sources and guarantees.",
+        "summary": "This page: seven tabs for screens, flows, endpoints, tools, commands, sources and guarantees.",
         "caps": {
-          "map": "One map of everything the project can do.",
-          "contract": "Tests compare its lists with the real routes, tools and scripts.",
+          "map": "Seven tabs — site, flows, REST, MCP, CLI, sources and principles — show one block at a time.",
+          "contract": "Tests compare its lists with the real routes, tools and scripts on every run.",
           "live": "A live strip shows the size of your profile and when data last arrived."
         }
       },
@@ -1051,13 +1206,14 @@
         "characterCreate": "Create the single character; a second create is rejected.",
         "characterPatch": "Edit identity fields and raw counters; null clears an override.",
         "inventoryItemCreate": "Add an item instance, optionally at a placement target; without one it lands in intake.",
-        "inventoryItemPatch": "Change level, quality, rarity, note, quantity or a container override.",
+        "inventoryItemPatch": "Change level, quality, rarity, skin, note, role, slot, display name, quantity or a container override.",
         "inventoryItemDelete": "Remove one quantity from a stack or the whole instance; children return to intake.",
         "inventoryItemMove": "Move an item to a grid cell, equipment slot, container slot or module slot; intake only releases items.",
-        "storageCreate": "Create a stash with a size and an optional weight limit; system storages are rejected.",
-        "storagePatch": "Rename or resize a stash; system storages are rejected and a shrink over placed items is rejected.",
+        "storageCreate": "Create an inventory (8×20) or stash (8×200) storage with an optional weight limit; system storages are rejected.",
+        "storagePatch": "Rename a stash, change its weight limit or its display order; system storages are rejected.",
         "storageDelete": "Delete a stash and move its items to intake; system storages are rejected.",
         "storageAutoArrange": "Pack intake items into a stash by first fit.",
+        "storageTidy": "Repack every item in one storage by the chosen order (kind, name, rank or footprint); an item that cannot be packed stays at its cells.",
         "containerFill": "Replace a container's artifact fill from instance ids.",
         "weaponModule": "Install, replace or remove a weapon module; unknown compatibility needs an explicit unverified install.",
         "itemLayout": "Override a catalog item's grid size and weight; a change that breaks placed items is rejected.",
@@ -1098,12 +1254,12 @@
         "get_prices": "Latest auction prices by item name.",
         "sources_status": "Source state and freshness.",
         "export_profile_json": "Export the profile as portable JSON.",
-        "add_inventory_item": "Add an item instance to the intake stash.",
-        "update_inventory_item": "Change an instance level, quality, rarity or note.",
+        "add_inventory_item": "Add an item instance, optionally at a placement target; without one it lands in intake.",
+        "update_inventory_item": "Change an instance level, quality, rarity, skin, note, role, slot, display name or quantity.",
         "remove_inventory_item": "Remove an instance or part of a stack.",
         "move_inventory_item": "Move an instance to a grid cell, slot, container or module; intake only releases.",
-        "create_storage": "Create a stash storage.",
-        "update_storage": "Rename, resize or reorder a stash.",
+        "create_storage": "Create an inventory (8×20) or stash (8×200) storage.",
+        "update_storage": "Rename a stash, change its weight limit or its display order.",
         "delete_storage": "Delete a stash; its items move to the intake stash.",
         "set_container_artifacts": "Replace a container fill by instance ids.",
         "set_weapon_module": "Install or remove a weapon module.",
@@ -1162,7 +1318,7 @@
         "trigger": "When it runs"
       },
       "optIn": "Opt-in",
-      "note": "all runs the five catalog sources. profile requires STALZONE credentials and never runs implicitly. A failure marks the source stale and keeps the previous data; the UI shows the age of the last successful snapshot.",
+      "note": "all runs the five catalog sources. profile requires STALZONE credentials and never runs implicitly. Settings → Sources shows each source's status, last success and attempt, record counts where available, commit and origin; a failure marks it stale and keeps the previous data.",
       "updates": {
         "exbo_base": "Item identity and base stats from the EXBO database snapshot.",
         "wiki": "Per-level damage, armor and artifact numbers, effect labels and container fields from stalzone.wiki.",
@@ -1172,7 +1328,7 @@
         "profile": "Character statistics from the official STALZONE API (origin api)."
       },
       "triggers": {
-        "catalog": "Setup wizard, Settings, API sync or the CLI.",
+        "catalog": "Setup wizard, Settings (manual or scheduled), API sync or the CLI.",
         "prices": "The same sync path; inside the TTL it answers from the database.",
         "profile": "Only when explicitly requested and credentials are configured."
       }
@@ -1231,6 +1387,15 @@
     "snapshotDate": "Snapshot date",
     "characterTitle": "Character",
     "characterDescription": "Edit profile and statistics",
+    "noChanges": "Nothing to save yet.",
+    "errors": {
+      "required": "Required",
+      "tooLong": "At most {max} characters",
+      "tooSmall": "Must be at least {min}",
+      "tooBig": "Must be at most {max}",
+      "notInteger": "Use a whole number",
+      "invalid": "Check this value"
+    },
     "nick": "Nickname",
     "region": "Region",
     "regions": {
@@ -1280,8 +1445,7 @@
     "layoutWidth": "Width, cells",
     "layoutHeight": "Height, cells",
     "layoutWeight": "Weight, kg",
-    "layoutPairError": "Enter both width and height, or leave both empty.",
-    "layoutHint": "Leave both size fields empty to use the category default. Changing them updates every instance of this catalog item."
+    "layoutPairError": "Enter both width and height, or leave both empty."
   },
   "radio": {
     "station": "ZONE FM",

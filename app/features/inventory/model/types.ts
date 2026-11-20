@@ -4,11 +4,15 @@ import type {
   InstanceEditTarget,
 } from '~/shared/types/profile';
 
+import type { BarValue } from './comparisonBars';
+
 /** Number and date formatting the table cells and cards use; mirrors `useFormat`. */
 export interface FormatFns {
   g1: (value: number | null | undefined) => string;
   g2: (value: number | null | undefined) => string;
   num: (value: number | null | undefined) => string;
+  /** A comparison bar for the visible set, or null when the column has no scale. */
+  bar?: (metric: string, key: string) => BarValue | null;
 }
 
 /** Persisted per-screen filter state; `mode` is empty for screens without owned/catalog tabs. */
@@ -40,6 +44,8 @@ export interface InventoryColumn<TRow> {
   truncate?: boolean;
   /** Plain-text cell; a null result falls back to the raw value. Rank-like cells use the UI registry. */
   cell?: (row: TRow, fmt: FormatFns) => string | null;
+  /** A thin comparison bar drawn under the cell value. */
+  bar?: (row: TRow, fmt: FormatFns) => BarValue | null;
 }
 
 export interface InventoryLabels {
@@ -50,7 +56,6 @@ export interface InventoryLabels {
   typeLabel: string;
   groupBy: string;
   modalTitle: string;
-  hint?: string;
   emptyOwned: string;
   emptyCatalog: string;
 }

@@ -1,18 +1,20 @@
 <script setup lang="ts">
+import { useProfileData } from '~/stores/profile-data';
 import { ProfilePane, StatRow } from '~/shared/ui';
 import { clampPercent } from '~/shared/lib/clampPercent';
-import { factionLabel } from '~/shared/lib/factions';
+import { factionEmblem, factionLabel } from '~/shared/lib/factions';
 
 import EditCharacterModal from './EditCharacterModal.vue';
 
 const { t } = useI18n();
 useHead(() => ({ title: `${t('overview.pageTitle')} // ${t('common.appName')}` }));
 
-const { payload, meta } = useProfile();
+const { payload, meta } = useProfileData();
 const { fmtMoney, dec, num, formatDate, formatAge } = useFormat();
 
 const character = computed(() => payload.value?.character ?? {});
 const factionName = computed(() => factionLabel(t, character.value.faction));
+const factionEmblemImg = computed(() => factionEmblem(character.value.faction));
 const hasCharacter = computed(() => Object.keys(character.value).length > 0);
 const metaInfo = computed(() => payload.value?.meta ?? {});
 const catalogMeta = computed(() => meta.value?.catalogMeta ?? null);
@@ -118,33 +120,41 @@ const dataState = computed(() => [
 
 <template>
   <section class="space-y-4">
-    <div class="flex flex-wrap items-end justify-between gap-3">
-      <div>
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div class="min-w-0">
         <h1>{{ character.nick ?? 'STALZONE' }}</h1>
         <p class="flex flex-wrap items-center gap-x-3 text-[12.5px] text-[var(--sz-text-muted)]">
-          <span>{{ factionName ?? t('overview.factionMissing') }}</span>
+          <span class="inline-flex items-center gap-1.5">
+            <img
+              v-if="factionEmblemImg"
+              :src="factionEmblemImg.src"
+              :alt="factionName ?? ''"
+              width="20"
+              height="20"
+              class="size-5 shrink-0 object-contain">
+            <span>{{ factionName ?? t('overview.factionMissing') }}</span>
+          </span>
           <span v-if="character.clanName">{{ character.clanName }}</span>
           <span v-if="character.clanRank">{{ character.clanRank }}</span>
           <span v-if="character.region">{{ character.region }}</span>
         </p>
+      </div>
+      <div v-if="hasCharacter" class="flex shrink-0 items-center gap-2">
+        <UButton
+          icon="i-lucide-pencil"
+          color="neutral"
+          variant="outline"
+          size="xs"
+          :label="t('overview.editProfile')"
+          @click="editOpen = true"
+        />
       </div>
     </div>
 
     <template v-if="hasCharacter">
       <div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
         <ProfilePane class="order-1 min-w-0" :title="t('overview.character')" dense>
-          <div class="min-w-0">
-            <UButton
-              icon="i-lucide-pencil"
-              color="neutral"
-              variant="ghost"
-              size="xs"
-              :label="t('overview.editProfile')"
-              @click="editOpen = true"
-            />
-          </div>
-
-          <p class="sz-caps mt-3 border-t border-[var(--sz-border)] pt-2 text-[var(--sz-text-muted)]">
+          <p class="sz-caps border-t border-[var(--sz-border)] pt-2 text-[var(--sz-text-muted)]">
             {{ t('overview.keyStats') }}
           </p>
           <div class="mt-1.5 grid grid-cols-2 gap-px bg-[var(--sz-border)]">

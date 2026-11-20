@@ -19,6 +19,7 @@ import {
   type PreviewBox,
 } from '../../model/drag';
 import { scrollVelocity } from '../../model/autoscroll';
+import { filteredDropBlocked } from '../../model/containerFilters';
 import { clampOrigin, effectiveSize, ghostForGrid, type GridBounds, type Size } from '../../model/grid';
 
 type InteractApi = (typeof import('interactjs'))['default'];
@@ -55,8 +56,10 @@ export interface GridDragOptions {
   onDrop: (itemId: number, target: DropTarget, rotated: boolean) => void | Promise<void>;
   /** The storage behind an id, used for grid dimensions and for validating a landing. */
   storageFor: (storageId: number) => StorageRead | null;
-  /** The landing is blocked locally; the caller explains it to the user. */
-  onDropRejected?: () => void;
+  /** The landing is blocked locally; the caller explains why. */
+  onDropRejected?: (reason: 'invalid' | 'filtered') => void;
+  /** Storages with a view-only filter active; a same-storage drop cannot land among hidden cells. */
+  filteredStorageIds: () => Set<number>;
   /** Grid a non-grid item lands on when picked up with the keyboard. */
   homeStorageId: () => number | null;
   /** The read-only intake grid: it never hosts a pick, it only releases items. */
@@ -244,6 +247,11 @@ export function useGridDrag(options: GridDragOptions) {
       cancel();
       return;
     }
+    if (filteredDropBlocked(item, destination, options.filteredStorageIds())) {
+      cancel();
+      options.onDropRejected?.('filtered');
+      return;
+    }
     if (destination.location === 'grid') {
       const storage = options.storageFor(destination.storageId);
       const items = storage
@@ -266,7 +274,7 @@ export function useGridDrag(options: GridDragOptions) {
       // a server error toast after a round trip.
       if (!landing?.valid) {
         cancel();
-        options.onDropRejected?.();
+        options.onDropRejected?.('invalid');
         return;
       }
     }

@@ -6,6 +6,8 @@ import type {
   StorageRead,
 } from '@profile/shared/contracts';
 
+import { useProfileData } from '~/stores/profile-data';
+
 import { applyPending, clearPending, type PendingMove } from './pending';
 import { useFilters } from './useFilters';
 
@@ -15,7 +17,7 @@ import { useFilters } from './useFilters';
  * Every mutation goes through the REST service, never through the payload cache.
  */
 export function useInventory() {
-  const { payload, refresh } = useProfile();
+  const { payload, refresh } = useProfileData();
   const { write, busy: writing, lastError } = useWrite();
 
   /** Moves shown at their destination while the server answers; cleared by the refresh. */
@@ -106,14 +108,11 @@ export function useInventory() {
     });
   }
 
-  function createStorage(input: { name: string; width: number; height: number; kind?: 'inventory' | 'stash' }) {
+  function createStorage(input: { name: string; kind?: 'inventory' | 'stash' }) {
     return write('/api/v1/inventory/storages', { method: 'POST', body: input });
   }
 
-  function updateStorage(
-    id: number,
-    patch: { name?: string; width?: number; height?: number; maxWeight?: number | null },
-  ) {
+  function updateStorage(id: number, patch: { name?: string; maxWeight?: number | null }) {
     return write(`/api/v1/inventory/storages/${id}`, { method: 'PATCH', body: patch });
   }
 
@@ -125,6 +124,14 @@ export function useInventory() {
     return write(`/api/v1/inventory/storages/${storageId}/auto-arrange`, {
       method: 'POST',
       body: {},
+      silent: true,
+    });
+  }
+
+  function tidy(storageId: number, order: string, dryRun = false) {
+    return write(`/api/v1/inventory/storages/${storageId}/tidy`, {
+      method: 'POST',
+      body: { order, dryRun },
       silent: true,
     });
   }
@@ -176,6 +183,7 @@ export function useInventory() {
     updateStorage,
     deleteStorage,
     autoArrange,
+    tidy,
     setContainerFill,
     setWeaponModule,
     addItem,

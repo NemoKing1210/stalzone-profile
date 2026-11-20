@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { useProfileData } from '~/stores/profile-data';
+
 const { t } = useI18n();
-const { payload } = useProfile();
+const { payload } = useProfileData();
 
 /** The catalog is empty until the first sync, so gear cannot be added yet. */
 const empty = computed(() => {

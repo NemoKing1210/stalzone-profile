@@ -90,8 +90,8 @@ The `profile://schema` resource provides tool descriptions and the write rules.
 | `update_inventory_item` | `item_id` plus any of `level`, `skin`, `quality`, `rarity_pct`, `rarity_tier`, `note`, `role`, `slot`, `qty`, `display_name`, `container` (or `null` to clear) |
 | `remove_inventory_item` | `item_id`, `qty?`, `dry_run?` |
 | `move_inventory_item` | `item_id`, `target`, `swap?`, `allow_unverified?`, `dry_run?` |
-| `create_storage` | `name`, `kind?` (`stash`), `width?`, `height?`, `max_weight?`, `sort_order?`, `dry_run?` |
-| `update_storage` | `storage_id` plus any of `name`, `width`, `height`, `max_weight`, `sort_order` |
+| `create_storage` | `name`, `kind?` (`stash`), `max_weight?`, `sort_order?`, `dry_run?`; the grid is always 8×200 for a stash and 8×20 for the carried grid |
+| `update_storage` | `storage_id` plus any of `name`, `max_weight`, `sort_order`; the size is fixed |
 | `delete_storage` | `storage_id`, `dry_run?`; the stash is deleted and its items move to intake |
 | `auto_arrange_storage` | `storage_id`, `dry_run?` |
 | `set_container_artifacts` | `container_item_id`, `slots[]` (instance ids or `null`), `dry_run?` |

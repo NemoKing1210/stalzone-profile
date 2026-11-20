@@ -2,6 +2,7 @@
 import type { InventoryItemRead, ModuleSlot } from '@profile/shared/contracts';
 
 import { RankBadge, RarityName } from '~/entities/item';
+import { MODAL_WIDTH } from '~/shared/lib/modalWidth';
 
 import { detailRows } from '../model/details';
 import ContainerPanel from './grid/ContainerPanel.vue';
@@ -141,6 +142,7 @@ function confirmRemove(): void {
     :open="props.open"
     :title="t('items.cardTitle')"
     :description="props.name"
+    :ui="{ content: MODAL_WIDTH.reader }"
     scrollable
     @update:open="(value: boolean) => emit('update:open', value)"
   >
@@ -269,7 +271,11 @@ function confirmRemove(): void {
         </div>
       </div>
 
-      <UModal v-model:open="confirmOpen" :title="t('inventory.removeItemTitle')">
+      <UModal
+        v-model:open="confirmOpen"
+        :title="t('inventory.removeItemTitle')"
+        :ui="{ content: MODAL_WIDTH.narrow }"
+      >
         <template #body>
           <p class="text-[12.5px]">{{ t('inventory.removeItemDesc', { name: props.name }) }}</p>
         </template>

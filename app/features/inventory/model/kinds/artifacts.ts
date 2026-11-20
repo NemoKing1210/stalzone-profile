@@ -104,7 +104,6 @@ export const artifactsKind: InventoryKind<ArtifactRow> = {
     typeLabel: 'filters.type',
     groupBy: 'filters.groupByType',
     modalTitle: 'items.artifactCardTitle',
-    hint: 'artifacts.hint',
     emptyOwned: 'artifacts.emptyDescription',
     emptyCatalog: 'artifacts.emptyDescription',
   },

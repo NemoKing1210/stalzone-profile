@@ -81,9 +81,13 @@ const warningWidth = computed(() =>
 const dangerWidth = computed(() => (capacityStart.value == null ? 0 : Math.max(0, 100 - capacityStart.value)));
 
 const storageWeight = computed(() => rangeOut(props.storage?.weight ?? null));
-const storageMax = computed(() =>
-  props.storage?.maxWeight == null ? '—' : t('inventory.weightValue', { value: g2(props.storage.maxWeight) }),
-);
+/** The stash block has no overload state: the bar is a visual weight gauge, not a limit. */
+const storagePercent = computed(() => {
+  const value = maxOf(props.storage?.weight ?? null);
+  if (value == null || value <= 0) return 0;
+  const ceiling = props.storage?.maxWeight;
+  return ceiling != null && ceiling > 0 ? clampPercent(value, ceiling) : 100;
+});
 </script>
 
 <template>
@@ -202,12 +206,21 @@ const storageMax = computed(() =>
       </div>
     </template>
 
-    <div v-if="storage" class="flex flex-wrap items-baseline justify-between gap-x-3 text-[11px]">
-      <span class="truncate text-[var(--sz-text-muted)]">{{ storageLabel(storage, t) }}</span>
-      <span class="tabular-nums">
-        {{ storageWeight }}
-        <span v-if="storage.maxWeight != null" class="text-[var(--sz-text-dim)]">/ {{ storageMax }}</span>
-      </span>
+    <div v-if="storage" class="space-y-1.5">
+      <div class="flex flex-wrap items-baseline justify-between gap-x-3">
+        <span class="sz-caps text-[var(--sz-text-muted)]">{{ t('inventory.carried') }}</span>
+        <span class="tabular-nums text-[var(--sz-text)]">{{ storageWeight }}</span>
+      </div>
+      <div
+        class="relative h-2 w-full bg-ink-950"
+        role="img"
+        :aria-label="t('inventory.stashWeight', { name: storageLabel(storage, t), value: storageWeight })"
+      >
+        <div
+          class="absolute inset-y-0 left-0 bg-[var(--sz-accent)] transition-[width] duration-150"
+          :style="{ width: `${storagePercent}%` }"
+        />
+      </div>
     </div>
 
     <div v-if="carry?.overweight || carry?.aboveSafe" class="flex flex-wrap gap-1">

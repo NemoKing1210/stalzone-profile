@@ -1,7 +1,8 @@
 # Data model
 
 SQLite in WAL mode is the single source of truth. Working tables are typed columns; JSON
-is allowed only inside `event_log.before/after` (the rollback snapshot). Schema changes go
+is allowed only inside `event_log.before/after` (the rollback snapshot) and the derived
+`event_log.summary` (a display aid that is never read by rollback). Schema changes go
 only through new migrations in `db/migrations/`.
 
 ## Tables
@@ -25,13 +26,13 @@ only through new migrations in `db/migrations/`.
 |---|---|
 | `character` | identity: nick, region, faction, alliance, clan, money |
 | `character_stat` | raw counters per character and stat, with origin `api` or `manual` |
-| `storage` | the character's own grids: exactly one 8×20 `inventory`, exactly one 40×80 `overflow` (the intake stash) and any number of 40×80 `stash` rows, each with a unique normalized name per kind |
+| `storage` | the character's own grids: exactly one 8×20 `inventory`, exactly one 40×80 `overflow` (the intake stash) and any number of 8×200 `stash` rows, each with a unique normalized name per kind; a stash size is fixed after creation |
 | `inventory_item` | one row per gear instance (weapon, armor, container, artifact, attachment, ammo, other) with level, quality, rarity, skin, note and display name; `qty > 1` only for `ammo`/`other` |
 | `item_placement` | where an instance is: `grid` (storage, x, y, rotated), `equipment` (slot), `container` (container instance, slot) or `weapon_module` (weapon instance, module slot); one row per instance. `loose` survives only as a legacy/transient value: it is never a write target, `0008` converts stored rows, and the read model reports any unplaced instance as `loose` |
 | `container_data` | per-container override of type, shield, bonus, protection, slots, efficiency |
 | `attachment_compat` | EXBO/manual attachment ↔ weapon compatibility pairs |
 | `item_layout` | optional catalog-wide grid override: width, height, weight for an `item` |
-| `event_log` | write journal: `before`/`after` snapshots for rollback |
+| `event_log` | write journal: `before`/`after` rollback snapshots plus `request_id`, `origin` and a derived `summary` for reading an entry without guessing |
 
 ### Diagnostics (not profile data)
 
@@ -61,6 +62,14 @@ three STRICT diagnostic tables and seeds the single `log_setting` row.
 8×20, raises stashes still on the old 8×12 default to 40×80, inserts one `Intake` row per
 character and converts every stored `loose` placement into a deterministic intake grid
 cell (one column, cumulative heights) so no origin collides.
+`0009_event_context.sql` adds three nullable `event_log` columns — `request_id` (the HTTP
+`x-request-id`, also stored on `log_entry`), `origin` (`http` for a session write, `api` for
+a bearer-token write; NULL for MCP, CLI and tests) and `summary` (JSON
+`{ kind, fields }` derived from the snapshot pair) — plus an index on `request_id`. Existing
+rows keep NULL context and stay readable; `/api/v1/events` derives the summary for them at
+read time. `0010_stash_grid_dimensions.sql` rebuilds `storage` with a 1..200 height check,
+normalizes the carried grid to 8×20 and every stash to 8×200, and leaves the 40×80 intake
+unchanged.
 
 ## Source authority
 
@@ -133,7 +142,13 @@ owns itself.
 - Reference data is not part of a reset; price pruning is maintenance of the current quote,
   not a user-visible deletion of profile state.
 - `event_log.before/after` are the rollback contract; the format may change only in a
-  backward-compatible way, with a rollback test.
+  backward-compatible way, with a rollback test. `request_id`, `origin` and `summary` are
+  reading aids beside the snapshots: `summary.kind`/`fields` are derived from the same
+  values (top-level fields that differ, capped at 20), never replace `before`/`after`, and
+  a journal snapshot still restores rows written before `0009` with NULL context.
+  Grouping comes from `entity` and the action prefix, so no stored group/severity column
+  duplicates it; every HTTP write is owner-authorized, so there is no honest severity to
+  store.
 
 ## Diagnostic log
 
@@ -166,8 +181,8 @@ Each writes one `event_log` row and stores what it removed in `before`:
   container data and item layouts). The character is recreated with its original id and
   timestamps on rollback, and the inventory rows come back under their original ids.
 - `inventory.clear` deletes every storage, instance and placement and recreates the default
-  8×8 inventory storage; its `before` snapshot holds the raw rows, so rollback restores the
-  exact previous state, including the old storage ids.
+  8×20 carried grid (and the intake on demand); its `before` snapshot holds the raw rows, so
+  rollback restores the exact previous state, including the old storage ids.
 - `journal.clear` snapshots every event row with its id and raw `before`/`after` strings;
   rollback replaces the journal with that snapshot. A snapshot over 20,000 rows or 32 MiB
   is refused with `413 JOURNAL_TOO_LARGE` before it is allocated, so the operation cannot

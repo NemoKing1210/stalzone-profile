@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { InventoryItemRead } from '@profile/shared/contracts';
+import type { InventoryItemRead, WriteResult } from '@profile/shared/contracts';
 import type { ContainerFillTarget } from '~/shared/types/profile';
-import type { WriteResult } from '~/shared/composables/useWrite';
+import { MODAL_WIDTH } from '~/shared/lib/modalWidth';
 
 import ContainerPanel from './grid/ContainerPanel.vue';
 
@@ -37,6 +37,7 @@ async function submit(slots: (number | null)[]): Promise<void> {
     v-model:open="open"
     :title="t('forms.fillTitle')"
     :description="props.target?.container.name"
+    :ui="{ content: MODAL_WIDTH.form }"
     scrollable
   >
     <template #body>

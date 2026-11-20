@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { useMutation, useQuery } from '@pinia/colada';
 import { factionSelectItems, factionValue, NO_FACTION, type FactionChoice } from '~/shared/lib/factions';
+import { QUERY_KEYS } from '~/stores/keys';
 import {
   catalogProgress,
   catalogSources,
@@ -41,8 +43,20 @@ const { message: apiMessage } = useApiError();
 
 useHead(() => ({ title: `${t('setup.pageTitle')} // ${t('common.appName')}` }));
 
-const { data: setup, refresh: refreshSetup } = await useFetch<SetupResponse>('/api/v1/setup', {
-  key: 'setup-state',
+const request = useRequestFetch();
+const setupQuery = useQuery({
+  key: QUERY_KEYS.setup,
+  query: () => request<SetupResponse>('/api/v1/setup'),
+});
+if (import.meta.server) await setupQuery.refetch();
+const setup = setupQuery.data;
+const refreshSetup = setupQuery.refetch;
+const syncRun = useMutation({
+  mutation: (source: string) =>
+    $fetch<{ results: SyncResult[] }>('/api/v1/admin/sync', {
+      method: 'POST',
+      body: { source },
+    }),
 });
 
 // A create makes the state say "set up" too; the wizard must stay open for steps 2–3.
@@ -103,6 +117,7 @@ const regionItems = computed(() =>
 );
 
 const factionItems = computed(() => factionSelectItems(t));
+const selectedFaction = computed(() => factionItems.value.find((item) => item.value === form.faction) ?? null);
 
 async function createCharacter(): Promise<void> {
   if (creating.value || !form.nick.trim()) return;
@@ -130,10 +145,7 @@ async function syncSource(source: CatalogSourceId): Promise<void> {
   if (results[source]?.status === 'running') return;
   results[source] = { status: 'running' };
   try {
-    const response = await $fetch<{ results: SyncResult[] }>('/api/v1/admin/sync', {
-      method: 'POST',
-      body: { source },
-    });
+    const response = await syncRun.mutateAsync(source);
     const result = response.results[0];
     if (result?.status === 'ok') results[source] = { status: 'ok', items: result.items };
     else results[source] = { status: 'stale', error: apiMessage(result?.error, result?.error) };
@@ -152,10 +164,7 @@ async function downloadRecommended(): Promise<void> {
 async function syncProfile(): Promise<void> {
   profileResult.value = { status: 'running' };
   try {
-    const response = await $fetch<{ results: SyncResult[] }>('/api/v1/admin/sync', {
-      method: 'POST',
-      body: { source: 'profile' },
-    });
+    const response = await syncRun.mutateAsync('profile');
     const result = response.results[0];
     if (result?.status === 'ok') profileResult.value = { status: 'ok', items: result.items };
     else profileResult.value = { status: 'stale', error: apiMessage(result?.error, result?.error) };
@@ -205,7 +214,26 @@ async function syncProfile(): Promise<void> {
             <USelect v-model="form.region" :items="regionItems" class="w-full" />
           </UFormField>
           <UFormField :label="t('setup.faction')" name="faction">
-            <USelect v-model="form.faction" :items="factionItems" class="w-full" />
+            <USelect v-model="form.faction" :items="factionItems" class="w-full">
+              <template #leading>
+                <img
+                  v-if="selectedFaction?.emblem"
+                  :src="selectedFaction.emblem"
+                  :alt="selectedFaction.label"
+                  width="18"
+                  height="18"
+                  class="size-[18px] shrink-0 object-contain">
+              </template>
+              <template #item-leading="{ item }">
+                <img
+                  v-if="item.emblem"
+                  :src="item.emblem"
+                  alt=""
+                  width="18"
+                  height="18"
+                  class="size-[18px] shrink-0 object-contain">
+              </template>
+            </USelect>
           </UFormField>
           <UButton
             type="submit"

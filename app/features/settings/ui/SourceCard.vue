@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { SourceDiagnostic } from '@profile/shared/contracts';
 import { ProfilePane } from '~/shared/ui';
-import { minutesSince, sourceKey } from '../model/sources';
+import { minutesSince, recordMetricKey, sourceFreshness, sourceJumpPath, sourceKey } from '../model/sources';
 
 const props = defineProps<{
   source: SourceDiagnostic;
@@ -43,14 +43,40 @@ function ageValue(iso: string | null): string {
 }
 
 const commitShort = computed(() => (props.source.commit ? props.source.commit.slice(0, 8) : null));
-const showsRecords = computed(() => ['scpmodel', 'icons', 'profile'].includes(props.source.id));
+const freshness = computed(() => sourceFreshness(props.source.lastOkAt, props.now));
+const freshnessClass: Record<string, string> = {
+  fresh: 'text-[var(--sz-success-text)]',
+  ageing: 'text-[var(--sz-warning-text)]',
+  stale: 'text-[var(--sz-danger-text)]',
+  never: 'text-[var(--sz-text-dim)]',
+};
+const freshnessColor: Record<string, string> = {
+  fresh: 'var(--sz-success)',
+  ageing: 'var(--sz-warning)',
+  stale: 'var(--sz-danger)',
+  never: 'var(--sz-border-strong)',
+};
 const recordsValue = computed(() =>
   props.source.records == null ? t('settings.sources.recordsNone') : num(props.source.records),
+);
+const metricLabel = computed(() => {
+  const key = recordMetricKey(props.source.recordMetric);
+  return key ? t(key) : t('settings.sources.records');
+});
+const jumpPath = computed(() => sourceJumpPath(props.source.id));
+const updatedLabel = computed(() =>
+  props.source.lastOkAt == null
+    ? t('settings.sources.never')
+    : t('settings.sources.updatedAgo', { age: ageValue(props.source.lastOkAt) }),
 );
 </script>
 
 <template>
-  <ProfilePane :label="title">
+  <ProfilePane
+    :label="title"
+    class="border-l-2"
+    :style="{ borderLeftColor: freshnessColor[freshness] }"
+  >
     <template #header>
       <div class="flex min-w-0 flex-wrap items-center gap-1.5">
         <h2 class="sz-caps truncate text-[var(--sz-text)]">{{ title }}</h2>
@@ -64,6 +90,13 @@ const recordsValue = computed(() =>
           :class="statusClass[source.status] ?? statusClass.idle"
         >
           {{ statusLabel }}
+        </span>
+        <span
+          class="text-[11px] leading-none"
+          :class="freshnessClass[freshness]"
+          :title="t(`settings.sources.freshness.${freshness}`)"
+        >
+          {{ updatedLabel }}
         </span>
       </div>
     </template>
@@ -81,6 +114,15 @@ const recordsValue = computed(() =>
         :title="disabledHint ?? undefined"
         @click="emit('sync')"
       />
+      <UButton
+        :to="jumpPath"
+        icon="i-lucide-arrow-up-right"
+        color="neutral"
+        variant="ghost"
+        size="xs"
+        :aria-label="t('settings.sources.openData')"
+        :title="t('settings.sources.openData')"
+      />
     </template>
 
     <p class="text-[12.5px] leading-relaxed">{{ description }}</p>
@@ -96,8 +138,8 @@ const recordsValue = computed(() =>
       <dt class="sz-caps text-[11px] text-[var(--sz-text-muted)]">{{ t('settings.sources.lastTry') }}</dt>
       <dd :title="source.lastTryAt ? formatDate(source.lastTryAt) : undefined">{{ ageValue(source.lastTryAt) }}</dd>
 
-      <template v-if="showsRecords">
-        <dt class="sz-caps text-[11px] text-[var(--sz-text-muted)]">{{ t('settings.sources.records') }}</dt>
+      <template v-if="source.records != null">
+        <dt class="sz-caps text-[11px] text-[var(--sz-text-muted)]">{{ metricLabel }}</dt>
         <dd class="tabular-nums">{{ recordsValue }}</dd>
       </template>
 

@@ -11,10 +11,13 @@ const htmlLang = computed(
 );
 
 useHead(() => ({ htmlAttrs: { lang: htmlLang.value } }));
+
+/** Theme and appearance choices load after hydration; the inline script prevents a flash. */
+const { toasterProps } = useAppearance();
 </script>
 
 <template>
-  <UApp>
+  <UApp :toaster="toasterProps">
     <BootSplash />
     <NuxtLayout>
       <NuxtPage />

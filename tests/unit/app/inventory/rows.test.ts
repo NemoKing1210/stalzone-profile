@@ -77,15 +77,39 @@ const inventory: InventoryRead = {
 };
 
 describe('inventory row mapping', () => {
-  it('maps an owned instance without inventing card numbers', () => {
-    const rows = weaponsKind.toRows({ inventory, details: {} } as never);
+  it('reads current and +15 numbers from the payload for an owned instance', () => {
+    const rows = weaponsKind.toRows({
+      inventory,
+      details: {},
+      weapons: [
+        {
+          instanceId: 7,
+          name: 'AK',
+          lvl: 15,
+          dmg: 4,
+          dmg15: 8,
+          dps: 20,
+          dps15: 40,
+          ttk: 2,
+          ttk15: 1,
+          rof: 600,
+          mag: 30,
+          caliber: '5.45',
+          type: 'rifle',
+        },
+      ],
+    } as never);
     expect(rows[0]).toMatchObject({
       name: 'AK',
       instanceId: 7,
       qty: 2,
       lvl: 15,
-      dps: null,
-      dmg: null,
+      dmg: 4,
+      dmg15: 8,
+      dps: 20,
+      dps15: 40,
+      ttk: 2,
+      ttk15: 1,
       storageId: 1,
       storageName: 'Inventory',
     });
@@ -102,6 +126,14 @@ describe('inventory row mapping', () => {
       catalog: { weapons: [{ name: 'M4', dps15: 100, dmg15: 10, rank: 'rare', type: 'rifle' }] },
     } as never;
     const rows = weaponsKind.toRows(payload, 'catalog');
-    expect(rows[0]).toMatchObject({ name: 'M4', instanceId: null, lvl: null, dps: 100, dmg: 10 });
+    expect(rows[0]).toMatchObject({
+      name: 'M4',
+      instanceId: null,
+      lvl: null,
+      dps: null,
+      dps15: 100,
+      dmg: null,
+      dmg15: 10,
+    });
   });
 });

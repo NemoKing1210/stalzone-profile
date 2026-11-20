@@ -592,6 +592,9 @@ Settings gains an **Appearance** pane (first pane in Settings):
   "Default" tag on the green option. Selected: 2px accent ring + check icon.
 - Changes apply immediately; no Save button, no page reload.
 - A small "Reset to game default" action returns to green.
+- The selected segment of any segmented control (owned/catalog, grid/list, equipment/stash)
+  uses the accent fill and `--sz-on-accent` text, never the neutral solid variant. A new
+  toggle must not invent a second selected style.
 
 Presets:
 
@@ -776,6 +779,11 @@ A three-pane instrument. The page title is the nick; faction, clan and realm sit
   second formatting path. `formatDate` gains one documented fallback: a non-ISO stored value
   is returned trimmed instead of `—`, with a unit test.
 - `docs/I18N.md` gets a short note about the appearance setting and its keys.
+- No instructional copy for self-evident interactions. Do not explain that a row opens a
+  card, a card has a context menu, or a field is a field. A hint stays only when it carries a
+  fact the screen does not already show or prevents data loss (the intake rule, a destructive
+  confirmation, an unknown compatibility). If removing the sentence loses no information the
+  owner cannot see, remove it.
 
 ## 10. Accessibility
 

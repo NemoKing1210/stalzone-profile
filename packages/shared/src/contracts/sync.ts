@@ -47,6 +47,17 @@ export const SyncBundleStateSchema = z.object({
   reason: SyncBundleReasonSchema.nullable(),
 });
 
+export const SourceRecordMetricSchema = z.enum([
+  'catalog_items',
+  'stat_rows',
+  'motif_items',
+  'price_quotes',
+  'icons',
+  'character_stats',
+  'inventory_items',
+]);
+export type SourceRecordMetric = z.infer<typeof SourceRecordMetricSchema>;
+
 export const SourceDiagnosticSchema = z.object({
   id: z.string(),
   kind: z.string(),
@@ -58,6 +69,8 @@ export const SourceDiagnosticSchema = z.object({
   commit: z.string().nullable(),
   commitDate: z.string().nullable(),
   records: z.number().int().nullable(),
+  /** Names what `records` counts, so a count is never mistaken for bytes. */
+  recordMetric: SourceRecordMetricSchema.nullable(),
 });
 
 export const SyncDiagnosticsSchema = z.object({

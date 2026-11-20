@@ -1,9 +1,10 @@
 import { norm } from '@profile/shared';
+import { INVENTORY_GRID_HEIGHT, INVENTORY_GRID_WIDTH, STASH_GRID_HEIGHT } from '@profile/shared/contracts';
 import type { StorageCreate, StorageKind, StoragePatch } from '@profile/shared/contracts';
 import type { Db } from '../../../platform/db/index.js';
 import { logEvent, withTransaction, WriteError, type WriteResult } from '../../../platform/journal/index.js';
 import { characterOrThrow } from '../../identity/index.js';
-import { fits, itemRect, resolveSize, type Size } from '../layout/index.js';
+import { resolveSize, type Size } from '../layout/index.js';
 import * as repo from '../repo/index.js';
 import { ensureOverflowStorage, packIntoOverflow } from './overflow.js';
 import { placementSnapshot } from './snapshot.js';
@@ -48,8 +49,8 @@ export function ensureInventoryStorage(db: Db, characterId: number): number {
     characterId,
     kind: 'inventory',
     name: 'Inventory',
-    width: 8,
-    height: 20,
+    width: INVENTORY_GRID_WIDTH,
+    height: INVENTORY_GRID_HEIGHT,
   });
 }
 
@@ -62,17 +63,19 @@ export function createStorage(db: Db, input: StorageCreate): WriteResult {
   }
   assertNameFree(db, character.id, input.kind, input.name);
 
+  const width = INVENTORY_GRID_WIDTH;
+  const height = input.kind === 'inventory' ? INVENTORY_GRID_HEIGHT : STASH_GRID_HEIGHT;
   const after: Record<string, unknown> = {
     id: null,
     characterId: character.id,
     kind: input.kind,
     name: input.name,
-    width: input.width,
-    height: input.height,
+    width,
+    height,
     maxWeight: input.maxWeight ?? null,
     sortOrder: input.sortOrder ?? 0,
   };
-  const human = `Created ${input.kind === 'inventory' ? 'inventory' : 'stash'} "${input.name}" (${input.width}×${input.height})`;
+  const human = `Created ${input.kind === 'inventory' ? 'inventory' : 'stash'} "${input.name}" (${width}×${height})`;
   if (input.dryRun) return { dryRun: true, diff: { before: null, after, human } };
 
   let eventId: number | undefined;
@@ -81,8 +84,8 @@ export function createStorage(db: Db, input: StorageCreate): WriteResult {
       characterId: character.id,
       kind: input.kind,
       name: input.name,
-      width: input.width,
-      height: input.height,
+      width,
+      height,
       maxWeight: input.maxWeight ?? null,
       sortOrder: input.sortOrder ?? 0,
     });
@@ -108,33 +111,13 @@ export function updateStorage(db: Db, id: number, patch: StoragePatch): WriteRes
 
   const merged = {
     name: patch.name ?? row.name,
-    width: patch.width ?? row.width,
-    height: patch.height ?? row.height,
+    width: row.width,
+    height: row.height,
     maxWeight: patch.maxWeight !== undefined ? patch.maxWeight : row.max_weight,
     sortOrder: patch.sortOrder ?? row.sort_order,
   };
   if (patch.name !== undefined && norm(patch.name) !== row.name_norm) {
     assertNameFree(db, row.character_id, row.kind, patch.name, id);
-  }
-
-  if (merged.width < row.width || merged.height < row.height) {
-    const grid = { width: merged.width, height: merged.height };
-    const offenders: number[] = [];
-    for (const placement of repo.listStoragePlacements(db, id)) {
-      if (placement.x == null || placement.y == null) continue;
-      const rect = itemRect(
-        placement.x,
-        placement.y,
-        placementSize(db, placement),
-        placement.rotated === 1,
-      );
-      if (!fits(grid, rect)) offenders.push(placement.item_id);
-    }
-    if (offenders.length) {
-      throw new WriteError(409, 'STORAGE_TOO_SMALL', 'Items do not fit the new storage size', {
-        itemIds: offenders,
-      });
-    }
   }
 
   const before = storageSnapshot(row);

@@ -104,11 +104,14 @@ export const PlacementTargetSchema = z.discriminatedUnion('location', [
 ]);
 export type PlacementTarget = z.infer<typeof PlacementTargetSchema>;
 
+/**
+ * Dimensions are not part of the public contract: every carried grid and stash is
+ * 8 cells wide, and a created stash is always 8×200. Unknown width/height keys are
+ * stripped, so an older client cannot choose a size.
+ */
 export const StorageCreateSchema = WriteOptionsSchema.extend({
   kind: WritableStorageKindSchema.default('stash'),
   name: z.string().trim().min(1).max(200),
-  width: z.number().int().min(1).max(40),
-  height: z.number().int().min(1).max(80),
   maxWeight: z.number().positive().nullish(),
   sortOrder: z.number().int().optional(),
 });
@@ -116,14 +119,21 @@ export type StorageCreate = z.infer<typeof StorageCreateSchema>;
 
 export const StoragePatchSchema = WriteOptionsSchema.extend({
   name: z.string().trim().min(1).max(200).optional(),
-  width: z.number().int().min(1).max(40).optional(),
-  height: z.number().int().min(1).max(80).optional(),
   maxWeight: z.number().positive().nullish(),
   sortOrder: z.number().int().optional(),
 }).refine((value) => Object.keys(value).some((key) => key !== 'dryRun'), {
   message: 'At least one field must be changed',
 });
 export type StoragePatch = z.infer<typeof StoragePatchSchema>;
+
+export const TidyOrderSchema = z.enum(['kind', 'name', 'rank', 'footprint']);
+export type TidyOrder = z.infer<typeof TidyOrderSchema>;
+
+/** Explicit tidy-up: packs the visible items of one storage by the chosen order. */
+export const TidyStorageSchema = WriteOptionsSchema.extend({
+  order: TidyOrderSchema.default('kind'),
+});
+export type TidyStorage = z.infer<typeof TidyStorageSchema>;
 
 export const DeleteStorageSchema = WriteOptionsSchema;
 export type DeleteStorage = z.infer<typeof DeleteStorageSchema>;
@@ -300,8 +310,6 @@ export type MoveInventoryItemInput = z.infer<typeof MoveInventoryItemInputSchema
 export const CreateStorageInputSchema = McpWriteOptionsSchema.extend({
   kind: WritableStorageKindSchema.default('stash'),
   name: z.string().trim().min(1).max(200),
-  width: z.number().int().min(1).max(40).default(8),
-  height: z.number().int().min(1).max(80).default(12),
   max_weight: z.number().positive().nullish(),
   sort_order: z.number().int().optional(),
 });
@@ -310,8 +318,6 @@ export type CreateStorageInput = z.infer<typeof CreateStorageInputSchema>;
 export const UpdateStorageInputSchema = McpWriteOptionsSchema.extend({
   storage_id: z.number().int().positive(),
   name: z.string().trim().min(1).max(200).optional(),
-  width: z.number().int().min(1).max(40).optional(),
-  height: z.number().int().min(1).max(80).optional(),
   max_weight: z.number().positive().nullish(),
   sort_order: z.number().int().optional(),
 }).refine((value) => Object.keys(value).some((key) => !['storage_id', 'dry_run', 'confirm'].includes(key)), {

@@ -283,8 +283,6 @@ function itemPatch(args: UpdateInventoryItemInput, dryRun: boolean): InventoryIt
 function storagePatch(args: UpdateStorageInput, dryRun: boolean): StoragePatch {
   const patch: StoragePatch = { dryRun };
   if (args.name !== undefined) patch.name = args.name;
-  if (args.width !== undefined) patch.width = args.width;
-  if (args.height !== undefined) patch.height = args.height;
   if (args.max_weight !== undefined) patch.maxWeight = args.max_weight;
   if (args.sort_order !== undefined) patch.sortOrder = args.sort_order;
   return patch;
@@ -613,16 +611,12 @@ export function createProfileServer(
     const args = raw as unknown as {
       kind: 'inventory' | 'stash';
       name: string;
-      width: number;
-      height: number;
       max_weight?: number | null;
       sort_order?: number;
     };
     return client.createStorage({
       kind: args.kind,
       name: args.name,
-      width: args.width,
-      height: args.height,
       maxWeight: args.max_weight ?? null,
       sortOrder: args.sort_order,
       dryRun,

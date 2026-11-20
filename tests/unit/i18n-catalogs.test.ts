@@ -54,6 +54,24 @@ describe('i18n catalogs', () => {
     }
   });
 
+  it('has no instructional copy for self-evident interactions', () => {
+    for (const key of [
+      'weapons.hint',
+      'armor.hint',
+      'artifacts.hint',
+      'inventory.menuHint',
+      'inventory.resizeHint',
+      'forms.layoutHint',
+    ]) {
+      expect(en[key], key).toBeUndefined();
+      expect(ru[key], key).toBeUndefined();
+    }
+    for (const key of ['inventory.overflowHint', 'inventory.fixedSizeHint', 'inventory.compatHint']) {
+      expect(en[key], key).toBeTruthy();
+      expect(ru[key], key).toBeTruthy();
+    }
+  });
+
   it('contains the base keys the shell depends on', () => {
     for (const key of ['common.language', 'nav.weapons', 'errors.UNAUTHORIZED']) {
       expect(en[key]).toBeTruthy();

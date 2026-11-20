@@ -1,14 +1,6 @@
 import { ALL_RANKS } from '~/entities/item/model/rankOptions';
-import { findDetailsCard } from '~/entities/item/model/details';
 
-import {
-  buildInventoryIndex,
-  cardText,
-  cardValue,
-  locationOf,
-  type InstanceLocationRow,
-  type InstanceRow,
-} from '../instances';
+import { buildInventoryIndex, locationOf, type InstanceLocationRow, type InstanceRow } from '../instances';
 import type { InventoryColumn, InventoryKind } from '../types';
 
 export interface ArmorRow extends InstanceRow, InstanceLocationRow {
@@ -73,7 +65,7 @@ export const armorKind: InventoryKind<ArmorRow> = {
         rank: entry.rank ?? null,
         cls: entry.cls ?? null,
         lvl: null,
-        armor: entry.armor15 ?? null,
+        armor: null,
         armor15: entry.armor15 ?? null,
         weight: entry.weight ?? null,
         icon: entry.icon ?? null,
@@ -81,10 +73,15 @@ export const armorKind: InventoryKind<ArmorRow> = {
     }
 
     const index = buildInventoryIndex(payload.inventory);
+    const computed = new Map(
+      (payload.armor ?? [])
+        .filter((row): row is typeof row & { instanceId: number } => row.instanceId != null)
+        .map((row) => [row.instanceId, row]),
+    );
     return index.items
       .filter((item) => item.kind === 'armor')
       .map((item) => {
-        const card = findDetailsCard(payload.details, 'a', item.name);
+        const row = computed.get(item.id);
         return {
           key: `instance-${item.id}`,
           instanceId: item.id,
@@ -98,10 +95,10 @@ export const armorKind: InventoryKind<ArmorRow> = {
           note: item.note,
           name: item.displayName ?? item.name,
           rank: item.rank,
-          cls: cardText(card, 'cls') ?? item.category,
+          cls: row?.cls ?? item.category,
           lvl: item.level,
-          armor: cardValue(card, 'armor15') ?? cardValue(card, 'armor'),
-          armor15: cardValue(card, 'armor15'),
+          armor: row?.prot?.bullet ?? null,
+          armor15: row?.prot?.bullet15 ?? null,
           weight: item.weight,
           icon: item.icon,
         };
@@ -124,22 +121,36 @@ export const armorKind: InventoryKind<ArmorRow> = {
       });
       columns.push({ key: 'location', label: 'table.location' });
     }
-    columns.push({
-      key: 'armor',
-      label: 'table.armor',
-      sortable: true,
-      align: 'right',
-      strong: true,
-      cell: (row, fmt) => (row.armor == null ? '—' : fmt.g1(row.armor)),
-    });
-    if (!catalog) {
+    if (catalog) {
       columns.push({
         key: 'armor15',
-        label: '+15',
+        label: 'table.armor15',
         sortable: true,
         align: 'right',
+        strong: true,
         cell: (row, fmt) => (row.armor15 == null ? '—' : fmt.g1(row.armor15)),
+        bar: (row, fmt) => fmt.bar?.('armor15', row.key) ?? null,
       });
+    } else {
+      columns.push(
+        {
+          key: 'armor',
+          label: 'table.armor',
+          sortable: true,
+          align: 'right',
+          strong: true,
+          cell: (row, fmt) => (row.armor == null ? '—' : fmt.g1(row.armor)),
+          bar: (row, fmt) => fmt.bar?.('armor', row.key) ?? null,
+        },
+        {
+          key: 'armor15',
+          label: 'table.armor15',
+          sortable: true,
+          align: 'right',
+          cell: (row, fmt) => (row.armor15 == null ? '—' : fmt.g1(row.armor15)),
+          bar: (row, fmt) => fmt.bar?.('armor15', row.key) ?? null,
+        },
+      );
     }
     columns.push({
       key: 'weight',
@@ -153,7 +164,7 @@ export const armorKind: InventoryKind<ArmorRow> = {
 
   sortOptions: [
     { value: 'armor', label: 'table.armor' },
-    { value: 'armor15', label: '+15' },
+    { value: 'armor15', label: 'table.armor15' },
     { value: 'weight', label: 'table.weight' },
     { value: 'name', label: 'table.name' },
     { value: 'lvl', label: 'table.level' },
@@ -169,7 +180,6 @@ export const armorKind: InventoryKind<ArmorRow> = {
     typeLabel: 'table.class',
     groupBy: 'filters.groupByClass',
     modalTitle: 'items.cardTitle',
-    hint: 'armor.hint',
     emptyOwned: 'armor.emptyOwned',
     emptyCatalog: 'armor.emptyCatalog',
   },

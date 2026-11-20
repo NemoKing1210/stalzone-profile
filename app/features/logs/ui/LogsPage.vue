@@ -1,12 +1,8 @@
 <script setup lang="ts">
-import type {
-  LogEntry,
-  LogGroup,
-  LogQueryResult,
-  LogStats,
-  WriteResult,
-} from '@profile/shared/contracts';
+import type { LogEntry, LogGroup, WriteResult } from '@profile/shared/contracts';
+import { useLogsStore } from '~/stores/logs';
 import { ProfilePane } from '~/shared/ui';
+import { MODAL_WIDTH } from '~/shared/lib/modalWidth';
 import {
   EMPTY_LOG_FILTERS,
   filtersToRouteQuery,
@@ -18,6 +14,7 @@ import {
 const { t } = useI18n();
 const { formatDate } = useFormat();
 const { write, busy } = useWrite();
+const logs = useLogsStore();
 const route = useRoute();
 const router = useRouter();
 
@@ -30,7 +27,7 @@ const hasMore = ref(false);
 const nextBefore = ref<number | null>(null);
 const loading = ref(false);
 const error = ref(false);
-const stats = ref<LogStats | null>(null);
+const stats = computed(() => logs.stats ?? null);
 const autoRefresh = ref(true);
 
 const selected = ref<LogEntry | null>(null);
@@ -113,7 +110,7 @@ async function load(reset = true): Promise<void> {
     error.value = false;
   }
   try {
-    const page = await $fetch<LogQueryResult>('/api/v1/logs', {
+    const page = await logs.loadPage({
       query: {
         ...toLogQuery(filters.value),
         ...(reset || nextBefore.value == null ? {} : { before: nextBefore.value }),
@@ -138,11 +135,7 @@ async function load(reset = true): Promise<void> {
 }
 
 async function loadStats(): Promise<void> {
-  try {
-    stats.value = await $fetch<LogStats>('/api/v1/logs/stats');
-  } catch {
-    stats.value = null;
-  }
+  await logs.loadStats();
 }
 
 function refreshAll(): void {
@@ -203,10 +196,7 @@ async function previewPurge(): Promise<void> {
   const token = ++purgeRequest;
   try {
     // The preview is a quiet read of the write diff: no toast and no shared busy flag.
-    const preview = await $fetch<WriteResult>('/api/v1/logs', {
-      method: 'DELETE',
-      body: { ...purgeBody.value, dryRun: true },
-    });
+    const preview = await logs.previewPurge(purgeBody.value);
     if (token === purgeRequest) purgePreview.value = preview;
   } catch {
     if (token === purgeRequest) purgePreview.value = null;
@@ -383,6 +373,7 @@ async function confirmPurge(): Promise<void> {
   <UModal
     v-model:open="detailOpen"
     :title="selected ? `${selected.level} · ${selected.category}` : ''"
+    :ui="{ content: MODAL_WIDTH.reader }"
     scrollable
   >
     <template #body>
@@ -416,7 +407,12 @@ async function confirmPurge(): Promise<void> {
     </template>
   </UModal>
 
-  <UModal v-model:open="purgeOpen" :title="t('logs.purge.title')" :description="t('logs.purge.text')">
+  <UModal
+    v-model:open="purgeOpen"
+    :title="t('logs.purge.title')"
+    :description="t('logs.purge.text')"
+    :ui="{ content: MODAL_WIDTH.form }"
+  >
     <template #body>
       <div class="space-y-3 text-[12.5px]">
         <USelect v-model="purgeScope" :items="scopeItems" :disabled="!canFilterPurge" class="w-full" />

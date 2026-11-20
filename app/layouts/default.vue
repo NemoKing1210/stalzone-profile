@@ -1,129 +1,115 @@
 <script setup lang="ts">
-import { FreshnessBadge } from '~/entities/source';
-import { ZoneRadio } from '~/features/radio';
+import SiteNav from './SiteNav.vue';
+import { useProfileData } from '~/stores/profile-data';
 
 const { t } = useI18n();
+const profile = useProfileData();
+// The layout is the SSR boundary for every authenticated page: resolve the payload
+// before the child screens render, so the first HTML already carries their rows.
+if (import.meta.server) await profile.refresh();
+const route = useRoute();
 
-const sections = computed(() => [
-  { label: t('nav.overview'), icon: 'i-lucide-house', to: '/' },
-  { label: t('nav.inventory'), icon: 'i-lucide-package', to: '/inventory' },
-  { label: t('nav.weapons'), icon: 'i-lucide-crosshair', to: '/weapons' },
-  { label: t('nav.armor'), icon: 'i-lucide-shield', to: '/armor' },
-  { label: t('nav.containers'), icon: 'i-lucide-backpack', to: '/containers' },
-  { label: t('nav.artifacts'), icon: 'i-lucide-gem', to: '/artifacts' },
-  { label: t('nav.changelog'), icon: 'i-lucide-scroll-text', to: '/changelog' },
-  { label: t('nav.guide'), icon: 'i-lucide-map', to: '/guide' },
-]);
+/** Desktop rail width; the drawer reuses the same panel on narrow screens. */
+const COLLAPSED_WIDTH = '4rem';
+const EXPANDED_WIDTH = '15rem';
+const NAV_STORAGE_KEY = 'profile.nav-collapsed';
 
-const navItems = computed(() =>
-  sections.value.map((section) => ({
-    label: section.label,
-    icon: section.icon,
-    to: section.to,
-  })),
+const collapsed = ref(false);
+const mobileOpen = ref(false);
+
+onMounted(() => {
+  try {
+    collapsed.value = localStorage.getItem(NAV_STORAGE_KEY) === '1';
+  } catch {
+    /* storage unavailable: keep the rail expanded */
+  }
+  window.addEventListener('keydown', onKeydown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeydown);
+});
+
+watch(
+  () => route.fullPath,
+  () => {
+    mobileOpen.value = false;
+  },
 );
 
-const route = useRoute();
-const { meta, payload } = useProfile();
-const { fmtMoney } = useFormat();
-/** `null` means the profile has no character or the money is unknown; the header shows nothing. */
-const money = computed(() => payload.value?.character?.money ?? null);
-const loggingOut = ref(false);
+function onKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape' && mobileOpen.value) mobileOpen.value = false;
+}
 
-async function logout(): Promise<void> {
-  if (loggingOut.value) return;
-  loggingOut.value = true;
+function toggleCollapse(): void {
+  collapsed.value = !collapsed.value;
   try {
-    await $fetch('/api/auth/logout', { method: 'POST' });
+    localStorage.setItem(NAV_STORAGE_KEY, collapsed.value ? '1' : '0');
   } catch {
-    /* the cookie may already be gone; leave for /login either way */
-  } finally {
-    loggingOut.value = false;
-    await navigateTo('/login', { external: true });
+    /* the choice still applies for this page */
   }
 }
+
+const sideWidth = computed(() => (collapsed.value ? COLLAPSED_WIDTH : EXPANDED_WIDTH));
 </script>
 
 <template>
-  <div class="sz-atmosphere flex min-h-screen flex-col text-[var(--sz-text)]">
-    <header class="sticky top-0 z-40 border-b border-[var(--sz-border)] bg-ink-950">
-      <div
-        class="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-4 px-4 sm:px-6 min-[1360px]:grid min-[1360px]:grid-cols-[minmax(0,1fr)_minmax(0,max-content)_auto]"
-      >
-        <NuxtLink to="/" class="flex h-12 shrink-0 items-center gap-1.5 min-[1360px]:justify-self-start">
-          <span class="font-brand text-[17px] leading-none tracking-[0.12em]">{{ t('common.brandLeft') }}</span>
-          <span class="hidden text-[17px] leading-none text-[var(--sz-accent)] sm:inline">//</span>
-          <span class="hidden font-brand text-[17px] leading-none tracking-[0.12em] sm:inline">{{ t('common.brandRight') }}</span>
-        </NuxtLink>
+  <div class="sz-atmosphere min-h-screen text-[var(--sz-text)]">
+    <aside
+      class="fixed inset-y-0 left-0 z-40 hidden border-r border-[var(--sz-border)] lg:block"
+      :style="{ width: sideWidth }"
+    >
+      <SiteNav
+        :collapsed="collapsed"
+        @toggle-collapse="toggleCollapse"
+      />
+    </aside>
 
-        <div
-          class="sz-nav order-3 w-full min-w-0 overflow-x-auto min-[1360px]:order-none min-[1360px]:w-auto min-[1360px]:justify-self-center"
-        >
-          <UNavigationMenu
-            :items="navItems"
-            orientation="horizontal"
-            class="min-w-max"
-            :ui="{
-              list: 'h-full gap-0',
-              item: 'py-0',
-              link: 'gap-1 rounded-none px-2 py-0 text-[var(--sz-text-muted)] hover:text-[var(--sz-text)]',
-              linkLeadingIcon: 'size-4',
-            }"
-          />
-        </div>
-
-        <div class="ml-auto flex items-center gap-1 min-[1360px]:ml-0 min-[1360px]:justify-self-end">
-          <span
-            v-if="money != null"
-            class="inline-flex items-center gap-1 whitespace-nowrap px-1 text-[12px] tabular-nums text-[var(--sz-money)]"
-            :title="t('overview.stats.money')"
-          >
-            <span class="sr-only">{{ t('overview.stats.money') }}</span>
-            <UIcon name="i-lucide-wallet" class="size-3.5" aria-hidden="true" />
-            {{ fmtMoney(money) }}
-          </span>
-          <FreshnessBadge
-            :data-updated="meta?.freshness?.dataUpdated"
-            :prices-age-min="meta?.freshness?.pricesAgeMin"
-          />
-          <LocaleSwitcher />
-          <UButton
-            :to="'/settings'"
-            icon="i-lucide-settings"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            :aria-label="t('nav.settings')"
-          />
-          <UButton
-            to="/logs"
-            icon="i-lucide-bug"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            :aria-label="t('nav.logs')"
-          />
-          <UButton
-            icon="i-lucide-log-out"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            :aria-label="t('nav.logout')"
-            :loading="loggingOut"
-            @click="logout"
-          />
-        </div>
-      </div>
+    <header
+      class="sticky top-0 z-30 flex h-12 items-center gap-2 border-b border-[var(--sz-border)] bg-ink-950 px-4 lg:hidden"
+    >
+      <UButton
+        icon="i-lucide-menu"
+        color="neutral"
+        variant="ghost"
+        size="sm"
+        :aria-label="t('nav.openMenu')"
+        :aria-expanded="mobileOpen"
+        @click="mobileOpen = true"
+      />
+      <NuxtLink to="/" class="flex min-w-0 items-center gap-1.5">
+        <span class="font-brand text-[17px] leading-none tracking-[0.12em]">{{ t('common.brandLeft') }}</span>
+        <span class="text-[17px] leading-none text-[var(--sz-accent)]">//</span>
+        <span class="font-brand text-[17px] leading-none tracking-[0.12em]">{{ t('common.brandRight') }}</span>
+      </NuxtLink>
     </header>
 
-    <main class="mx-auto w-full max-w-[1600px] flex-1 px-4 py-4 sm:px-6">
-      <slot />
-    </main>
+    <div
+      v-if="mobileOpen"
+      class="fixed inset-0 z-50 lg:hidden"
+      role="dialog"
+      aria-modal="true"
+      :aria-label="t('nav.sections')"
+    >
+      <button
+        type="button"
+        class="absolute inset-0 bg-ink-950/75"
+        :aria-label="t('common.close')"
+        @click="mobileOpen = false"
+      />
+      <div class="absolute inset-y-0 left-0 w-[min(86vw,18rem)] border-r border-[var(--sz-border)] shadow-2xl">
+        <SiteNav mobile @navigate="mobileOpen = false" @close="mobileOpen = false" />
+      </div>
+    </div>
 
-    <footer class="border-t border-[var(--sz-border)] px-4 py-2 text-[12px] text-[var(--sz-text-dim)] sm:px-6">
-      {{ t('nav.footer') }}
-      <span class="sr-only">{{ t('nav.currentSection', { path: route.path }) }}</span>
-    </footer>
+    <div
+      class="min-h-screen transition-[padding] duration-150 lg:pl-[var(--sz-side-width)]"
+      :style="{ '--sz-side-width': sideWidth }"
+    >
+      <main class="mx-auto w-full max-w-[1600px] px-4 py-4 sm:px-6">
+        <slot />
+      </main>
+    </div>
 
     <ZoneRadio />
   </div>

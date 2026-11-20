@@ -2,9 +2,13 @@
 import { h, type VNode } from 'vue';
 
 import { ItemCard, findDetailsCard, rankOptions } from '~/entities/item';
+import { barScale } from '../model/comparisonBars';
+import ValueWithBar from './kinds/ValueWithBar.vue';
 import ItemDetailsModal from './ItemDetailsModal.vue';
 import { useInventory } from '../model/useInventory';
+import { useProfileData } from '~/stores/profile-data';
 import { ProfilePane, KeyHint } from '~/shared/ui';
+import { MODAL_WIDTH } from '~/shared/lib/modalWidth';
 
 import type { InventoryItemRead, ModuleSlot } from '@profile/shared/contracts';
 import type { ContainerFillTarget, InstanceEditTarget } from '~/shared/types/profile';
@@ -29,7 +33,7 @@ import { INVENTORY_UI } from './kinds/registry';
 const props = defineProps<{ kind: InventoryKind<TRow> }>();
 
 const { t } = useI18n();
-const { payload } = useProfile();
+const { payload } = useProfileData();
 const { g1, g2, num } = useFormat();
 const inventory = useInventory();
 useHead(() => ({ title: `${t(props.kind.labels.pageTitle)} // ${t('common.appName')}` }));
@@ -103,13 +107,42 @@ function tdClass(column: InventoryColumn<TRow>): string | undefined {
   return classes.length ? classes.join(' ') : undefined;
 }
 
+/** Bars are scaled inside the filtered visible set, never the full catalog. */
+const barScales = computed(() => {
+  const rows = filteredRows.value as unknown as { key: string; dps?: number | null; dps15?: number | null; ttk?: number | null; ttk15?: number | null; armor?: number | null; armor15?: number | null }[];
+  if (props.kind.key === 'weapon') {
+    return {
+      dps: barScale(rows, (row) => row.dps, 'higher'),
+      dps15: barScale(rows, (row) => row.dps15, 'higher'),
+      ttk: barScale(rows, (row) => row.ttk, 'lower'),
+      ttk15: barScale(rows, (row) => row.ttk15, 'lower'),
+    };
+  }
+  if (props.kind.key === 'armor') {
+    return {
+      armor: barScale(rows, (row) => row.armor, 'higher'),
+      armor15: barScale(rows, (row) => row.armor15, 'higher'),
+    };
+  }
+  return {};
+});
+
+function barFor(metric: string, key: string) {
+  return barScales.value[metric as keyof typeof barScales.value]?.get(key) ?? null;
+}
+
 function renderCell(column: InventoryColumn<TRow>, row: TRow): string | VNode {
   const component = ui.value.cells?.[column.key];
   if (component) return h(component, { row });
-  const formatted = column.cell?.(row, { g1, g2, num });
-  if (formatted != null) return formatted;
-  const raw = (row as unknown as Record<string, unknown>)[column.key];
-  return raw == null ? '' : String(raw);
+  const fmt = { g1, g2, num, bar: barFor };
+  const formatted = column.cell?.(row, fmt);
+  const value = formatted ?? (() => {
+    const raw = (row as unknown as Record<string, unknown>)[column.key];
+    return raw == null ? '' : String(raw);
+  })();
+  const bar = column.bar?.(row, fmt);
+  if (bar) return h(ValueWithBar, { value, bar });
+  return value;
 }
 
 const columns = computed(() =>
@@ -364,7 +397,6 @@ function openArtifact(name: string, level: number): void {
       </div>
     </ProfilePane>
 
-    <p v-if="kind.labels.hint" class="text-[12px] text-[var(--sz-text-dim)]">{{ t(kind.labels.hint) }}</p>
 
     <ItemDetailsModal
       v-model:open="dialogOpen"
@@ -388,6 +420,7 @@ function openArtifact(name: string, level: number): void {
     <UModal
       :open="Boolean(pendingUnverified)"
       :title="t('inventory.unverifiedTitle')"
+      :ui="{ content: MODAL_WIDTH.narrow }"
       @update:open="(value) => !value && (pendingUnverified = null)"
     >
       <template #body>
@@ -405,6 +438,7 @@ function openArtifact(name: string, level: number): void {
       v-model:open="artifactOpen"
       :title="t('items.artifactCardTitle')"
       :description="artifactTarget?.name"
+      :ui="{ content: MODAL_WIDTH.reader }"
       scrollable
     >
       <template #body>

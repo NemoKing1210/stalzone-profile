@@ -1,6 +1,19 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { FACTIONS } from '@profile/shared/contracts';
-import { factionOptions, factionSelectItems, factionValue, NO_FACTION } from '~/shared/lib/factions';
+import {
+  FACTION_EMBLEMS,
+  factionEmblem,
+  factionOptions,
+  factionSelectItems,
+  factionLabel,
+  factionValue,
+  NO_FACTION,
+} from '~/shared/lib/factions';
+
+const appRoot = path.join(process.cwd(), 'app');
+const read = (file: string): string => fs.readFileSync(path.join(appRoot, file), 'utf8');
 
 const t = (key: string): string => key;
 
@@ -23,5 +36,44 @@ describe('faction select items', () => {
     expect(factionValue(null)).toBeNull();
     expect(factionValue(undefined)).toBeNull();
     for (const faction of FACTIONS) expect(factionValue(faction)).toBe(faction);
+  });
+});
+
+describe('faction emblems', () => {
+  it('maps every faction to a shipped local image and the localised name key', () => {
+    for (const faction of FACTIONS) {
+      const emblem = factionEmblem(faction);
+      expect(emblem).toEqual({ slug: faction, src: `/factions/${faction}.png`, altKey: `factions.${faction}` });
+      expect(FACTION_EMBLEMS[faction]).toBe(`/factions/${faction}.png`);
+      const file = path.join(process.cwd(), 'public', FACTION_EMBLEMS[faction]);
+      expect(fs.statSync(file).size).toBeGreaterThan(0);
+    }
+  });
+
+  it('falls back to the text label when the slug is unknown or absent', () => {
+    expect(factionEmblem('raiders')).toBeNull();
+    expect(factionEmblem('')).toBeNull();
+    expect(factionEmblem(null)).toBeNull();
+    expect(factionEmblem(undefined)).toBeNull();
+    expect(factionLabel(t, 'raiders')).toBe('raiders');
+  });
+
+  it('carries an emblem on the select items without giving the sentinel one', () => {
+    const items = factionSelectItems(t);
+    expect(items[0]).toEqual({ label: 'forms.factionNone', value: NO_FACTION });
+    for (const faction of FACTIONS) {
+      expect(items.find((item) => item.value === faction)?.emblem).toBe(`/factions/${faction}.png`);
+    }
+  });
+
+  it('never fetches an emblem from a third-party host at runtime', () => {
+    for (const src of Object.values(FACTION_EMBLEMS)) expect(src.startsWith('/factions/')).toBe(true);
+    for (const file of [
+      'features/character/ui/OverviewPage.vue',
+      'features/character/ui/EditCharacterModal.vue',
+      'features/onboarding/ui/SetupPage.vue',
+    ]) {
+      expect(read(file)).not.toMatch(/https?:\/\//);
+    }
   });
 });

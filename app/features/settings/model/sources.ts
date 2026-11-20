@@ -36,3 +36,50 @@ export function canSyncSource(id: string, profileApiConfigured: boolean): boolea
 export function sourceKey(id: string, part: 'title' | 'description' | 'updates'): string {
   return `settings.sources.items.${id}.${part}`;
 }
+
+export type SourceFreshness = 'fresh' | 'ageing' | 'stale' | 'never';
+
+/** Fresh under 3 h, ageing under a day, stale after that; never tried is its own state. */
+export function sourceFreshness(lastOkAt: string | null, now: number | null): SourceFreshness {
+  if (now == null || !lastOkAt) return 'never';
+  const minutes = minutesSince(lastOkAt, now);
+  if (minutes == null) return 'never';
+  if (minutes < 180) return 'fresh';
+  if (minutes < 1440) return 'ageing';
+  return 'stale';
+}
+
+export type SourceSort = 'default' | 'freshness' | 'name';
+
+const FRESHNESS_RANK: Record<SourceFreshness, number> = {
+  fresh: 0,
+  ageing: 1,
+  stale: 2,
+  never: 3,
+};
+
+/** Sort the cards without changing the canonical source order unless asked. */
+export function sortSources<T extends { id: string; lastOkAt: string | null }>(
+  sources: readonly T[],
+  order: SourceSort,
+  now: number | null,
+): T[] {
+  if (order === 'default') return [...sources];
+  if (order === 'name') return [...sources].sort((a, b) => a.id.localeCompare(b.id, 'en'));
+  return [...sources].sort(
+    (a, b) =>
+      FRESHNESS_RANK[sourceFreshness(a.lastOkAt, now)] - FRESHNESS_RANK[sourceFreshness(b.lastOkAt, now)] ||
+      a.id.localeCompare(b.id, 'en'),
+  );
+}
+
+/** Where the owner can see what a source feeds. */
+export function sourceJumpPath(id: string): string {
+  if (id === 'profile') return '/';
+  if (id === 'local') return '/inventory';
+  return '/weapons';
+}
+
+export function recordMetricKey(metric: string | null): string | null {
+  return metric ? `settings.sources.metrics.${metric}` : null;
+}

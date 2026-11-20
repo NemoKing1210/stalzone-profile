@@ -179,6 +179,21 @@ describe('guide structure', () => {
     const routes = pageRoutes();
     for (const page of GUIDE_SITE) expect(routes, page.id).toContain(page.route);
   });
+
+  it('defines one tab per section, each with its own intro', () => {
+    expect(GUIDE_SECTIONS.map((section) => section.id)).toEqual([
+      'site',
+      'flow',
+      'api',
+      'mcp',
+      'cli',
+      'sources',
+      'principles',
+    ]);
+    for (const section of GUIDE_SECTIONS) {
+      expect(section.introKey, section.id).toBe(`guide.sections.${section.id}.intro`);
+    }
+  });
 });
 
 describe('guide locale catalogs', () => {

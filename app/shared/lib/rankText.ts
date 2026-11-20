@@ -1,15 +1,16 @@
 import { rankKey, type RankKey } from '@profile/shared/ranks';
 
+/** CSS tokens, so rank names stay readable when the light theme swaps the palette. */
 export const RANK_TEXT_COLOR: Record<RankKey, string> = {
-  default: '#9aa294',
-  newbie: '#63b356',
-  stalker: '#4a9fd8',
-  veteran: '#c39ce0',
-  master: '#e08b84',
-  legend: '#e0a63c',
+  default: 'var(--sz-rank-default)',
+  newbie: 'var(--sz-rank-newbie)',
+  stalker: 'var(--sz-rank-stalker)',
+  veteran: 'var(--sz-rank-veteran)',
+  master: 'var(--sz-rank-master)',
+  legend: 'var(--sz-rank-legend)',
 };
 
 export function rankTextColor(raw: string | null | undefined): string {
   const key = rankKey(raw);
-  return key ? RANK_TEXT_COLOR[key] : '#d8d8d3';
+  return key ? RANK_TEXT_COLOR[key] : 'var(--sz-text)';
 }

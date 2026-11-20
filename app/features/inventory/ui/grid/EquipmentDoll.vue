@@ -2,6 +2,7 @@
 import type { EquipmentRead, EquipmentSlot, InventoryItemRead, StorageRead } from '@profile/shared/contracts';
 
 import { EQUIPMENT_GRID, equipmentLayout } from '../../model/equipmentLayout';
+import { highlightedSlots } from '../../model/slotHighlights';
 import type { ItemMenuAction } from '../../model/menu';
 import { tileGesture } from '../../model/tile';
 import { useGridDragContext } from './drag-context';
@@ -33,6 +34,8 @@ const activeSlot = computed(() => {
   const target = drag?.target.value;
   return target?.location === 'equipment' ? target.slot : null;
 });
+/** Every compatible slot lights up for the item currently being dragged. */
+const compatibleSlots = computed(() => new Set(highlightedSlots(drag?.picked.value ?? null)));
 
 const { t } = useI18n();
 const { rankColor } = useFormat();
@@ -101,6 +104,10 @@ function border(item: InventoryItemRead | null): string {
           class="group relative flex h-full w-full touch-none select-none flex-col items-center justify-center overflow-hidden border bg-ink-800 text-center transition-colors"
           :class="[
             itemIn(cell.slot) ? 'hover:bg-ink-700' : '',
+            compatibleSlots.has(cell.slot) ? 'bg-[color-mix(in_srgb,var(--sz-accent)_10%,transparent)]' : '',
+            compatibleSlots.has(cell.slot) && !itemIn(cell.slot)
+              ? 'ring-1 ring-inset ring-[var(--sz-accent)]/60'
+              : '',
             activeSlot === cell.slot ? 'shadow-[inset_0_0_0_2px_var(--sz-accent)]' : '',
           ]"
           :style="{ borderColor: border(itemIn(cell.slot)) }"

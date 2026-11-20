@@ -27,7 +27,8 @@ describe('write contracts', () => {
     expect(SyncSourceSchema.parse('profile')).toBe('profile');
   });
   it('defaults the site dryRun to false for the inventory writes', () => {
-    expect(StorageCreateSchema.parse({ name: 'Stash', width: 8, height: 12 }).dryRun).toBe(false);
+    expect(StorageCreateSchema.parse({ name: 'Stash' }).dryRun).toBe(false);
+    expect(StorageCreateSchema.parse({ name: 'Stash', width: 4, height: 4 })).not.toHaveProperty('width');
     expect(InventoryItemCreateSchema.parse({ name: 'АК-12', kind: 'weapon' }).dryRun).toBe(false);
   });
   it('rejects a rarity outside 0..175', () => {

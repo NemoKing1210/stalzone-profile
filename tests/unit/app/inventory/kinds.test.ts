@@ -136,6 +136,14 @@ describe('instance rows', () => {
     });
   });
 
+  it('reads current and +15 bullet protection from the payload for owned armor', () => {
+    const armorRows = armorKind.toRows({
+      ...(payload as object),
+      armor: [{ instanceId: 22, name: 'Vest', lvl: 10, prot: { bullet: 40, bullet15: 60 } }],
+    } as never);
+    expect(armorRows[0]).toMatchObject({ instanceId: 22, armor: 40, armor15: 60 });
+  });
+
   it('labels an equipped item by its slot and a container artifact by its parent', () => {
     const armorRows = armorKind.toRows(payload);
     expect(armorRows[0]).toMatchObject({ location: 'equipment', equipmentSlot: 'armor', storageId: null });

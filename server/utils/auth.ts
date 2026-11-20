@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
-import type { H3Event } from 'h3';
+import { getCookie, getRequestHeader, getRequestIP, setCookie, type H3Event } from 'h3';
+import { useRuntimeConfig } from 'nitropack/runtime';
 import {
   createSessionToken,
   isTruthy,
@@ -32,7 +33,7 @@ function isSecureRequest(event: H3Event): boolean {
     const forwarded = getRequestHeader(event, 'x-forwarded-proto')?.split(',')[0]?.trim();
     if (forwarded) return forwarded === 'https';
   }
-  return Boolean((event.node.req.socket as { encrypted?: boolean }).encrypted);
+  return Boolean((event.node?.req.socket as { encrypted?: boolean } | undefined)?.encrypted);
 }
 
 export function createSession(event: H3Event): void {

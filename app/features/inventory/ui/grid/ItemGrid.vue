@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { EquipmentRead, InventoryItemRead, StorageRead } from '@profile/shared/contracts';
 
+import { containerFilterActive, matchesContainerFilter, type ContainerFilter } from '../../model/containerFilters';
 import { effectiveSize } from '../../model/grid';
 import type { ItemMenuAction } from '../../model/menu';
 import GridGhost from './GridGhost.vue';
@@ -26,6 +27,8 @@ const props = withDefaults(
     attachTile?: (el: HTMLElement | null, item: InventoryItemRead | null) => void;
     /** Fixed cell size in pixels; the carried grid and the stash share one width. */
     cell?: number | null;
+    /** View-only filter; hidden items keep their occupied cells. */
+    filter?: ContainerFilter | null;
   }>(),
   {
     selectedId: null,
@@ -38,6 +41,7 @@ const props = withDefaults(
     details: null,
     attachTile: undefined,
     cell: null,
+    filter: null,
   },
 );
 
@@ -55,6 +59,16 @@ const rows = computed(() => Math.max(1, props.storage?.height ?? 8));
 const placed = computed(() =>
   (props.storage?.items ?? []).filter((item) => item.placement.location === 'grid'),
 );
+const filterActive = computed(() => (props.filter ? containerFilterActive(props.filter) : false));
+const hiddenPlaced = computed(() =>
+  filterActive.value && props.filter
+    ? placed.value.filter((item) => !matchesContainerFilter(item, props.filter!))
+    : [],
+);
+const visiblePlaced = computed(() => {
+  if (!filterActive.value || !props.filter) return placed.value;
+  return placed.value.filter((item) => matchesContainerFilter(item, props.filter!));
+});
 
 /** Cells divide the block evenly; the aspect ratio keeps them square, whatever the width. */
 const box = computed(() => {
@@ -111,8 +125,17 @@ function cells(x: number, y: number, size: { width: number; height: number }): R
     >
       <GridGhost v-if="props.storage" :storage="props.storage" :enabled="props.dropEnabled" />
 
+      <!-- A hidden item still owns its cells: a quiet hatch shows occupancy without leaking its card. -->
+      <div
+        v-for="item in hiddenPlaced"
+        :key="`hidden-${item.id}`"
+        class="pointer-events-none absolute border border-dashed border-[var(--sz-border-strong)] bg-ink-800/50 opacity-60"
+        :style="styleFor(item)"
+        aria-hidden="true"
+      />
+
       <ItemContextMenu
-        v-for="item in placed"
+        v-for="item in visiblePlaced"
         :key="item.id"
         :item="item"
         :storages="props.storages"
@@ -135,10 +158,10 @@ function cells(x: number, y: number, size: { width: number; height: number }): R
       </ItemContextMenu>
 
       <p
-        v-if="!placed.length"
+        v-if="!visiblePlaced.length"
         class="pointer-events-none absolute inset-0 flex items-center justify-center p-3 text-center text-[11.5px] text-[var(--sz-text-dim)]"
       >
-        {{ emptyText ?? t('inventory.emptyGrid') }}
+        {{ filterActive ? t('inventory.filter.noMatch') : (emptyText ?? t('inventory.emptyGrid')) }}
       </p>
     </div>
   </div>

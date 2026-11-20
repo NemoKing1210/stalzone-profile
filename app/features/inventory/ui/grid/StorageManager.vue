@@ -2,23 +2,22 @@
 import type { StorageRead } from '@profile/shared/contracts';
 
 import { storageLabel } from '../../model/labels';
+import { stashCreateInput, stashPatchInput } from '../../model/stashForm';
+import { MODAL_WIDTH } from '~/shared/lib/modalWidth';
 
 const props = withDefaults(
   defineProps<{
     stashes: StorageRead[];
     selectedId?: number | null;
     busy?: boolean;
-    /** New stash defaults. */
-    defaultWidth?: number;
-    defaultHeight?: number;
   }>(),
-  { selectedId: null, busy: false, defaultWidth: 40, defaultHeight: 80 },
+  { selectedId: null, busy: false },
 );
 
 const emit = defineEmits<{
   select: [id: number];
-  create: [input: { name: string; width: number; height: number }];
-  update: [id: number, patch: { name?: string; width?: number; height?: number; maxWeight?: number | null }];
+  create: [input: { name: string }];
+  update: [id: number, patch: { name?: string; maxWeight?: number | null }];
   remove: [id: number];
   close: [];
 }>();
@@ -27,51 +26,37 @@ const { t } = useI18n();
 
 const selected = computed(() => props.stashes.find((stash) => stash.id === props.selectedId) ?? null);
 
-const form = reactive({ name: '', width: props.defaultWidth, height: props.defaultHeight, maxWeight: '' as number | string });
-const created = reactive({ name: '', width: props.defaultWidth, height: props.defaultHeight });
+const form = reactive({ name: '', maxWeight: '' as number | string });
+const created = reactive({ name: '' });
 
 function fill(): void {
   const stash = selected.value;
   form.name = stash?.name ?? '';
-  form.width = stash?.width ?? props.defaultWidth;
-  form.height = stash?.height ?? props.defaultHeight;
   form.maxWeight = stash?.maxWeight ?? '';
 }
 
 watch(() => props.selectedId, fill, { immediate: true });
 watch(() => props.stashes, fill);
 
-const changed = computed(() => {
+const patch = computed(() => {
   const stash = selected.value;
-  if (!stash) return false;
-  const maxWeight = form.maxWeight === '' ? null : Number(form.maxWeight);
-  return (
-    form.name.trim() !== stash.name ||
-    Number(form.width) !== stash.width ||
-    Number(form.height) !== stash.height ||
-    maxWeight !== stash.maxWeight
-  );
+  return stash
+    ? stashPatchInput({ name: form.name, maxWeight: form.maxWeight }, { name: stash.name, maxWeight: stash.maxWeight })
+    : {};
 });
+const changed = computed(() => Object.keys(patch.value).length > 0);
 
 function save(): void {
   const stash = selected.value;
-  if (!stash) return;
-  const patch: { name?: string; width?: number; height?: number; maxWeight?: number | null } = {};
-  if (form.name.trim() && form.name.trim() !== stash.name) patch.name = form.name.trim();
-  if (Number(form.width) !== stash.width) patch.width = Number(form.width);
-  if (Number(form.height) !== stash.height) patch.height = Number(form.height);
-  const maxWeight = form.maxWeight === '' ? null : Number(form.maxWeight);
-  if (maxWeight !== stash.maxWeight) patch.maxWeight = maxWeight;
-  if (Object.keys(patch).length) emit('update', stash.id, patch);
+  if (!stash || !changed.value) return;
+  emit('update', stash.id, patch.value);
 }
 
 function create(): void {
-  const name = created.name.trim();
-  if (!name) return;
-  emit('create', { name, width: Number(created.width), height: Number(created.height) });
+  const input = stashCreateInput(created);
+  if (!input.name) return;
+  emit('create', input);
   created.name = '';
-  created.width = props.defaultWidth;
-  created.height = props.defaultHeight;
 }
 
 /* Deleting a stash moves its items to the intake stash. */
@@ -122,14 +107,6 @@ function confirmDelete(): void {
           {{ t('inventory.stashName') }}
           <UInput v-model="form.name" size="xs" class="mt-0.5 w-full" :maxlength="200" />
         </label>
-        <label class="block text-[11px] text-[var(--sz-text-muted)]">
-          {{ t('inventory.width') }}
-          <UInput v-model.number="form.width" type="number" size="xs" class="mt-0.5 w-full" :min="1" :max="40" />
-        </label>
-        <label class="block text-[11px] text-[var(--sz-text-muted)]">
-          {{ t('inventory.height') }}
-          <UInput v-model.number="form.height" type="number" size="xs" class="mt-0.5 w-full" :min="1" :max="80" />
-        </label>
         <label class="col-span-2 block text-[11px] text-[var(--sz-text-muted)]">
           {{ t('inventory.maxWeight') }}
           <UInput
@@ -142,7 +119,7 @@ function confirmDelete(): void {
           />
         </label>
       </div>
-      <p class="text-[10.5px] text-[var(--sz-text-dim)]">{{ t('inventory.resizeHint') }}</p>
+      <p class="text-[10.5px] text-[var(--sz-text-dim)]">{{ t('inventory.fixedSizeHint') }}</p>
       <div class="flex flex-wrap justify-between gap-1">
         <UButton
           size="xs"
@@ -164,14 +141,6 @@ function confirmDelete(): void {
           {{ t('inventory.stashName') }}
           <UInput v-model="created.name" size="xs" class="mt-0.5 w-full" :maxlength="200" />
         </label>
-        <label class="block text-[11px] text-[var(--sz-text-muted)]">
-          {{ t('inventory.width') }}
-          <UInput v-model.number="created.width" type="number" size="xs" class="mt-0.5 w-full" :min="1" :max="40" />
-        </label>
-        <label class="block text-[11px] text-[var(--sz-text-muted)]">
-          {{ t('inventory.height') }}
-          <UInput v-model.number="created.height" type="number" size="xs" class="mt-0.5 w-full" :min="1" :max="80" />
-        </label>
       </div>
       <UButton
         size="xs"
@@ -183,7 +152,11 @@ function confirmDelete(): void {
       />
     </section>
 
-    <UModal v-model:open="confirmOpen" :title="t('inventory.deleteStashTitle')">
+    <UModal
+      v-model:open="confirmOpen"
+      :title="t('inventory.deleteStashTitle')"
+      :ui="{ content: MODAL_WIDTH.narrow }"
+    >
       <template #body>
         <div class="space-y-3 text-[12.5px]">
           <p>{{ t('inventory.deleteStashDesc', { name: selected ? storageLabel(selected, t) : '' }) }}</p>

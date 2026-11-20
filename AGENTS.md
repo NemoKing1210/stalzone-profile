@@ -206,6 +206,7 @@ of them. The owner sets the priorities; the rules below define what counts as re
 | `server/api/v1`              | thin Nitro routes: auth → zod → module service → JSON                    |
 | `server/utils`               | shared `Db`, session, errors, serialization                              |
 | `app/shared`                 | cross-slice UI, composables and pure helpers                             |
+| `app/stores`                 | Pinia stores, Pinia Colada query keys and the one write mutation         |
 | `app/entities`               | domain presentation: item and source cards, rank badges                  |
 | `app/features`               | screens and their models: auth, character, inventory (grid, equipment, containers), settings, … |
 | `app/pages`                  | thin route wrappers that mount a feature screen                          |
@@ -293,7 +294,9 @@ not deleted.
 live in `app/features/<feature>/ui` with their pure model in `.../model`, and the route file
 in `app/pages` stays a thin wrapper. SSR safety is mandatory: do not touch
 `window`/`localStorage` during setup, and format dates deterministically to avoid hydration
-mismatches. All visible strings come from `t(...)`; see `docs/I18N.md`.
+mismatches. All visible strings come from `t(...)`; see `docs/I18N.md`. Do not add
+instructional copy for a self-evident interaction: `DESIGN.md` §9 defines when a hint is
+allowed to stay.
 
 **Complex interactions use a library.** Drag and drop, sorting, resizing and similar
 pointer-driven behaviour go through a maintained library instead of hand-rolled pointer

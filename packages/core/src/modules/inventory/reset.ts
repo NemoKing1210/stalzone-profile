@@ -5,6 +5,7 @@ import * as repo from './repo/index.js';
 import { nextOverflowPlacement, packIntoOverflow } from './write/overflow.js';
 import { itemSize } from './write/placement.js';
 import { inventorySnapshot } from './write/storage.js';
+import { INVENTORY_GRID_HEIGHT, INVENTORY_GRID_WIDTH } from '@profile/shared/contracts';
 
 /**
  * Reset, rollback and restore helpers for the instance inventory.
@@ -32,7 +33,7 @@ export function clearInventoryTx(db: Db, characterId: number): Record<string, un
   db.prepare(`DELETE FROM item_placement WHERE character_id = ?`).run(characterId);
   db.prepare(`DELETE FROM inventory_item WHERE character_id = ?`).run(characterId);
   db.prepare(`DELETE FROM storage WHERE character_id = ?`).run(characterId);
-  repo.insertStorage(db, { characterId, kind: 'inventory', name: 'Inventory', width: 8, height: 20 });
+  repo.insertStorage(db, { characterId, kind: 'inventory', name: 'Inventory', width: INVENTORY_GRID_WIDTH, height: INVENTORY_GRID_HEIGHT });
   repo.insertStorage(db, { characterId, kind: 'overflow', name: 'Intake', width: 40, height: 80 });
   return snapshot;
 }
@@ -430,6 +431,18 @@ export function restoreAutoArrangeTx(
   for (const itemId of (snapshot.loose as number[] | undefined) ?? []) {
     const row = repo.getInventoryItem(db, itemId);
     if (row) sendToIntake(db, characterId, row.id, itemSize(db, row));
+  }
+}
+
+
+/** Tidy-up rollback restores every placement in the storage from its `before` snapshot. */
+export function restoreTidyTx(
+  db: Db,
+  snapshot: Record<string, unknown>,
+  characterId: number,
+): void {
+  for (const entry of (snapshot.placements as PlacementEntry[] | undefined) ?? []) {
+    restorePlacementSnapshot(db, entry.itemId, entry.placement, characterId);
   }
 }
 

@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import type { RarityTier } from '@profile/shared/contracts';
+import { useQuery } from '@pinia/colada';
+import type { RarityTier, WriteResult } from '@profile/shared/contracts';
 import { RarityTierSchema } from '@profile/shared/contracts';
 import type { InstanceEditTarget } from '~/shared/types/profile';
-import type { WriteResult } from '~/shared/composables/useWrite';
 
 import { ConfirmActionModal } from '~/shared/ui';
+import { MODAL_WIDTH } from '~/shared/lib/modalWidth';
 
 const open = defineModel<boolean>('open', { default: false });
 const props = defineProps<{ target: InstanceEditTarget | null }>();
@@ -40,10 +41,11 @@ const form = reactive({
 const lastResult = ref<WriteResult | null>(null);
 const confirmOpen = ref(false);
 
-const { data: motifs } = useFetch<{ name: string }[]>('/api/v1/items', {
-  query: { kind: 'motif', limit: 200 },
-  key: 'motif-items',
-  default: () => [],
+const request = useRequestFetch();
+const { data: motifs } = useQuery({
+  key: ['catalog', 'motifs'],
+  query: () => request<{ name: string }[]>('/api/v1/items', { query: { kind: 'motif', limit: 200 } }),
+  enabled: () => open.value,
 });
 const skinItems = computed(() => (motifs.value ?? []).map((motif) => motif.name));
 
@@ -195,7 +197,13 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <UModal v-model:open="open" :title="t('items.editTitle')" :description="props.target?.name" scrollable>
+  <UModal
+    v-model:open="open"
+    :title="t('items.editTitle')"
+    :description="props.target?.name"
+    :ui="{ content: MODAL_WIDTH.form }"
+    scrollable
+  >
     <template #body>
       <UForm :state="form" class="space-y-4" @submit="submit">
         <div class="grid gap-3 sm:grid-cols-2">
@@ -249,7 +257,6 @@ async function remove(): Promise<void> {
               <UInputNumber v-model="form.layoutWeight" :min="0" class="w-full" />
             </UFormField>
           </div>
-          <p class="text-[12px] text-[var(--sz-text-dim)]">{{ t('forms.layoutHint') }}</p>
           <p v-if="!layoutPair.valid" class="text-[11px] text-[var(--sz-danger-text)]">
             {{ t('forms.layoutPairError') }}
           </p>

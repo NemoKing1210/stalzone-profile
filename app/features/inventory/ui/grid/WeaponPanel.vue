@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useProfileData } from '~/stores/profile-data';
+
 import type { InventoryItemRead, ModuleSlot } from '@profile/shared/contracts';
 
 import { findDetailsCard } from '~/entities/item';
@@ -29,7 +31,7 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
-const { payload } = useProfile();
+const { payload } = useProfileData();
 const { g2, num } = useFormat();
 
 const SLOTS: { slot: ModuleSlot; icon: string }[] = [

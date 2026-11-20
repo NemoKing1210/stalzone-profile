@@ -35,8 +35,8 @@ export function createSetupCharacter(db: Db, input: CharacterCreate): WriteResul
   withTransaction(db, () => {
     result = createCharacter(db, input);
     const characterId = (result.diff.after as { id: number }).id;
-    createStorage(db, { kind: 'inventory', name: 'Inventory', width: 8, height: 20, dryRun: false });
-    createStorage(db, { kind: 'stash', name: 'Stash', width: 40, height: 80, dryRun: false });
+    createStorage(db, { kind: 'inventory', name: 'Inventory', dryRun: false });
+    createStorage(db, { kind: 'stash', name: 'Stash', dryRun: false });
     ensureOverflowStorage(db, characterId);
   });
   return result!;

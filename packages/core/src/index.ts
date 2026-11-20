@@ -83,6 +83,7 @@ export {
   setContainerFill,
   setItemLayout,
   setWeaponModule,
+  tidyStorage,
   updateInventoryItem,
   updateStorage,
 } from './modules/inventory/write/index.js';

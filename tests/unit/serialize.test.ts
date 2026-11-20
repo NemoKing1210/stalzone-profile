@@ -36,8 +36,16 @@ describe('HTTP serializers', () => {
       before: null,
       after: '{"a":1}',
       note: null,
+      request_id: 'req-1',
+      origin: 'http',
+      summary: null,
     });
-    expect(EventReadSchema.parse(event).after).toEqual({ a: 1 });
+    expect(EventReadSchema.parse(event)).toMatchObject({
+      after: { a: 1 },
+      requestId: 'req-1',
+      origin: 'http',
+      summary: { kind: 'create', fields: ['a'] },
+    });
   });
 
   it('maps module rows to placement, price and source contract DTOs', () => {

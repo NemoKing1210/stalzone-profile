@@ -8,6 +8,10 @@ import {
   canSyncSource,
   minutesSince,
   nextRunBucket,
+  recordMetricKey,
+  sortSources,
+  sourceFreshness,
+  sourceJumpPath,
   sourceKey,
 } from '~/features/settings/model/sources';
 
@@ -34,6 +38,33 @@ describe('settings sources model', () => {
   it('returns null for a missing timestamp', () => {
     expect(minutesSince(null, NOW)).toBeNull();
     expect(minutesSince('2026-11-17T11:50:00.000Z', NOW)).toBe(10);
+  });
+
+  it('buckets source freshness from last success', () => {
+    expect(sourceFreshness(null, NOW)).toBe('never');
+    expect(sourceFreshness('2026-11-17T11:00:00.000Z', NOW)).toBe('fresh');
+    expect(sourceFreshness('2026-11-17T08:00:00.000Z', NOW)).toBe('ageing');
+    expect(sourceFreshness('2026-11-15T12:00:00.000Z', NOW)).toBe('stale');
+    expect(sourceFreshness('2026-11-17T11:00:00.000Z', null)).toBe('never');
+  });
+
+  it('sorts cards by freshness and name without dropping any', () => {
+    const sources = [
+      { id: 'b', lastOkAt: null },
+      { id: 'a', lastOkAt: '2026-11-15T12:00:00.000Z' },
+      { id: 'c', lastOkAt: '2026-11-17T11:00:00.000Z' },
+    ];
+    expect(sortSources(sources, 'default', NOW).map((source) => source.id)).toEqual(['b', 'a', 'c']);
+    expect(sortSources(sources, 'freshness', NOW).map((source) => source.id)).toEqual(['c', 'a', 'b']);
+    expect(sortSources(sources, 'name', NOW).map((source) => source.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('names the record metric and links to the data it feeds', () => {
+    expect(recordMetricKey('price_quotes')).toBe('settings.sources.metrics.price_quotes');
+    expect(recordMetricKey(null)).toBeNull();
+    expect(sourceJumpPath('profile')).toBe('/');
+    expect(sourceJumpPath('local')).toBe('/inventory');
+    expect(sourceJumpPath('scpmodel')).toBe('/weapons');
   });
 
   it('disables the profile action without credentials and the local source always', () => {

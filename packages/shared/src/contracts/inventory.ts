@@ -7,6 +7,13 @@ import {
   StorageKindSchema,
 } from './primitives.js';
 
+/** The carried grid and every stash share one width so a row lines up across both panes. */
+export const INVENTORY_GRID_WIDTH = 8;
+/** The carried storage is 8 wide and 20 tall. */
+export const INVENTORY_GRID_HEIGHT = 20;
+/** A new stash is always 8×200 and its size cannot be changed after creation. */
+export const STASH_GRID_HEIGHT = 200;
+
 export const ContainerFillReadSchema = z.object({
   name: z.string(),
   lvl: z.number().int(),

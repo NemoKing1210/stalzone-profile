@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 const read = (file: string): string => fs.readFileSync(path.join(process.cwd(), file), 'utf8');
 
 describe('contract single source', () => {
-  it.each(['packages/core/src/platform/journal/index.ts', 'app/shared/composables/useWrite.ts'])(
+  it.each(['packages/core/src/platform/journal/index.ts', 'app/stores/useWrite.ts'])(
     '%s takes WriteResult from the contracts instead of redeclaring it',
     (file) => {
       const source = read(file);
@@ -29,7 +29,7 @@ describe('contract single source', () => {
   });
 
   it('takes the meta header from the contracts instead of redeclaring it', () => {
-    expect(read('app/shared/composables/useProfile.ts')).toContain(
+    expect(read('app/stores/profile.ts')).toContain(
       "import type { MetaRead } from '@profile/shared/contracts'",
     );
     expect(read('app/shared/types/profile.ts')).not.toMatch(/interface ProfileMetaResponse\b/);

@@ -17,7 +17,14 @@ export type StatField = (typeof STAT_FIELDS)[number];
 
 export type CharacterStatsForm = Partial<Record<StatField, string | number | null | undefined>>;
 
-const NUMERIC_FIELDS = new Set<StatField>(['kil', 'dea', 'sho-fir', 'sho-hit', 'sho-hea', 'ach-gai']);
+/** Counters the editor treats as whole numbers; the rest stay free text (playtime, registration). */
+export const NUMERIC_STAT_FIELDS: readonly StatField[] = ['kil', 'dea', 'sho-fir', 'sho-hit', 'sho-hea', 'ach-gai'];
+
+const NUMERIC_FIELDS = new Set<StatField>(NUMERIC_STAT_FIELDS);
+
+export function isNumericStatField(field: StatField): boolean {
+  return NUMERIC_FIELDS.has(field);
+}
 
 /** Turns the editor's inputs into a `stats` patch; every empty input clears the manual override. */
 export function toCharacterStatsPatch(form: CharacterStatsForm): Record<string, number | string | null> {

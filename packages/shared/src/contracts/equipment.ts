@@ -20,33 +20,44 @@ export function isArtifactContainerCategory(category: string | null): boolean {
   return value === 'containers' || (value.startsWith('containers/') && !isBackpackCategory(category));
 }
 
-function isMeleeWeapon(category: string | null): boolean {
-  return categoryOf(category).includes('melee');
+export type WeaponClass = 'primary' | 'secondary' | 'melee';
+
+/**
+ * The in-game weapon class from the catalog category: a pistol is the secondary
+ * weapon, a melee category is the melee slot, and every other ranged weapon is a
+ * primary. The equipment slots and the write validator share this one mapping.
+ */
+export function weaponClassOf(item: EquipmentCandidate): WeaponClass | null {
+  if (item.kind !== 'weapon') return null;
+  const category = categoryOf(item.category);
+  if (category.includes('melee')) return 'melee';
+  if (category.includes('pistol') || category.includes('handgun') || category.includes('secondary')) {
+    return 'secondary';
+  }
+  return 'primary';
 }
 
 /**
- * One category-level table for every equipment slot: ranged weapons go to the two
- * weapon slots, melee weapons to `melee`, armor to `armor`, backpacks and artifact
- * containers to their own slot, and ammo/consumables to the quick slots. The drag
- * targets, the context menu and the write service all ask this function, so they
- * cannot disagree about what fits.
+ * One category-level table for every equipment slot: a primary weapon accepts only
+ * primary weapons, the secondary slot only pistols, melee only melee weapons, armor
+ * to `armor`, backpacks and artifact containers to their own slot, and ammo/consumables
+ * to the quick slots. The drag targets, the context menu and the write service all ask
+ * this function, so they cannot disagree about what fits.
  */
 export function acceptsEquipment(slot: EquipmentSlot, item: EquipmentCandidate): boolean {
-  if (slot === 'primary' || slot === 'secondary') {
-    return item.kind === 'weapon' && !isMeleeWeapon(item.category);
+  if (slot === 'primary' || slot === 'secondary' || slot === 'melee') {
+    return weaponClassOf(item) === slot;
   }
-  if (slot === 'melee') return item.kind === 'weapon' && isMeleeWeapon(item.category);
   if (slot === 'armor') return item.kind === 'armor';
   if (slot === 'backpack') return item.kind === 'container' && isBackpackCategory(item.category);
   if (slot === 'container') return item.kind === 'container' && isArtifactContainerCategory(item.category);
   return item.kind === 'ammo' || item.kind === 'other';
 }
 
-/** Every slot the item fits, most specific first; the context menu picks the first free one. */
+/** Every slot the item fits; the context menu picks the first free one. */
 export function equipmentSlotsFor(item: EquipmentCandidate): EquipmentSlot[] {
-  if (item.kind === 'weapon') {
-    return isMeleeWeapon(item.category) ? ['melee'] : ['primary', 'secondary'];
-  }
+  const weaponClass = weaponClassOf(item);
+  if (weaponClass) return [weaponClass];
   if (item.kind === 'armor') return ['armor'];
   if (item.kind === 'container') {
     if (isBackpackCategory(item.category)) return ['backpack'];

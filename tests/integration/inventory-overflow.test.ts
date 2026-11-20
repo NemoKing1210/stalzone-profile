@@ -3,11 +3,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { closeDb, ensureDefaultSources, migrate, openDb, rollbackEvent, WriteError, type Db } from '@profile/core';
-import { InventoryItemCreateSchema, StorageCreateSchema } from '@profile/shared/contracts';
+import { InventoryItemCreateSchema } from '@profile/shared/contracts';
 import {
   autoArrangeStorage,
   createInventoryItem,
-  createStorage,
   deleteInventoryItem,
   deleteStorage,
   ensureInventoryStorage,
@@ -128,8 +127,7 @@ function expectWriteError(fn: () => unknown, code: string): void {
 }
 
 function stash(name = 'Main'): number {
-  return (createStorage(db, StorageCreateSchema.parse({ name, width: 40, height: 80, dryRun: false })).diff
-    .after as { id: number }).id;
+  return seed.insertStorage(db, { characterId, kind: 'stash', name, width: 40, height: 80, sortOrder: 0 });
 }
 
 describe('removals go to intake', () => {
@@ -270,7 +268,7 @@ describe('removals go to intake', () => {
 
   it('rejects edits and deletes of the mandatory storages', () => {
     expectWriteError(() => updateStorage(db, inventoryId, { name: 'X', dryRun: false }), 'VALIDATION');
-    expectWriteError(() => updateStorage(db, overflowId, { width: 20, dryRun: false }), 'VALIDATION');
+    expectWriteError(() => updateStorage(db, overflowId, { name: 'X', dryRun: false }), 'VALIDATION');
     expectWriteError(() => deleteStorage(db, inventoryId, { dryRun: false }), 'VALIDATION');
     expectWriteError(() => deleteStorage(db, overflowId, { dryRun: false }), 'VALIDATION');
   });

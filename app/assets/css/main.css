@@ -20,8 +20,14 @@
 @import "@fontsource/roboto-condensed/cyrillic-400.css";
 @import "@fontsource/roboto-condensed/cyrillic-500.css";
 @import "@fontsource/roboto-condensed/cyrillic-700.css";
+@import "@fontsource/oswald/latin-400.css";
 @import "@fontsource/oswald/latin-500.css";
+@import "@fontsource/oswald/latin-600.css";
+@import "@fontsource/oswald/latin-700.css";
+@import "@fontsource/oswald/cyrillic-400.css";
 @import "@fontsource/oswald/cyrillic-500.css";
+@import "@fontsource/oswald/cyrillic-600.css";
+@import "@fontsource/oswald/cyrillic-700.css";
 @import "@fontsource/bebas-neue/latin-400.css";
 
 @theme {
@@ -74,6 +80,8 @@
   --sz-text-muted: #9a9a94;
   /* Decorative only, but still 4.5:1 on every surface it can land on (DESIGN §4.1). */
   --sz-text-dim: #8f8f89;
+  --sz-text-toned: #b4b4ae;
+  --sz-text-highlighted: #f1f1ec;
   --sz-shadow-image-text: 0 1px 2px rgba(0, 0, 0, 0.65);
   --sz-atmosphere-vignette: rgba(0, 0, 0, 0.34);
   --sz-success: #63b356;
@@ -84,11 +92,12 @@
   --sz-danger-text: #e08b84;
   --sz-info: #4a9fd8;
   --sz-money: #d8c08a;
-  --sz-rank-default: #6f7767;
+  /* Rank names are text, so every rank clears 4.5:1 on all four dark surfaces. */
+  --sz-rank-default: #8a9384;
   --sz-rank-newbie: #63b356;
   --sz-rank-stalker: #4a9fd8;
-  --sz-rank-veteran: #a06fc4;
-  --sz-rank-master: #c2564f;
+  --sz-rank-veteran: #b78bd6;
+  --sz-rank-master: #d9736b;
   --sz-rank-legend: #e0a63c;
 
   /* Accent presets. The values live in this token block; the data-accent blocks below only
@@ -175,11 +184,60 @@
   --ui-text: var(--sz-text);
   --ui-text-muted: var(--sz-text-muted);
   --ui-text-dimmed: var(--sz-text-dim);
-  --ui-text-toned: #b4b4ae;
-  --ui-text-highlighted: #f1f1ec;
+  --ui-text-toned: var(--sz-text-toned);
+  --ui-text-highlighted: var(--sz-text-highlighted);
   --ui-text-inverted: var(--sz-on-accent);
-  scrollbar-color: var(--sz-border-strong) var(--color-ink-950);
+  scrollbar-color: var(--sz-border-strong) var(--sz-bg);
   caret-color: var(--sz-accent);
+}
+
+/* Light theme: the second token set. Every semantic `--sz-*` token is repeated here so no
+   screen can inherit a dark value; `--sz-preset-*` stays as raw palette input and the
+   accent blocks at the end remap the chosen preset for light surfaces. The dark set above
+   stays the server-rendered default; the inline head script opts into this block before
+   the first paint. */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --sz-accent: #2a7023;
+  --sz-accent-hover: #286b21;
+  --sz-accent-pressed: #235f1d;
+  --sz-on-accent: #faf9f5;
+  --sz-bg: #f2f0ea;
+  --sz-surface: #faf9f5;
+  --sz-surface-alt: #eae7df;
+  --sz-surface-header: #e3ded3;
+  --sz-border: #d3cec2;
+  --sz-border-strong: #b6b0a2;
+  --sz-field: #6f6a60;
+  --sz-text: #1d1d1a;
+  --sz-text-muted: #57554d;
+  --sz-text-dim: #625f57;
+  --sz-text-toned: #49473f;
+  --sz-text-highlighted: #121210;
+  --sz-shadow-image-text: 0 1px 2px rgba(0, 0, 0, 0.55);
+  --sz-atmosphere-vignette: rgba(80, 66, 40, 0.16);
+  --sz-success: #3f7f36;
+  --sz-success-text: #2f6b28;
+  --sz-warning: #9c6916;
+  --sz-warning-text: #7a530c;
+  --sz-danger: #a23a33;
+  --sz-danger-text: #8d2f29;
+  --sz-info: #1f5f8f;
+  --sz-money: #6d571c;
+  --sz-rank-default: #5b6157;
+  --sz-rank-newbie: #2f6b28;
+  --sz-rank-stalker: #1f5f8f;
+  --sz-rank-veteran: #654079;
+  --sz-rank-master: #8d2f29;
+  --sz-rank-legend: #7a530c;
+
+  /* A few shell utilities still paint raw neutral steps (`bg-ink-950` header/footer,
+     `bg-ink-800` cards, `hover:bg-ink-700`); invert only those three steps so a light
+     screen does not show dark wells. Replace them with `--sz-surface*` when the layout
+     is next touched. */
+  --color-ink-700: #e6e2d8;
+  --color-ink-800: #faf9f5;
+  --color-ink-950: #e3ded3;
 }
 
 @layer base {
@@ -438,6 +496,40 @@
   --color-zone-950: var(--sz-preset-bone-950);
 }
 
+/* The preset values above are tuned for text on dark surfaces. On paper the same hues
+   must darken to keep 4.5:1 as text and under `--sz-on-accent` as a button fill. Green is
+   declared in the light token block; these four mirror it. */
+:root[data-theme='light'][data-accent='amber'] {
+  --sz-accent: #7d550d;
+  --sz-accent-hover: #714c0b;
+  --sz-accent-pressed: #654308;
+}
+
+:root[data-theme='light'][data-accent='blue'] {
+  --sz-accent: #1f5f8f;
+  --sz-accent-hover: #1a527c;
+  --sz-accent-pressed: #16466a;
+}
+
+:root[data-theme='light'][data-accent='violet'] {
+  --sz-accent: #654079;
+  --sz-accent-hover: #58376a;
+  --sz-accent-pressed: #4c2f5c;
+}
+
+:root[data-theme='light'][data-accent='bone'] {
+  --sz-accent: #5e5e59;
+  --sz-accent-hover: #51514c;
+  --sz-accent-pressed: #454541;
+}
+
+/* Interface font choice. Both faces are Fontsource files declared by the stylesheet the
+   app already ships, so the choice swaps one CSS variable instead of loading a new
+   stylesheet or calling a font host — the only request is the same-origin face file. */
+:root[data-font='oswald'] {
+  --font-sans: "Oswald", "Roboto Condensed", system-ui, sans-serif;
+}
+
 /* Route changes: the screen settles upward by 2px while the shell stays still. Durations
    and easing follow DESIGN §4.5 (120ms out, 200ms in, ease-out, transform ≤2px, no bounce).
    Nuxt applies these classes to the page root inside <main>; `out-in` means only one
@@ -474,4 +566,21 @@
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
   }
+}
+
+/* Density: compact tightens line height, page padding and table rows without changing the
+   font size, so text stays readable and the px-sized 44px controls keep their target. The
+   selectors stay unlayered to beat the utility classes that set the same properties. */
+:root[data-density='compact'] body {
+  line-height: 1.3;
+}
+
+:root[data-density='compact'] .sz-atmosphere main {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+:root[data-density='compact'] .sz-atmosphere table :is(th, td) {
+  padding-top: 0.125rem;
+  padding-bottom: 0.125rem;
 }

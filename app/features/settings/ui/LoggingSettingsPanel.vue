@@ -1,12 +1,16 @@
 <script setup lang="ts">
+import { useQuery } from '@pinia/colada';
 import type { LoggingSettings, LoggingSettingsUpdate } from '@profile/shared/contracts';
 import { ProfilePane } from '~/shared/ui';
+import { QUERY_KEYS } from '~/stores/keys';
 
 const { t } = useI18n();
 const { write, busy } = useWrite();
 
-const { data, refresh } = useFetch<LoggingSettings>('/api/v1/admin/logging', {
-  key: 'settings-logging',
+const request = useRequestFetch();
+const { data, refetch: refresh } = useQuery({
+  key: QUERY_KEYS.logConfig,
+  query: () => request<LoggingSettings>('/api/v1/admin/logging'),
 });
 
 const enabled = ref(true);

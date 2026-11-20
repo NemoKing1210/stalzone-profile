@@ -1,15 +1,6 @@
 import { ALL_RANKS } from '~/entities/item/model/rankOptions';
-import { findDetailsCard } from '~/entities/item/model/details';
 
-import {
-  buildInventoryIndex,
-  cardDamage15,
-  cardText,
-  cardValue,
-  locationOf,
-  type InstanceLocationRow,
-  type InstanceRow,
-} from '../instances';
+import { buildInventoryIndex, locationOf, type InstanceLocationRow, type InstanceRow } from '../instances';
 import type { InventoryColumn, InventoryKind } from '../types';
 
 export interface WeaponRow extends InstanceRow, InstanceLocationRow {
@@ -25,9 +16,12 @@ export interface WeaponRow extends InstanceRow, InstanceLocationRow {
   type: string | null;
   lvl: number | null;
   dmg: number | null;
+  dmg15: number | null;
   rof: number | null;
   dps: number | null;
+  dps15: number | null;
   ttk: number | null;
+  ttk15: number | null;
   mag: number | null;
   caliber: string | null;
   weight: number | null;
@@ -82,10 +76,13 @@ export const weaponsKind: InventoryKind<WeaponRow> = {
         rank: entry.rank ?? null,
         type: entry.type ?? null,
         lvl: null,
-        dmg: entry.dmg15 ?? null,
+        dmg: null,
+        dmg15: entry.dmg15 ?? null,
         rof: entry.rof ?? null,
-        dps: entry.dps15 ?? null,
-        ttk: entry.ttk15 ?? null,
+        dps: null,
+        dps15: entry.dps15 ?? null,
+        ttk: null,
+        ttk15: entry.ttk15 ?? null,
         mag: entry.mag ?? null,
         caliber: entry.caliber ?? null,
         weight: entry.weight ?? null,
@@ -94,10 +91,15 @@ export const weaponsKind: InventoryKind<WeaponRow> = {
     }
 
     const index = buildInventoryIndex(payload.inventory);
+    const computed = new Map(
+      (payload.weapons ?? [])
+        .filter((row): row is typeof row & { instanceId: number } => row.instanceId != null)
+        .map((row) => [row.instanceId, row]),
+    );
     return index.items
       .filter((item) => item.kind === 'weapon')
       .map((item) => {
-        const card = findDetailsCard(payload.details, 'w', item.name);
+        const row = computed.get(item.id);
         return {
           key: `instance-${item.id}`,
           instanceId: item.id,
@@ -113,14 +115,17 @@ export const weaponsKind: InventoryKind<WeaponRow> = {
           slot: item.slot,
           name: item.displayName ?? item.name,
           rank: item.rank,
-          type: cardText(card, 'type') ?? item.category,
+          type: row?.type ?? item.category,
           lvl: item.level,
-          dmg: cardDamage15(card),
-          rof: cardValue(card, 'rof'),
-          dps: cardValue(card, 'dps15'),
-          ttk: cardValue(card, 'ttk15'),
-          mag: cardValue(card, 'mag'),
-          caliber: cardText(card, 'caliber'),
+          dmg: row?.dmg ?? null,
+          dmg15: row?.dmg15 ?? null,
+          rof: row?.rof ?? null,
+          dps: row?.dps ?? null,
+          dps15: row?.dps15 ?? null,
+          ttk: row?.ttk ?? null,
+          ttk15: row?.ttk15 ?? null,
+          mag: row?.mag ?? null,
+          caliber: row?.caliber ?? null,
           weight: item.weight,
           icon: item.icon,
         };
@@ -143,36 +148,99 @@ export const weaponsKind: InventoryKind<WeaponRow> = {
       });
       columns.push({ key: 'location', label: 'table.location' });
     }
+    if (catalog) {
+      columns.push(
+        {
+          key: 'dmg15',
+          label: 'table.damage15',
+          sortable: true,
+          align: 'right',
+          cell: (row, fmt) => (row.dmg15 == null ? '—' : fmt.g1(row.dmg15)),
+        },
+        {
+          key: 'rof',
+          label: 'table.rof',
+          sortable: true,
+          align: 'right',
+          cell: (row, fmt) => (row.rof == null ? '—' : fmt.num(row.rof)),
+        },
+        {
+          key: 'dps15',
+          label: 'DPS +15',
+          sortable: true,
+          align: 'right',
+          strong: true,
+          cell: (row, fmt) => (row.dps15 == null ? '—' : fmt.num(row.dps15)),
+          bar: (row, fmt) => fmt.bar?.('dps15', row.key) ?? null,
+        },
+        {
+          key: 'ttk15',
+          label: 'TTK +15',
+          sortable: true,
+          align: 'right',
+          cell: (row, fmt) => (row.ttk15 == null ? '—' : fmt.g2(row.ttk15)),
+          bar: (row, fmt) => fmt.bar?.('ttk15', row.key) ?? null,
+        },
+      );
+    } else {
+      columns.push(
+        {
+          key: 'dmg',
+          label: 'table.damage',
+          sortable: true,
+          align: 'right',
+          cell: (row, fmt) => (row.dmg == null ? '—' : fmt.g1(row.dmg)),
+        },
+        {
+          key: 'dmg15',
+          label: 'items.plus15',
+          sortable: true,
+          align: 'right',
+          cell: (row, fmt) => (row.dmg15 == null ? '—' : fmt.g1(row.dmg15)),
+        },
+        {
+          key: 'rof',
+          label: 'table.rof',
+          sortable: true,
+          align: 'right',
+          cell: (row, fmt) => (row.rof == null ? '—' : fmt.num(row.rof)),
+        },
+        {
+          key: 'dps',
+          label: 'DPS',
+          sortable: true,
+          align: 'right',
+          strong: true,
+          cell: (row, fmt) => (row.dps == null ? '—' : fmt.num(row.dps)),
+          bar: (row, fmt) => fmt.bar?.('dps', row.key) ?? null,
+        },
+        {
+          key: 'dps15',
+          label: 'DPS +15',
+          sortable: true,
+          align: 'right',
+          cell: (row, fmt) => (row.dps15 == null ? '—' : fmt.num(row.dps15)),
+          bar: (row, fmt) => fmt.bar?.('dps15', row.key) ?? null,
+        },
+        {
+          key: 'ttk',
+          label: 'TTK',
+          sortable: true,
+          align: 'right',
+          cell: (row, fmt) => (row.ttk == null ? '—' : fmt.g2(row.ttk)),
+          bar: (row, fmt) => fmt.bar?.('ttk', row.key) ?? null,
+        },
+        {
+          key: 'ttk15',
+          label: 'TTK +15',
+          sortable: true,
+          align: 'right',
+          cell: (row, fmt) => (row.ttk15 == null ? '—' : fmt.g2(row.ttk15)),
+          bar: (row, fmt) => fmt.bar?.('ttk15', row.key) ?? null,
+        },
+      );
+    }
     columns.push(
-      {
-        key: 'dmg',
-        label: 'table.damage15',
-        sortable: true,
-        align: 'right',
-        cell: (row, fmt) => (row.dmg == null ? '—' : fmt.g1(row.dmg)),
-      },
-      {
-        key: 'rof',
-        label: 'table.rof',
-        sortable: true,
-        align: 'right',
-        cell: (row, fmt) => (row.rof == null ? '—' : fmt.num(row.rof)),
-      },
-      {
-        key: 'dps',
-        label: 'DPS +15',
-        sortable: true,
-        align: 'right',
-        strong: true,
-        cell: (row, fmt) => (row.dps == null ? '—' : fmt.num(row.dps)),
-      },
-      {
-        key: 'ttk',
-        label: 'TTK +15',
-        sortable: true,
-        align: 'right',
-        cell: (row, fmt) => (row.ttk == null ? '—' : fmt.g2(row.ttk)),
-      },
       {
         key: 'mag',
         label: 'table.mag',
@@ -194,10 +262,13 @@ export const weaponsKind: InventoryKind<WeaponRow> = {
 
   sortOptions: [
     { value: 'dps', label: 'DPS' },
+    { value: 'dps15', label: 'DPS +15' },
     { value: 'dmg', label: 'table.damage' },
+    { value: 'dmg15', label: 'table.damage15' },
     { value: 'name', label: 'table.name' },
     { value: 'weight', label: 'table.weight' },
     { value: 'ttk', label: 'TTK' },
+    { value: 'ttk15', label: 'TTK +15' },
     { value: 'rof', label: 'table.rof' },
     { value: 'mag', label: 'table.mag' },
     { value: 'lvl', label: 'table.level' },
@@ -213,7 +284,6 @@ export const weaponsKind: InventoryKind<WeaponRow> = {
     typeLabel: 'filters.type',
     groupBy: 'filters.groupByType',
     modalTitle: 'items.cardTitle',
-    hint: 'weapons.hint',
     emptyOwned: 'weapons.emptyOwned',
     emptyCatalog: 'weapons.emptyCatalog',
   },

@@ -59,7 +59,7 @@ need user-facing text should do the same or show the message as-is.
 | GET | `/api/v1/containers` | container instances with their fill (`ContainerRead` list) for the table page |
 | GET | `/api/v1/prices?names=A,B` | `price_latest` by name |
 | GET | `/api/v1/sources` | source statuses and age |
-| GET | `/api/v1/events?limit=` | change journal |
+| GET | `/api/v1/events?limit=` | change journal; each row carries `requestId`, `origin` (`http`, `api`, or null for MCP/CLI/tests) and a display-only `summary` derived from `before`/`after` |
 | GET | `/api/v1/admin/export` | the typed profile JSON (attachment) |
 | GET | `/api/v1/admin/cleanup` | counts for every reset scope: `inventory` (`items`, `storages`, `placements`), `manualStats`, `character`, `journal` |
 | GET | `/api/v1/logs?levels=&categories=&sources=&since=&until=&text=&requestId=&fingerprint=&minDurationMs=&before=&limit=` | `LogQueryResult`: newest-first entries, repeat groups, `nextBefore` cursor; lists are comma-separated |
@@ -84,15 +84,16 @@ text is English.
 
 | Method | Path | Body |
 |---|---|---|
-| POST | `/api/v1/character` | `CharacterCreateSchema`: `nick`, `region` (`ru \| eu \| na \| sea`), optional `faction` (`rise \| frontier \| mercenaries \| covenant` or `null`), `alliance`, `clanName`, `clanRank`, `dryRun`. Creates the character with its default 8×20 inventory, 40×80 intake stash and 40×80 stash in one transaction. The profile holds one character: a second create answers `409 CHARACTER_EXISTS` |
+| POST | `/api/v1/character` | `CharacterCreateSchema`: `nick`, `region` (`ru \| eu \| na \| sea`), optional `faction` (`rise \| frontier \| mercenaries \| covenant` or `null`), `alliance`, `clanName`, `clanRank`, `dryRun`. Creates the character with its default 8×20 carried grid, 40×80 intake and 8×200 stash in one transaction. The profile holds one character: a second create answers `409 CHARACTER_EXISTS` |
 | POST | `/api/v1/inventory/items` | `InventoryItemCreateSchema`: resolves the catalog item, optional `target` (`grid`, `equipment`, `container`, `weapon_module`); without one the instance lands in intake and a stackable merges with an intake stack |
 | PATCH | `/api/v1/inventory/items/:id` | `InventoryItemPatchSchema`: level, quality, rarity, tier, note, quantity, skin, role, slot, container override |
 | DELETE | `/api/v1/inventory/items/:id` | `DeleteInventoryItemSchema`: `{ qty?, dryRun? }`; a container or weapon returns its children to intake first |
 | POST | `/api/v1/inventory/items/:id/move` | `MoveItemSchema`: `target`, optional `swap`, `allowUnverified`, `dryRun`. A `grid` target inside intake answers `422 INVALID_PLACEMENT`; so does a swap whose displaced occupant would land there. `swap: true` with a `grid` target is rejected: grid collisions are resolved by the client, not swapped by the server |
-| POST | `/api/v1/inventory/storages` | `StorageCreateSchema`: stash name, width, height, optional `maxWeight`; the public contract cannot create an intake row, and a second inventory answers `409 VALIDATION` |
-| PATCH | `/api/v1/inventory/storages/:id` | `StoragePatchSchema`: rename, resize, weight limit, order; the inventory and intake answer `422 VALIDATION`, and a shrink over placed items answers `409 STORAGE_TOO_SMALL` |
+| POST | `/api/v1/inventory/storages` | `StorageCreateSchema`: stash name, optional `maxWeight`; the grid is always 8×200 (the carried grid is 8×20), width/height are not part of the contract, the public contract cannot create an intake row, and a second inventory answers `409 VALIDATION` |
+| PATCH | `/api/v1/inventory/storages/:id` | `StoragePatchSchema`: rename, weight limit, order; the size is fixed and width/height are rejected by the schema; the inventory and intake answer `422 VALIDATION` |
 | DELETE | `/api/v1/inventory/storages/:id` | `DeleteStorageSchema`: deletes a stash and packs its items into intake; the inventory and intake answer `422 VALIDATION` |
 | POST | `/api/v1/inventory/storages/:id/auto-arrange` | `AutoArrangeSchema`: packs intake items into a regular stash by first fit; any other storage answers `422 VALIDATION` |
+| POST | `/api/v1/inventory/storages/:id/tidy` | `TidyStorageSchema`: `{ order: kind \| name \| rank \| footprint, dryRun? }`; repacks the items already in that carried grid or stash as one audited write, leaves an item that cannot fit at its cells and reports it in `unplaced`; intake answers `422 VALIDATION` |
 | PUT | `/api/v1/inventory/containers/:id/fill` | `ContainerFillWriteSchema`: `{ slots: (id \| null)[], dryRun? }`, the full positional fill |
 | PUT | `/api/v1/inventory/weapons/:id/modules/:slot` | `WeaponModuleWriteSchema`: `{ attachmentItemId: id \| null, allowUnverified?, dryRun? }` |
 | PATCH | `/api/v1/items/:id/layout` | `ItemLayoutWriteSchema`: `{ width, height, weight?, dryRun? }`; a change that breaks placed instances answers `409 LAYOUT_CONFLICT` |
@@ -208,19 +209,25 @@ in-process MCP `sync_source` tool: while a sync is running it answers
   "sources": [
     { "id": "exbo_base", "kind": "reference", "url": "https://github.com/EXBO-Studio/stalzone-database",
       "status": "ok", "lastOkAt": "…", "lastTryAt": "…", "lastError": null,
-      "commit": "…", "commitDate": "…", "records": null }
+      "commit": "…", "commitDate": "…",
+      "records": 1234, "recordMetric": "catalog_items" }
   ],
   "catalogItems": 1234,
   "profileApiConfigured": false
 }
 ```
 
+`records` counts the rows that source owns and `recordMetric` names the unit
+(`catalog_items`, `stat_rows`, `motif_items`, `price_quotes`, `icons`,
+`character_stats`, `inventory_items`), so the UI never presents a count as bytes. A
+source whose metric cannot be measured sends `null`.
+
 Bundles are `catalog` (`exbo_base`, `wiki`, `motifs`, `icons`), `prices` (`scpmodel`) and
 `profile`. `nextRunAt` is `max(last_try_at) + interval` across the bundle, or now when no
 source has ever been tried. It is `null` when the bundle is not ready, and `reason` explains
 why: `disabled`, `off`, `profile_credentials`, `profile_character` or `profile_region`.
-`records` is `null` where a per-source count would describe attribution rather than
-contribution; `0` is a real empty count.
+`0` is a real empty count; `null` means that source has no data yet or the metric cannot
+be measured (for example `profile` before a character exists).
 
 `PUT /api/v1/admin/sync` (session + Origin):
 

@@ -68,9 +68,10 @@ HTTP: it imports no `@profile/core`, and `@profile/shared` only through `/contra
 
 ## Read flow
 
-1. A page calls `useProfile()` → one `GET /api/v1/payload`; meta is derived from it
-   locally. The section routes (`/api/v1/meta`, `/character`, `/containers`, `/catalog`)
-   use `read-model/sections.ts` and build only their own section.
+1. A page calls `useProfileData()` → the Pinia profile store → one Pinia Colada query for
+   `GET /api/v1/payload`. Meta is derived from that payload locally. The section routes
+   (`/api/v1/meta`, `/character`, `/containers`, `/catalog`) use `read-model/sections.ts`
+   and build only their own section.
 2. The route gets the shared `Db` from `server/utils/db.ts` (WAL, one migration per process;
    `cache_size`, `mmap_size` and `temp_store` are tuned in `platform/db/index.ts`).
 3. `buildPayload` (`packages/core/src/modules/read-model/payload.ts`) loads one catalog
@@ -87,6 +88,23 @@ HTTP: it imports no `@profile/core`, and `@profile/shared` only through `/contra
 6. Container values follow the precedence `container_data` > item stats > `null`; missing
    data is `null`, never zero or an estimate.
 
+## Client data layer
+
+Pinia owns shared client state; Pinia Colada owns server state. `app/stores/keys.ts` is the
+single list of query keys, `app/stores/profile.ts` owns the payload query, and
+`app/stores/write.ts` is the only write mutation. Each successful write invalidates the
+profile key; a screen that depends on another read (journal, logs, sources, setup) refreshes
+that key explicitly after its mutation.
+
+- Read or refresh: `useProfileData()` for the payload, or `useQuery` for one screen's read.
+- Write: `useWrite()`; it shows the toast, records the last API error and invalidates the
+  profile. No screen calls `$fetch` for profile data.
+- Auth mutations, the logging page and sync use the same Pinia Colada primitives; the
+  server, MCP and CLI keep their existing API and never import the app layer.
+- SSR: the store and queries run on the server; the inline head script still restores the
+  cosmetic theme/accent/font choice before hydration, and the first client render uses the
+  same defaults when storage is unavailable.
+
 ## Inventory drag and move
 
 `/inventory` drags go through interact.js; `app/features/inventory/ui/grid/useGridDrag.ts`
@@ -97,8 +115,10 @@ item's real footprint, while the ghost (`GridGhost.vue`) marks the snapped cells
 whether they are free. The per-move state is provided to the components that draw it
 (`drag-context.ts`), so a pointer move repaints the preview and the ghost, not the page.
 
-A drop is refused locally when the ghost is invalid (out of bounds or colliding); only a
-valid landing becomes a write. The move is applied optimistically from
+A drop is refused locally when the ghost is invalid (out of bounds or colliding); while a
+container's display filter hides items, a same-container drop is also refused so an item
+cannot disappear among cells the owner cannot see, while a move to another container stays
+available. Only a valid landing becomes a write. The move is applied optimistically from
 `app/features/inventory/model/pending.ts`: the item shows at its target at once, the
 payload refresh runs in the background and then replaces the optimistic state. Loadout
 stats and storage weights are the server's values and update with that refresh. Dragging

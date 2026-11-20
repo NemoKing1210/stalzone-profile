@@ -135,11 +135,3 @@ export function cardText(card: Record<string, unknown> | null, key: string): str
   const value = card?.[key];
   return typeof value === 'string' && value ? value : null;
 }
-
-/** The +15 damage profile's point-blank damage; the tables label these columns +15. */
-export function cardDamage15(card: Record<string, unknown> | null): number | null {
-  const point = card?.p15;
-  if (!point || typeof point !== 'object') return null;
-  const d0 = (point as { d0?: unknown }).d0;
-  return typeof d0 === 'number' ? d0 : null;
-}

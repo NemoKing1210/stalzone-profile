@@ -18,15 +18,21 @@ export interface PackResult {
   unplaced: number[];
 }
 
+/** The historical packing order: area desc, height desc, id asc. */
+export function packOrder(a: PackItem, b: PackItem): number {
+  const area = b.size.width * b.size.height - a.size.width * a.size.height;
+  if (area !== 0) return area;
+  if (b.size.height !== a.size.height) return b.size.height - a.size.height;
+  return a.id - b.id;
+}
+
 /** Deterministic first-fit packing: area desc, height desc, id asc. */
 export function packItems(grid: Size, items: readonly PackItem[], occupied: readonly Rect[] = []): PackResult {
-  const ordered = [...items].sort((a, b) => {
-    const area = b.size.width * b.size.height - a.size.width * a.size.height;
-    if (area !== 0) return area;
-    if (b.size.height !== a.size.height) return b.size.height - a.size.height;
-    return a.id - b.id;
-  });
+  return packOrdered(grid, [...items].sort(packOrder), occupied);
+}
 
+/** Same first-fit scan in the caller's order; tidy-up supplies its own comparator. */
+export function packOrdered(grid: Size, ordered: readonly PackItem[], occupied: readonly Rect[] = []): PackResult {
   const placed: PackPlacement[] = [];
   const unplaced: number[] = [];
   const taken: Rect[] = [...occupied];

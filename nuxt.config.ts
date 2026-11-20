@@ -11,7 +11,7 @@ const devAllowedHosts = [...new Set(['stalzone-profile.local', ...(isIpAddress ?
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: false },
-  modules: ['@nuxtjs/i18n', '@nuxt/ui', '@nuxt/eslint'],
+  modules: ['@pinia/nuxt', '@nuxtjs/i18n', '@nuxt/ui', '@nuxt/eslint'],
   i18n: {
     strategy: 'no_prefix',
     defaultLocale: 'en',
@@ -25,7 +25,7 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
   // The app tree is organised by slices; shared pieces are auto-imported from their slice.
   components: [{ path: '~/shared/ui', pathPrefix: false }],
-  imports: { dirs: ['shared/composables'] },
+  imports: { dirs: ['shared/composables', 'stores'] },
   colorMode: {
     preference: 'dark',
     fallback: 'dark',
@@ -51,10 +51,12 @@ export default defineNuxtConfig({
       ],
       script: [
         {
-          // The only pre-hydration write: picks the stored accent before the first paint so
-          // the page does not flash green. It reads one cosmetic key and no personal data.
+          // The only pre-hydration writes: picks the stored accent, theme, font and density
+          // before the first paint so none of them flashes. They read cosmetic keys only
+          // (`profile.*`) and no personal data; SSR keeps the dark default when the read
+          // throws or the keys are absent.
           innerHTML:
-            "try{var a=localStorage.getItem('profile.accent');document.documentElement.dataset.accent=['green','amber','blue','violet','bone'].indexOf(a)>-1?a:'green'}catch(e){}document.documentElement.classList.add('js');",
+            "try{var d=document.documentElement,a=localStorage.getItem('profile.accent');d.dataset.accent=['green','amber','blue','violet','bone'].indexOf(a)>-1?a:'green';var t=localStorage.getItem('profile.theme');if(t==='light'){d.dataset.theme='light';d.style.colorScheme='light'}var f=localStorage.getItem('profile.font');if(f==='oswald')d.dataset.font='oswald';var n=localStorage.getItem('profile.density');if(n==='compact')d.dataset.density='compact'}catch(e){}document.documentElement.classList.add('js');",
           tagPosition: 'head',
         },
       ],

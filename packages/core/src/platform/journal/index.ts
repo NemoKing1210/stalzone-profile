@@ -1,4 +1,12 @@
+import type { EventSummary } from '@profile/shared/contracts';
 import type { Db } from '../db/index.js';
+import { currentEventContext } from './context.js';
+import { summarizeEvent } from './summary.js';
+
+export type { EventContext } from './context.js';
+export { currentEventContext, runWithEventContext } from './context.js';
+export type { EventSummary } from '@profile/shared/contracts';
+export { summarizeEvent, SUMMARY_FIELD_LIMIT } from './summary.js';
 
 /* ------------------------------ write contract ------------------------------ */
 
@@ -34,6 +42,9 @@ export interface EventRow {
   before: string | null;
   after: string | null;
   note: string | null;
+  request_id: string | null;
+  origin: string | null;
+  summary: string | null;
 }
 
 export interface EventInput {
@@ -45,13 +56,22 @@ export interface EventInput {
   after?: unknown;
   note?: string | null;
   at?: string;
+  /** Defaults to the request context set by `runWithEventContext`, then to NULL. */
+  requestId?: string | null;
+  /** Defaults to the request context set by `runWithEventContext`, then to NULL. */
+  origin?: string | null;
+  /** Defaults to `summarizeEvent(action, before, after)`. */
+  summary?: EventSummary;
 }
 
 export function logEvent(db: Db, input: EventInput): number {
+  const context = currentEventContext();
   const info = db
     .prepare(
-      `INSERT INTO event_log (at, actor, action, entity, entity_id, before, after, note)
-       VALUES (@at, @actor, @action, @entity, @entity_id, @before, @after, @note)`,
+      `INSERT INTO event_log
+         (at, actor, action, entity, entity_id, before, after, note, request_id, origin, summary)
+       VALUES
+         (@at, @actor, @action, @entity, @entity_id, @before, @after, @note, @request_id, @origin, @summary)`,
     )
     .run({
       at: input.at ?? new Date().toISOString(),
@@ -62,6 +82,11 @@ export function logEvent(db: Db, input: EventInput): number {
       before: input.before == null ? null : JSON.stringify(input.before),
       after: input.after == null ? null : JSON.stringify(input.after),
       note: input.note ?? null,
+      request_id: input.requestId ?? context?.requestId ?? null,
+      origin: input.origin ?? context?.origin ?? null,
+      summary: JSON.stringify(
+        input.summary ?? summarizeEvent(input.action, input.before ?? null, input.after ?? null),
+      ),
     });
   return Number(info.lastInsertRowid);
 }
@@ -98,6 +123,10 @@ export interface EventSnapshotRow {
   before: string | null;
   after: string | null;
   note: string | null;
+  /** Optional so a snapshot written before 0009 still restores, with NULL context. */
+  request_id?: string | null;
+  origin?: string | null;
+  summary?: string | null;
 }
 
 export interface SnapshotLimits {
@@ -131,18 +160,36 @@ export function snapshotEvents(db: Db, limits: SnapshotLimits = {}): EventSnapsh
   }
   return db
     .prepare(
-      `SELECT id, at, actor, action, entity, entity_id, before, after, note
+      `SELECT id, at, actor, action, entity, entity_id, before, after, note,
+              request_id, origin, summary
        FROM event_log ORDER BY id`,
     )
     .all() as EventSnapshotRow[];
 }
 
-/** Replaces the whole journal with a snapshot, restoring original ids. */
+/** Replaces the whole journal with a snapshot, restoring original ids; context defaults to NULL. */
 export function replaceEvents(db: Db, rows: EventSnapshotRow[]): void {
   db.prepare(`DELETE FROM event_log`).run();
   const insert = db.prepare(
-    `INSERT INTO event_log (id, at, actor, action, entity, entity_id, before, after, note)
-     VALUES (@id, @at, @actor, @action, @entity, @entity_id, @before, @after, @note)`,
+    `INSERT INTO event_log
+       (id, at, actor, action, entity, entity_id, before, after, note, request_id, origin, summary)
+     VALUES
+       (@id, @at, @actor, @action, @entity, @entity_id, @before, @after, @note, @request_id, @origin, @summary)`,
   );
-  for (const row of rows) insert.run(row);
+  for (const row of rows) {
+    insert.run({
+      id: row.id,
+      at: row.at,
+      actor: row.actor,
+      action: row.action,
+      entity: row.entity,
+      entity_id: row.entity_id,
+      before: row.before,
+      after: row.after,
+      note: row.note,
+      request_id: row.request_id ?? null,
+      origin: row.origin ?? null,
+      summary: row.summary ?? null,
+    });
+  }
 }
