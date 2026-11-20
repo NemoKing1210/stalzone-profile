@@ -17,6 +17,9 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
+- Inventory panes scroll in one unpadded container per pane, so the track rides the pane
+  border and the grid keeps the full width; every scroll area uses one themed scrollbar
+  (square thumb on the track, dimmer on hover, `thin` in Firefox).
 - The side menu collapses as one 200 ms width change: labels fade and clip, the icon
   rail has no brand mark, section icons sit centred in 64 px with count chips on the icon
   corner, and the footer uses the same accent-bordered rows as the top navigation.

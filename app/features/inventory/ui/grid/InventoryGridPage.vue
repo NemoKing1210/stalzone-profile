@@ -329,6 +329,7 @@ const containerNames = computed<Record<number, string>>(() => {
       <div class="grid items-stretch gap-3 xl:grid-cols-2">
         <ProfilePane
           class="h-[calc(100vh-9rem)] min-h-[460px] min-w-0"
+          flush
           :title="leftPane === 'equipment' ? t('inventory.equipment') : stashPaneTitle"
         >
           <template v-if="leftPane === 'stash'" #actions>
@@ -354,7 +355,8 @@ const containerNames = computed<Record<number, string>>(() => {
             />
           </template>
 
-          <div class="h-full overflow-auto p-2">
+          <div class="h-full overflow-auto">
+            <div class="p-2">
             <template v-if="leftPane === 'equipment'">
               <EquipmentDoll
                 :equipment="inventory.equipment.value"
@@ -472,6 +474,7 @@ const containerNames = computed<Record<number, string>>(() => {
               <p class="text-[12px] text-[var(--sz-text-dim)]">{{ t('inventory.noStash') }}</p>
               <UButton size="xs" icon="i-lucide-plus" :label="t('inventory.createStash')" @click="storageOpen = true" />
             </div>
+            </div>
           </div>
 
           <template v-if="leftPane === 'stash'" #footer>
@@ -484,7 +487,8 @@ const containerNames = computed<Record<number, string>>(() => {
           flush
           :title="storageLabel(inventory.inventoryStorage.value, t)"
         >
-          <div class="h-full overflow-auto p-2.5">
+          <div class="h-full overflow-auto">
+            <div class="p-2.5">
             <div class="mb-2 flex flex-wrap items-center gap-1.5 border-b border-[var(--sz-border)] pb-2">
               <ContainerFilterBar
                 :filter="containerFilters.filterFor(inventory.inventoryStorage.value.id)"
@@ -526,6 +530,7 @@ const containerNames = computed<Record<number, string>>(() => {
               @pick="pickItem"
               @menu="itemMenu"
             />
+            </div>
           </div>
           <template #footer>
             <WeightHud :stats="inventory.stats.value" />

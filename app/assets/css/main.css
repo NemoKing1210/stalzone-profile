@@ -187,7 +187,6 @@
   --ui-text-toned: var(--sz-text-toned);
   --ui-text-highlighted: var(--sz-text-highlighted);
   --ui-text-inverted: var(--sz-on-accent);
-  scrollbar-color: var(--sz-border-strong) var(--sz-bg);
   caret-color: var(--sz-accent);
 }
 
@@ -583,4 +582,36 @@
 :root[data-density='compact'] .sz-atmosphere table :is(th, td) {
   padding-top: 0.125rem;
   padding-bottom: 0.125rem;
+}
+
+/* One scrollbar for every scroll area: a square thumb sitting on the track colour, thinner
+   in Firefox, dimmer on hover, and reading the themed tokens in both themes. Firefox has no
+   `::-webkit-scrollbar`, so it gets the standard properties; Chromium keeps the pseudo. */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--sz-border-strong) var(--sz-surface-alt);
+  }
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--sz-surface-alt);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--sz-border-strong);
+  border-radius: 0;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--sz-border);
+}
+
+*::-webkit-scrollbar-corner {
+  background: var(--sz-surface-alt);
 }
