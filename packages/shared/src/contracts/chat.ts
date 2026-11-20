@@ -67,3 +67,30 @@ export const ChatTestResultSchema = z.object({
   message: z.string(),
 });
 export type ChatTestResult = z.infer<typeof ChatTestResultSchema>;
+
+export const ChatPromptKindSchema = z.enum(['system', 'skill']);
+
+export const ChatPromptSchema = z.object({
+  promptId: z.number().int(),
+  kind: ChatPromptKindSchema,
+  name: z.string().min(1).max(80),
+  body: z.string().min(1).max(20_000),
+  version: z.number().int().min(1),
+  enabled: z.boolean(),
+});
+export type ChatPrompt = z.infer<typeof ChatPromptSchema>;
+
+export const ChatPromptReadSchema = z.object({
+  prompts: z.array(ChatPromptSchema),
+  composed: z.string(),
+});
+export type ChatPromptRead = z.infer<typeof ChatPromptReadSchema>;
+
+export const ChatPromptUpdateSchema = z.object({
+  kind: ChatPromptKindSchema,
+  name: z.string().min(1).max(80),
+  body: z.string().min(1).max(20_000),
+  enabled: z.boolean().default(true),
+  dryRun: z.boolean().default(false),
+});
+export type ChatPromptUpdate = z.infer<typeof ChatPromptUpdateSchema>;
