@@ -9,6 +9,8 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- The side menu's Inventory row carries the owned-instance count like the other sections,
+  counting each storage, equipment-slot and loose item once.
 - Overview: a Sync profile button pulls the official profile from the page header with a
   busy state, an actionable failure (missing credentials link to Settings → Sources, a 404
   to Edit profile) and a refreshed payload.

@@ -3,18 +3,47 @@ import { describe, expect, it } from 'vitest';
 import { navCounts } from '~/shared/lib/nav';
 import type { ProfilePayload } from '~/shared/types/profile';
 
-function payload(counts: { weapons: number; armor: number; containers: number; artifacts: number }): ProfilePayload {
+function payload(
+  counts: { weapons: number; armor: number; containers: number; artifacts: number },
+  inventory: { storage?: number[]; equipment?: number[]; loose?: number[] } = {},
+): ProfilePayload {
+  const item = (id: number) => ({ id });
   return {
     weapons: Array.from({ length: counts.weapons }, () => ({})),
     armor: Array.from({ length: counts.armor }, () => ({})),
     containers: Array.from({ length: counts.containers }, () => ({})),
     artifacts: Array.from({ length: counts.artifacts }, () => ({})),
+    inventory: {
+      storages: [
+        { id: 1, items: (inventory.storage ?? []).map(item) },
+        { id: 2, items: [] },
+      ],
+      equipment: {
+        primary: (inventory.equipment ?? [])[0] ? item((inventory.equipment ?? [])[0]!) : null,
+        secondary: null,
+        melee: null,
+        armor: null,
+        backpack: null,
+        container: null,
+        quick1: null,
+        quick2: null,
+        quick3: null,
+        quick4: null,
+      },
+      loose: (inventory.loose ?? []).map(item),
+    },
   } as unknown as ProfilePayload;
 }
 
 describe('navigation count badges', () => {
   it('shows nothing while the payload is missing', () => {
-    expect(navCounts(undefined)).toEqual({ weapons: null, armor: null, containers: null, artifacts: null });
+    expect(navCounts(undefined)).toEqual({
+      weapons: null,
+      armor: null,
+      containers: null,
+      artifacts: null,
+      inventory: null,
+    });
   });
 
   it('shows zero as a real count', () => {
@@ -23,6 +52,7 @@ describe('navigation count badges', () => {
       armor: 0,
       containers: 0,
       artifacts: 0,
+      inventory: 0,
     });
   });
 
@@ -32,6 +62,26 @@ describe('navigation count badges', () => {
       armor: 2,
       containers: 3,
       artifacts: 4,
+      inventory: 0,
     });
+  });
+
+  it('counts every inventory instance once across grids, equipment and loose', () => {
+    const counts = navCounts(
+      payload({ weapons: 0, armor: 0, containers: 0, artifacts: 0 }, {
+        storage: [10, 11],
+        equipment: [12],
+        loose: [10, 13],
+      }),
+    );
+
+    expect(counts.inventory).toBe(4);
+  });
+
+  it('counts a stack as one item and keeps an empty inventory at zero', () => {
+    expect(
+      navCounts(payload({ weapons: 0, armor: 0, containers: 0, artifacts: 0 }, { storage: [21, 22, 23] })).inventory,
+    ).toBe(3);
+    expect(navCounts(payload({ weapons: 0, armor: 0, containers: 0, artifacts: 0 })).inventory).toBe(0);
   });
 });
