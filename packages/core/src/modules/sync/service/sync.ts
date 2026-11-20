@@ -7,6 +7,7 @@ import {
   exboAdapter,
   fetchStalzoneProfile,
   motifsAdapter,
+  parseMotif,
   scpmodelAdapter,
   wikiAdapter,
   type FetchLike,
@@ -173,6 +174,22 @@ function resolveMotifBase(row: MotifRow, items: MotifCandidate[]): number | null
   return null;
 }
 
+/** A `*_style` row is a cosmetic motif; its name token resolves the base item. */
+function bindCosmeticBase(db: Db, realm: string, name: string | null | undefined, nameKey: string | null): void {
+  if (!name || !nameKey) return;
+  const motif = parseMotif({ name: { key: nameKey, lines: { ru: name } } });
+  if (!motif?.kind) return;
+  const item = repo.findItemByKindName(db, 'motif', name, realm);
+  if (!item || item.base_item_id != null) return;
+  const base = resolveMotifBase(motif, motifCandidates(db, motif.kind));
+  if (base == null) return;
+  db.prepare(`UPDATE item SET base_item_id = ?, updated_at = ? WHERE id = ?`).run(
+    base,
+    new Date().toISOString(),
+    item.id,
+  );
+}
+
 /**
  * Binds wiki numbers to the item EXBO created. EXBO owns identity, so an existing
  * row keeps its name, kind, category, rank and source; wiki only replaces its own
@@ -190,23 +207,41 @@ function bindWikiRecord(
   if (!name) return false;
   const externalId = record.exbo_id ?? localExboId(kind, name);
   const effects = wikiEffects(record);
+  const cosmetic = repo.isCosmeticCategory(record?.category, record?.name?.key);
+  const resolvedKind = cosmetic ? 'motif' : kind;
   const existing = repo.getItemByExternalId(db, externalId, realm);
   if (existing) {
-    if (existing.kind !== kind) return false;
+    if (existing.kind !== resolvedKind) {
+      // A previous sync stored a `*_style` row as the gear it paints; correct it here
+      // because the style category, not the wiki group, owns the kind.
+      if (resolvedKind !== 'motif') return false;
+      repo.upsertItem(db, {
+        sourceId: existing.source_id,
+        realm,
+        externalId,
+        name: existing.name,
+        nameEn: existing.name_en,
+        kind: 'motif',
+        category: existing.category,
+        rank: existing.rank,
+        isCosmetic: true,
+      });
+    }
     repo.replaceItemStats(db, existing.id, stats, 'wiki');
     repo.replaceItemEffects(db, existing.id, effects);
     return true;
   }
-  if (stats.length === 0 && effects.length === 0) return false;
+  if (!cosmetic && stats.length === 0 && effects.length === 0) return false;
   const itemId = repo.upsertItem(db, {
     sourceId: 'wiki',
     realm,
     externalId,
     name,
     nameEn: record?.name?.lines?.en ?? null,
-    kind,
+    kind: resolvedKind,
     category: record?.category ?? null,
     rank: record?.color ?? null,
+    isCosmetic: cosmetic,
   });
   repo.replaceItemStats(db, itemId, stats, 'wiki');
   repo.replaceItemEffects(db, itemId, effects);
@@ -272,6 +307,7 @@ function syncExbo(db: Db, options: SyncOptions): Promise<SyncResult> {
             kind,
             category: record.cat,
             rank: record.rank,
+            isCosmetic: repo.isCosmeticCategory(record.cat, record.nameKey),
             slot:
               typeof record.st['kv:weapon.tooltip.weapon.info.weapon_type'] === 'string'
                 ? (record.st['kv:weapon.tooltip.weapon.info.weapon_type'] as string)
@@ -283,6 +319,10 @@ function syncExbo(db: Db, options: SyncOptions): Promise<SyncResult> {
           });
           repo.replaceItemStats(db, itemId, exboStats(record, labels), 'exbo_base');
           itemIds.set(record.id, itemId);
+        }
+        for (const record of snapshot.items) {
+          if (!repo.isCosmeticCategory(record.cat, record.nameKey)) continue;
+          bindCosmeticBase(db, realm, record.ru ?? record.id, record.nameKey);
         }
 
         // "Suitable for" keys resolve only against weapons; unknown keys are dropped,
@@ -332,6 +372,10 @@ async function syncWiki(db: Db, options: SyncOptions): Promise<SyncResult> {
     }
     for (const record of snapshot.ttkWeapon) {
       if (bindWikiRecord(db, record, 'weapon', ttkStats(record), realm)) items++;
+    }
+    for (const record of [...snapshot.armor, ...snapshot.artefact, ...snapshot.containers, ...snapshot.ttkWeapon]) {
+      if (!repo.isCosmeticCategory(record?.category, record?.name?.key)) continue;
+      bindCosmeticBase(db, realm, record?.name?.lines?.ru, record?.name?.key ?? null);
     }
   })();
   return { source: 'wiki', status: 'ok', items, fetchedAt: snapshot.fetchedAt };

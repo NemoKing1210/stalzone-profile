@@ -72,6 +72,8 @@ export interface StatInput {
 
 export function kindFromCategory(category: string | null | undefined, nameKey?: string | null): string {
   const cat = String(category ?? '');
+  // A style row is a cosmetic motif, never the gear it paints.
+  if (/^[a-z]+_style(?:\/|$)/i.test(cat) || /(motif|style)/i.test(String(nameKey ?? ''))) return 'motif';
   if (cat.startsWith('weapon/')) return 'weapon';
   if (cat.startsWith('armor/')) return 'armor';
   if (cat.startsWith('artefact/')) return 'artifact';
@@ -79,14 +81,13 @@ export function kindFromCategory(category: string | null | undefined, nameKey?: 
     return 'container';
   if (cat === 'attachment' || cat.startsWith('attachment/')) return 'attachment';
   if (cat === 'bullet' || cat.includes('/bullet')) return 'ammo';
-  if (/(motif|style)/i.test(String(nameKey ?? ''))) return 'motif';
   return 'other';
 }
 
 export function isCosmeticCategory(category: string | null | undefined, nameKey?: string | null): boolean {
   const cat = String(category ?? '');
   const key = String(nameKey ?? '');
-  return cat === 'other' && /(motif|style)/i.test(key);
+  return /^[a-z]+_style(?:\/|$)/i.test(cat) || (cat === 'other' && /(motif|style)/i.test(key));
 }
 
 export function upsertItem(db: Db, input: ItemInput): number {

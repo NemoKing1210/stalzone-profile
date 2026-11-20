@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { closeDb, ensureDefaultSources, migrate, openDb, type Db, runSync } from '@profile/core';
+import { buildPayload, closeDb, ensureDefaultSources, migrate, openDb, type Db, runSync } from '@profile/core';
 import * as repo from '@profile/core';
 import { listCompatForAttachment } from '@profile/core/modules/inventory';
 import * as seed from '@profile/core/testing';
@@ -347,6 +347,74 @@ describe('wiki binding', () => {
       throw new Error(`unexpected url ${url}`);
     };
   }
+
+  it('binds *_style rows as cosmetic motifs with their base item instead of gear', async () => {
+    const baseWeaponId = seed.upsertItem(db, {
+      sourceId: 'exbo_base',
+      externalId: 'w-base',
+      name: 'Винтовка Гаусса',
+      nameEn: 'Gauss Rifle',
+      kind: 'weapon',
+      category: 'weapon/sniper_rifle',
+    });
+    const baseArmorId = seed.upsertItem(db, {
+      sourceId: 'exbo_base',
+      externalId: 'a-base',
+      name: 'Броня «Комбат»',
+      nameEn: 'Combat Armor',
+      kind: 'armor',
+      category: 'armor/combat',
+    });
+    seed.upsertItem(db, {
+      sourceId: 'exbo_base',
+      externalId: 'w-style',
+      name: 'EMR-65 «Spark»',
+      nameEn: 'EMR-65 Spark',
+      kind: 'weapon',
+      category: 'weapon_style/styles',
+    });
+    seed.upsertItem(db, {
+      sourceId: 'exbo_base',
+      externalId: 'a-style',
+      name: 'Фракционный покрас',
+      kind: 'armor',
+      category: 'armor_style/styles',
+    });
+
+    const styleWeapon = {
+      exbo_id: 'w-style',
+      category: 'weapon_style/styles',
+      color: 'RANK_LEGEND',
+      name: { key: 'item.style.wpn.gauss_divisions.name', lines: { ru: 'EMR-65 «Spark»', en: 'EMR-65 Spark' } },
+      stats: [],
+    };
+    const styleArmor = {
+      exbo_id: 'a-style',
+      category: 'armor_style/styles',
+      color: 'RANK_LEGEND',
+      name: { key: 'item.style.arm.combat.name', lines: { ru: 'Фракционный покрас' } },
+      stats: [],
+    };
+    const fetchImpl = async (url: string) => {
+      if (url.includes('category=armor')) return jsonResponse([styleArmor]);
+      if (url.includes('ttk-calculator')) return jsonResponse([styleWeapon]);
+      if (url.includes('stalzone.wiki')) return jsonResponse([]);
+      throw new Error(`unexpected url ${url}`);
+    };
+
+    await runSync(db, 'wiki', { fetchImpl });
+
+    const weaponMotif = repo.findItemByKindName(db, 'motif', 'EMR-65 «Spark»')!;
+    expect(weaponMotif).toMatchObject({ kind: 'motif', is_cosmetic: 1, base_item_id: baseWeaponId });
+    const armorMotif = repo.findItemByKindName(db, 'motif', 'Фракционный покрас')!;
+    expect(armorMotif).toMatchObject({ kind: 'motif', is_cosmetic: 1, base_item_id: baseArmorId });
+    expect(repo.findItemByKindName(db, 'weapon', 'EMR-65 «Spark»')).toBeNull();
+    expect(repo.findItemByKindName(db, 'armor', 'Фракционный покрас')).toBeNull();
+
+    const payload = buildPayload(db);
+    expect(payload.catalog.weapons.map((item) => item.name)).not.toContain('EMR-65 «Spark»');
+    expect(payload.catalog.armor.map((item) => item.name)).not.toContain('Фракционный покрас');
+  });
 
   it('keeps the EXBO identity and binds only wiki numbers and effects', async () => {
     const id = seed.upsertItem(db, {

@@ -233,6 +233,9 @@ ttk          = round((ceil(600 / displayedDmg) - 1) * 60 / rof, 2)
 
 - A skin is not an item: `kind = motif`, its base is found by `name.key`
   (`item.motif.wpn.ks1_ssop` → token `ks1_ssop`) and written to `base_item_id`.
+  EXBO's `*_style/*` categories (`weapon_style/styles`, `armor_style/styles`) are
+  cosmetics too: the binder stores them as `kind = motif` with `is_cosmetic = 1`
+  instead of the group kind, so the catalog lists only real gear.
 - The rank belongs to the weapon/armor itself, not to the skin.
 - "(А)" is a separate item.
 - Armor bullet protection comes from the item's `bullet_dmg_factor` curve (levels 0…15);
