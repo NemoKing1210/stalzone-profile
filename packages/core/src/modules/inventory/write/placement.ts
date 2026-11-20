@@ -1,3 +1,4 @@
+import { acceptsEquipment } from '@profile/shared/contracts';
 import type { PlacementTarget } from '@profile/shared/contracts';
 import type { Db } from '../../../platform/db/index.js';
 import { logEvent, withTransaction, WriteError, type WriteResult } from '../../../platform/journal/index.js';
@@ -63,25 +64,6 @@ export function moduleSlotFor(category: string | null): string | null {
   if (value.includes('stock')) return 'stock';
   if (value.includes('tactical') || value.includes('laser') || value.includes('flashlight')) return 'tactical';
   return 'other';
-}
-
-function isBackpack(category: string | null): boolean {
-  const value = (category ?? '').toLowerCase();
-  return value === 'backpacks' || value.startsWith('backpacks/') || value.includes('backpack');
-}
-
-function isArtifactContainer(category: string | null): boolean {
-  const value = (category ?? '').toLowerCase();
-  return value === 'containers' || (value.startsWith('containers/') && !isBackpack(value));
-}
-
-function acceptsEquipment(row: MovableItem, slot: EquipmentSlot): boolean {
-  if (slot === 'primary' || slot === 'secondary') return row.kind === 'weapon';
-  if (slot === 'melee') return row.kind === 'weapon' && row.category === 'weapon/melee';
-  if (slot === 'armor') return row.kind === 'armor';
-  if (slot === 'backpack') return row.kind === 'container' && isBackpack(row.category);
-  if (slot === 'container') return row.kind === 'container' && isArtifactContainer(row.category);
-  return row.kind === 'ammo' || row.kind === 'other';
 }
 
 function loadItem(db: Db, itemId: number): repo.InventoryItemJoined {
@@ -257,7 +239,7 @@ function resolveSwapPlacement(
     };
   }
   if (old.location === 'equipment') {
-    if (!old.equipment_slot || !isEquipmentSlot(old.equipment_slot) || !acceptsEquipment(occupant, old.equipment_slot)) {
+    if (!old.equipment_slot || !isEquipmentSlot(old.equipment_slot) || !acceptsEquipment(old.equipment_slot, occupant)) {
       throw new WriteError(422, 'INVALID_PLACEMENT', 'The occupant does not fit the old equipment slot');
     }
     return {
@@ -370,7 +352,7 @@ export function resolveTargetPlacement(
     if (!isEquipmentSlot(target.slot)) {
       throw new WriteError(422, 'INVALID_PLACEMENT', `Unknown equipment slot "${target.slot}"`);
     }
-    if (!acceptsEquipment(item, target.slot)) {
+    if (!acceptsEquipment(target.slot, item)) {
       throw new WriteError(422, 'INVALID_PLACEMENT', `A ${item.kind} cannot be equipped in ${target.slot}`);
     }
     const occupantRow = repo

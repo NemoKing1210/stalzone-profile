@@ -82,6 +82,19 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
+- The inventory screen picks a card up at the cell under the pointer (grid, equipment, container
+  and intake alike), never drags on a right press, and opens the item panel only on a double click;
+  a single click selects. The unused drag and pane-header hints are gone, and the catalog screens'
+  link to the carried inventory reads "Inventory". One category-level equipment table in
+  `@profile/shared/contracts` now gates the write service, the tile context menu and the drag
+  targets: a mismatched slot answers `422 INVALID_PLACEMENT` and never lights up during a drag.
+  The left inventory column toggles between equipment and the selected stash, both panes are one
+  viewport tall with their own scroll, and the equipment doll gives every slot its footprint
+  (weapons 5–6×2, armor and containers 3×3, quick slots 1×1) with the held item filling it.
+  One shared item-details modal now serves `/inventory` and the four catalog pages: per-kind
+  stats, weapon attachment install/remove, container artifact slots and instance editing in one
+  place, replacing the separate weapon and container panels.
+
 - The read model builds one catalog context and one inventory snapshot per payload,
   reuses one card index for details and both catalogs, and caches the payload per database
   until `total_changes()` moves. `useProfile()` makes one `/api/v1/payload` request; meta is

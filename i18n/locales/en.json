@@ -258,7 +258,6 @@
     "summary": "Equipment, carried grid and stashes, arranged like the game.",
     "equipment": "Equipment",
     "loadout": "Loadout",
-    "grid": "Grid",
     "stash": "Stash",
     "stashSelector": "Stash",
     "overflow": "Intake",
@@ -378,7 +377,6 @@
     "deleteStashDesc": "Delete “{name}”? The stash itself is removed.",
     "deleteStashItems": "Items in this stash:",
     "deleteStashToOverflow": "Items move to the intake stash.",
-    "dragHint": "Arrows move, R rotates, Enter drops, Esc cancels.",
     "dropBlocked": "That spot cannot take this item",
     "manageStashes": "Manage stashes",
     "storageManager": "Stash manager",
@@ -864,7 +862,7 @@
         "summary": "Equipment, carried grid, stashes and the intake stash, arranged like the game.",
         "caps": {
           "equipment": "A paper-doll of the ten equipment slots with level, rank and quality.",
-          "grid": "Grid view of the carried storage and every stash, with weights; the stash panel sits below.",
+          "grid": "The left column toggles between the equipment slots and the selected stash; the carried grid stays on the right, both drawn at one cell width.",
           "intake": "New and displaced items land in a read-only intake stash that only releases them and grows as it fills.",
           "loadout": "Carry weight, protection, artifact effects and container warnings from one formula."
         }

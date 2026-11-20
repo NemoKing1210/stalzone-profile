@@ -1,9 +1,10 @@
-import type {
-  EquipmentRead,
-  EquipmentSlot,
-  InventoryItemRead,
-  PlacementTarget,
-  StorageRead,
+import {
+  equipmentSlotsFor,
+  type EquipmentRead,
+  type EquipmentSlot,
+  type InventoryItemRead,
+  type PlacementTarget,
+  type StorageRead,
 } from '@profile/shared/contracts';
 
 import { firstFreeSpot, type GridPlacement } from './grid';
@@ -49,42 +50,6 @@ export function moveDestinations(
     }));
 }
 
-const QUICK_SLOTS: readonly EquipmentSlot[] = ['quick1', 'quick2', 'quick3', 'quick4'];
-
-function category(value: string | null): string {
-  return (value ?? '').toLowerCase();
-}
-
-function isBackpack(value: string | null): boolean {
-  const categoryValue = category(value);
-  return categoryValue === 'backpacks' || categoryValue.startsWith('backpacks/') || categoryValue.includes('backpack');
-}
-
-function isArtifactContainer(value: string | null): boolean {
-  const categoryValue = category(value);
-  return categoryValue === 'containers' || (categoryValue.startsWith('containers/') && !isBackpack(value));
-}
-
-/**
- * Equipment slots the server accepts this instance in, most specific first. Mirrors
- * `acceptsEquipment` in core so the menu never offers a slot the write would reject.
- */
-export function equipSlots(item: InventoryItemRead): EquipmentSlot[] {
-  if (item.kind === 'weapon') {
-    return category(item.category) === 'weapon/melee'
-      ? ['melee', 'primary', 'secondary']
-      : ['primary', 'secondary'];
-  }
-  if (item.kind === 'armor') return ['armor'];
-  if (item.kind === 'container') {
-    if (isBackpack(item.category)) return ['backpack'];
-    if (isArtifactContainer(item.category)) return ['container'];
-    return [];
-  }
-  if (item.kind === 'ammo' || item.kind === 'other') return [...QUICK_SLOTS];
-  return [];
-}
-
 /**
  * Where "Equip" sends the item: the first empty compatible slot, otherwise the first
  * compatible one, where the server swaps the occupant back to its old place. `null`
@@ -95,7 +60,7 @@ export function equipTarget(
   equipment: EquipmentRead | null,
 ): { slot: EquipmentSlot } | null {
   if (item.placement.location === 'equipment') return null;
-  const [first, ...rest] = equipSlots(item);
+  const [first, ...rest] = equipmentSlotsFor(item);
   if (!first) return null;
   const free = [first, ...rest].find((slot) => equipment?.[slot] == null);
   return { slot: free ?? first };

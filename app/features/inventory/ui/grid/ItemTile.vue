@@ -4,6 +4,7 @@ import type { InventoryItemRead } from '@profile/shared/contracts';
 import { findDetailsCard } from '~/entities/item/model/details';
 
 import { effectiveSize } from '../../model/grid';
+import { tileGesture } from '../../model/tile';
 
 const props = withDefaults(
   defineProps<{
@@ -19,7 +20,13 @@ const props = withDefaults(
   { details: null, selected: false, picked: false, rotated: false, attach: undefined },
 );
 
-defineEmits<{ select: []; pick: [event: KeyboardEvent] }>();
+const emit = defineEmits<{ select: []; open: []; pick: [event: KeyboardEvent] }>();
+
+/** A single click selects; a double click opens the panel. Enter opens, Space picks up. */
+function gesture(event: 'click' | 'dblclick'): void {
+  if (tileGesture(event) === 'open') emit('open');
+  else emit('select');
+}
 
 const { t } = useI18n();
 const { rankColor, rankTextColor } = useFormat();
@@ -105,8 +112,9 @@ watch(
     :data-size="`${size.width}x${size.height}`"
     draggable="false"
     @dragstart.prevent
-    @click="$emit('select')"
-    @keydown.enter.prevent="$emit('pick', $event)"
+    @click="gesture('click')"
+    @dblclick="gesture('dblclick')"
+    @keydown.enter.prevent="$emit('open')"
     @keydown.space.prevent="$emit('pick', $event)"
   >
     <!-- Name on top, then the class and refinement; the icon keeps whatever height is left. -->

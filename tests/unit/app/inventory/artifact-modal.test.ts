@@ -11,11 +11,10 @@ import { describe, expect, it } from 'vitest';
 const read = (file: string): string => fs.readFileSync(path.join(process.cwd(), 'app', file), 'utf8');
 
 describe('container artifact modal', () => {
-  it('leaves the artifact modal to the screen and only emits the target from the detail panel', () => {
-    const panel = read('features/inventory/ui/kinds/ContainerDetailPanel.vue');
+  it('leaves the artifact modal to the screen and only emits the target from the item panel', () => {
+    const panel = read('features/inventory/ui/ItemDetailsModal.vue');
     const screen = read('features/inventory/ui/InventoryScreen.vue');
 
-    expect(panel).not.toContain('<UModal');
     expect(panel).toContain("emit('artifact'");
     expect(screen).toContain('artifactTarget');
     expect(screen).toContain('@artifact="openArtifact"');

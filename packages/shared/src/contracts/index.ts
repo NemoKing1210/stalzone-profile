@@ -1,4 +1,5 @@
 export * from './primitives.js';
+export * from './equipment.js';
 export * from './writes.js';
 export * from './catalog.js';
 export * from './identity.js';

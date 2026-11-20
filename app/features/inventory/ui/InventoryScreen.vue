@@ -2,8 +2,11 @@
 import { h, type VNode } from 'vue';
 
 import { ItemCard, findDetailsCard, rankOptions } from '~/entities/item';
+import ItemDetailsModal from './ItemDetailsModal.vue';
+import { useInventory } from '../model/useInventory';
 import { ProfilePane, KeyHint } from '~/shared/ui';
 
+import type { InventoryItemRead, ModuleSlot } from '@profile/shared/contracts';
 import type { ContainerFillTarget, InstanceEditTarget } from '~/shared/types/profile';
 import {
   filterInventoryRows,
@@ -28,6 +31,7 @@ const props = defineProps<{ kind: InventoryKind<TRow> }>();
 const { t } = useI18n();
 const { payload } = useProfile();
 const { g1, g2, num } = useFormat();
+const inventory = useInventory();
 useHead(() => ({ title: `${t(props.kind.labels.pageTitle)} // ${t('common.appName')}` }));
 
 const ui = computed(() => INVENTORY_UI[props.kind.key]);
@@ -130,7 +134,7 @@ const emptyText = computed(() =>
 );
 
 const addOpen = ref(false);
-const selected = ref<TRow | null>(null);
+const selectedKey = ref<string | null>(null);
 const dialogOpen = ref(false);
 const editTarget = ref<InstanceEditTarget | null>(null);
 const fillTarget = ref<ContainerFillTarget | null>(null);
@@ -163,10 +167,63 @@ const fillOpen = computed({
 const artifactCandidates = computed(() =>
   allInventoryItems(payload.value?.inventory).filter((item) => item.kind === 'artifact'),
 );
+const attachmentCandidates = computed(() =>
+  allInventoryItems(payload.value?.inventory).filter((item) => item.kind === 'attachment'),
+);
+
+/** The selected row is recomputed from the payload, so a modal write refreshes it in place. */
+const selected = computed<TRow | null>(() => rows.value.find((row) => row.key === selectedKey.value) ?? null);
+
+const CARD_PREFIX: Record<string, string> = { weapon: 'w', armor: 'a', artifact: 'art', container: 'c' };
+const selectedCard = computed(() =>
+  selected.value ? findDetailsCard(payload.value?.details, CARD_PREFIX[props.kind.key] ?? '', selected.value.name) : null,
+);
 
 function openRow(row: TRow): void {
-  selected.value = row;
+  selectedKey.value = row.key;
   dialogOpen.value = true;
+}
+
+const selectedItem = computed<InventoryItemRead | null>(
+  () => (selected.value as unknown as { item?: InventoryItemRead | null } | null)?.item ?? null,
+);
+
+async function updateSelected(patch: Record<string, unknown>): Promise<void> {
+  const item = selectedItem.value;
+  if (item) await inventory.updateItem(item.id, patch);
+}
+
+async function removeSelected(): Promise<void> {
+  const item = selectedItem.value;
+  if (!item) return;
+  const result = await inventory.removeItem(item.id);
+  if (result) {
+    dialogOpen.value = false;
+    selectedKey.value = null;
+  }
+}
+
+async function installModule(slot: ModuleSlot, attachmentItemId: number | null): Promise<void> {
+  const weapon = selectedItem.value;
+  if (weapon?.kind !== 'weapon') return;
+  const result = await inventory.setWeaponModule(weapon.id, slot, attachmentItemId);
+  if (!result && attachmentItemId != null && inventory.lastError.value?.code === 'INCOMPATIBLE_ATTACHMENT') {
+    pendingUnverified.value = { weaponId: weapon.id, slot, attachmentItemId };
+  }
+}
+
+const pendingUnverified = ref<{ weaponId: number; slot: ModuleSlot; attachmentItemId: number } | null>(null);
+
+async function confirmUnverified(): Promise<void> {
+  const pending = pendingUnverified.value;
+  pendingUnverified.value = null;
+  if (pending) await inventory.setWeaponModule(pending.weaponId, pending.slot, pending.attachmentItemId, true);
+}
+
+async function applyFill(slots: (number | null)[]): Promise<void> {
+  const container = selectedItem.value;
+  if (container?.kind !== 'container') return;
+  await inventory.setContainerFill(container.id, slots);
 }
 
 function requestEdit(): void {
@@ -219,7 +276,7 @@ function openArtifact(name: string, level: number): void {
           icon="i-lucide-grid-3x3"
           color="neutral"
           variant="outline"
-          :label="t('common.viewGrid')"
+          :label="t('nav.inventory')"
         />
         <UButton icon="i-lucide-plus" :label="t('owned.add')" @click="addOpen = true" />
       </div>
@@ -309,26 +366,38 @@ function openArtifact(name: string, level: number): void {
 
     <p v-if="kind.labels.hint" class="text-[12px] text-[var(--sz-text-dim)]">{{ t(kind.labels.hint) }}</p>
 
-    <UModal
+    <ItemDetailsModal
       v-model:open="dialogOpen"
-      :title="t(kind.labels.modalTitle)"
-      :description="selected?.name"
-      scrollable
+      :kind="props.kind.key"
+      :name="selected?.name ?? ''"
+      :item="selectedItem"
+      :card="selectedCard"
+      :row="(selected as unknown as Record<string, unknown> | null)"
+      :attachments="attachmentCandidates"
+      :artifacts="artifactCandidates"
+      :busy="inventory.busy.value"
+      @update="updateSelected"
+      @remove="removeSelected"
+      @install="installModule"
+      @fill="applyFill"
+      @edit="requestEdit"
+      @fill-row="requestFill"
+      @artifact="openArtifact"
+    />
+
+    <UModal
+      :open="Boolean(pendingUnverified)"
+      :title="t('inventory.unverifiedTitle')"
+      @update:open="(value) => !value && (pendingUnverified = null)"
     >
       <template #body>
-        <component
-          :is="ui.detail"
-          v-if="selected"
-          :row="selected"
-          :detail-kind="ui.detailKind"
-          @edit="requestEdit"
-          @fill="requestFill"
-          @artifact="openArtifact"
-          @close="dialogOpen = false"
-        />
+        <p class="text-[12.5px]">{{ t('inventory.unverifiedDesc') }}</p>
       </template>
       <template #footer>
-        <KeyHint :keys="['Esc']" :label="t('common.close')" />
+        <div class="flex w-full justify-end gap-2">
+          <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="pendingUnverified = null" />
+          <UButton :loading="inventory.busy.value" :label="t('inventory.unverifiedConfirm')" @click="confirmUnverified" />
+        </div>
       </template>
     </UModal>
 

@@ -3,11 +3,13 @@ import {
   cellPixels,
   grabPoint,
   gridUnder,
+  isPrimaryButton,
   isSameTarget,
   keyboardTarget,
   pickRotation,
   pointerToCell,
   previewBox,
+  sourceOf,
   startPlacement,
 } from '~/features/inventory/model/drag';
 import { clampOrigin, ghostForGrid } from '~/features/inventory/model/grid';
@@ -182,20 +184,47 @@ describe('pickRotation', () => {
   });
 });
 
+describe('sourceOf', () => {
+  it('names the rectangle an item is picked from', () => {
+    expect(sourceOf({ location: 'grid', storageId: 4, x: 0, y: 0, rotated: false }, 9)).toBe('grid');
+    expect(sourceOf({ location: 'grid', storageId: 9, x: 0, y: 0, rotated: false }, 9)).toBe('intake');
+    expect(sourceOf({ location: 'equipment', slot: 'primary' }, 9)).toBe('equipment');
+    expect(sourceOf({ location: 'container', containerItemId: 3, slotIndex: 0 }, 9)).toBe('container');
+  });
+});
+
 describe('grabPoint', () => {
   it('keeps the grabbed cell of a grid tile', () => {
     const rect = { left: 100, top: 50, width: 200, height: 100 };
     expect(grabPoint('grid', rect, { x: 225, y: 75 }, { width: 4, height: 2 })).toEqual({ x: 2, y: 0 });
   });
 
-  it('centers a slot-sourced card under the pointer, whatever the slot size', () => {
-    const rect = { left: 0, top: 0, width: 741, height: 62 };
-    expect(grabPoint('slot', rect, { x: 700, y: 60 }, { width: 5, height: 2 })).toEqual({ x: 2, y: 1 });
+  it('keeps the relative pointer cell of an equipment slot', () => {
+    const rect = { left: 0, top: 0, width: 300, height: 120 };
+    expect(grabPoint('equipment', rect, { x: 250, y: 100 }, { width: 3, height: 3 })).toEqual({ x: 2, y: 2 });
   });
 
-  it('centers on the rotated footprint', () => {
-    const rect = { left: 0, top: 0, width: 60, height: 300 };
-    expect(grabPoint('slot', rect, { x: 50, y: 290 }, { width: 2, height: 5 })).toEqual({ x: 1, y: 2 });
+  it('keeps the relative pointer cell of a container slot', () => {
+    const rect = { left: 0, top: 0, width: 60, height: 60 };
+    expect(grabPoint('container', rect, { x: 10, y: 50 }, { width: 1, height: 1 })).toEqual({ x: 0, y: 0 });
+  });
+
+  it('keeps the grabbed cell of an intake tile', () => {
+    const rect = { left: 0, top: 0, width: 400, height: 400 };
+    expect(grabPoint('intake', rect, { x: 225, y: 160 }, { width: 4, height: 2 })).toEqual({ x: 2, y: 0 });
+  });
+
+  it('clamps a pointer on the edge into the footprint', () => {
+    const rect = { left: 0, top: 0, width: 60, height: 60 };
+    expect(grabPoint('equipment', rect, { x: 60, y: 60 }, { width: 2, height: 2 })).toEqual({ x: 1, y: 1 });
+  });
+});
+
+describe('isPrimaryButton', () => {
+  it('starts a drag only for the primary button', () => {
+    expect(isPrimaryButton(0)).toBe(true);
+    expect(isPrimaryButton(1)).toBe(false);
+    expect(isPrimaryButton(2)).toBe(false);
   });
 });
 

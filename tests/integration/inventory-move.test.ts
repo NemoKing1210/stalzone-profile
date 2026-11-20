@@ -13,7 +13,13 @@ import {
   WriteError,
   type Db,
 } from '@profile/core';
-import { InventoryItemCreateSchema, StorageCreateSchema, type PlacementTarget } from '@profile/shared/contracts';
+import {
+  acceptsEquipment,
+  InventoryItemCreateSchema,
+  StorageCreateSchema,
+  type EquipmentSlot,
+  type PlacementTarget,
+} from '@profile/shared/contracts';
 import {
   autoArrangeStorage,
   createInventoryItem,
@@ -252,6 +258,51 @@ describe('inventory placement writes', () => {
       'INVALID_PLACEMENT',
     );
     expect(getPlacement(db, rifle)).toMatchObject({ location: 'grid', storage_id: overflowId });
+  });
+
+  it('accepts exactly the slot and kind pairs the shared table allows', () => {
+    const candidates = [
+      { kind: 'weapon', name: 'Слот-винтовка', category: 'weapon/assault_rifle' },
+      { kind: 'weapon', name: 'Слот-нож', category: 'weapon/melee' },
+      { kind: 'armor', name: 'Слот-броня', category: 'armor/combat' },
+      { kind: 'container', name: 'Слот-рюкзак', category: 'containers/backpacks' },
+      { kind: 'container', name: 'Слот-контейнер', category: 'containers' },
+      { kind: 'artifact', name: 'Слот-артефакт', category: 'artefact/gravity' },
+      { kind: 'attachment', name: 'Слот-прицел', category: 'attachment/scope' },
+      { kind: 'ammo', name: 'Слот-патроны', category: 'ammo/rifle' },
+      { kind: 'other', name: 'Слот-аптечка', category: 'consumables/medkit' },
+    ] as const;
+    const slots: EquipmentSlot[] = [
+      'primary',
+      'secondary',
+      'melee',
+      'armor',
+      'backpack',
+      'container',
+      'quick1',
+      'quick2',
+      'quick3',
+      'quick4',
+    ];
+
+    for (const candidate of candidates) {
+      item(candidate.kind, candidate.name, candidate.category, 0.1, `slot-${candidate.kind}`);
+      const id = make(candidate.kind, candidate.name);
+      for (const slot of slots) {
+        const target = { location: 'equipment' as const, slot };
+        if (acceptsEquipment(slot, candidate)) {
+          expect(
+            moveInventoryItem(db, id, target, { dryRun: true }).dryRun,
+            `${candidate.name} → ${slot}`,
+          ).toBe(true);
+        } else {
+          expectWriteError(
+            () => moveInventoryItem(db, id, target, { dryRun: true }),
+            'INVALID_PLACEMENT',
+          );
+        }
+      }
+    }
   });
 
   it('installs an artifact into a container slot and validates kind and capacity', () => {

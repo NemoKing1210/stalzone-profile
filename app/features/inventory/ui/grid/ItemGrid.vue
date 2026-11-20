@@ -24,6 +24,8 @@ const props = withDefaults(
     details?: Record<string, unknown> | null;
     /** Registers each tile with the shared drag layer. */
     attachTile?: (el: HTMLElement | null, item: InventoryItemRead | null) => void;
+    /** Fixed cell size in pixels; the carried grid and the stash share one width. */
+    cell?: number | null;
   }>(),
   {
     selectedId: null,
@@ -35,11 +37,13 @@ const props = withDefaults(
     busy: false,
     details: null,
     attachTile: undefined,
+    cell: null,
   },
 );
 
 defineEmits<{
   select: [item: InventoryItemRead];
+  open: [item: InventoryItemRead];
   pick: [item: InventoryItemRead, event: KeyboardEvent];
   menu: [item: InventoryItemRead, action: ItemMenuAction];
 }>();
@@ -53,13 +57,24 @@ const placed = computed(() =>
 );
 
 /** Cells divide the block evenly; the aspect ratio keeps them square, whatever the width. */
-const box = computed(() => ({
-  width: '100%',
-  aspectRatio: `${columns.value} / ${rows.value}`,
-  backgroundImage:
-    'linear-gradient(to right, var(--sz-border) 1px, transparent 1px), linear-gradient(to bottom, var(--sz-border) 1px, transparent 1px)',
-  backgroundSize: `calc(100% / ${columns.value}) calc(100% / ${rows.value})`,
-}));
+const box = computed(() => {
+  const gridLines =
+    'linear-gradient(to right, var(--sz-border) 1px, transparent 1px), linear-gradient(to bottom, var(--sz-border) 1px, transparent 1px)';
+  if (props.cell) {
+    return {
+      width: `${columns.value * props.cell}px`,
+      height: `${rows.value * props.cell}px`,
+      backgroundImage: gridLines,
+      backgroundSize: `${props.cell}px ${props.cell}px`,
+    };
+  }
+  return {
+    width: '100%',
+    aspectRatio: `${columns.value} / ${rows.value}`,
+    backgroundImage: gridLines,
+    backgroundSize: `calc(100% / ${columns.value}) calc(100% / ${rows.value})`,
+  };
+});
 
 /** Style objects are reused per geometry, so an unchanged tile keeps its prop identity. */
 const styleCache = new Map<string, Record<string, string>>();
@@ -114,6 +129,7 @@ function cells(x: number, y: number, size: { width: number; height: number }): R
           :attach="props.attachTile"
           :style="styleFor(item)"
           @select="$emit('select', item)"
+          @open="$emit('open', item)"
           @pick="$emit('pick', item, $event)"
         />
       </ItemContextMenu>

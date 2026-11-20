@@ -1,6 +1,7 @@
 import type { EquipmentRead, InventoryItemRead, PlacementRead, StorageRead } from '@profile/shared/contracts';
 import { describe, expect, it } from 'vitest';
-import { equipSlots, equipTarget, moveDestinations } from '~/features/inventory/model/menu';
+import { equipmentSlotsFor } from '@profile/shared/contracts';
+import { equipTarget, moveDestinations } from '~/features/inventory/model/menu';
 
 function item(id: number, placement: PlacementRead, extra: Partial<InventoryItemRead> = {}): InventoryItemRead {
   return {
@@ -93,31 +94,27 @@ function equipment(overrides: Partial<EquipmentRead> = {}): EquipmentRead {
   };
 }
 
-describe('equipSlots', () => {
+describe('equipmentSlotsFor', () => {
   it('sends a firearm to the weapon slots', () => {
-    expect(equipSlots(item(1, { location: 'loose' }, { category: 'weapon/shotgun' }))).toEqual(['primary', 'secondary']);
+    expect(equipmentSlotsFor(item(1, { location: 'loose' }, { category: 'weapon/shotgun' }))).toEqual(['primary', 'secondary']);
   });
 
   it('puts a melee weapon in the melee slot first', () => {
-    expect(equipSlots(item(1, { location: 'loose' }, { category: 'weapon/melee' }))).toEqual([
-      'melee',
-      'primary',
-      'secondary',
-    ]);
+    expect(equipmentSlotsFor(item(1, { location: 'loose' }, { category: 'weapon/melee' }))).toEqual(['melee']);
   });
 
   it('maps armor, backpacks and artifact containers to their own slots', () => {
-    expect(equipSlots(item(1, { location: 'loose' }, { kind: 'armor' }))).toEqual(['armor']);
-    expect(equipSlots(item(1, { location: 'loose' }, { kind: 'container', category: 'backpacks' }))).toEqual([
+    expect(equipmentSlotsFor(item(1, { location: 'loose' }, { kind: 'armor' }))).toEqual(['armor']);
+    expect(equipmentSlotsFor(item(1, { location: 'loose' }, { kind: 'container', category: 'backpacks' }))).toEqual([
       'backpack',
     ]);
-    expect(equipSlots(item(1, { location: 'loose' }, { kind: 'container', category: 'containers' }))).toEqual([
+    expect(equipmentSlotsFor(item(1, { location: 'loose' }, { kind: 'container', category: 'containers' }))).toEqual([
       'container',
     ]);
   });
 
   it('offers the quick slots to ammo and misc items', () => {
-    expect(equipSlots(item(1, { location: 'loose' }, { kind: 'ammo' }))).toEqual([
+    expect(equipmentSlotsFor(item(1, { location: 'loose' }, { kind: 'ammo' }))).toEqual([
       'quick1',
       'quick2',
       'quick3',
@@ -126,8 +123,8 @@ describe('equipSlots', () => {
   });
 
   it('rejects kinds the equipment slots do not take', () => {
-    expect(equipSlots(item(1, { location: 'loose' }, { kind: 'artifact' }))).toEqual([]);
-    expect(equipSlots(item(1, { location: 'loose' }, { kind: 'container', category: null }))).toEqual([]);
+    expect(equipmentSlotsFor(item(1, { location: 'loose' }, { kind: 'artifact' }))).toEqual([]);
+    expect(equipmentSlotsFor(item(1, { location: 'loose' }, { kind: 'container', category: null }))).toEqual([]);
   });
 });
 

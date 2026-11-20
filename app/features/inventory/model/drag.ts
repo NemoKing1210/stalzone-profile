@@ -166,15 +166,30 @@ export function gridUnder(pointer: Point, boxes: readonly GridBox[]): GridHit | 
   return null;
 }
 
-export type GrabSource = 'grid' | 'slot';
+export type GrabSource = 'grid' | 'equipment' | 'container' | 'intake';
+
+/** The rectangle an instance is picked from, named by the placement it reads. */
+export function sourceOf(placement: PlacementRead, intakeStorageId: number | null): GrabSource {
+  if (placement.location === 'grid') {
+    return placement.storageId === intakeStorageId ? 'intake' : 'grid';
+  }
+  if (placement.location === 'equipment') return 'equipment';
+  if (placement.location === 'container') return 'container';
+  return 'grid';
+}
 
 /**
- * The footprint cell held under the pointer. A grid tile maps its own rectangle onto
- * its cells; an equipment or container slot is not a grid, so the card is centered.
+ * The footprint cell held under the pointer. Every source maps its own rectangle onto
+ * the footprint, so the card keeps the grabbed cell under the cursor instead of
+ * re-centering itself when it is picked up.
  */
-export function grabPoint(source: GrabSource, rect: GridBounds, pointer: Point, size: Size): Point {
-  if (source === 'grid') return grabCell(rect, pointer, size);
-  return centerGrab(size);
+export function grabPoint(_source: GrabSource, rect: GridBounds, pointer: Point, size: Size): Point {
+  return grabCell(rect, pointer, size);
+}
+
+/** Only the primary mouse button picks an item up; a right press opens the menu instead. */
+export function isPrimaryButton(button: number): boolean {
+  return button === 0;
 }
 
 /** The footprint cell at the middle of an item; a slot-sourced card hangs from it. */

@@ -1,20 +1,21 @@
 <script setup lang="ts">
 import type { InventoryItemRead, ModuleSlot, StorageRead } from '@profile/shared/contracts';
 
+import { findDetailsCard } from '~/entities/item';
 import { ConfirmActionModal, ProfilePane } from '~/shared/ui';
 import type { DropTarget } from '../../model/drag';
 import { storageLabel } from '../../model/labels';
 import type { ItemMenuAction } from '../../model/menu';
+import { useFilters } from '../../model/useFilters';
 import { useInventory } from '../../model/useInventory';
-import ContainerPanel from './ContainerPanel.vue';
 import WeightHud from './WeightHud.vue';
 import DragPreview from './DragPreview.vue';
 import EquipmentDoll from './EquipmentDoll.vue';
-import ItemDetailsPanel from './ItemDetailsPanel.vue';
+import ItemDetailsModal from '../ItemDetailsModal.vue';
 import ItemGrid from './ItemGrid.vue';
 import LoadoutPanel from './LoadoutPanel.vue';
 import StorageManager from './StorageManager.vue';
-import WeaponPanel from './WeaponPanel.vue';
+import { nextPane, resolvePane, type LeftPane } from '../../model/panes';
 import { provideGridDrag } from './drag-context';
 import { useGridDrag } from './useGridDrag';
 
@@ -59,6 +60,12 @@ async function dropItem(itemId: number, target: DropTarget): Promise<void> {
 function selectItem(item: InventoryItemRead): void {
   if (drag.shouldIgnoreClick() || drag.picked.value) return;
   selectedId.value = item.id;
+}
+
+/** The details panel opens on a double click; a single click only selects the card. */
+function openItem(item: InventoryItemRead): void {
+  if (drag.shouldIgnoreClick() || drag.picked.value) return;
+  selectedId.value = item.id;
   detailsOpen.value = true;
 }
 
@@ -72,13 +79,9 @@ function pickItem(item: InventoryItemRead, event: KeyboardEvent): void {
 function itemMenu(item: InventoryItemRead, action: ItemMenuAction): void {
   switch (action.kind) {
     case 'details':
-      selectItem(item);
-      break;
     case 'container':
-      openContainer(item.id);
-      break;
     case 'weapon':
-      openWeapon(item.id);
+      openItem(item);
       break;
     case 'move':
       void inventory.move(item.id, action.target);
@@ -95,11 +98,18 @@ function itemMenu(item: InventoryItemRead, action: ItemMenuAction): void {
 
 const selectedId = ref<number | null>(null);
 const detailsOpen = ref(false);
-const containerId = ref<number | null>(null);
-const containerOpen = ref(false);
-const weaponId = ref<number | null>(null);
-const weaponOpen = ref(false);
 const storageOpen = ref(false);
+/** The header toggle: the left column shows the worn equipment or the selected stash. */
+const leftState = useFilters('inventory-left-pane', { pane: 'equipment' });
+const leftPane = computed<LeftPane>(() => resolvePane(leftState.pane));
+
+function setLeftPane(pane: LeftPane): void {
+  leftState.pane = pane;
+}
+
+function toggleLeftPane(): void {
+  setLeftPane(nextPane(leftPane.value));
+}
 const removal = ref<InventoryItemRead | null>(null);
 
 function flatten(item: InventoryItemRead, into: Map<number, InventoryItemRead>): void {
@@ -117,10 +127,10 @@ const itemMap = computed(() => {
 
 const allItems = computed(() => [...itemMap.value.values()]);
 const selectedItem = computed(() => (selectedId.value == null ? null : (itemMap.value.get(selectedId.value) ?? null)));
-const containerItem = computed(() => (containerId.value == null ? null : (itemMap.value.get(containerId.value) ?? null)));
-const weaponItem = computed(() => (weaponId.value == null ? null : (itemMap.value.get(weaponId.value) ?? null)));
-const openContainerItem = computed(() => (containerOpen.value ? containerItem.value : null));
-const openWeaponItem = computed(() => (weaponOpen.value ? weaponItem.value : null));
+const CARD_PREFIX: Record<string, string> = { weapon: 'w', armor: 'a', artifact: 'art', container: 'c' };
+const selectedCard = computed(() =>
+  selectedItem.value ? findDetailsCard(details.value, CARD_PREFIX[selectedItem.value.kind] ?? '', selectedItem.value.name) : null,
+);
 
 const artifactCandidates = computed(() => allItems.value.filter((item) => item.kind === 'artifact'));
 const attachmentCandidates = computed(() => allItems.value.filter((item) => item.kind === 'attachment'));
@@ -128,22 +138,6 @@ const attachmentCandidates = computed(() => allItems.value.filter((item) => item
 watch(selectedItem, (item) => {
   if (!item) detailsOpen.value = false;
 });
-watch(containerItem, (item) => {
-  if (!item) containerOpen.value = false;
-});
-watch(weaponItem, (item) => {
-  if (!item) weaponOpen.value = false;
-});
-
-function openContainer(id: number): void {
-  containerId.value = id;
-  containerOpen.value = true;
-}
-
-function openWeapon(id: number): void {
-  weaponId.value = id;
-  weaponOpen.value = true;
-}
 
 /* ------------------------------------------------------------------ */
 /* Writes                                                              */
@@ -177,15 +171,22 @@ async function confirmRemoval(): Promise<void> {
 }
 
 async function applyFill(slots: (number | null)[]): Promise<void> {
-  if (containerId.value == null) return;
-  await inventory.setContainerFill(containerId.value, slots);
+  const container = selectedItem.value;
+  if (container?.kind !== 'container') return;
+  await inventory.setContainerFill(container.id, slots);
 }
+
+/** Both inventory panes draw cells at this pixel width, so stash and carried grids match. */
+const CELL_PX = 56;
+const stashPaneTitle = computed(() =>
+  inventory.selectedStorage.value ? storageLabel(inventory.selectedStorage.value, t) : t('inventory.stash'),
+);
 
 const pendingUnverified = ref<{ weaponId: number; slot: ModuleSlot; attachmentItemId: number } | null>(null);
 
 async function installModule(slot: ModuleSlot, attachmentItemId: number | null): Promise<void> {
-  const weapon = weaponItem.value;
-  if (!weapon) return;
+  const weapon = selectedItem.value;
+  if (weapon?.kind !== 'weapon') return;
   const result = await inventory.setWeaponModule(weapon.id, slot, attachmentItemId);
   if (
     !result &&
@@ -252,15 +253,33 @@ const containerNames = computed<Record<number, string>>(() => {
 <template>
   <section class="space-y-3">
     <DragPreview :details="details" />
+
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
         <h1>{{ t('inventory.title') }}</h1>
         <p class="text-[12.5px] text-[var(--sz-text-muted)]">{{ t('inventory.summary') }}</p>
         <p class="text-[11px] text-[var(--sz-text-muted)]">{{ t('inventory.menuHint') }}</p>
       </div>
-      <p v-if="drag.picked.value" class="text-[11px] text-[var(--sz-text-muted)]">
-        {{ t('inventory.dragHint') }}
-      </p>
+      <div class="flex flex-wrap items-center gap-1" role="group" :aria-label="t('inventory.equipment')">
+        <UButton
+          size="xs"
+          color="neutral"
+          :variant="leftPane === 'equipment' ? 'solid' : 'outline'"
+          :aria-pressed="leftPane === 'equipment'"
+          @click="toggleLeftPane"
+        >
+          {{ t('inventory.equipment') }}
+        </UButton>
+        <UButton
+          size="xs"
+          color="neutral"
+          :variant="leftPane === 'stash' ? 'solid' : 'outline'"
+          :aria-pressed="leftPane === 'stash'"
+          @click="leftPane === 'equipment' ? setLeftPane('stash') : toggleLeftPane()"
+        >
+          {{ t('inventory.stash') }}
+        </UButton>
+      </div>
     </div>
 
     <UEmpty
@@ -275,71 +294,110 @@ const containerNames = computed<Record<number, string>>(() => {
     </UEmpty>
 
     <template v-else>
-      <div class="grid items-start gap-3 xl:grid-cols-2">
-        <div class="min-w-0 space-y-3">
-          <ProfilePane :title="t('inventory.equipment')">
-            <EquipmentDoll
-              :equipment="inventory.equipment.value"
-              :storages="inventory.storages.value"
-              :busy="inventory.busy.value"
-              :attach-tile="drag.attachTile"
-              @select="selectItem"
-              @pick="pickItem"
-              @menu="itemMenu"
+      <div class="grid items-stretch gap-3 xl:grid-cols-2">
+        <ProfilePane
+          class="h-[calc(100vh-9rem)] min-h-[460px] min-w-0"
+          :title="leftPane === 'equipment' ? t('inventory.equipment') : stashPaneTitle"
+        >
+          <template v-if="leftPane === 'stash'" #actions>
+            <USelect
+              v-if="storageOptions.length"
+              v-model="storageId"
+              :items="storageOptions"
+              size="xs"
+              class="w-40"
+              :aria-label="t('inventory.stashSelector')"
             />
-          </ProfilePane>
+            <UButton
+              v-if="inventory.selectedStorage.value?.kind === 'stash'"
+              icon="i-lucide-align-start-vertical"
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              :aria-label="t('inventory.autoArrange')"
+              :title="t('inventory.autoArrange')"
+              :disabled="!inventory.selectedStorage.value?.items.length || inventory.busy.value"
+              @click="arrange"
+            />
+            <UButton
+              icon="i-lucide-settings-2"
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              :aria-label="t('inventory.manageStashes')"
+              :title="t('inventory.manageStashes')"
+              @click="storageOpen = true"
+            />
+          </template>
 
-          <ProfilePane v-if="openContainerItem" :title="openContainerItem.name" dense>
-            <template #actions>
-              <UButton
-                icon="i-lucide-x"
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                :aria-label="t('common.close')"
-                @click="containerOpen = false"
+          <div class="h-full overflow-auto p-2">
+            <template v-if="leftPane === 'equipment'">
+              <EquipmentDoll
+                :equipment="inventory.equipment.value"
+                :storages="inventory.storages.value"
+                :busy="inventory.busy.value"
+                :attach-tile="drag.attachTile"
+                @select="selectItem"
+                @open="openItem"
+                @pick="pickItem"
+                @menu="itemMenu"
               />
+              <div class="mt-3">
+                <LoadoutPanel :stats="inventory.stats.value" :names="containerNames" />
+              </div>
             </template>
-            <ContainerPanel
-              :container="openContainerItem"
-              :candidates="artifactCandidates"
-              :busy="inventory.busy.value"
-              @fill="applyFill"
-              @close="containerOpen = false"
-            />
-          </ProfilePane>
 
-          <ProfilePane v-else-if="openWeaponItem" :title="openWeaponItem.name" dense>
-            <template #actions>
-              <UButton
-                icon="i-lucide-x"
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                :aria-label="t('common.close')"
-                @click="weaponOpen = false"
-              />
+            <template v-else-if="inventory.selectedStorage.value">
+              <div
+                v-if="!inventory.stashes.value.length"
+                class="mb-2 flex flex-wrap items-center justify-between gap-2"
+              >
+                <p class="text-[11px] text-[var(--sz-text-dim)]">{{ t('inventory.noStash') }}</p>
+                <UButton size="xs" icon="i-lucide-plus" :label="t('inventory.createStash')" @click="storageOpen = true" />
+              </div>
+              <p
+                v-if="inventory.selectedStorage.value.kind === 'overflow'"
+                class="mb-2 text-[11px] text-[var(--sz-text-muted)]"
+              >
+                {{ t('inventory.overflowHint') }}
+              </p>
+              <WeightHud :storage="inventory.selectedStorage.value" />
+              <div class="mt-2">
+                <ItemGrid
+                  :storage="inventory.selectedStorage.value"
+                  :selected-id="selectedId"
+                  :picked-id="drag.picked.value?.id ?? null"
+                  :storages="inventory.storages.value"
+                  :equipment="inventory.equipment.value"
+                  :busy="inventory.busy.value"
+                  :details="details"
+                  :cell="CELL_PX"
+                  :drop-enabled="inventory.selectedStorage.value.kind !== 'overflow'"
+                  :empty-text="
+                    inventory.selectedStorage.value.kind === 'overflow' ? t('inventory.overflowEmpty') : undefined
+                  "
+                  :attach-tile="drag.attachTile"
+                  @select="selectItem"
+                  @open="openItem"
+                  @pick="pickItem"
+                  @menu="itemMenu"
+                />
+              </div>
             </template>
-            <WeaponPanel
-              :weapon="openWeaponItem"
-              :attachments="attachmentCandidates"
-              :busy="inventory.busy.value"
-              @install="installModule"
-              @close="weaponOpen = false"
-            />
-          </ProfilePane>
 
-          <ProfilePane v-else :title="t('inventory.loadout')" dense>
-            <LoadoutPanel :stats="inventory.stats.value" :names="containerNames" />
-          </ProfilePane>
-        </div>
+            <div v-else class="space-y-2">
+              <p class="text-[12px] text-[var(--sz-text-dim)]">{{ t('inventory.noStash') }}</p>
+              <UButton size="xs" icon="i-lucide-plus" :label="t('inventory.createStash')" @click="storageOpen = true" />
+            </div>
+          </div>
+        </ProfilePane>
 
         <ProfilePane
+          class="h-[calc(100vh-9rem)] min-h-[460px] min-w-0"
           flush
           :title="storageLabel(inventory.inventoryStorage.value, t)"
-          :hint="t('inventory.grid')"
         >
-          <div class="p-2.5">
+          <div class="h-full overflow-auto p-2.5">
             <ItemGrid
               :storage="inventory.inventoryStorage.value"
               :selected-id="selectedId"
@@ -348,116 +406,35 @@ const containerNames = computed<Record<number, string>>(() => {
               :equipment="inventory.equipment.value"
               :busy="inventory.busy.value"
               :details="details"
+              :cell="CELL_PX"
               :attach-tile="drag.attachTile"
               @select="selectItem"
+              @open="openItem"
               @pick="pickItem"
               @menu="itemMenu"
             />
           </div>
-          <WeightHud :stats="inventory.stats.value" edge="top" />
+          <template #footer>
+            <WeightHud :stats="inventory.stats.value" />
+          </template>
         </ProfilePane>
       </div>
-
-      <ProfilePane
-        flush
-        :title="inventory.selectedStorage.value ? storageLabel(inventory.selectedStorage.value, t) : t('inventory.stash')"
-      >
-        <template #actions>
-          <USelect
-            v-if="storageOptions.length"
-            v-model="storageId"
-            :items="storageOptions"
-            size="xs"
-            class="w-40"
-            :aria-label="t('inventory.stashSelector')"
-          />
-          <UButton
-            v-if="inventory.selectedStorage.value?.kind === 'stash'"
-            icon="i-lucide-align-start-vertical"
-            size="xs"
-            color="neutral"
-            variant="ghost"
-            :aria-label="t('inventory.autoArrange')"
-            :title="t('inventory.autoArrange')"
-            :disabled="!inventory.selectedStorage.value?.items.length || inventory.busy.value"
-            @click="arrange"
-          />
-          <UButton
-            icon="i-lucide-settings-2"
-            size="xs"
-            color="neutral"
-            variant="ghost"
-            :aria-label="t('inventory.manageStashes')"
-            :title="t('inventory.manageStashes')"
-            @click="storageOpen = true"
-          />
-        </template>
-
-        <template v-if="inventory.selectedStorage.value">
-          <div
-            v-if="!inventory.stashes.value.length"
-            class="flex items-center justify-between gap-2 px-3 pt-2"
-          >
-            <p class="text-[11px] text-[var(--sz-text-dim)]">{{ t('inventory.noStash') }}</p>
-            <UButton
-              size="xs"
-              icon="i-lucide-plus"
-              :label="t('inventory.createStash')"
-              @click="storageOpen = true"
-            />
-          </div>
-          <p
-            v-if="inventory.selectedStorage.value.kind === 'overflow'"
-            class="px-3 pt-2 text-[11px] text-[var(--sz-text-muted)]"
-          >
-            {{ t('inventory.overflowHint') }}
-          </p>
-          <WeightHud :storage="inventory.selectedStorage.value" />
-          <div class="p-2.5">
-            <ItemGrid
-              :storage="inventory.selectedStorage.value"
-              :selected-id="selectedId"
-              :picked-id="drag.picked.value?.id ?? null"
-              :storages="inventory.storages.value"
-              :equipment="inventory.equipment.value"
-              :busy="inventory.busy.value"
-              :details="details"
-              :drop-enabled="inventory.selectedStorage.value.kind !== 'overflow'"
-              :empty-text="
-                inventory.selectedStorage.value.kind === 'overflow' ? t('inventory.overflowEmpty') : undefined
-              "
-              :attach-tile="drag.attachTile"
-              @select="selectItem"
-              @pick="pickItem"
-              @menu="itemMenu"
-            />
-          </div>
-        </template>
-        <div v-else class="space-y-2 p-3">
-          <p class="text-[12px] text-[var(--sz-text-dim)]">{{ t('inventory.noStash') }}</p>
-          <UButton
-            size="xs"
-            icon="i-lucide-plus"
-            :label="t('inventory.createStash')"
-            @click="storageOpen = true"
-          />
-        </div>
-      </ProfilePane>
     </template>
 
-    <UModal v-model:open="detailsOpen" :title="t('inventory.itemDetails')">
-      <template #body>
-        <ItemDetailsPanel
-          v-if="selectedItem"
-          :item="selectedItem"
-          :busy="inventory.busy.value"
-          @update="updateSelected"
-          @remove="removeSelected"
-          @open-container="openContainer(selectedItem.id)"
-          @open-weapon="openWeapon(selectedItem.id)"
-        />
-      </template>
-    </UModal>
+    <ItemDetailsModal
+      v-model:open="detailsOpen"
+      :kind="selectedItem?.kind ?? 'other'"
+      :name="selectedItem?.displayName ?? selectedItem?.name ?? ''"
+      :item="selectedItem"
+      :card="selectedCard"
+      :attachments="attachmentCandidates"
+      :artifacts="artifactCandidates"
+      :busy="inventory.busy.value"
+      @update="updateSelected"
+      @remove="removeSelected"
+      @install="installModule"
+      @fill="applyFill"
+    />
 
     <ConfirmActionModal
       :open="removal !== null"

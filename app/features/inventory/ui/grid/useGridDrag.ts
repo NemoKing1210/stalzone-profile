@@ -1,18 +1,19 @@
 import type { EquipmentSlot, InventoryItemRead, ModuleSlot, StorageRead } from '@profile/shared/contracts';
-import { EquipmentSlotSchema, ModuleSlotSchema } from '@profile/shared/contracts';
+import { acceptsEquipment, EquipmentSlotSchema, ModuleSlotSchema } from '@profile/shared/contracts';
 
 import {
   cellPixels,
   centerGrab,
   grabPoint,
   gridUnder,
+  isPrimaryButton,
   pickRotation,
   isSameTarget,
   keyboardTarget,
   previewBox,
+  sourceOf,
   startPlacement,
   type DropTarget,
-  type GrabSource,
   type GridBox,
   type Point,
   type PreviewBox,
@@ -104,17 +105,14 @@ export function useGridDrag(options: GridDragOptions) {
   /** Edge auto-scroll: frame handle and the last pointer position it follows. */
   let scrollRaf = 0;
   let lastPointer: Point | null = null;
-  /** Whether the pick came from grid cells or a slot; a rotated slot card re-centres. */
-  let grabSource: GrabSource = 'grid';
 
   function shouldIgnoreClick(): boolean {
     return Date.now() < ignoreClickUntil;
   }
 
-  function start(item: InventoryItemRead, source?: KeyboardEvent, at?: Point, from: GrabSource = 'grid'): void {
+  function start(item: InventoryItemRead, source?: KeyboardEvent, at?: Point): void {
     picked.value = item;
     pickEvent = source ?? null;
-    grabSource = from;
     preview.value = null;
     cellPx = null;
     const spot = startPlacement(item.placement, {
@@ -217,10 +215,7 @@ export function useGridDrag(options: GridDragOptions) {
     if (!picked.value) return;
     rotated.value = !rotated.value;
     const size = effectiveSize(picked.value.size, rotated.value);
-    grab.value =
-      grabSource === 'slot'
-        ? centerGrab(size)
-        : { x: Math.min(grab.value.x, size.width - 1), y: Math.min(grab.value.y, size.height - 1) };
+    grab.value = { x: Math.min(grab.value.x, size.width - 1), y: Math.min(grab.value.y, size.height - 1) };
     if (target.value?.location === 'grid') {
       target.value = { ...target.value, rotated: rotated.value };
     }
@@ -358,6 +353,12 @@ export function useGridDrag(options: GridDragOptions) {
       return;
     }
     if (next.location === 'equipment') {
+      // A slot only lights up for an item it can take; the drop never asks the server
+      // for a pair the table already rejects.
+      if (!picked.value || !acceptsEquipment(next.slot, picked.value)) {
+        clearTarget();
+        return;
+      }
       overEquipment(next.slot);
       return;
     }
@@ -402,9 +403,8 @@ export function useGridDrag(options: GridDragOptions) {
     // stored rotated but starts unrotated, and a rotated grab would offset the card.
     const rotatedAtStart = pickRotation(item.placement, options.intakeStorageId());
     const size = effectiveSize(item.size, rotatedAtStart);
-    const source: GrabSource = el.dataset.size ? 'grid' : 'slot';
-    const at = grabPoint(source, rect, pointer, size);
-    start(item, undefined, at, source);
+    const at = grabPoint(sourceOf(item.placement, options.intakeStorageId()), rect, pointer, size);
+    start(item, undefined, at);
     // An item picked up outside a grid has no cell to preview: hover decides the target.
     if (item.placement.location !== 'grid') {
       ghost.value = null;
@@ -480,6 +480,8 @@ export function useGridDrag(options: GridDragOptions) {
         },
       });
       interactable.on('down', (event) => {
+        // A right press opens the context menu; only the primary button picks a card up.
+        if (!isPrimaryButton(event.button)) return;
         const record = tiles.get(el);
         if (!record?.item || picked.value) return;
         record.rect = el.getBoundingClientRect();
