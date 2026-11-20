@@ -122,7 +122,21 @@ const dataState = computed(() => [
   <section class="space-y-4">
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div class="min-w-0">
-        <h1>{{ character.nick ?? 'STALZONE' }}</h1>
+        <div class="flex flex-wrap items-center gap-2">
+          <h1>{{ character.nick ?? 'STALZONE' }}</h1>
+          <UTooltip
+            v-if="character.profileFetchedAt"
+            :text="t('overview.verifiedAt', { date: formatDate(character.profileFetchedAt) })"
+          >
+            <span
+              data-testid="profile-verified"
+              class="inline-flex items-center gap-1 border border-[var(--sz-border)] px-1.5 py-0.5 sz-caps text-[10px] text-[var(--sz-success-text)]"
+            >
+              <UIcon name="i-lucide-badge-check" class="size-3" aria-hidden="true" />
+              {{ t('overview.verified') }}
+            </span>
+          </UTooltip>
+        </div>
         <p class="flex flex-wrap items-center gap-x-3 text-[12.5px] text-[var(--sz-text-muted)]">
           <span class="inline-flex items-center gap-1.5">
             <img

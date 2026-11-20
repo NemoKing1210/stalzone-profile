@@ -117,6 +117,8 @@
     "pageTitle": "Обзор",
     "factionMissing": "фракция не указана",
     "editProfile": "Изменить профиль",
+    "verified": "Подтверждено",
+    "verifiedAt": "Подтверждено официальным API STALZONE {date}.",
     "stats": {
       "hours": "Часов в игре",
       "kd": "K/D",

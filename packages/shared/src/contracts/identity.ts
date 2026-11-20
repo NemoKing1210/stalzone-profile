@@ -29,6 +29,7 @@ export const CharacterReadSchema = DerivedCharacterFieldsSchema.extend({
   clanRank: z.string().nullable().optional(),
   money: z.number().nullable().optional(),
   maxMoney: z.number().nullable().optional(),
+  profileFetchedAt: z.string().nullable().optional(),
   stats: z.record(z.string(), z.union([z.number(), z.string()])),
 });
 export type CharacterRead = z.infer<typeof CharacterReadSchema>;

@@ -26,6 +26,7 @@ export function getCharacterReadFrom(character: CharacterRow, rows: CharacterSta
     clanRank: character.clan_rank,
     money: character.money,
     maxMoney: character.max_money,
+    profileFetchedAt: character.profile_fetched_at,
     ...deriveCharacterFields(effective),
     stats,
   };

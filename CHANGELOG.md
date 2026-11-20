@@ -9,6 +9,9 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- Overview: a Verified badge appears only when the official API served this character; the
+  payload character carries `profileFetchedAt`, and changing the nick or region clears the
+  marker, with rollback restoring it.
 - The shell now uses a side navigation: persistent and collapsible on wide screens, a
   drawer on narrow ones, with every section, the owned-count badges, account area,
   settings, logs, theme switch and sign-out in one place. The footer is removed.

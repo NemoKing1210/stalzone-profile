@@ -15,6 +15,7 @@ export const PayloadCharacterSchema = z
     clanRank: z.string().nullable().optional(),
     money: z.number().nullable().optional(),
     maxMoney: z.number().nullable().optional(),
+    profileFetchedAt: z.string().nullable().optional(),
     arrived: z.string().nullable().optional(),
     hours: z.number().nullable().optional(),
     kd: z.number().nullable().optional(),

@@ -19,7 +19,7 @@ import {
   patchCharacter,
   rollbackEvent,
 } from '@profile/core';
-import { setCharacterStat, upsertItem } from '@profile/core/testing';
+import { setCharacterStat, upsertCharacter, upsertItem } from '@profile/core/testing';
 
 const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
 
@@ -115,6 +115,31 @@ describe('createSetupCharacter', () => {
     expect(result.dryRun).toBe(true);
     expect(getCharacter(db)).toBeNull();
     expect(listEvents(db)).toHaveLength(0);
+  });
+});
+
+describe('patchCharacter and the fetched profile marker', () => {
+  const marker = '2026-01-01T00:00:00.000Z';
+
+  it('clears the marker when the nick changes, and rollback restores it', () => {
+    upsertCharacter(db, { nick: 'Tester', region: 'ru', profileFetchedAt: marker });
+
+    patchCharacter(db, CharacterPatchSchema.parse({ money: 500 }));
+    expect(getCharacterRead(db)?.profileFetchedAt).toBe(marker);
+
+    const renamed = patchCharacter(db, CharacterPatchSchema.parse({ nick: 'Renamed' }));
+    expect(getCharacterRead(db)?.profileFetchedAt).toBeNull();
+    expect(renamed.diff.after).toMatchObject({ nick: 'Renamed', profileFetchedAt: null });
+
+    rollbackEvent(db, renamed.eventId!, false);
+    expect(getCharacterRead(db)).toMatchObject({ nick: 'Tester', profileFetchedAt: marker });
+  });
+
+  it('clears the marker when the region changes', () => {
+    upsertCharacter(db, { nick: 'Tester', region: 'ru', profileFetchedAt: marker });
+
+    patchCharacter(db, CharacterPatchSchema.parse({ region: 'eu' }));
+    expect(getCharacterRead(db)).toMatchObject({ region: 'eu', profileFetchedAt: null });
   });
 });
 

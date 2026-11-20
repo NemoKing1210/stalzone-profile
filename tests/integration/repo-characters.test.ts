@@ -44,6 +44,15 @@ describe('characters and character stats', () => {
     expect(repo.findCharacterByName(db, 'tester', 'ru')).toBeNull();
   });
 
+  it('reads the profile fetch marker into the contract character', () => {
+    const id = seed.upsertCharacter(db, {
+      nick: 'tester',
+      region: 'ru',
+      profileFetchedAt: '2026-01-01T00:00:00.000Z',
+    });
+    expect(repo.getCharacterRead(db, id)?.profileFetchedAt).toBe('2026-01-01T00:00:00.000Z');
+  });
+
   it('rejects an unknown region', () => {
     expect(() => seed.upsertCharacter(db, { nick: 'x', region: 'moon' })).toThrow(/CHECK/);
   });

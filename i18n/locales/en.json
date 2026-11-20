@@ -117,6 +117,8 @@
     "pageTitle": "Overview",
     "factionMissing": "faction not specified",
     "editProfile": "Edit profile",
+    "verified": "Verified",
+    "verifiedAt": "Confirmed by the official STALZONE API on {date}.",
     "stats": {
       "hours": "Hours in game",
       "kd": "K/D",

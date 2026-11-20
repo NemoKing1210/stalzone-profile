@@ -7,6 +7,7 @@ import {
   InventoryItemCreateSchema,
   InventoryItemPatchSchema,
   LoginSchema,
+  PayloadCharacterSchema,
   SyncSourceSchema,
   dec,
   fmtMoney,
@@ -186,6 +187,15 @@ describe('sync source', () => {
       expect(SyncSourceSchema.safeParse(source).success, source).toBe(true);
     }
     expect(SyncSourceSchema.safeParse('seeds').success).toBe(false);
+  });
+});
+
+describe('payload character', () => {
+  it('carries the profile fetch marker and leaves it absent when nothing was fetched', () => {
+    expect(PayloadCharacterSchema.parse({ profileFetchedAt: '2026-01-01T00:00:00.000Z' }).profileFetchedAt).toBe(
+      '2026-01-01T00:00:00.000Z',
+    );
+    expect(PayloadCharacterSchema.parse({})).not.toHaveProperty('profileFetchedAt');
   });
 });
 

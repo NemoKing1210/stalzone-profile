@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildPayload, closeDb, exportProfileJson, migrate, openDb, type Db } from '@profile/core';
+import * as seed from '@profile/core/testing';
 import { seedCatalog } from '../fixtures/seed';
 
 const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
@@ -59,6 +60,12 @@ describe('buildPayload contract', () => {
       arrived: '2024-06-01',
     });
     expect(payload.character.stats).toMatchObject({ kil: 250, dea: 100, 'pla-tim': 'PT123H' });
+  });
+
+  it('carries the stored profile fetch marker into the character section', () => {
+    seed.upsertCharacter(db, { nick: 'tester', region: 'ru', profileFetchedAt: '2026-01-01T00:00:00.000Z' });
+
+    expect(buildPayload(db).character.profileFetchedAt).toBe('2026-01-01T00:00:00.000Z');
   });
 
   it('keeps one owned row per copy and reads typed weapon numbers', () => {

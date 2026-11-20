@@ -25,6 +25,7 @@ export type CharacterSnapshot = {
   clanRank: string | null;
   money: number | null;
   maxMoney: number | null;
+  profileFetchedAt: string | null;
   stats: Record<string, number | string>;
   manualStats: string[];
 };
@@ -120,6 +121,7 @@ export function characterSnapshot(db: Db, row: CharacterRow): CharacterSnapshot 
     clanRank: row.clan_rank,
     money: row.money,
     maxMoney: row.max_money,
+    profileFetchedAt: row.profile_fetched_at,
     stats,
     manualStats: manualStats.sort(),
   };
@@ -130,6 +132,7 @@ function characterColumns(snapshot: Partial<CharacterSnapshot>): CharacterColumn
   for (const [key, column] of CHARACTER_FIELDS) {
     if (snapshot[key] !== undefined) out[column] = snapshot[key] as never;
   }
+  if (snapshot.profileFetchedAt !== undefined) out.profile_fetched_at = snapshot.profileFetchedAt;
   return out;
 }
 
@@ -146,6 +149,7 @@ export function createCharacter(db: Db, input: CharacterCreate): WriteResult {
     clanRank: input.clanRank ?? null,
     money: null,
     maxMoney: null,
+    profileFetchedAt: null,
     stats: {},
     manualStats: [],
   };
@@ -218,9 +222,14 @@ export function patchCharacter(db: Db, patch: CharacterPatch): WriteResult {
     statWrites[statId] = value;
   }
 
+  const identityChanged =
+    (defined.nick !== undefined && defined.nick !== before.nick) ||
+    (defined.region !== undefined && defined.region !== before.region);
+
   const after: CharacterSnapshot = {
     ...before,
     ...defined,
+    profileFetchedAt: identityChanged ? null : before.profileFetchedAt,
     stats,
     manualStats: [...manual].sort(),
   };
@@ -230,13 +239,16 @@ export function patchCharacter(db: Db, patch: CharacterPatch): WriteResult {
     if (before[key] !== after[key]) changed.push(`${key} ${String(before[key])} → ${String(after[key])}`);
   }
   if (JSON.stringify(before.stats) !== JSON.stringify(after.stats)) changed.push('stats');
+  if (before.profileFetchedAt !== after.profileFetchedAt) changed.push('profile fetch marker cleared');
   const human = changed.length ? `Character: ${changed.join(', ')}` : 'No changes';
 
   if (patch.dryRun) return { dryRun: true, diff: { before, after, human } };
 
   let eventId: number | undefined;
   withTransaction(db, () => {
-    if (Object.keys(defined).length) repo.updateCharacterById(db, character.id, characterColumns(defined));
+    const columns = characterColumns(defined);
+    if (after.profileFetchedAt !== before.profileFetchedAt) columns.profile_fetched_at = after.profileFetchedAt;
+    if (Object.keys(columns).length) repo.updateCharacterById(db, character.id, columns);
     for (const [statId, value] of Object.entries(statWrites)) {
       if (value === null) repo.clearCharacterStat(db, character.id, statId, 'manual');
       else repo.setCharacterStat(db, character.id, statId, value, 'manual');

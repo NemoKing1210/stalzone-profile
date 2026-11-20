@@ -879,6 +879,7 @@ describe('profile sync', () => {
       alliance: 'Duty',
     });
     expect(repo.getCharacter(db)?.profile_fetched_at).toBeTruthy();
+    expect(repo.getCharacterRead(db)?.profileFetchedAt).toBe(repo.getCharacter(db)?.profile_fetched_at);
 
     await runSync(db, 'profile', { fetchImpl, profileApi });
     expect(calls.token).toBe(2);

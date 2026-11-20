@@ -67,6 +67,7 @@ export interface ProfileCharacter {
   achievementPoints?: number | null;
   money?: number | null;
   maxMoney?: number | null;
+  profileFetchedAt?: string | null;
   stats?: Record<string, number | string>;
 }
 
