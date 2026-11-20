@@ -154,22 +154,46 @@ of them. The owner sets the priorities; the rules below define what counts as re
   and then it moves down with the blocker named; the owner may reprioritize explicitly.
 - **Only real work.** A task comes from the owner, a reproduced defect, a failing check or
   a documented gap. Do not invent work and do not copy an audit or a plan wholesale — link
-  it and list the concrete outcomes.
+  it and distil it into the concrete outcomes the entries below describe.
 - **"Add a task" means this file.** When the owner says "add a task", "add these tasks" or
   an equivalent phrase in any language, write the entries into `TODO.md` in the format
   below. It is a request to record work, not to start it: implement a task only when the
   owner asks to execute it or to work the list.
-- **One entry per outcome.** `- [ ] <area>: <result> — <how it is proven>`: one line,
-  imperative, an observable result and the test or command that proves it. No dates,
-  estimates or owner names; there is one owner.
+- **One entry per outcome.** `- [ ] <area>: <result> — <how it is proven>`: one line
+  (long is fine, several sentences are fine), imperative, an observable result and the
+  test or command that proves it. No dates, estimates or owner names; there is one owner.
+- **Write the entry as a plan, not a headline.** Adding a task and describing it are the
+  same act: the entry goes into `TODO.md` with the detail needed to execute it without
+  guessing — what exactly changes, which files, modules, contracts, migrations, routes,
+  tools or components are touched, the data/API/MCP/UI shape, the edge cases, what must
+  not move, the rollback, and the exact tests, commands or manual pass that will prove it.
+  Ground every claim in the code: name the file and symbol (or the table row, payload
+  field, component) that shows the problem, instead of adjectives like "broken" or
+  "unpolished". A one-sentence entry is only acceptable when the change really is one
+  sentence; otherwise a thin entry is a defect, because the owner cannot check the work
+  against a scope they never saw.
+- **Settle the unknowns while the entry is fresh.** When the result can be read two ways —
+  where a control goes, what a count counts, whether a field is deleted or merely hidden,
+  which page owns a feature, how many items a new page lists — resolve it before the entry
+  is finished: read the code first, then ask the owner the one question that changes the
+  design, and record the answer in the entry. Never leave "and so on", "make it beautiful"
+  or "fix it properly" as the specification: turn it into observable requirements or ask.
+  A guess written as a requirement becomes work the owner rejects at review.
+- **The entry is the plan while no separate plan exists.** `docs/superpowers/` holds a
+  longer design only when the task is large enough to need one; otherwise the `TODO.md`
+  entry carries the plan and is what the diff is reviewed against. If execution discovers
+  that the entry is wrong, update the entry — and tell the owner — before changing code in
+  a direction they did not agree to.
 - **Work it as a normal change.** TDD, the verification tier that fits, and the updates
   listed under **What to update along with code**. A task line never overrides a hard
   invariant.
 - **Plan the large ones.** A small fix follows the normal TDD loop. A large task, or one
   that adds functionality, changes a contract or migration or spans several modules,
   starts with a plan: what it touches, the data/API/MCP shape, the edge cases and rollback,
-  the tests that will prove it, and which existing behavior must not move. Get the owner's
-  agreement before the first code edit, as **How to change code** requires.
+  the tests that will prove it, and which existing behavior must not move. The plan may be
+  the `TODO.md` entry itself; when the design needs diagrams, alternatives or a phase list,
+  put it in `docs/superpowers/` and link it from the entry. Get the owner's agreement before
+  the first code edit, as **How to change code** requires.
 - **Quality and reliability are the bar.** Prefer the boring, complete implementation:
   every caller migrated, no dead code, stubs or `TODO`s, errors handled where they belong,
   no swallowed failures. A task is not done because the happy path works.
@@ -177,10 +201,11 @@ of them. The owner sets the priorities; the rules below define what counts as re
   holds: run the affected suites from the Tier 2 table, not just the new test, and add a
   regression test for the defect or edge the task introduces. Any deliberate behavior
   change is named in the reply and in `CHANGELOG.md`, never passed off as a side effect.
-- **Review the result.** Read your own diff against the plan — contracts, invariants, error
-  paths, rollback, tests and docs — before reporting completion. Interface work (screens,
-  components, layout, i18n) additionally gets a manual pass in a browser over the affected
-  pages and states, both locales and narrow widths; typecheck and lint are not a review.
+- **Review the result.** Read your own diff against the plan — the `TODO.md` entry or the
+  linked design — covering contracts, invariants, error paths, rollback, tests and docs
+  before reporting completion. Interface work (screens, components, layout, i18n)
+  additionally gets a manual pass in a browser over the affected pages and states, both
+  locales and narrow widths; typecheck and lint are not a review.
   When a review skill or subagent is available, use it — review is evidence, not a rubber
   stamp.
 - **Close it in the same change.** Tick the box, add the `CHANGELOG.md` entry and append
@@ -452,4 +477,5 @@ Rules:
 6. A schema, API/MCP or displayed-number change has its plan and owner approval, and the
    matching `docs/` and `/guide` entries are updated.
 7. `TODO.md` reflects reality: the finished task is ticked, moved to `Done` and has its
-   changelog entry; no open task was silently dropped.
+   changelog entry; no open task was silently dropped, and the shipped result matches what
+   the entry described (or the entry was amended with the owner's agreement).
