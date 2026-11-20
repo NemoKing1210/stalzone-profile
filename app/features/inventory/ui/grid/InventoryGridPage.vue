@@ -342,7 +342,7 @@ const containerNames = computed<Record<number, string>>(() => {
     <template v-else>
       <div class="grid items-stretch gap-3 xl:grid-cols-2">
         <ProfilePane
-          class="h-[calc(100vh-9rem)] min-h-[460px] min-w-0"
+          class="lg:h-[calc(100vh-11.5rem)] min-h-[460px] min-w-0"
           flush
           :title="leftPane === 'equipment' ? t('inventory.equipment') : stashPaneTitle"
         >
@@ -499,7 +499,7 @@ const containerNames = computed<Record<number, string>>(() => {
         </ProfilePane>
 
         <ProfilePane
-          class="h-[calc(100vh-9rem)] min-h-[460px] min-w-0"
+          class="lg:h-[calc(100vh-11.5rem)] min-h-[460px] min-w-0"
           flush
           :title="storageLabel(inventory.inventoryStorage.value, t)"
         >
