@@ -15,6 +15,9 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
+- The side menu collapses as one 200 ms width change: labels fade and clip, the icon
+  rail has no brand mark, section icons sit centred in 64 px with count chips on the icon
+  corner, and the footer uses the same accent-bordered rows as the top navigation.
 - Inventory: the stash weight block sits in the left pane's footer like the carried
   weight, with the same surface, unit and gauge, and follows the selected stash tab.
 - Catalog binding treats EXBO's `weapon_style/` and `armor_style/` rows as cosmetic

@@ -26,6 +26,8 @@ const counts = computed(() => navCounts(payload.value));
 const money = computed(() => payload.value?.character?.money ?? null);
 const nick = computed(() => payload.value?.character?.nick ?? null);
 const loggingOut = ref(false);
+/** The 64 px icon rail: no labels, no brand, only icons. */
+const rail = computed(() => props.collapsed && !props.mobile);
 
 interface NavEntry {
   key: string;
@@ -80,20 +82,11 @@ async function logout(): Promise<void> {
 <template>
   <div class="flex h-full min-h-0 flex-col bg-ink-950 text-[var(--sz-text)]">
     <div class="flex min-h-12 shrink-0 items-center gap-2 border-b border-[var(--sz-border)] px-3">
-      <NuxtLink to="/" class="flex min-w-0 items-center gap-1.5 overflow-hidden" @click="emit('navigate')">
-        <template v-if="!collapsed || mobile">
-          <span class="font-brand text-[17px] leading-none tracking-[0.12em]">{{ t('common.brandLeft') }}</span>
-          <span class="hidden text-[17px] leading-none text-[var(--sz-accent)] min-[240px]:inline">//</span>
-          <span class="truncate font-brand text-[17px] leading-none tracking-[0.12em]">
-            {{ t('common.brandRight') }}
-          </span>
-        </template>
-        <span
-          v-else
-          class="font-brand text-[17px] leading-none tracking-[0.06em] text-[var(--sz-accent)]"
-          :aria-label="`${t('common.brandLeft')} ${t('common.brandRight')}`"
-        >
-          SZ
+      <NuxtLink v-if="!rail" to="/" class="flex min-w-0 items-center gap-1.5 overflow-hidden" @click="emit('navigate')">
+        <span class="font-brand text-[17px] leading-none tracking-[0.12em]">{{ t('common.brandLeft') }}</span>
+        <span class="hidden text-[17px] leading-none text-[var(--sz-accent)] min-[240px]:inline">//</span>
+        <span class="truncate font-brand text-[17px] leading-none tracking-[0.12em]">
+          {{ t('common.brandRight') }}
         </span>
       </NuxtLink>
 
@@ -113,7 +106,7 @@ async function logout(): Promise<void> {
         color="neutral"
         variant="ghost"
         size="xs"
-        class="ml-auto"
+        :class="rail ? 'mx-auto' : 'ml-auto'"
         :aria-label="props.collapsed ? t('nav.expand') : t('nav.collapse')"
         :aria-expanded="!props.collapsed"
         @click="emit('toggle-collapse')"
@@ -121,22 +114,35 @@ async function logout(): Promise<void> {
     </div>
 
     <nav class="min-h-0 flex-1 overflow-y-auto py-2" :aria-label="t('nav.sections')">
-      <ul class="space-y-0.5 px-1.5">
+      <ul class="divide-y divide-[var(--sz-border)] border-y border-[var(--sz-border)]">
         <li v-for="entry in sections" :key="entry.key">
           <NuxtLink
             :to="entry.to"
-            class="group relative flex min-h-9 items-center gap-2 border-l-2 border-transparent px-2 text-[11px] uppercase tracking-[0.12em] text-[var(--sz-text-muted)] transition-colors hover:bg-[var(--sz-surface-alt)] hover:text-[var(--sz-text)]"
+            class="group relative flex min-h-9 items-center border-l-2 border-transparent text-[11px] uppercase tracking-[0.12em] text-[var(--sz-text-muted)] transition-colors hover:bg-[var(--sz-surface-alt)] hover:text-[var(--sz-text)]"
+            :class="rail ? 'justify-center px-0' : 'gap-2 px-2'"
             active-class="border-[var(--sz-accent)] bg-[var(--sz-surface-alt)] text-[var(--sz-text)]"
             :aria-label="countLabel(entry) || entry.label"
-            :title="collapsed && !mobile ? entry.label : undefined"
+            :title="rail ? entry.label : undefined"
             @click="emit('navigate')"
           >
-            <UIcon :name="entry.icon" class="size-4 shrink-0" aria-hidden="true" />
-            <span v-if="!collapsed || mobile" class="min-w-0 flex-1 truncate">{{ entry.label }}</span>
+            <span class="relative flex size-4 shrink-0 items-center justify-center">
+              <UIcon :name="entry.icon" class="size-4" aria-hidden="true" />
+              <span
+                v-if="rail && entry.count != null"
+                class="absolute -right-2.5 -top-1.5 inline-flex min-w-4 items-center justify-center rounded-full border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] px-[3px] text-[9px] leading-4 tabular-nums text-[var(--sz-text-muted)]"
+              >
+                {{ entry.count }}
+              </span>
+            </span>
             <span
-              v-if="entry.count != null"
-              class="shrink-0 border border-[var(--sz-border)] px-1 text-[10px] leading-4 tabular-nums text-[var(--sz-text-dim)] group-hover:border-[var(--sz-border-strong)] group-hover:text-[var(--sz-text-muted)]"
-              :class="collapsed && !mobile ? 'absolute right-1 top-0.5 border-0 px-0 text-[9px]' : ''"
+              class="min-w-0 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-200 ease-[cubic-bezier(.2,.8,.2,1)]"
+              :class="rail ? 'max-w-0 opacity-0' : 'max-w-[10rem] flex-1 opacity-100'"
+            >
+              {{ entry.label }}
+            </span>
+            <span
+              v-if="!rail && entry.count != null"
+              class="shrink-0 border border-[var(--sz-border)] px-1 text-[10px] leading-4 tabular-nums text-[var(--sz-text-dim)] transition-colors group-hover:border-[var(--sz-border-strong)] group-hover:text-[var(--sz-text-muted)]"
             >
               {{ entry.count }}
             </span>
@@ -146,7 +152,7 @@ async function logout(): Promise<void> {
     </nav>
 
     <div class="shrink-0 space-y-2 border-t border-[var(--sz-border)] p-2">
-      <div v-if="!collapsed || mobile" class="space-y-1">
+      <div v-if="!rail" class="space-y-1">
         <p v-if="nick" class="truncate px-1 text-[12px] text-[var(--sz-text)]">{{ nick }}</p>
         <div class="flex flex-wrap items-center gap-x-2 gap-y-1 px-1">
           <span
@@ -168,51 +174,87 @@ async function logout(): Promise<void> {
         </div>
       </div>
 
-      <div class="grid grid-cols-2 gap-1" :class="collapsed && !mobile ? 'grid-cols-1' : ''">
-        <UButton
-          :icon="theme === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon'"
-          color="neutral"
-          variant="ghost"
-          size="xs"
-          block
-          :aria-label="t('settings.themeTitle')"
-          :title="t('settings.themeTitle')"
-          @click="toggleTheme"
-        />
-        <UButton
-          to="/settings"
-          icon="i-lucide-settings"
-          color="neutral"
-          variant="ghost"
-          size="xs"
-          block
-          :aria-label="t('nav.settings')"
-          :title="t('nav.settings')"
-          @click="emit('navigate')"
-        />
-        <UButton
-          to="/logs"
-          icon="i-lucide-bug"
-          color="neutral"
-          variant="ghost"
-          size="xs"
-          block
-          :aria-label="t('nav.logs')"
-          :title="t('nav.logs')"
-          @click="emit('navigate')"
-        />
-        <UButton
-          icon="i-lucide-log-out"
-          color="neutral"
-          variant="ghost"
-          size="xs"
-          block
-          :aria-label="t('nav.logout')"
-          :title="t('nav.logout')"
-          :loading="loggingOut"
-          @click="logout"
-        />
-      </div>
+      <ul class="divide-y divide-[var(--sz-border)] border-y border-[var(--sz-border)]">
+        <li>
+          <button
+            type="button"
+            class="group relative flex min-h-9 w-full items-center border-l-2 border-transparent text-[11px] uppercase tracking-[0.12em] text-[var(--sz-text-muted)] transition-colors hover:bg-[var(--sz-surface-alt)] hover:text-[var(--sz-text)]"
+            :class="rail ? 'justify-center px-0' : 'gap-2 px-2'"
+            :aria-label="t('settings.themeTitle')"
+            :title="rail ? t('settings.themeTitle') : undefined"
+            @click="toggleTheme"
+          >
+            <UIcon
+              :name="theme === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon'"
+              class="size-4 shrink-0"
+              aria-hidden="true"
+            />
+            <span
+              class="min-w-0 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-200 ease-[cubic-bezier(.2,.8,.2,1)]"
+              :class="rail ? 'max-w-0 opacity-0' : 'max-w-[10rem] flex-1 opacity-100'"
+            >
+              {{ t('settings.themeTitle') }}
+            </span>
+          </button>
+        </li>
+        <li>
+          <NuxtLink
+            to="/settings"
+            class="group relative flex min-h-9 items-center border-l-2 border-transparent text-[11px] uppercase tracking-[0.12em] text-[var(--sz-text-muted)] transition-colors hover:bg-[var(--sz-surface-alt)] hover:text-[var(--sz-text)]"
+            :class="rail ? 'justify-center px-0' : 'gap-2 px-2'"
+            active-class="border-[var(--sz-accent)] bg-[var(--sz-surface-alt)] text-[var(--sz-text)]"
+            :aria-label="t('nav.settings')"
+            :title="rail ? t('nav.settings') : undefined"
+            @click="emit('navigate')"
+          >
+            <UIcon name="i-lucide-settings" class="size-4 shrink-0" aria-hidden="true" />
+            <span
+              class="min-w-0 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-200 ease-[cubic-bezier(.2,.8,.2,1)]"
+              :class="rail ? 'max-w-0 opacity-0' : 'max-w-[10rem] flex-1 opacity-100'"
+            >
+              {{ t('nav.settings') }}
+            </span>
+          </NuxtLink>
+        </li>
+        <li>
+          <NuxtLink
+            to="/logs"
+            class="group relative flex min-h-9 items-center border-l-2 border-transparent text-[11px] uppercase tracking-[0.12em] text-[var(--sz-text-muted)] transition-colors hover:bg-[var(--sz-surface-alt)] hover:text-[var(--sz-text)]"
+            :class="rail ? 'justify-center px-0' : 'gap-2 px-2'"
+            active-class="border-[var(--sz-accent)] bg-[var(--sz-surface-alt)] text-[var(--sz-text)]"
+            :aria-label="t('nav.logs')"
+            :title="rail ? t('nav.logs') : undefined"
+            @click="emit('navigate')"
+          >
+            <UIcon name="i-lucide-bug" class="size-4 shrink-0" aria-hidden="true" />
+            <span
+              class="min-w-0 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-200 ease-[cubic-bezier(.2,.8,.2,1)]"
+              :class="rail ? 'max-w-0 opacity-0' : 'max-w-[10rem] flex-1 opacity-100'"
+            >
+              {{ t('nav.logs') }}
+            </span>
+          </NuxtLink>
+        </li>
+        <li>
+          <button
+            type="button"
+            class="group relative flex min-h-9 w-full items-center border-l-2 border-transparent text-[11px] uppercase tracking-[0.12em] text-[var(--sz-text-muted)] transition-colors hover:bg-[var(--sz-surface-alt)] hover:text-[var(--sz-text)] disabled:opacity-60"
+            :class="rail ? 'justify-center px-0' : 'gap-2 px-2'"
+            :aria-label="t('nav.logout')"
+            :title="rail ? t('nav.logout') : undefined"
+            :disabled="loggingOut"
+            @click="logout"
+          >
+            <UIcon name="i-lucide-log-out" class="size-4 shrink-0" aria-hidden="true" />
+            <span
+              class="min-w-0 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-200 ease-[cubic-bezier(.2,.8,.2,1)]"
+              :class="rail ? 'max-w-0 opacity-0' : 'max-w-[10rem] flex-1 opacity-100'"
+            >
+              {{ t('nav.logout') }}
+            </span>
+          </button>
+        </li>
+      </ul>
     </div>
   </div>
 </template>

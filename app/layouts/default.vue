@@ -56,7 +56,7 @@ const sideWidth = computed(() => (collapsed.value ? COLLAPSED_WIDTH : EXPANDED_W
 <template>
   <div class="sz-atmosphere min-h-screen text-[var(--sz-text)]">
     <aside
-      class="fixed inset-y-0 left-0 z-40 hidden border-r border-[var(--sz-border)] lg:block"
+      class="fixed inset-y-0 left-0 z-40 hidden border-r border-[var(--sz-border)] transition-[width] duration-200 ease-[cubic-bezier(.2,.8,.2,1)] lg:block"
       :style="{ width: sideWidth }"
     >
       <SiteNav
@@ -103,7 +103,7 @@ const sideWidth = computed(() => (collapsed.value ? COLLAPSED_WIDTH : EXPANDED_W
     </div>
 
     <div
-      class="min-h-screen transition-[padding] duration-150 lg:pl-[var(--sz-side-width)]"
+      class="min-h-screen transition-[padding] duration-200 ease-[cubic-bezier(.2,.8,.2,1)] lg:pl-[var(--sz-side-width)]"
       :style="{ '--sz-side-width': sideWidth }"
     >
       <main class="mx-auto w-full max-w-[1600px] px-4 py-4 sm:px-6">
