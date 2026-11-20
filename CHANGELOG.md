@@ -9,6 +9,8 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- Catalog lists lead with a 22 px item icon (lazy, decorative) and an em dash when the
+  item has none; catalog and owned rows share the same renderer.
 - The side menu's Inventory row carries the owned-instance count like the other sections,
   counting each storage, equipment-slot and loose item once.
 - Overview: a Sync profile button pulls the official profile from the page header with a

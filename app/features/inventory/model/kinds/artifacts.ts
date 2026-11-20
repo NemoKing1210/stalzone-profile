@@ -73,6 +73,7 @@ export const artifactsKind: InventoryKind<ArtifactRow> = {
   },
 
   columns: () => [
+    { key: 'icon', label: '', icon: (row) => row.icon },
     { key: 'name', label: 'table.name', sortable: true, strong: true, wide: true },
     { key: 'type', label: 'table.type' },
     { key: 'rank', label: 'table.rank', sortable: true },

@@ -4,6 +4,7 @@ import { h, type VNode } from 'vue';
 import { ItemCard, findDetailsCard, rankOptions } from '~/entities/item';
 import { barScale } from '../model/comparisonBars';
 import ValueWithBar from './kinds/ValueWithBar.vue';
+import ItemIconCell from './kinds/ItemIconCell.vue';
 import ItemDetailsModal from './ItemDetailsModal.vue';
 import { useInventory } from '../model/useInventory';
 import { useProfileData } from '~/stores/profile-data';
@@ -103,6 +104,7 @@ function tdClass(column: InventoryColumn<TRow>): string | undefined {
     column.strong ? 'font-medium' : '',
     column.wide ? 'min-w-48' : '',
     column.truncate ? 'max-w-72 truncate' : '',
+    column.icon ? 'w-8' : '',
   ].filter(Boolean);
   return classes.length ? classes.join(' ') : undefined;
 }
@@ -132,6 +134,7 @@ function barFor(metric: string, key: string) {
 }
 
 function renderCell(column: InventoryColumn<TRow>, row: TRow): string | VNode {
+  if (column.icon) return h(ItemIconCell, { icon: column.icon(row) });
   const component = ui.value.cells?.[column.key];
   if (component) return h(component, { row });
   const fmt = { g1, g2, num, bar: barFor };

@@ -44,6 +44,8 @@ export interface InventoryColumn<TRow> {
   truncate?: boolean;
   /** Plain-text cell; a null result falls back to the raw value. Rank-like cells use the UI registry. */
   cell?: (row: TRow, fmt: FormatFns) => string | null;
+  /** A decorative row icon; a null result renders an em dash in a fixed-size cell. */
+  icon?: (row: TRow) => string | null;
   /** A thin comparison bar drawn under the cell value. */
   bar?: (row: TRow, fmt: FormatFns) => BarValue | null;
 }

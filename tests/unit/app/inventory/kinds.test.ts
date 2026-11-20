@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { InventoryItemRead, InventoryRead, RangeValue } from '@profile/shared/contracts';
 
 import { armorKind } from '~/features/inventory/model/kinds/armor';
+import { artifactsKind } from '~/features/inventory/model/kinds/artifacts';
 import { containersKind } from '~/features/inventory/model/kinds/containers';
 import { weaponsKind } from '~/features/inventory/model/kinds/weapons';
 import { allInventoryItems } from '~/features/inventory/model/instances';
@@ -164,6 +165,16 @@ describe('instance rows', () => {
   it('adds a location column to every table', () => {
     for (const kind of [weaponsKind, armorKind, containersKind]) {
       expect(kind.columns({ mode: 'owned', catalog: false }).map((column) => column.key)).toContain('location');
+    }
+  });
+
+  it('leads every list with a decorative icon column that tolerates a missing icon', () => {
+    for (const kind of [weaponsKind, armorKind, artifactsKind, containersKind]) {
+      const [first] = kind.columns({ mode: 'owned', catalog: false });
+      expect(first).toMatchObject({ key: 'icon', label: '' });
+      expect(first!.icon).toBeTypeOf('function');
+      expect(first!.icon!({ icon: '/icons/a.webp' } as never)).toBe('/icons/a.webp');
+      expect(first!.icon!({ icon: null } as never)).toBeNull();
     }
   });
 });

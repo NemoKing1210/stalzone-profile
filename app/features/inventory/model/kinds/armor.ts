@@ -107,6 +107,7 @@ export const armorKind: InventoryKind<ArmorRow> = {
 
   columns({ catalog }): InventoryColumn<ArmorRow>[] {
     const columns: InventoryColumn<ArmorRow>[] = [
+      { key: 'icon', label: '', icon: (row) => row.icon },
       { key: 'name', label: 'table.name', sortable: true, strong: true, wide: true },
       { key: 'rank', label: 'table.rank' },
       { key: 'cls', label: 'table.class' },
