@@ -94,3 +94,66 @@ export const ChatPromptUpdateSchema = z.object({
   dryRun: z.boolean().default(false),
 });
 export type ChatPromptUpdate = z.infer<typeof ChatPromptUpdateSchema>;
+
+export const ChatThreadSchema = z.object({
+  id: z.number().int(),
+  title: z.string().min(1).max(200),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type ChatThread = z.infer<typeof ChatThreadSchema>;
+
+export const ChatMessageSchema = z.object({
+  id: z.number().int(),
+  threadId: z.number().int(),
+  role: z.enum(['user', 'assistant', 'tool']),
+  content: z.string(),
+  toolName: z.string().nullable(),
+  toolCallId: z.string().nullable(),
+  /** Structured tool result the page can render with the site's components. */
+  payload: z.unknown().nullable(),
+  createdAt: z.string(),
+});
+export type ChatMessage = z.infer<typeof ChatMessageSchema>;
+
+export const ChatThreadReadSchema = z.object({
+  thread: ChatThreadSchema,
+  messages: z.array(ChatMessageSchema),
+});
+export type ChatThreadRead = z.infer<typeof ChatThreadReadSchema>;
+
+export const ChatSendSchema = z.object({
+  threadId: z.number().int().positive().optional(),
+  title: z.string().min(1).max(200).optional(),
+  message: z.string().min(1).max(8_000),
+  /** A write the model proposed and the owner confirmed in a previous turn. */
+  confirm: z
+    .object({
+      toolName: z.string().min(1).max(80),
+      args: z.record(z.string(), z.unknown()),
+    })
+    .optional(),
+  /** A write the owner declined. */
+  decline: z
+    .object({
+      toolName: z.string().min(1).max(80),
+    })
+    .optional(),
+});
+export type ChatSend = z.infer<typeof ChatSendSchema>;
+
+export const ChatPendingWriteSchema = z.object({
+  toolName: z.string(),
+  args: z.record(z.string(), z.unknown()),
+  human: z.string(),
+  diff: z.unknown(),
+});
+export type ChatPendingWrite = z.infer<typeof ChatPendingWriteSchema>;
+
+export const ChatTurnResultSchema = z.object({
+  thread: ChatThreadSchema,
+  messages: z.array(ChatMessageSchema),
+  pending: ChatPendingWriteSchema.nullable(),
+  error: z.string().nullable(),
+});
+export type ChatTurnResult = z.infer<typeof ChatTurnResultSchema>;
