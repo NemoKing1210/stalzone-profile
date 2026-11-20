@@ -50,6 +50,10 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- Assistant prompts and skills live in the profile DB: a default system prompt plus
+  inventory, pricing and write skills, editable in Settings → Assistant. Each save appends a
+  version, `chat.prompt.update` is audited, the composed prompt injects every enabled skill
+  and the journal can roll the active pointer back.
 - Settings → Assistant configures the provider, base URL, model, limits, reasoning effort,
   timeout, retries, allowed read tools and the prices/logs data scope; the key comes from a
   named environment variable and a Test connection action checks it. `chat.settings.update`

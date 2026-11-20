@@ -377,6 +377,8 @@ export const GUIDE_API: GuideApiEndpoint[] = [
 
   { method: 'GET', path: '/api/v1/chat/settings', group: 'read', descriptionKey: 'guide.api.chat.settingsRead' },
   { method: 'PATCH', path: '/api/v1/chat/settings', group: 'write', descriptionKey: 'guide.api.chat.settings' },
+  { method: 'GET', path: '/api/v1/chat/prompts', group: 'read', descriptionKey: 'guide.api.chat.promptsRead' },
+  { method: 'PATCH', path: '/api/v1/chat/prompts', group: 'write', descriptionKey: 'guide.api.chat.prompts' },
   { method: 'POST', path: '/api/v1/chat/test', group: 'write', descriptionKey: 'guide.api.chat.test' },
   // Administration: scoped profile resets and source sync.
   { method: 'GET', path: '/api/v1/admin/cleanup', group: 'admin', descriptionKey: 'guide.api.admin.cleanupRead' },

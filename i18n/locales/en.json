@@ -624,6 +624,12 @@
       "testOk": "Connected",
       "testFailed": "Connection failed",
       "saved": "Assistant settings saved",
+      "promptsTitle": "Prompts and skills",
+      "promptsText": "The active system prompt and every enabled skill are sent with each request. Saving a prompt appends a version; the change can be rolled back from the journal.",
+      "promptCount": "{count} active",
+      "promptToggle": "Enable {name}",
+      "promptSave": "Save version",
+      "promptSaved": "Prompt version saved",
       "providers": {
         "openai": "OpenAI",
         "anthropic": "Anthropic",
@@ -1345,6 +1351,8 @@
       "chat": {
         "settingsRead": "Assistant provider settings; reports whether the env key is present, never the key.",
         "settings": "Update the assistant settings; one audited journal entry makes the change rollbackable.",
+        "promptsRead": "Active system prompt, skills and the composed prompt sent with a request.",
+        "prompts": "Append a prompt version and activate it; the previous pointer is rollbackable.",
         "test": "Send one model-list request to the configured provider and report its status."
       }
     },

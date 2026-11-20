@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ChatProvider, ChatSettingsRead, ChatTestResult } from '@profile/shared/contracts';
+import type { ChatProvider, ChatPrompt, ChatPromptRead, ChatSettingsRead, ChatTestResult } from '@profile/shared/contracts';
 import { CHAT_PROVIDERS } from '@profile/shared/contracts';
 
 const { t } = useI18n();
@@ -8,6 +8,8 @@ const request = useRequestFetch();
 const toast = useToast();
 
 const settings = ref<ChatSettingsRead | null>(null);
+const prompts = ref<ChatPromptRead | null>(null);
+const promptDrafts = reactive<Record<number, string>>({});
 const testing = ref(false);
 const testResult = ref<ChatTestResult | null>(null);
 
@@ -38,6 +40,8 @@ const effortItems = computed(() => [
 
 async function load(): Promise<void> {
   settings.value = await request<ChatSettingsRead>('/api/v1/chat/settings');
+  prompts.value = await request<ChatPromptRead>('/api/v1/chat/prompts');
+  for (const prompt of prompts.value.prompts) promptDrafts[prompt.promptId] = prompt.body;
   Object.assign(form, {
     provider: settings.value.provider,
     baseUrl: settings.value.baseUrl ?? '',
@@ -116,6 +120,31 @@ async function testConnection(): Promise<void> {
   } finally {
     testing.value = false;
   }
+}
+
+async function savePrompt(prompt: ChatPrompt): Promise<void> {
+  const result = await write('/api/v1/chat/prompts', {
+    method: 'PATCH',
+    body: {
+      kind: prompt.kind,
+      name: prompt.name,
+      body: promptDrafts[prompt.promptId] ?? prompt.body,
+      enabled: prompt.enabled,
+      dryRun: false,
+    },
+  });
+  if (result) {
+    await load();
+    toast.add({ title: t('settings.assistant.promptSaved'), color: 'success', icon: 'i-lucide-check' });
+  }
+}
+
+async function togglePrompt(prompt: ChatPrompt): Promise<void> {
+  await write('/api/v1/chat/prompts', {
+    method: 'PATCH',
+    body: { kind: prompt.kind, name: prompt.name, body: prompt.body, enabled: !prompt.enabled, dryRun: false },
+  });
+  await load();
 }
 </script>
 
@@ -200,5 +229,52 @@ async function testConnection(): Promise<void> {
         <UButton type="submit" :loading="busy" :label="t('common.save')" />
       </div>
     </UForm>
+
+    <div class="space-y-3 border-t border-[var(--sz-border)] pt-4">
+      <div class="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h2 class="sz-caps text-[var(--sz-text-muted)]">{{ t('settings.assistant.promptsTitle') }}</h2>
+          <p class="mt-1 text-[12px] text-[var(--sz-text-muted)]">{{ t('settings.assistant.promptsText') }}</p>
+        </div>
+        <span class="text-[11px] tabular-nums text-[var(--sz-text-dim)]">
+          {{ t('settings.assistant.promptCount', { count: prompts?.prompts.length ?? 0 }) }}
+        </span>
+      </div>
+
+      <article
+        v-for="prompt in prompts?.prompts ?? []"
+        :key="prompt.promptId"
+        class="border border-[var(--sz-border)] bg-[var(--sz-surface)]"
+      >
+        <header class="flex flex-wrap items-center gap-2 border-b border-[var(--sz-border)] px-2.5 py-1.5">
+          <span class="sz-caps text-[var(--sz-text)]">{{ prompt.name }}</span>
+          <span class="text-[11px] text-[var(--sz-text-dim)]">
+            {{ prompt.kind }} · v{{ prompt.version }}
+          </span>
+          <USwitch
+            class="ml-auto"
+            :model-value="prompt.enabled"
+            :aria-label="t('settings.assistant.promptToggle', { name: prompt.name })"
+            @update:model-value="togglePrompt(prompt)"
+          />
+        </header>
+        <div class="p-2.5">
+          <UTextarea
+            v-model="promptDrafts[prompt.promptId]"
+            :rows="prompt.kind === 'system' ? 5 : 3"
+            class="w-full"
+            :aria-label="prompt.name"
+          />
+          <div class="mt-2 flex justify-end">
+            <UButton
+              size="xs"
+              :label="t('settings.assistant.promptSave')"
+              :loading="busy"
+              @click="savePrompt(prompt)"
+            />
+          </div>
+        </div>
+      </article>
+    </div>
   </section>
 </template>
