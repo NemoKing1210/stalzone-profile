@@ -124,8 +124,8 @@ async function logout(): Promise<void> {
         <li v-for="entry in sections" :key="entry.key">
           <NuxtLink
             :to="entry.to"
-            class="group relative flex min-h-9 items-center gap-2 border-l-2 border-transparent px-2 text-[11px] uppercase tracking-[0.12em] text-[var(--sz-text-muted)] transition-colors hover:bg-ink-900 hover:text-[var(--sz-text)]"
-            active-class="border-[var(--sz-accent)] bg-ink-900 text-[var(--sz-text)]"
+            class="group relative flex min-h-9 items-center gap-2 border-l-2 border-transparent px-2 text-[11px] uppercase tracking-[0.12em] text-[var(--sz-text-muted)] transition-colors hover:bg-[var(--sz-surface-alt)] hover:text-[var(--sz-text)]"
+            active-class="border-[var(--sz-accent)] bg-[var(--sz-surface-alt)] text-[var(--sz-text)]"
             :aria-label="countLabel(entry) || entry.label"
             :title="collapsed && !mobile ? entry.label : undefined"
             @click="emit('navigate')"
