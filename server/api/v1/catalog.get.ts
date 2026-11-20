@@ -4,7 +4,7 @@ import { useDb } from '../../utils/db';
 import { validationError } from '../../utils/errors';
 
 const QuerySchema = z.object({
-  kind: z.enum(['weapon', 'armor']).default('weapon'),
+  kind: z.enum(['weapon', 'armor', 'device']).default('weapon'),
 });
 
 export default defineEventHandler((event) => {

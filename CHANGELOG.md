@@ -16,6 +16,9 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- A `/devices` screen lists every device-category catalog item — detectors, night vision
+  and the САК-1 — from a new `catalog.devices` payload group; those rows leave `/weapons`
+  and `/armor`, and the payload, guide and both locales carry the group.
 - Catalog lists lead with a 22 px item icon (lazy, decorative) and an em dash when the
   item has none; catalog and owned rows share the same renderer.
 - The side menu's Inventory row carries the owned-instance count like the other sections,

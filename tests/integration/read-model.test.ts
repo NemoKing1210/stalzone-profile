@@ -62,6 +62,47 @@ describe('read model', () => {
     expect(buildCatalogSection(db, 'weapon')).toEqual(payload.catalog.weapons);
     expect(buildCatalogSection(db, 'armor')).toEqual(payload.catalog.armor);
   });
+  it('builds a devices group from every device category and keeps it out of gear', () => {
+    seedInventory(db);
+    const names = {
+      detector: 'Детектор широкого диапазона «Бурят»',
+      nvg: 'Штурмовой ПНВ',
+      sak: 'САК-1',
+    };
+    upsertItem(db, {
+      externalId: 'dev-detector',
+      name: names.detector,
+      kind: 'weapon',
+      category: 'weapon/device',
+      rank: 'RANK_MASTER',
+      weight: 0.5,
+    });
+    upsertItem(db, {
+      externalId: 'dev-nvg',
+      name: names.nvg,
+      kind: 'armor',
+      category: 'armor/device',
+      rank: 'RANK_RARE',
+    });
+    upsertItem(db, {
+      externalId: 'dev-sak',
+      name: names.sak,
+      kind: 'other',
+      category: 'device/device',
+    });
+
+    const payload = PayloadSchema.parse(buildPayload(db));
+    expect(payload.catalog.devices.map((device) => device.name)).toEqual([
+      names.nvg,
+      names.sak,
+      names.detector,
+    ]);
+    for (const name of Object.values(names)) {
+      expect(payload.catalog.weapons.map((row) => row.name)).not.toContain(name);
+      expect(payload.catalog.armor.map((row) => row.name)).not.toContain(name);
+    }
+    expect(buildCatalogSection(db, 'device')).toEqual(payload.catalog.devices);
+  });
   it('reuses the payload until the database changes', () => {
     seedCatalog(db);
     const first = buildPayload(db);

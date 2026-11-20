@@ -118,6 +118,18 @@ const armorCatalogRow = z.object({
   armor15: z.number().nullable(),
 });
 
+const deviceCatalogRow = z.object({
+  name: z.string(),
+  rank: z.string(),
+  type: z.string().nullable(),
+  category: z.string(),
+  icon: z.string().nullable(),
+  weight: z.number().nullable(),
+});
+
+export const DeviceCatalogRowSchema = deviceCatalogRow;
+export type DeviceCatalogRow = z.infer<typeof DeviceCatalogRowSchema>;
+
 export const CatalogItemSchema = z.union([weaponCatalogRow, armorCatalogRow]);
 export type CatalogItem = z.infer<typeof CatalogItemSchema>;
 

@@ -73,7 +73,7 @@ export interface InventoryColumnContext {
  * `ui/kinds/registry.ts`.
  */
 export interface InventoryKind<TRow extends { key: string; name: string; rank: string | null }> {
-  key: 'weapon' | 'armor' | 'artifact' | 'container';
+  key: 'weapon' | 'armor' | 'artifact' | 'container' | 'device';
   /** localStorage key for the persisted filters; keeps the pre-feature keys. */
   storageKey: string;
   /** True for screens with owned/catalog tabs. */

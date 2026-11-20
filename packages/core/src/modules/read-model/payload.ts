@@ -5,6 +5,7 @@ import {
   armorAtLevel,
   buildCardIndex,
   buildCatalogFrom,
+  buildDeviceCatalogFrom,
   buildItemCardFrom,
   countItems,
   displayDmg,
@@ -12,6 +13,7 @@ import {
   displayTtk,
   headMultiplier,
   iconMapFrom,
+  isDeviceCategory,
   itemText,
   itemValue,
   itemValueExact,
@@ -348,7 +350,7 @@ function buildPayloadUncached(db: Db, characterId?: number): Payload {
       armor: [],
       containers: [],
       artifacts: [],
-      catalog: { weapons: [], armor: [], meta: { updated: null, source: '', items: 0 } },
+      catalog: { weapons: [], armor: [], devices: [], meta: { updated: null, source: '', items: 0 } },
       inventory: inventoryRead(db, characterId),
       details: {},
       icons: {},
@@ -372,12 +374,13 @@ function buildPayloadUncached(db: Db, characterId?: number): Payload {
   // Details and catalogs only need the four card kinds; other catalog rows cost a full stats read.
   const instanceItemIds = new Set(instances.map((row) => row.item_id));
   const allItems = [...itemsById.values()].filter(
-    (item) => CARD_KINDS[item.kind] === true || instanceItemIds.has(item.id),
+    (item) => CARD_KINDS[item.kind] === true || instanceItemIds.has(item.id) || isDeviceCategory(item.category),
   );
   const ctx: CatalogContext = loadCatalogContext(db, allItems);
   const cards = buildCardIndex(ctx);
   const catalogWeapons = buildCatalogFrom(ctx, 'weapon', cards.byId);
   const catalogArmor = buildCatalogFrom(ctx, 'armor', cards.byId);
+  const catalogDevices = buildDeviceCatalogFrom(ctx, cards.byId);
   const stats = listCharacterStats(db, character.id);
   const meta = catalogMeta(sourceById, countItems(db));
 
@@ -399,6 +402,7 @@ function buildPayloadUncached(db: Db, characterId?: number): Payload {
     catalog: {
       weapons: catalogWeapons,
       armor: catalogArmor,
+      devices: catalogDevices,
       meta,
     },
     inventory: inventoryReadFrom(db, character.id, snapshot),

@@ -47,13 +47,13 @@ need user-facing text should do the same or show the message as-is.
 |---|---|---|
 | GET | `/api/v1/healthz` | `{ ok: true, db: "ok" }`, public |
 | GET | `/api/v1/setup` | `{ needsSetup, catalogItems, defaultRegion, profileApiConfigured, sources }` |
-| GET | `/api/v1/payload` | the whole profile: character, gear, catalog, derived cards, icons, freshness and the new `inventory` section. `catalog.meta.items` counts every catalog row (weapons, armor, motifs, artifacts, containers), not only weapons and armor |
+| GET | `/api/v1/payload` | the whole profile: character, gear, catalog, derived cards, icons, freshness and the new `inventory` section. `catalog.meta.items` counts every catalog row (weapons, armor, motifs, artifacts, containers), not only weapons and armor; `catalog.devices` carries the device-category rows that are excluded from `catalog.weapons`/`catalog.armor` |
 | GET | `/api/v1/meta` | `{ meta, catalogMeta, freshness }` — described by `MetaRead` in `@profile/shared/contracts` and pinned by `tests/integration/contracts/payload-contract.test.ts` |
 | GET | `/api/v1/character` | character with derived fields (`kd`, `accuracy`, `headshot`, `hours`, `arrived`) |
 | GET | `/api/v1/items?q=&kind=&rank=&slot=&limit=` | item search |
 | GET | `/api/v1/items/:id` | item, stats, effects, card, icon |
 | GET | `/api/v1/details/:key` | derived card by key `w:`, `a:`, `art:`, `c:` |
-| GET | `/api/v1/catalog` | weapon and armor catalog |
+| GET | `/api/v1/catalog` | weapon, armor or device catalog (`kind=weapon\|armor\|device`) |
 | GET | `/api/v1/inventory` | `InventoryRead`: storages (including the intake stash), the equipment map and the computed loadout (`InventoryReadSchema`) |
 | GET | `/api/v1/inventory/items/:id` | one inventory instance with its container artifacts or weapon modules |
 | GET | `/api/v1/containers` | container instances with their fill (`ContainerRead` list) for the table page |

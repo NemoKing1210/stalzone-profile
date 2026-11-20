@@ -5,19 +5,21 @@ import ArmorCard from './ArmorCard.vue';
 import ArtifactCard from './ArtifactCard.vue';
 import ContainerActions from './ContainerActions.vue';
 import ContainerCard from './ContainerCard.vue';
+import DeviceCard from './DeviceCard.vue';
 import LocationCell from './LocationCell.vue';
 import RankCell from './RankCell.vue';
 import WeaponCard from './WeaponCard.vue';
 
 export interface InventoryUi {
   card: Component;
-  actions: Component;
+  /** Present only for kinds whose rows can be added as owned instances. */
+  actions?: Component;
   /** Column keys rendered by a component instead of a plain-text cell. */
   cells?: Record<string, Component>;
 }
 
 /** Binds a kind's pure config to its components; the screen never branches on the kind key. */
-export const INVENTORY_UI: Record<'weapon' | 'armor' | 'artifact' | 'container', InventoryUi> = {
+export const INVENTORY_UI: Record<'weapon' | 'armor' | 'artifact' | 'container' | 'device', InventoryUi> = {
   weapon: {
     card: WeaponCard,
     actions: AddOwnedAction,
@@ -37,5 +39,9 @@ export const INVENTORY_UI: Record<'weapon' | 'armor' | 'artifact' | 'container',
     card: ContainerCard,
     actions: ContainerActions,
     cells: { rank: RankCell, location: LocationCell },
+  },
+  device: {
+    card: DeviceCard,
+    cells: { rank: RankCell },
   },
 };

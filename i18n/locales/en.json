@@ -40,6 +40,7 @@
     "overview": "Overview",
     "inventory": "Inventory",
     "weapons": "Weapons",
+    "devices": "Devices",
     "armor": "Armor",
     "containers": "Containers",
     "artifacts": "Artifacts",
@@ -173,6 +174,7 @@
     "searchArmor": "Search: name or class",
     "searchContainers": "Search: name, type, bonus",
     "searchArtifacts": "Search: name, type, effect",
+    "searchDevices": "Search: name or type",
     "artifactType": "Artifact type",
     "sort": "Sort",
     "allTypes": "All types",
@@ -212,6 +214,15 @@
     "emptyCatalog": "The weapon catalog is empty. Load the EXBO base.",
     "emptyOwned": "No weapons in the profile yet. Add them through the API or MCP.",
     "editAria": "Edit {name}"
+  },
+  "devices": {
+    "pageTitle": "Devices",
+    "title": "Devices",
+    "summary": "{count} device-category items from the catalog: detectors, night vision and other gadgets",
+    "emptyDescription": "The catalog has no device-category items. Load the EXBO base.",
+    "sortName": "By name",
+    "sortType": "By type",
+    "sortRank": "By rank"
   },
   "armor": {
     "pageTitle": "Armor",
@@ -437,6 +448,7 @@
   "items": {
     "cardTitle": "Item card",
     "artifactCardTitle": "Artifact card",
+    "deviceCardTitle": "Device card",
     "editTitle": "Edit item",
     "deleteTitle": "Delete item",
     "deleteConfirm": "Delete “{name}” and the whole quantity ({qty} pcs)? The action can be rolled back in settings.",
@@ -1040,6 +1052,14 @@
           "dps": "DPS and TTK columns are the +15 catalog values from the one calculator; an owned copy's own level is a separate column.",
           "filters": "Search, type and rank filters, sorting, grouping and a grid/list toggle; the last view is restored per browser.",
           "manage": "Add a copy from the catalog, edit level, quality or note, remove a copy; the item card opens from the row."
+        }
+      },
+      "devices": {
+        "title": "Devices",
+        "summary": "Every device-category catalog item — detectors, night vision and other gadgets — on one screen.",
+        "caps": {
+          "catalog": "The list comes from `catalog.devices`; device rows no longer appear on Weapons or Armor.",
+          "filters": "Search, type and rank filters, sorting and a grid/list switch; the icon, rank and weight come from the catalog row."
         }
       },
       "armor": {

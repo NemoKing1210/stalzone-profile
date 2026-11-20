@@ -143,7 +143,12 @@ describe('buildPayload contract', () => {
       expect(out.character).toEqual({});
       expect(out.weapons).toEqual([]);
       expect(out.details).toEqual({});
-      expect(out.catalog).toEqual({ weapons: [], armor: [], meta: { updated: null, source: '', items: 0 } });
+      expect(out.catalog).toEqual({
+        weapons: [],
+        armor: [],
+        devices: [],
+        meta: { updated: null, source: '', items: 0 },
+      });
     } finally {
       closeDb(path.join(dir, 'empty.db'));
     }

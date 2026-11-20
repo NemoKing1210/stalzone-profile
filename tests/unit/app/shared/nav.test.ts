@@ -6,6 +6,7 @@ import type { ProfilePayload } from '~/shared/types/profile';
 function payload(
   counts: { weapons: number; armor: number; containers: number; artifacts: number },
   inventory: { storage?: number[]; equipment?: number[]; loose?: number[] } = {},
+  devices = 0,
 ): ProfilePayload {
   const item = (id: number) => ({ id });
   return {
@@ -13,6 +14,19 @@ function payload(
     armor: Array.from({ length: counts.armor }, () => ({})),
     containers: Array.from({ length: counts.containers }, () => ({})),
     artifacts: Array.from({ length: counts.artifacts }, () => ({})),
+    catalog: {
+      weapons: [],
+      armor: [],
+      devices: Array.from({ length: devices }, (_, index) => ({
+        name: `device ${index}`,
+        rank: 'default',
+        type: null,
+        category: 'device/device',
+        icon: null,
+        weight: null,
+      })),
+      meta: { updated: null, source: '', items: 0 },
+    },
     inventory: {
       storages: [
         { id: 1, items: (inventory.storage ?? []).map(item) },
@@ -43,6 +57,7 @@ describe('navigation count badges', () => {
       containers: null,
       artifacts: null,
       inventory: null,
+      devices: null,
     });
   });
 
@@ -53,6 +68,7 @@ describe('navigation count badges', () => {
       containers: 0,
       artifacts: 0,
       inventory: 0,
+      devices: 0,
     });
   });
 
@@ -63,7 +79,9 @@ describe('navigation count badges', () => {
       containers: 3,
       artifacts: 4,
       inventory: 0,
+      devices: 0,
     });
+    expect(navCounts(payload({ weapons: 0, armor: 0, containers: 0, artifacts: 0 }, {}, 17)).devices).toBe(17);
   });
 
   it('counts every inventory instance once across grids, equipment and loose', () => {

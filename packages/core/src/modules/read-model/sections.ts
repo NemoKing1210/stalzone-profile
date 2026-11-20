@@ -65,6 +65,9 @@ export function buildContainersSection(db: Db, characterId?: number): Json[] {
 }
 
 /** `/api/v1/catalog`: one kind, no payload-wide context. */
-export function buildCatalogSection(db: Db, kind: 'weapon' | 'armor'): Record<string, unknown>[] {
+export function buildCatalogSection(
+  db: Db,
+  kind: 'weapon' | 'armor' | 'device',
+): Record<string, unknown>[] {
   return buildCatalog(db, kind);
 }

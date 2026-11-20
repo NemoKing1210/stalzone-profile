@@ -179,6 +179,7 @@ export interface CatalogEntry {
   dps15?: number | null;
   ttk15?: number | null;
   armor15?: number | null;
+  category?: string;
   [key: string]: unknown;
 }
 
@@ -189,7 +190,12 @@ export interface ProfilePayload {
   armor: ArmorPayload[];
   containers: ContainerPayload[];
   artifacts: ArtifactPayload[];
-  catalog: { weapons: CatalogEntry[]; armor: CatalogEntry[]; meta: Record<string, unknown> };
+  catalog: {
+    weapons: CatalogEntry[];
+    armor: CatalogEntry[];
+    devices: CatalogEntry[];
+    meta: Record<string, unknown>;
+  };
   /** The instance inventory: storages, equipment, loose tray and computed loadout. */
   inventory: InventoryRead;
   details: Record<string, unknown>;

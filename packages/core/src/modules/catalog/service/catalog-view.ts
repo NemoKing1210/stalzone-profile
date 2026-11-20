@@ -332,8 +332,33 @@ export function buildDetailEntry(db: Db, key: string): DetailEntry | null {
 
 const RANK_INDEX = new Map<string, number>(RANK_ORDER.map((rank, index) => [rank, index]));
 
-export function buildCatalog(db: Db, kind: 'weapon' | 'armor'): Record<string, unknown>[] {
+export function buildCatalog(db: Db, kind: 'weapon' | 'armor' | 'device'): Record<string, unknown>[] {
+  if (kind === 'device') return buildDeviceCatalogFrom(loadCatalogContext(db, repo.listItems(db)));
   return buildCatalogFrom(loadCatalogContext(db, repo.listItems(db, kind)), kind);
+}
+
+/** The `*_device` categories are gadget rows, listed on their own screen instead of gear. */
+export function isDeviceCategory(category: string | null | undefined): boolean {
+  const cat = String(category ?? '');
+  return cat === 'device' || cat.startsWith('device/') || cat.endsWith('/device') || cat.includes('/device/');
+}
+
+/** Rows for `/devices`: detectors, night vision and other device-category items. */
+export function buildDeviceCatalogFrom(ctx: CatalogContext, cards?: Map<number, ItemCard>): Record<string, unknown>[] {
+  const items = [...ctx.items.values()].filter((item) => isDeviceCategory(item.category));
+  return items
+    .map((item) => {
+      const card = cards?.get(item.id) ?? buildItemCardFrom(ctx, item);
+      return {
+        name: item.name,
+        rank: card.rank ?? 'default',
+        type: card.type ?? null,
+        category: item.category ?? 'device/device',
+        icon: card.icon,
+        weight: item.weight,
+      };
+    })
+    .sort((a, b) => String(a.category).localeCompare(String(b.category), 'ru') || a.name.localeCompare(b.name, 'ru'));
 }
 
 export function buildCatalogFrom(
@@ -341,7 +366,9 @@ export function buildCatalogFrom(
   kind: 'weapon' | 'armor',
   cards?: Map<number, ItemCard>,
 ): Record<string, unknown>[] {
-  const items = [...ctx.items.values()].filter((item) => item.kind === kind);
+  const items = [...ctx.items.values()].filter(
+    (item) => item.kind === kind && !isDeviceCategory(item.category),
+  );
   const entries = items.map((item) => {
     const card = cards?.get(item.id) ?? buildItemCardFrom(ctx, item);
     const row: Record<string, unknown> =

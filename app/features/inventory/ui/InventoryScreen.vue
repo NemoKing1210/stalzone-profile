@@ -314,7 +314,7 @@ function openArtifact(name: string, level: number): void {
           variant="outline"
           :label="t('nav.inventory')"
         />
-        <UButton icon="i-lucide-plus" :label="t('owned.add')" @click="addOpen = true" />
+        <UButton v-if="ui.actions" icon="i-lucide-plus" :label="t('owned.add')" @click="addOpen = true" />
       </div>
     </div>
 
@@ -461,7 +461,7 @@ function openArtifact(name: string, level: number): void {
 
     <EditOwnedModal v-model:open="editOpen" :target="editTarget" />
     <ContainerFillEditor v-model:open="fillOpen" :target="fillTarget" :candidates="artifactCandidates" />
-    <component :is="ui.actions" v-model:add-open="addOpen" :kind="kind.key" />
+    <component :is="ui.actions" v-if="ui.actions" v-model:add-open="addOpen" :kind="kind.key" />
   </section>
 </template>
 

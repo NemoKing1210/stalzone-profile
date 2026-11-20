@@ -7,6 +7,7 @@ export interface NavCounts {
   containers: number | null;
   artifacts: number | null;
   inventory: number | null;
+  devices: number | null;
 }
 
 /**
@@ -33,12 +34,15 @@ export function inventoryCount(inventory: InventoryRead | null | undefined): num
  * than a misleading zero.
  */
 export function navCounts(payload: ProfilePayload | null | undefined): NavCounts {
-  if (!payload) return { weapons: null, armor: null, containers: null, artifacts: null, inventory: null };
+  if (!payload) {
+    return { weapons: null, armor: null, containers: null, artifacts: null, inventory: null, devices: null };
+  }
   return {
     weapons: payload.weapons.length,
     armor: payload.armor.length,
     containers: payload.containers.length,
     artifacts: payload.artifacts.length,
     inventory: inventoryCount(payload.inventory),
+    devices: payload.catalog?.devices?.length ?? 0,
   };
 }

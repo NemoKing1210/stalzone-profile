@@ -131,6 +131,15 @@ export const GUIDE_SITE: GuideSitePage[] = [
     ],
   },
   {
+    id: 'devices',
+    route: '/devices',
+    icon: 'i-lucide-radar',
+    kind: 'main',
+    titleKey: 'guide.site.devices.title',
+    summaryKey: 'guide.site.devices.summary',
+    capabilityKeys: ['guide.site.devices.caps.catalog', 'guide.site.devices.caps.filters'],
+  },
+  {
     id: 'armor',
     route: '/armor',
     icon: 'i-lucide-shield',
