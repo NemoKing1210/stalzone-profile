@@ -285,13 +285,17 @@ async function rollback(): Promise<void> {
       </div>
     </div>
 
-    <div v-if="events.length" class="max-h-[480px] overflow-auto">
+    <div v-if="events.length">
       <UTable
         v-model:expanded="expanded"
         :data="filtered"
         :columns="columns"
         :expanded-options="expandedOptions"
         sticky="header"
+        :ui="{
+          root: 'max-h-[480px] overflow-auto',
+          thead: 'z-10 bg-[var(--sz-surface-header)]',
+        }"
         class="w-full text-[12.5px]"
       >
         <template #expand-cell="{ row }">

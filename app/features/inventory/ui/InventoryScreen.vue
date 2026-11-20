@@ -392,6 +392,10 @@ function openArtifact(name: string, level: number): void {
               :loading="!payload"
               :on-select="(_event, row) => openRow(row.original)"
               sticky="header"
+              :ui="{
+                root: 'max-h-[calc(100dvh-26rem)] overflow-auto lg:max-h-[calc(100dvh-22rem)]',
+                thead: 'z-10 bg-[var(--sz-surface-header)]',
+              }"
               class="w-full"
             >
               <template #empty>

@@ -333,7 +333,17 @@ async function confirmPurge(): Promise<void> {
         <UEmpty icon="i-lucide-bug" :title="t('logs.emptyTitle')" :description="t('logs.emptyText')" />
       </div>
 
-      <UTable v-else :data="entries" :columns="columns" class="text-[12.5px]">
+      <UTable
+        v-else
+        :data="entries"
+        :columns="columns"
+        sticky="header"
+        :ui="{
+          root: 'max-h-[calc(100dvh-20rem)] overflow-auto',
+          thead: 'z-10 bg-[var(--sz-surface-header)]',
+        }"
+        class="text-[12.5px]"
+      >
         <template #at-cell="{ row }">
           <span class="whitespace-nowrap tabular-nums text-[var(--sz-text-muted)]">
             {{ formatDate(row.original.at) }}

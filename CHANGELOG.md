@@ -26,6 +26,8 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
+- Data tables scroll inside their own bounded box: `/weapons` list mode, the event log and
+  `/logs` keep an opaque header at the top of the box while rows pass underneath.
 - Item cards and grid tiles keep no selection frame: a single click changes nothing, while a
   double click or Enter opens the details; drag, hover and press states are unchanged.
 - The language and theme switches live in a fixed top-right cluster on desktop and at the
