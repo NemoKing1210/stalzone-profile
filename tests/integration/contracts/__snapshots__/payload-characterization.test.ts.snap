@@ -12,7 +12,6 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
       "lvl": 10,
       "mods": [],
       "name": "Куница",
-      "note": null,
       "ownedId": 2,
       "placement": {
         "location": "loose",
@@ -37,7 +36,6 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
       "instanceId": 4,
       "lvl": 15,
       "name": "Нервяк",
-      "note": null,
       "ownedId": 4,
       "placement": {
         "location": "loose",
@@ -56,7 +54,6 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
       "instanceId": 5,
       "lvl": 15,
       "name": "Нервяк",
-      "note": null,
       "ownedId": 5,
       "placement": {
         "containerItemId": 3,
@@ -83,6 +80,7 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
         "weight": 8,
       },
     ],
+    "devices": [],
     "meta": {
       "items": 6,
       "source": "",
@@ -134,12 +132,13 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
     "maxMoney": null,
     "money": 100000,
     "nick": "tester",
+    "profileFetchedAt": null,
     "region": "ru",
     "stats": {
       "ach-gai": 42,
       "dea": 100,
       "kil": 250,
-      "pla-tim": "PT123H",
+      "pla-tim": 123,
       "reg-tim": "2024-06-01",
       "sho-fir": 1000,
       "sho-hea": 50,
@@ -160,7 +159,6 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
       "icon": null,
       "instanceId": 3,
       "name": "Рюкзак",
-      "note": null,
       "ownedId": 3,
       "placement": {
         "location": "loose",
@@ -399,7 +397,6 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
         "level": 10,
         "modules": undefined,
         "name": "Куница",
-        "note": null,
         "placement": {
           "location": "loose",
         },
@@ -408,7 +405,6 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
         "rank": "RANK_STALKER",
         "rarityPct": null,
         "rarityTier": null,
-        "role": null,
         "size": {
           "height": 3,
           "width": 3,
@@ -429,7 +425,6 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
         "level": 15,
         "modules": undefined,
         "name": "Нервяк",
-        "note": null,
         "placement": {
           "location": "loose",
         },
@@ -438,7 +433,6 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
         "rank": "RANK_MASTER",
         "rarityPct": null,
         "rarityTier": null,
-        "role": null,
         "size": {
           "height": 1,
           "width": 1,
@@ -461,7 +455,6 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
             "level": 15,
             "modules": undefined,
             "name": "Нервяк",
-            "note": null,
             "placement": {
               "containerItemId": 3,
               "location": "container",
@@ -472,7 +465,6 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
             "rank": "RANK_MASTER",
             "rarityPct": null,
             "rarityTier": null,
-            "role": null,
             "size": {
               "height": 1,
               "width": 1,
@@ -499,7 +491,6 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
         "level": 0,
         "modules": undefined,
         "name": "Рюкзак",
-        "note": null,
         "placement": {
           "location": "loose",
         },
@@ -508,7 +499,6 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
         "rank": "RANK_STALKER",
         "rarityPct": null,
         "rarityTier": null,
-        "role": null,
         "size": {
           "height": 3,
           "width": 3,
@@ -529,7 +519,6 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
         "level": 15,
         "modules": [],
         "name": "АК-12",
-        "note": null,
         "placement": {
           "location": "loose",
         },
@@ -538,7 +527,6 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
         "rank": "RANK_MASTER",
         "rarityPct": null,
         "rarityTier": null,
-        "role": null,
         "size": {
           "height": 2,
           "width": 5,
@@ -688,7 +676,6 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
       "lvl": 15,
       "mag": 30,
       "name": "АК-12",
-      "note": null,
       "ownedId": 1,
       "placement": {
         "location": "loose",
@@ -698,7 +685,6 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
       "rank": "master",
       "recoil": 50,
       "rof": 600,
-      "role": null,
       "skin": null,
       "slot": "основное",
       "spread": 0.3,
