@@ -3,14 +3,22 @@ import { useProfileData } from '~/stores/profile-data';
 import { ProfilePane, StatRow } from '~/shared/ui';
 import { clampPercent } from '~/shared/lib/clampPercent';
 import { factionEmblem, factionLabel } from '~/shared/lib/factions';
+import type { SyncResult } from '@profile/shared/contracts';
 
+import {
+  profileSyncFailureFromError,
+  profileSyncOutcome,
+  profileSyncRequest,
+  type ProfileSyncFailure,
+} from '../model/profileSync';
 import EditCharacterModal from './EditCharacterModal.vue';
 
 const { t } = useI18n();
 useHead(() => ({ title: `${t('overview.pageTitle')} // ${t('common.appName')}` }));
 
-const { payload, meta } = useProfileData();
+const { payload, meta, refresh: refreshProfile } = useProfileData();
 const { fmtMoney, dec, num, formatDate, formatAge } = useFormat();
+const toast = useToast();
 
 const character = computed(() => payload.value?.character ?? {});
 const factionName = computed(() => factionLabel(t, character.value.faction));
@@ -19,6 +27,49 @@ const hasCharacter = computed(() => Object.keys(character.value).length > 0);
 const metaInfo = computed(() => payload.value?.meta ?? {});
 const catalogMeta = computed(() => meta.value?.catalogMeta ?? null);
 const editOpen = ref(false);
+
+const syncing = ref(false);
+const syncFailure = ref<ProfileSyncFailure | null>(null);
+
+const syncFailureMessage = computed(() => {
+  const failure = syncFailure.value;
+  if (!failure) return '';
+  if (failure.kind === 'unconfigured') return t('overview.syncUnconfigured');
+  if (failure.kind === 'not-found') {
+    return t('overview.syncNotFound', { nick: character.value.nick ?? '', region: character.value.region ?? '' });
+  }
+  if (failure.kind === 'busy') return t('overview.syncBusy');
+  return failure.message ?? t('overview.syncUnknown');
+});
+
+async function syncProfile(): Promise<void> {
+  if (syncing.value) return;
+  syncing.value = true;
+  syncFailure.value = null;
+  try {
+    const request = profileSyncRequest();
+    const response = await $fetch<{ results: SyncResult[] }>(request.url, {
+      method: request.method,
+      body: request.body,
+    });
+    const outcome = profileSyncOutcome(response.results);
+    if (outcome.ok) {
+      toast.add({
+        title: t('overview.syncDone'),
+        description: t('overview.syncDoneDescription', { count: outcome.items }),
+        color: 'success',
+        icon: 'i-lucide-check',
+      });
+    } else {
+      syncFailure.value = outcome.failure;
+    }
+  } catch (error) {
+    syncFailure.value = profileSyncFailureFromError(error);
+  } finally {
+    syncing.value = false;
+  }
+  await refreshProfile();
+}
 
 const catalogUpdated = computed(() => catalogMeta.value?.updated ?? null);
 const catalogSource = computed(() => catalogMeta.value?.source ?? null);
@@ -155,6 +206,16 @@ const dataState = computed(() => [
       </div>
       <div v-if="hasCharacter" class="flex shrink-0 items-center gap-2">
         <UButton
+          icon="i-lucide-refresh-cw"
+          color="neutral"
+          variant="outline"
+          size="xs"
+          :label="t('overview.syncProfile')"
+          :loading="syncing"
+          :disabled="syncing"
+          @click="syncProfile"
+        />
+        <UButton
           icon="i-lucide-pencil"
           color="neutral"
           variant="outline"
@@ -163,6 +224,29 @@ const dataState = computed(() => [
           @click="editOpen = true"
         />
       </div>
+    </div>
+
+    <div
+      v-if="syncFailure"
+      data-testid="profile-sync-failure"
+      class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border border-[var(--sz-border)] bg-[var(--sz-surface)] px-3 py-2"
+    >
+      <p class="min-w-0 text-[12.5px] leading-relaxed text-[var(--sz-warning-text)]">{{ syncFailureMessage }}</p>
+      <NuxtLink
+        v-if="syncFailure.kind === 'unconfigured'"
+        to="/settings?tab=sources"
+        class="shrink-0 text-[12.5px] text-[var(--sz-accent)] underline underline-offset-2"
+      >
+        {{ t('overview.openSources') }}
+      </NuxtLink>
+      <UButton
+        v-else-if="syncFailure.kind === 'not-found'"
+        size="xs"
+        color="neutral"
+        variant="outline"
+        :label="t('overview.editProfile')"
+        @click="editOpen = true"
+      />
     </div>
 
     <template v-if="hasCharacter">

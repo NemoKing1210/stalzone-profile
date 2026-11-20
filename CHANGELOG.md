@@ -9,6 +9,9 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- Overview: a Sync profile button pulls the official profile from the page header with a
+  busy state, an actionable failure (missing credentials link to Settings → Sources, a 404
+  to Edit profile) and a refreshed payload.
 - Overview: a Verified badge appears only when the official API served this character; the
   payload character carries `profileFetchedAt`, and changing the nick or region clears the
   marker, with rollback restoring it.
