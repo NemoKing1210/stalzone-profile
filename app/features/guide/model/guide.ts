@@ -196,6 +196,7 @@ export const GUIDE_SITE: GuideSitePage[] = [
       'guide.site.settings.caps.journal',
       'guide.site.settings.caps.cleanup',
       'guide.site.settings.caps.logging',
+      'guide.site.settings.caps.assistant',
     ],
   },
   {
@@ -374,6 +375,9 @@ export const GUIDE_API: GuideApiEndpoint[] = [
   },
   { method: 'POST', path: '/api/v1/events/:id/rollback', group: 'write', descriptionKey: 'guide.api.writes.rollback' },
 
+  { method: 'GET', path: '/api/v1/chat/settings', group: 'read', descriptionKey: 'guide.api.chat.settingsRead' },
+  { method: 'PATCH', path: '/api/v1/chat/settings', group: 'write', descriptionKey: 'guide.api.chat.settings' },
+  { method: 'POST', path: '/api/v1/chat/test', group: 'write', descriptionKey: 'guide.api.chat.test' },
   // Administration: scoped profile resets and source sync.
   { method: 'GET', path: '/api/v1/admin/cleanup', group: 'admin', descriptionKey: 'guide.api.admin.cleanupRead' },
   { method: 'GET', path: '/api/v1/admin/logging', group: 'admin', descriptionKey: 'guide.api.admin.loggingRead' },

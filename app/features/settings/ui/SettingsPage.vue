@@ -11,6 +11,7 @@ import {
 import AppearanceChoiceGroup from './AppearanceChoiceGroup.vue';
 import LoggingSettingsPanel from './LoggingSettingsPanel.vue';
 import SourcesSection from './SourcesSection.vue';
+import AssistantSettings from './AssistantSettings.vue';
 
 const { t } = useI18n();
 useHead(() => ({ title: `${t('settings.pageTitle')} // ${t('common.appName')}` }));
@@ -134,6 +135,7 @@ const activeTab = defineModel<string>('tab', { default: 'appearance' });
 const tabItems = computed(() => [
   { label: t('settings.tabs.appearance'), icon: 'i-lucide-palette', value: 'appearance' },
   { label: t('settings.tabs.sources'), icon: 'i-lucide-cloud', value: 'sources' },
+  { label: t('settings.tabs.assistant'), icon: 'i-lucide-sparkles', value: 'assistant' },
   { label: t('settings.tabs.data'), icon: 'i-lucide-database', value: 'data' },
   { label: t('settings.tabs.journal'), icon: 'i-lucide-history', value: 'journal' },
   { label: t('settings.tabs.cleanup'), icon: 'i-lucide-trash-2', value: 'cleanup' },
@@ -366,6 +368,7 @@ const tabItems = computed(() => [
         </div>
 
         <SourcesSection v-else-if="item.value === 'sources'" />
+        <AssistantSettings v-else-if="item.value === 'assistant'" />
 
         <div v-else-if="item.value === 'data'" class="grid gap-4 lg:grid-cols-2">
           <ProfilePane :title="t('settings.exportTitle')" dense>

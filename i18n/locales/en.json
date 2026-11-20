@@ -586,6 +586,7 @@
     "tabs": {
       "appearance": "Appearance",
       "sources": "Sources",
+      "assistant": "Assistant",
       "data": "Data",
       "journal": "Journal",
       "cleanup": "Resets",
@@ -593,6 +594,47 @@
     },
     "appearanceTitle": "Appearance",
     "appearanceText": "The accent changes selection, active sections, focus and primary buttons. Positive, negative and warning colours do not change.",
+    "assistant": {
+      "intro": "Provider and connection for the in-app assistant. The API key is read from the environment variable named here and never stored in the profile.",
+      "provider": "Provider",
+      "model": "Model",
+      "baseUrl": "Base URL",
+      "baseUrlPlaceholder": "Provider default",
+      "apiKeyEnv": "API key environment variable",
+      "apiKeyEnvPlaceholder": "NUXT_AI_OPENAI_API_KEY",
+      "keyConfigured": "The key is present in the environment.",
+      "keyMissing": "No key found; set the environment variable or use Ollama.",
+      "resolvedEnv": "Consulted variable: {env}",
+      "temperature": "Temperature",
+      "maxTokens": "Maximum output tokens",
+      "reasoningEffort": "Reasoning effort",
+      "effortNone": "Provider default",
+      "effortLow": "Low",
+      "effortMedium": "Medium",
+      "effortHigh": "High",
+      "timeout": "Request timeout, ms",
+      "retries": "Retries",
+      "readTools": "Allowed read tools",
+      "readToolsPlaceholder": "get_character, find_items",
+      "dataScope": "Data scope",
+      "scopePrices": "Allow prices in assistant requests",
+      "scopeLogs": "Allow diagnostic log excerpts",
+      "writePolicy": "Writes always need confirmation; there is no auto-approve setting.",
+      "test": "Test connection",
+      "testOk": "Connected",
+      "testFailed": "Connection failed",
+      "saved": "Assistant settings saved",
+      "providers": {
+        "openai": "OpenAI",
+        "anthropic": "Anthropic",
+        "google": "Google",
+        "mistral": "Mistral",
+        "openrouter": "OpenRouter",
+        "ollama": "Ollama (local)",
+        "opencode": "OpenCode",
+        "command-code": "Command Code"
+      }
+    },
     "accent": "Accent colour",
     "accentDefault": "Default",
     "accentReset": "Reset to game default",
@@ -1140,7 +1182,8 @@
           "data": "Download the typed JSON export, see freshness and learn how backups work.",
           "journal": "Every write with actor, origin, request id and a before/after diff; filter by action, entity, actor, time or text, expand a row and roll the event back.",
           "cleanup": "Reset inventory, manual stats, character, journal or everything in one journalled transaction.",
-          "logging": "Logging: level, retention, row cap, browser capture and per-category overrides."
+          "logging": "Logging: level, retention, row cap, browser capture and per-category overrides.",
+          "assistant": "Assistant: provider, model, endpoint, env key name, data scope and a connection test; writes always need confirmation."
         }
       },
       "changelog": {
@@ -1298,6 +1341,11 @@
         "syncSchedule": "Update the auto-update schedule; one journal entry makes it rollbackable.",
         "loggingRead": "Current logging settings and effective per-category levels.",
         "logging": "Update logging: on/off, minimum level, retention, row cap and per-category levels."
+      },
+      "chat": {
+        "settingsRead": "Assistant provider settings; reports whether the env key is present, never the key.",
+        "settings": "Update the assistant settings; one audited journal entry makes the change rollbackable.",
+        "test": "Send one model-list request to the configured provider and report its status."
       }
     },
     "mcp": {

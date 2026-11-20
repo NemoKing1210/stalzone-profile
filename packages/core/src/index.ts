@@ -91,6 +91,8 @@ export { getItemLayout } from './modules/inventory/repo/layout.js';
 
 /* --------------------------------- sync -------------------------------- */
 
+export * from './modules/chat/index.js';
+
 export * from './modules/sync/service/normalize.js';
 export * from './modules/sync/service/profile.js';
 export * from './modules/sync/service/read.js';

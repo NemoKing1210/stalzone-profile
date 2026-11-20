@@ -30,6 +30,13 @@ in the shell win over the file. Docker deployments do not read `.env` directly:
 | `NUXT_STALZONE_CLIENT_SECRET` | —                              | Runtime override for the Nuxt server; Docker sets this one                         |
 | `STALZONE_API_URL`            | `https://eapi.stalzone.com`    | Profile API endpoint                                                               |
 | `STALZONE_TOKEN_URL`          | `https://exbo.net/oauth/token` | OAuth token endpoint                                                               |
+| `NUXT_AI_OPENAI_API_KEY`      | —                              | Assistant key for OpenAI; Settings stores only the variable name                    |
+| `NUXT_AI_ANTHROPIC_API_KEY`   | —                              | Assistant key for Anthropic                                                        |
+| `NUXT_AI_GOOGLE_API_KEY`      | —                              | Assistant key for Google                                                           |
+| `NUXT_AI_MISTRAL_API_KEY`     | —                              | Assistant key for Mistral                                                          |
+| `NUXT_AI_OPENROUTER_API_KEY`  | —                              | Assistant key for OpenRouter                                                       |
+| `NUXT_AI_OPENCODE_API_KEY`    | —                              | Assistant key for OpenCode                                                         |
+| `NUXT_AI_COMMAND_CODE_API_KEY`| —                              | Assistant key for Command Code                                                     |
 | `LOG_BOOT_LEVEL`              | `warn`                         | Pre-database boot lines: `debug`, `info`, `warn`, `error` or `off`                 |
 | `LOG_BOOT_STDOUT`             | `1`                            | `0` silences boot lines on stdout/stderr                                           |
 

@@ -44,6 +44,7 @@ import {
   updateStorageTx,
 } from '../inventory/index.js';
 import { writeSyncScheduleRow } from '../sync/index.js';
+import { restoreChatSettingsTx } from '../chat/index.js';
 import { restoreLoggingSettingsTx } from '../logging/index.js';
 
 export interface CleanupCounts {
@@ -426,6 +427,10 @@ function restoreSnapshot(
         );
       }
       deleteCharacter(db, id);
+      return;
+    }
+    case 'chat.settings.update': {
+      restoreChatSettingsTx(db, target);
       return;
     }
     case 'character.update': {

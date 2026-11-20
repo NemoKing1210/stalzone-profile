@@ -50,6 +50,10 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- Settings → Assistant configures the provider, base URL, model, limits, reasoning effort,
+  timeout, retries, allowed read tools and the prices/logs data scope; the key comes from a
+  named environment variable and a Test connection action checks it. `chat.settings.update`
+  is audited and rollbackable.
 - `docs/superpowers/specs/2026-11-21-chat-assistant-design.md` records the approved
   assistant design: allow-listed and redacted data only, every write confirmed, keys in env,
   threads/prompts in the profile DB and an MCP tool loop.
