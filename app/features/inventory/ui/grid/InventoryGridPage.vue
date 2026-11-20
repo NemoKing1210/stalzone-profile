@@ -416,7 +416,6 @@ const containerNames = computed<Record<number, string>>(() => {
               >
                 {{ t('inventory.overflowHint') }}
               </p>
-              <WeightHud :storage="inventory.selectedStorage.value" />
               <div class="mb-2 mt-2 flex flex-wrap items-center gap-1.5 border-b border-[var(--sz-border)] pb-2">
                 <ContainerFilterBar
                   :filter="containerFilters.filterFor(inventory.selectedStorage.value.id)"
@@ -474,6 +473,10 @@ const containerNames = computed<Record<number, string>>(() => {
               <UButton size="xs" icon="i-lucide-plus" :label="t('inventory.createStash')" @click="storageOpen = true" />
             </div>
           </div>
+
+          <template v-if="leftPane === 'stash'" #footer>
+            <WeightHud v-if="inventory.selectedStorage.value" :storage="inventory.selectedStorage.value" />
+          </template>
         </ProfilePane>
 
         <ProfilePane

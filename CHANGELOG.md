@@ -15,6 +15,8 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
+- Inventory: the stash weight block sits in the left pane's footer like the carried
+  weight, with the same surface, unit and gauge, and follows the selected stash tab.
 - Catalog binding treats EXBO's `weapon_style/` and `armor_style/` rows as cosmetic
   motifs: they leave `/weapons` and `/armor`, keep `is_cosmetic`, and resolve their
   `base_item_id` from the style token; the next catalog sync also corrects rows stored
