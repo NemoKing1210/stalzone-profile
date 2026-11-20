@@ -131,8 +131,6 @@ function buildNodes(db: Db, characterId: number, snapshot?: InventorySnapshot): 
       qty: row.qty,
       skinItemId: row.skin_item_id,
       icon: row.item_icon,
-      note: row.note,
-      role: row.role,
       slot: row.slot,
       weight: resolveWeight(row.item_weight, layout?.weight ?? null),
       size: resolveSize(row.kind, row.category, layout ? { width: layout.width, height: layout.height } : null),

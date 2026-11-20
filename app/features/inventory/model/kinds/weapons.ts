@@ -8,8 +8,6 @@ export interface WeaponRow extends InstanceRow, InstanceLocationRow {
   qty: number;
   quality: string | null;
   skin: string | null;
-  note: string | null;
-  role: string | null;
   slot: string | null;
   name: string;
   rank: string | null;
@@ -69,8 +67,6 @@ export const weaponsKind: InventoryKind<WeaponRow> = {
         qty: 1,
         quality: null,
         skin: null,
-        note: null,
-        role: null,
         slot: null,
         name: entry.name,
         rank: entry.rank ?? null,
@@ -110,8 +106,6 @@ export const weaponsKind: InventoryKind<WeaponRow> = {
           quality: item.quality,
           // The instance carries the skin id, not its name; the editor leaves it untouched.
           skin: null,
-          note: item.note,
-          role: item.role,
           slot: item.slot,
           name: item.displayName ?? item.name,
           rank: item.rank,
@@ -300,8 +294,6 @@ export const weaponsKind: InventoryKind<WeaponRow> = {
           qty: row.qty,
           quality: row.quality,
           skin: null,
-          note: row.note,
-          role: row.role,
           slot: row.slot,
           rarityPct: row.item.rarityPct,
           rarityTier: row.item.rarityTier,

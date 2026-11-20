@@ -15,8 +15,17 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
   accepting the fresh cache, and an optimistic move is cleared only when the refreshed
   payload actually shows its target.
 
+### Removed
+
+- `inventory_item.note` and `inventory_item.role` (migration `0011`), their REST/MCP fields
+  and the free-text modal inputs.
+
 ### Changed
 
+- Inventory add/edit forms follow the kind: level and a skin (only motifs bound to the
+  chosen item) for weapons/armor, one rarity percentage with a server-derived tier for
+  artifacts, quantity for stacks; the slot is read from the catalog. `/inventory` gains one
+  Add button that opens the same form. A cross-item skin is refused by the service.
 - Settings and guide tab strips share one style constant: the active tab carries the nav's
   2 px accent underline along the strip's bottom, and the strip scrolls with full labels.
 - Inventory: the stash tab strip lives in the left pane's header in place of the title,

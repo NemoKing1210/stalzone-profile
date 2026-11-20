@@ -16,7 +16,6 @@ export interface ContainerRow extends InstanceRow, InstanceLocationRow {
   qty: number;
   quality: string | null;
   skin: string | null;
-  note: string | null;
   name: string;
   rank: string | null;
   type: string | null;
@@ -78,7 +77,6 @@ export const containersKind: InventoryKind<ContainerRow> = {
           quality: item.quality,
           // The instance carries the skin id, not its name; the editor leaves it untouched.
           skin: null,
-          note: item.note,
           name: item.displayName ?? item.name,
           rank: item.rank,
           type: data?.type ?? cardText(card, 'type') ?? item.category,
@@ -159,9 +157,7 @@ export const containersKind: InventoryKind<ContainerRow> = {
           qty: row.qty,
           quality: row.quality,
           skin: null,
-          note: row.note,
-          role: null,
-          slot: null,
+          slot: row.item?.slot ?? null,
           rarityPct: row.item.rarityPct,
           rarityTier: row.item.rarityTier,
           container: row.item.container

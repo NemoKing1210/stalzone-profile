@@ -178,7 +178,7 @@ const TOOL_DOCS: Record<string, string> = {
     sources_status: 'Data source state and freshness',
     export_profile_json: 'Export the profile as portable JSON',
     add_inventory_item: 'Add an item instance to intake (dry_run by default)',
-    update_inventory_item: 'Change an instance level, quality, rarity or note (dry_run by default)',
+    update_inventory_item: 'Change an instance level, quality, rarity, skin or quantity (dry_run by default)',
     remove_inventory_item: 'Remove an instance or part of a stack (dry_run by default)',
     move_inventory_item:
       'Move an instance to a grid cell, slot, container or module; intake only releases items (dry_run by default)',
@@ -271,9 +271,6 @@ function itemPatch(args: UpdateInventoryItemInput, dryRun: boolean): InventoryIt
   if (args.quality !== undefined) patch.quality = args.quality;
   if (args.rarity_pct !== undefined) patch.rarityPct = args.rarity_pct;
   if (args.rarity_tier !== undefined) patch.rarityTier = args.rarity_tier;
-  if (args.note !== undefined) patch.note = args.note;
-  if (args.role !== undefined) patch.role = args.role;
-  if (args.slot !== undefined) patch.slot = args.slot;
   if (args.qty !== undefined) patch.qty = args.qty;
   if (args.display_name !== undefined) patch.displayName = args.display_name;
   if (args.container !== undefined) patch.container = containerData(args.container);
@@ -553,9 +550,6 @@ export function createProfileServer(
         quality: args.quality ?? null,
         rarityPct: args.rarity_pct ?? null,
         rarityTier: args.rarity_tier ?? null,
-        note: args.note ?? null,
-        role: args.role ?? null,
-        slot: args.slot ?? null,
         qty: args.qty,
         displayName: args.display_name ?? null,
         container: containerData(args.container) ?? undefined,

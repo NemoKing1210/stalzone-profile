@@ -11,9 +11,7 @@ export interface InventoryItemRow {
   rarity_tier: string | null;
   skin_item_id: number | null;
   qty: number;
-  note: string | null;
   display_name: string | null;
-  role: string | null;
   slot: string | null;
   created_at: string;
   updated_at: string;
@@ -41,9 +39,7 @@ export interface InventoryItemInput {
   rarityTier?: string | null;
   skinItemId?: number | null;
   qty?: number;
-  note?: string | null;
   displayName?: string | null;
-  role?: string | null;
   slot?: string | null;
 }
 
@@ -52,10 +48,10 @@ export function insertInventoryItem(db: Db, input: InventoryItemInput): number {
   const info = db
     .prepare(
       `INSERT INTO inventory_item
-        (character_id, item_id, kind, level, quality, rarity_pct, rarity_tier, skin_item_id, qty, note,
-         display_name, role, slot, created_at, updated_at)
+        (character_id, item_id, kind, level, quality, rarity_pct, rarity_tier, skin_item_id, qty,
+         display_name, slot, created_at, updated_at)
        VALUES (@character_id, @item_id, @kind, @level, @quality, @rarity_pct, @rarity_tier, @skin_item_id, @qty,
-         @note, @display_name, @role, @slot, @created_at, @updated_at)`,
+         @display_name, @slot, @created_at, @updated_at)`,
     )
     .run({
       character_id: input.characterId,
@@ -67,9 +63,7 @@ export function insertInventoryItem(db: Db, input: InventoryItemInput): number {
       rarity_tier: input.rarityTier ?? null,
       skin_item_id: input.skinItemId ?? null,
       qty: Math.max(1, Math.trunc(input.qty ?? 1)),
-      note: input.note ?? null,
       display_name: input.displayName ?? null,
-      role: input.role ?? null,
       slot: input.slot ?? null,
       created_at: now,
       updated_at: now,
@@ -148,7 +142,7 @@ export function updateInventoryItemRow(
   patch: Partial<
     Pick<
       InventoryItemRow,
-      'level' | 'quality' | 'rarity_pct' | 'rarity_tier' | 'skin_item_id' | 'qty' | 'note' | 'display_name' | 'role' | 'slot'
+      'level' | 'quality' | 'rarity_pct' | 'rarity_tier' | 'skin_item_id' | 'qty' | 'display_name' | 'slot'
     >
   >,
 ): void {
@@ -160,9 +154,7 @@ export function updateInventoryItemRow(
     'rarity_tier',
     'skin_item_id',
     'qty',
-    'note',
     'display_name',
-    'role',
     'slot',
   ] as const) {
     if (patch[column] !== undefined) changes[column] = patch[column];
@@ -187,11 +179,11 @@ export function deleteInventoryItemRow(db: Db, id: number): void {
 export function restoreInventoryItemRow(db: Db, row: InventoryItemRow): void {
   db.prepare(
     `INSERT INTO inventory_item
-      (id, character_id, item_id, kind, level, quality, rarity_pct, rarity_tier, skin_item_id, qty, note,
-       display_name, role, slot, created_at, updated_at)
+      (id, character_id, item_id, kind, level, quality, rarity_pct, rarity_tier, skin_item_id, qty,
+       display_name, slot, created_at, updated_at)
      VALUES
       (@id, @character_id, @item_id, @kind, @level, @quality, @rarity_pct, @rarity_tier, @skin_item_id, @qty,
-       @note, @display_name, @role, @slot, @created_at, @updated_at)
+       @display_name, @slot, @created_at, @updated_at)
      ON CONFLICT(id) DO UPDATE SET
        character_id = excluded.character_id,
        item_id = excluded.item_id,
@@ -202,9 +194,7 @@ export function restoreInventoryItemRow(db: Db, row: InventoryItemRow): void {
        rarity_tier = excluded.rarity_tier,
        skin_item_id = excluded.skin_item_id,
        qty = excluded.qty,
-       note = excluded.note,
        display_name = excluded.display_name,
-       role = excluded.role,
        slot = excluded.slot,
        updated_at = excluded.updated_at`,
   ).run(row);

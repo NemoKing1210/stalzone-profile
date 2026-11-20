@@ -22,8 +22,6 @@ function item(partial: Partial<InventoryItemRead> & Pick<InventoryItemRead, 'id'
     qty: 1,
     skinItemId: null,
     icon: null,
-    note: null,
-    role: null,
     slot: null,
     weight: null,
     size: { width: 1, height: 1 },

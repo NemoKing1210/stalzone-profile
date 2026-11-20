@@ -1,4 +1,5 @@
 import type { InventoryItemCreate, InventoryItemPatch } from '@profile/shared';
+import { rarityTierForPct } from '@profile/shared/ranks';
 import type { Db } from '../../../platform/db/index.js';
 import { logEvent, withTransaction, WriteError, type WriteResult } from '../../../platform/journal/index.js';
 import { resolveItem, resolveMotifExact } from '../../catalog/index.js';
@@ -29,16 +30,38 @@ function assertQuantity(input: { kind: string; qty?: number }): void {
   }
 }
 
+/** Only artifacts carry a quality/rarity roll; other kinds must not get one from a write. */
+function assertRarityKind(kind: string, values: (string | number | null | undefined)[]): void {
+  if (kind === 'artifact') return;
+  if (values.some((value) => value !== undefined && value !== null)) {
+    throw new WriteError(422, 'VALIDATION', 'Quality and rarity belong to artifacts');
+  }
+}
+
+/** A skin must have been resolved for this exact base item; a guess is worse than a refusal. */
+function assertSkinFits(itemId: number, kind: string, motif: { base_item_id: number | null } | null): void {
+  if (!motif) return;
+  if (kind !== 'weapon' && kind !== 'armor') {
+    throw new WriteError(422, 'VALIDATION', 'Only weapons and armor take skins');
+  }
+  if (motif.base_item_id == null || motif.base_item_id !== itemId) {
+    throw new WriteError(422, 'VALIDATION', 'The skin does not belong to this item');
+  }
+}
+
 export function createInventoryItem(db: Db, input: InventoryItemCreate): WriteResult {
   const character = characterOrThrow(db);
   assertQuantity(input);
 
   const item = resolveItem(db, input.name, input.kind);
   const skin = input.skin ? resolveMotifExact(db, input.skin) : null;
+  assertSkinFits(item.id, input.kind, skin);
+  assertRarityKind(input.kind, [input.quality, input.rarityPct, input.rarityTier]);
   const rarityPct = input.rarityPct ?? parseRarityPct(input.quality ?? null);
   if (rarityPct != null && (rarityPct < 0 || rarityPct > 175)) {
     throw new WriteError(422, 'VALIDATION', 'Rarity must be between 0 and 175');
   }
+  const rarityTier = input.rarityTier ?? rarityTierForPct(rarityPct);
   if (input.container && input.kind !== 'container') {
     throw new WriteError(422, 'NOT_A_CONTAINER', 'Container data belongs to a container item');
   }
@@ -111,12 +134,10 @@ export function createInventoryItem(db: Db, input: InventoryItemCreate): WriteRe
     level: input.level,
     quality: input.quality ?? null,
     rarityPct,
-    rarityTier: input.rarityTier ?? null,
+    rarityTier,
     skinItemId: skin?.id ?? null,
     qty: input.qty,
-    note: input.note ?? null,
-    role: input.role ?? null,
-    slot: input.slot ?? null,
+    slot: item.slot,
     icon: null,
     weight: resolveWeight(item.weight, null),
     size,
@@ -144,13 +165,11 @@ export function createInventoryItem(db: Db, input: InventoryItemCreate): WriteRe
       level: input.level,
       quality: input.quality ?? null,
       rarityPct,
-      rarityTier: input.rarityTier ?? null,
+      rarityTier,
       skinItemId: skin?.id ?? null,
       qty: input.qty,
-      note: input.note ?? null,
       displayName: input.displayName ?? null,
-      role: input.role ?? null,
-      slot: input.slot ?? null,
+      slot: item.slot,
     });
     repo.upsertPlacement(db, { ...next, itemId: id });
     if (input.container) {
@@ -218,10 +237,13 @@ export function updateInventoryItem(db: Db, id: number, patch: InventoryItemPatc
       skinName = null;
     } else {
       const motif = resolveMotifExact(db, patch.skin);
+      assertSkinFits(row.item_id, row.kind, motif);
       skinItemId = motif.id;
       skinName = motif.name;
     }
   }
+
+  assertRarityKind(row.kind, [patch.quality, patch.rarityPct, patch.rarityTier]);
 
   const qty = patch.qty ?? row.qty;
   if (row.kind !== 'ammo' && row.kind !== 'other' && qty !== 1) {
@@ -247,14 +269,19 @@ export function updateInventoryItem(db: Db, id: number, patch: InventoryItemPatc
     }
   }
 
+  const rarityPct = patch.rarityPct === undefined ? row.rarity_pct : patch.rarityPct;
+  const rarityTier =
+    patch.rarityTier !== undefined
+      ? patch.rarityTier
+      : patch.rarityPct !== undefined
+        ? rarityTierForPct(rarityPct)
+        : row.rarity_tier;
+
   const merged = {
     level: patch.level ?? row.level,
     quality: patch.quality === undefined ? row.quality : patch.quality,
-    rarityPct: patch.rarityPct === undefined ? row.rarity_pct : patch.rarityPct,
-    rarityTier: patch.rarityTier === undefined ? row.rarity_tier : patch.rarityTier,
-    note: patch.note === undefined ? row.note : patch.note,
-    role: patch.role === undefined ? row.role : patch.role,
-    slot: patch.slot === undefined ? row.slot : patch.slot,
+    rarityPct,
+    rarityTier,
     qty,
     displayName: patch.displayName === undefined ? row.display_name : patch.displayName,
     skinItemId,
@@ -278,7 +305,7 @@ export function updateInventoryItem(db: Db, id: number, patch: InventoryItemPatc
       : null,
   };
   const changes: string[] = [];
-  for (const key of ['level', 'quality', 'rarityPct', 'rarityTier', 'qty', 'note', 'role', 'slot'] as const) {
+  for (const key of ['level', 'quality', 'rarityPct', 'rarityTier', 'qty'] as const) {
     if (before[key] !== after[key]) changes.push(`${key}: ${String(before[key])} → ${String(after[key])}`);
   }
   if (before.name !== after.name) changes.push(`name: ${before.name} → ${after.name}`);
@@ -300,10 +327,7 @@ export function updateInventoryItem(db: Db, id: number, patch: InventoryItemPatc
       rarity_tier: merged.rarityTier,
       skin_item_id: merged.skinItemId,
       qty: merged.qty,
-      note: merged.note,
       display_name: merged.displayName,
-      role: merged.role,
-      slot: merged.slot,
     });
     if (patch.container !== undefined) {
       if (container === null) repo.deleteContainerData(db, id);

@@ -75,9 +75,7 @@ interface ItemSnapshot {
   rarityTier: string | null;
   skinItemId: number | null;
   qty: number;
-  note: string | null;
   displayName: string | null;
-  role: string | null;
   slot: string | null;
   placement: Record<string, unknown> | null;
   container: Record<string, unknown> | null;
@@ -132,9 +130,7 @@ export function updateInventoryTx(db: Db, snapshot: Record<string, unknown>): vo
     rarity_tier: item.rarityTier,
     skin_item_id: item.skinItemId,
     qty: item.qty,
-    note: item.note,
     display_name: item.displayName,
-    role: item.role,
     slot: item.slot,
   });
   if (item.container) restoreContainerSnapshot(db, item.id, item.container);
@@ -160,9 +156,7 @@ export function restoreInventoryItemTx(
     rarity_tier: item.rarityTier,
     skin_item_id: item.skinItemId,
     qty: item.qty,
-    note: item.note,
     display_name: item.displayName,
-    role: item.role,
     slot: item.slot,
     created_at: stamp,
     updated_at: stamp,

@@ -17,6 +17,7 @@ import WeightHud from './WeightHud.vue';
 import DragPreview from './DragPreview.vue';
 import EquipmentDoll from './EquipmentDoll.vue';
 import ItemDetailsModal from '../ItemDetailsModal.vue';
+import AddOwnedModal from '../AddOwnedModal.vue';
 import ItemGrid from './ItemGrid.vue';
 import LoadoutPanel from './LoadoutPanel.vue';
 import StorageManager from './StorageManager.vue';
@@ -110,6 +111,7 @@ function itemMenu(item: InventoryItemRead, action: ItemMenuAction): void {
 const selectedId = ref<number | null>(null);
 const detailsOpen = ref(false);
 const storageOpen = ref(false);
+const addOpen = ref(false);
 /** The header toggle: the left column shows the worn equipment or the selected stash. */
 const leftState = useFilters('inventory-left-pane', { pane: 'equipment' });
 const leftPane = computed<LeftPane>(() => resolvePane(leftState.pane));
@@ -300,6 +302,9 @@ const containerNames = computed<Record<number, string>>(() => {
       <div>
         <h1>{{ t('inventory.title') }}</h1>
         <p class="text-[12.5px] text-[var(--sz-text-muted)]">{{ t('inventory.summary') }}</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-1">
+        <UButton size="xs" icon="i-lucide-plus" :label="t('owned.add')" @click="addOpen = true" />
       </div>
       <div class="flex flex-wrap items-center gap-1" role="group" :aria-label="t('inventory.equipment')">
         <UButton
@@ -608,5 +613,7 @@ const containerNames = computed<Record<number, string>>(() => {
         </div>
       </template>
     </UModal>
+
+    <AddOwnedModal v-model:open="addOpen" />
   </section>
 </template>

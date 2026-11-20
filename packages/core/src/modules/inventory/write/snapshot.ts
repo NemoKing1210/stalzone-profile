@@ -51,8 +51,6 @@ export function inventoryItemSnapshot(db: Db, itemId: number): Record<string, un
     skinItemId: row.skin_item_id,
     skinName: row.skin_name,
     qty: row.qty,
-    note: row.note,
-    role: row.role,
     slot: row.slot,
     icon: row.item_icon,
     weight: resolveWeight(row.item_weight, layout?.weight ?? null),

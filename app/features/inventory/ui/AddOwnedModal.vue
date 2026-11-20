@@ -1,17 +1,37 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada';
-import type { OwnedKind } from '~/shared/types/profile';
+import { rarityTierForPct } from '@profile/shared/ranks';
 import { MODAL_WIDTH } from '~/shared/lib/modalWidth';
 import { useProfileData } from '~/stores/profile-data';
-import type { WriteResult } from '@profile/shared/contracts';
+import { useInventory } from '../model/useInventory';
+import { itemCreatePayload, itemFormFields, skinsFor } from '../model/itemForm';
 
 const open = defineModel<boolean>('open', { default: false });
-const props = defineProps<{ kind: OwnedKind }>();
-const emit = defineEmits<{ saved: []; created: [{ instanceId: number; name: string; kind: OwnedKind }] }>();
+const props = defineProps<{ kind?: string }>();
+const emit = defineEmits<{ saved: []; created: [{ instanceId: number; name: string; kind: string }] }>();
 
 const { t } = useI18n();
-const { write, busy } = useWrite();
 const { payload } = useProfileData();
+const inventory = useInventory();
+
+const KIND_OPTIONS = ['weapon', 'armor', 'container', 'artifact', 'ammo', 'other'] as const;
+const activeKind = ref<string>(props.kind ?? 'weapon');
+const fields = computed(() => itemFormFields(activeKind.value));
+const kindOptions = computed<{ label: string; value: string }[]>(() =>
+  KIND_OPTIONS.map((kind) => {
+    const labelKey =
+      kind === 'weapon'
+        ? 'nav.weapons'
+        : kind === 'armor'
+          ? 'nav.armor'
+          : kind === 'container'
+            ? 'nav.containers'
+            : kind === 'artifact'
+              ? 'nav.artifacts'
+              : `owned.kind.${kind}`;
+    return { label: t(labelKey), value: kind };
+  }),
+);
 
 interface CatalogItem {
   id: number;
@@ -27,24 +47,28 @@ const selected = ref<CatalogItem | null>(null);
 const form = reactive({
   level: 0,
   qty: 1,
-  quality: null as string | null | undefined,
+  rarityPct: null as number | null,
   skin: undefined as string | undefined,
-  role: null as string | null | undefined,
-  slot: null as string | null | undefined,
-  note: null as string | null | undefined,
 });
+const rarityTier = computed(() => rarityTierForPct(form.rarityPct));
 
 const catalogEmpty = computed(() => {
   const meta = payload.value?.catalog?.meta as { items?: number } | undefined;
   return Number(meta?.items ?? 0) === 0;
 });
 
+watch(activeKind, () => {
+  selected.value = null;
+  clearTimeout(timer);
+  debouncedSearch.value = '';
+});
+
 const request = useRequestFetch();
 const { data: itemsPage, isLoading: loading, refetch: refetchItems } = useQuery({
-  key: () => ['catalog', 'items', props.kind, debouncedSearch.value],
+  key: () => ['catalog', 'items', activeKind.value, debouncedSearch.value],
   query: () =>
     request<CatalogItem[]>('/api/v1/items', {
-      query: { q: debouncedSearch.value || undefined, kind: props.kind, limit: 20 },
+      query: { q: debouncedSearch.value || undefined, kind: activeKind.value, limit: 20 },
     }),
   enabled: () => open.value,
 });
@@ -52,18 +76,17 @@ const items = computed(() => itemsPage.value ?? []);
 
 const { data: motifs } = useQuery({
   key: ['catalog', 'motifs'],
-  query: () => request<{ name: string }[]>('/api/v1/items', { query: { kind: 'motif', limit: 200 } }),
-  enabled: () => open.value,
+  query: () => request<{ name: string; baseItemId?: number | null }[]>('/api/v1/items', {
+    query: { kind: 'motif', limit: 200 },
+  }),
+  enabled: () => open.value && fields.value.skin,
 });
-const skinItems = computed(() => (motifs.value ?? []).map((motif) => motif.name));
-/** Skins belong to weapons and armor; containers and artifacts have none. */
-const hasSkins = computed(() => props.kind === 'weapon' || props.kind === 'armor');
+const skinItems = computed(() => skinsFor(motifs.value ?? [], selected.value?.id));
 
 let timer: ReturnType<typeof setTimeout> | undefined;
 onBeforeUnmount(() => clearTimeout(timer));
 
 watch(search, () => {
-  // A different query means a different result list; the old pick must not stay armed.
   selected.value = null;
   clearTimeout(timer);
   timer = setTimeout(() => {
@@ -80,11 +103,9 @@ function reset(): void {
   selected.value = null;
   form.level = 0;
   form.qty = 1;
-  form.quality = null;
+  form.rarityPct = null;
   form.skin = undefined;
-  form.role = null;
-  form.slot = null;
-  form.note = null;
+  if (props.kind) activeKind.value = props.kind;
   debouncedSearch.value = '';
   void refetchItems();
 }
@@ -93,27 +114,14 @@ async function submit(): Promise<void> {
   const item = selected.value;
   if (!item) return;
 
-  const result = await write<WriteResult>('/api/v1/inventory/items', {
-    method: 'POST',
-    body: {
-      name: item.name,
-      kind: props.kind,
-      level: form.level,
-      qty: form.qty,
-      quality: form.quality ?? null,
-      skin: hasSkins.value ? (form.skin ?? null) : null,
-      role: props.kind === 'weapon' ? (form.role ?? null) : null,
-      slot: props.kind === 'weapon' ? (form.slot ?? null) : null,
-      note: form.note ?? null,
-      dryRun: false,
-    },
-  });
+  const body = itemCreatePayload(activeKind.value, item, form);
+  const result = await inventory.addItem(body);
   if (!result) return;
 
   const instanceId = (result.diff.after as { id?: number | null } | null)?.id;
   open.value = false;
   emit('saved');
-  if (instanceId) emit('created', { instanceId, name: item.name, kind: props.kind });
+  if (instanceId) emit('created', { instanceId, name: item.name, kind: activeKind.value });
 }
 </script>
 
@@ -132,6 +140,10 @@ async function submit(): Promise<void> {
       </div>
 
       <UForm v-else :state="form" class="space-y-4" @submit="submit">
+        <UFormField v-if="!kind" :label="t('owned.kindLabel')" name="kind">
+          <USelect v-model="activeKind" :items="kindOptions" class="w-full" />
+        </UFormField>
+
         <UFormField :label="t('owned.item')" name="item">
           <UInput v-model="search" :placeholder="t('owned.searchItem')" icon="i-lucide-search" class="w-full" />
         </UFormField>
@@ -160,43 +172,48 @@ async function submit(): Promise<void> {
           </template>
         </div>
 
-        <div class="grid gap-3 sm:grid-cols-2">
-          <UFormField :label="t('forms.level')" name="level">
-            <UInputNumber v-model="form.level" :min="0" :max="15" class="w-full" />
-          </UFormField>
-          <UFormField :label="t('forms.qty')" name="qty">
-            <UInputNumber v-model="form.qty" :min="1" :max="99" class="w-full" />
-          </UFormField>
-          <UFormField :label="t('forms.quality')" name="quality">
-            <UInput v-model.nullable="form.quality" :placeholder="t('forms.qualityPlaceholder')" class="w-full" />
-          </UFormField>
-          <UFormField v-if="hasSkins" :label="t('forms.skin')" name="skin">
-            <USelectMenu
-              v-model="form.skin"
-              :items="skinItems"
-              searchable
-              clearable
-              :placeholder="t('forms.noSkin')"
-              class="w-full"
-            />
-          </UFormField>
-          <template v-if="kind === 'weapon'">
-            <UFormField :label="t('forms.role')" name="role">
-              <UInput v-model.nullable="form.role" :placeholder="t('forms.rolePlaceholder')" class="w-full" />
-            </UFormField>
-            <UFormField :label="t('forms.slot')" name="slot">
-              <UInput v-model.nullable="form.slot" :placeholder="t('forms.slotPlaceholder')" class="w-full" />
-            </UFormField>
-          </template>
-        </div>
+        <div v-if="selected" class="space-y-3">
+          <dl class="grid gap-x-4 gap-y-1 text-[12px] sm:grid-cols-2">
+            <div class="flex justify-between gap-2">
+              <dt class="text-[var(--sz-text-muted)]">{{ t('forms.slot') }}</dt>
+              <dd>{{ selected.slot ?? t('forms.slotUnknown') }}</dd>
+            </div>
+          </dl>
 
-        <UFormField :label="t('forms.note')" name="note">
-          <UTextarea v-model.nullable="form.note" :rows="2" class="w-full" />
-        </UFormField>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <UFormField v-if="fields.level" :label="t('forms.level')" name="level">
+              <UInputNumber v-model="form.level" :min="0" :max="15" class="w-full" />
+            </UFormField>
+            <UFormField v-if="fields.qty" :label="t('forms.qty')" name="qty">
+              <UInputNumber v-model="form.qty" :min="1" :max="99" class="w-full" />
+            </UFormField>
+            <UFormField v-if="fields.rarity" :label="t('forms.rarityPercent')" name="rarityPct">
+              <UInputNumber v-model="form.rarityPct" :min="0" :max="175" class="w-full" />
+              <p v-if="rarityTier" class="mt-1 text-[11px] text-[var(--sz-text-muted)]">
+                {{ t('forms.rarityTier') }}: {{ t(`items.rarityTier.${rarityTier}`) }}
+              </p>
+            </UFormField>
+            <UFormField v-if="fields.skin" :label="t('forms.skin')" name="skin">
+              <USelectMenu
+                v-model="form.skin"
+                :items="skinItems"
+                searchable
+                clearable
+                :placeholder="t('forms.noSkin')"
+                class="w-full"
+              />
+            </UFormField>
+          </div>
+        </div>
 
         <div class="flex justify-end gap-2">
           <UButton type="button" color="neutral" variant="ghost" :label="t('common.cancel')" @click="open = false" />
-          <UButton type="submit" :loading="busy" :disabled="!selected" :label="t('owned.add')" />
+          <UButton
+            type="submit"
+            :loading="inventory.busy.value"
+            :disabled="!selected"
+            :label="t('owned.add')"
+          />
         </div>
       </UForm>
     </template>

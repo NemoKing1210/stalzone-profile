@@ -146,14 +146,11 @@ export const InventoryItemCreateSchema = WriteOptionsSchema.extend({
   quality: z.string().min(1).max(100).nullish(),
   rarityPct: z.number().min(0).max(175).nullish(),
   rarityTier: RarityTierSchema.nullish(),
-  note: z.string().max(2000).nullish(),
-  role: z.string().max(200).nullish(),
-  slot: z.string().max(100).nullish(),
   qty: z.number().int().min(1).max(99).default(1),
   displayName: z.string().min(1).max(200).nullish(),
   container: ContainerDataWriteSchema.optional(),
   target: PlacementTargetSchema.optional(),
-});
+}).strict();
 export type InventoryItemCreate = z.infer<typeof InventoryItemCreateSchema>;
 
 export const InventoryItemPatchSchema = WriteOptionsSchema.extend({
@@ -162,13 +159,10 @@ export const InventoryItemPatchSchema = WriteOptionsSchema.extend({
   quality: z.string().min(1).max(100).nullish(),
   rarityPct: z.number().min(0).max(175).nullish(),
   rarityTier: RarityTierSchema.nullish(),
-  note: z.string().max(2000).nullish(),
-  role: z.string().max(200).nullish(),
-  slot: z.string().max(100).nullish(),
   qty: z.number().int().min(1).max(99).optional(),
   displayName: z.string().min(1).max(200).nullish(),
   container: ContainerDataWriteSchema.nullish(),
-}).refine((value) => Object.keys(value).some((key) => key !== 'dryRun'), {
+}).strict().refine((value) => Object.keys(value).some((key) => key !== 'dryRun'), {
   message: 'At least one field must be changed',
 });
 export type InventoryItemPatch = z.infer<typeof InventoryItemPatchSchema>;
@@ -266,9 +260,6 @@ export const AddInventoryItemInputSchema = McpWriteOptionsSchema.extend({
   quality: z.string().min(1).nullish(),
   rarity_pct: z.number().min(0).max(175).nullish(),
   rarity_tier: RarityTierSchema.nullish(),
-  note: z.string().nullish(),
-  role: z.string().nullish(),
-  slot: z.string().nullish(),
   qty: z.number().int().min(1).max(99).default(1),
   display_name: z.string().min(1).nullish(),
   container: McpContainerDataInputSchema.nullish(),
@@ -282,9 +273,6 @@ export const UpdateInventoryItemInputSchema = McpWriteOptionsSchema.extend({
   quality: z.string().min(1).nullish(),
   rarity_pct: z.number().min(0).max(175).nullish(),
   rarity_tier: RarityTierSchema.nullish(),
-  note: z.string().nullish(),
-  role: z.string().nullish(),
-  slot: z.string().nullish(),
   qty: z.number().int().min(1).max(99).optional(),
   display_name: z.string().min(1).nullish(),
   container: McpContainerDataInputSchema.nullish(),

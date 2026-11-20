@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada';
-import type { RarityTier, WriteResult } from '@profile/shared/contracts';
-import { RarityTierSchema } from '@profile/shared/contracts';
+import type { WriteResult } from '@profile/shared/contracts';
+import { rarityTierForPct } from '@profile/shared/ranks';
 import type { InstanceEditTarget } from '~/shared/types/profile';
 
 import { ConfirmActionModal } from '~/shared/ui';
 import { MODAL_WIDTH } from '~/shared/lib/modalWidth';
+import { itemFormFields, skinsFor } from '../model/itemForm';
 
 const open = defineModel<boolean>('open', { default: false });
 const props = defineProps<{ target: InstanceEditTarget | null }>();
@@ -17,13 +18,8 @@ const { t } = useI18n();
 const form = reactive({
   level: 0,
   qty: 1,
-  quality: null as string | null | undefined,
   skin: undefined as string | undefined,
-  note: null as string | null | undefined,
-  role: null as string | null | undefined,
-  slot: null as string | null | undefined,
-  rarity: null as number | null,
-  rarityTier: 'none' as RarityTier | 'none',
+  rarityPct: null as number | null,
   layoutWidth: null as number | null,
   layoutHeight: null as number | null,
   layoutWeight: null as number | null,
@@ -38,21 +34,20 @@ const form = reactive({
   dryRun: false,
 });
 
+const fields = computed(() => itemFormFields(props.target?.kind ?? ''));
+const rarityTier = computed(() => rarityTierForPct(form.rarityPct));
 const lastResult = ref<WriteResult | null>(null);
 const confirmOpen = ref(false);
 
 const request = useRequestFetch();
 const { data: motifs } = useQuery({
   key: ['catalog', 'motifs'],
-  query: () => request<{ name: string }[]>('/api/v1/items', { query: { kind: 'motif', limit: 200 } }),
+  query: () => request<{ name: string; baseItemId?: number | null }[]>('/api/v1/items', {
+    query: { kind: 'motif', limit: 200 },
+  }),
   enabled: () => open.value,
 });
-const skinItems = computed(() => (motifs.value ?? []).map((motif) => motif.name));
-
-const tierItems = computed(() => [
-  { label: t('forms.rarityTierNone'), value: 'none' },
-  ...RarityTierSchema.options.map((tier) => ({ label: t(`items.rarityTier.${tier}`), value: tier })),
-]);
+const skinItems = computed(() => skinsFor(motifs.value ?? [], props.target?.itemId));
 
 watch(open, (value) => {
   if (value) reset();
@@ -69,13 +64,8 @@ function reset(): void {
   if (!target) return;
   form.level = target.level;
   form.qty = target.qty;
-  form.quality = target.quality;
   form.skin = undefined;
-  form.note = target.note;
-  form.role = target.role;
-  form.slot = target.slot;
-  form.rarity = target.rarityPct;
-  form.rarityTier = target.rarityTier ?? 'none';
+  form.rarityPct = target.rarityPct;
   form.layoutWidth = null;
   form.layoutHeight = null;
   form.layoutWeight = null;
@@ -91,9 +81,7 @@ function reset(): void {
   lastResult.value = null;
 }
 
-const isArtifact = computed(() => props.target?.kind === 'artifact');
 const isContainer = computed(() => props.target?.kind === 'container');
-
 const layoutPair = computed(() => {
   const width = form.layoutWidth;
   const height = form.layoutHeight;
@@ -105,21 +93,11 @@ const layoutPair = computed(() => {
 
 function instancePatch(target: InstanceEditTarget): Record<string, unknown> {
   const patch: Record<string, unknown> = {};
-  if (form.level !== target.level) patch.level = form.level;
-  if (form.qty !== target.qty) patch.qty = form.qty;
-  const quality = form.quality ?? null;
-  if (quality !== target.quality) patch.quality = quality;
-  const note = form.note ?? null;
-  if (note !== target.note) patch.note = note;
-  if ((form.role ?? null) !== target.role) patch.role = form.role ?? null;
-  if ((form.slot ?? null) !== target.slot) patch.slot = form.slot ?? null;
+  if (fields.value.level && form.level !== target.level) patch.level = form.level;
+  if (fields.value.qty && form.qty !== target.qty) patch.qty = form.qty;
   // The read shape carries the skin id, not its name: send a skin only when one is chosen.
-  if (form.skin) patch.skin = form.skin;
-  if (isArtifact.value) {
-    if (form.rarity !== target.rarityPct) patch.rarityPct = form.rarity;
-    const tier = form.rarityTier === 'none' ? null : form.rarityTier;
-    if (tier !== target.rarityTier) patch.rarityTier = tier;
-  }
+  if (fields.value.skin && form.skin) patch.skin = form.skin;
+  if (fields.value.rarity && form.rarityPct !== target.rarityPct) patch.rarityPct = form.rarityPct;
   if (isContainer.value) {
     const current = target.container;
     const next = { ...form.container };
@@ -206,23 +184,27 @@ async function remove(): Promise<void> {
   >
     <template #body>
       <UForm :state="form" class="space-y-4" @submit="submit">
+        <dl class="grid gap-x-4 gap-y-1 text-[12px] sm:grid-cols-2">
+          <div class="flex justify-between gap-2">
+            <dt class="text-[var(--sz-text-muted)]">{{ t('forms.slot') }}</dt>
+            <dd>{{ props.target?.slot ?? t('forms.slotUnknown') }}</dd>
+          </div>
+        </dl>
+
         <div class="grid gap-3 sm:grid-cols-2">
-          <UFormField :label="t('forms.level')" name="level">
+          <UFormField v-if="fields.level" :label="t('forms.level')" name="level">
             <UInputNumber v-model="form.level" :min="0" :max="15" class="w-full" />
           </UFormField>
-          <UFormField :label="t('forms.qty')" name="qty">
+          <UFormField v-if="fields.qty" :label="t('forms.qty')" name="qty">
             <UInputNumber v-model="form.qty" :min="1" :max="99" class="w-full" />
           </UFormField>
-          <UFormField :label="t('forms.quality')" name="quality">
-            <UInput v-model.nullable="form.quality" :placeholder="t('forms.qualityPlaceholder')" class="w-full" />
+          <UFormField v-if="fields.rarity" :label="t('forms.rarityPercent')" name="rarityPct">
+            <UInputNumber v-model="form.rarityPct" :min="0" :max="175" class="w-full" />
+            <p v-if="rarityTier" class="mt-1 text-[11px] text-[var(--sz-text-muted)]">
+              {{ t('forms.rarityTier') }}: {{ t(`items.rarityTier.${rarityTier}`) }}
+            </p>
           </UFormField>
-          <UFormField v-if="isArtifact" :label="t('forms.rarity')" name="rarity">
-            <UInputNumber v-model="form.rarity" :min="0" :max="175" class="w-full" />
-          </UFormField>
-          <UFormField v-if="isArtifact" :label="t('forms.rarityTier')" name="rarityTier">
-            <USelect v-model="form.rarityTier" :items="tierItems" class="w-full" />
-          </UFormField>
-          <UFormField :label="t('forms.skin')" name="skin">
+          <UFormField v-if="fields.skin" :label="t('forms.skin')" name="skin">
             <USelectMenu
               v-model="form.skin"
               :items="skinItems"
@@ -232,17 +214,7 @@ async function remove(): Promise<void> {
               class="w-full"
             />
           </UFormField>
-          <UFormField :label="t('forms.role')" name="role">
-            <UInput v-model.nullable="form.role" :placeholder="t('forms.rolePlaceholder')" class="w-full" />
-          </UFormField>
-          <UFormField :label="t('forms.slot')" name="slot">
-            <UInput v-model.nullable="form.slot" :placeholder="t('forms.slotPlaceholder')" class="w-full" />
-          </UFormField>
         </div>
-
-        <UFormField :label="t('forms.note')" name="note">
-          <UTextarea v-model.nullable="form.note" :rows="2" class="w-full" />
-        </UFormField>
 
         <div class="space-y-3 border-t border-[var(--sz-border)] pt-3">
           <p class="sz-caps text-[var(--sz-text-muted)]">{{ t('forms.layoutOverride') }}</p>

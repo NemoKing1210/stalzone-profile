@@ -21,6 +21,7 @@ export function itemSummary(
     weight: item.weight,
     cosmetic: !!item.is_cosmetic,
     icon,
+    baseItemId: item.base_item_id,
     ...(extras.stats === undefined ? {} : { stats: extras.stats }),
     ...(extras.effects === undefined ? {} : { effects: extras.effects }),
   };

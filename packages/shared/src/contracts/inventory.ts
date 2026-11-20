@@ -76,7 +76,6 @@ export const ContainerReadSchema = z.object({
   name: z.string(),
   ownedId: z.number().int(),
   qty: z.number().int(),
-  note: z.string().nullable(),
   quality: z.string().nullable(),
   skin: z.string().nullable(),
   type: z.string().nullable(),
@@ -111,8 +110,6 @@ export interface InventoryItemRead {
   qty: number;
   skinItemId: number | null;
   icon: string | null;
-  note: string | null;
-  role: string | null;
   slot: string | null;
   weight: number | null;
   size: { width: number; height: number };
@@ -138,8 +135,6 @@ export const InventoryItemReadSchema: z.ZodType<InventoryItemRead> = z.lazy(() =
     qty: z.number().int(),
     skinItemId: z.number().int().nullable(),
     icon: z.string().nullable(),
-    note: z.string().nullable(),
-    role: z.string().nullable(),
     slot: z.string().nullable(),
     weight: z.number().nullable(),
     size: z.object({ width: z.number().int(), height: z.number().int() }),

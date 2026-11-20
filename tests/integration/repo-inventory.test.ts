@@ -84,16 +84,13 @@ describe('inventory repository', () => {
       quality: 'Редкий',
       rarityPct: 120,
       rarityTier: 'rare',
-      role: 'main',
       slot: 'primary',
-      note: 'main rifle',
     });
     expect(getInventoryItem(db, gearId)).toMatchObject({
       level: 15,
       quality: 'Редкий',
       rarity_pct: 120,
       rarity_tier: 'rare',
-      role: 'main',
       slot: 'primary',
       qty: 1,
     });

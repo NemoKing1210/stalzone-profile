@@ -65,6 +65,8 @@ export const ItemSummarySchema = z.object({
   weight: z.number().nullable(),
   cosmetic: z.boolean(),
   icon: z.string().nullable(),
+  /** A motif's base catalog item; the skin picker offers only the chosen item's motifs. */
+  baseItemId: z.number().int().nullable().optional(),
   stats: z.array(z.unknown()).optional(),
   effects: z.array(z.unknown()).optional(),
 });

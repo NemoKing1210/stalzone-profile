@@ -387,7 +387,6 @@
     "quality": "Quality",
     "rarity": "Rarity",
     "rarityPercent": "Rarity, %",
-    "note": "Note",
     "removeItemTitle": "Delete item",
     "removeItemDesc": "Delete “{name}”? The action can be rolled back in settings.",
     "inContainer": "In a container",
@@ -566,6 +565,11 @@
   "owned": {
     "addTitle": "Add to the profile",
     "addDescription": "Pick a catalog item and its parameters.",
+    "kindLabel": "Item kind",
+    "kind": {
+      "ammo": "Ammo",
+      "other": "Other"
+    },
     "item": "Item",
     "searchItem": "Search the catalog",
     "add": "Add",
@@ -1075,7 +1079,8 @@
           "filter": "Filter either grid by kind, rank and quality without moving anything; hidden items keep their cells and a same-container drop is refused until the filter is cleared.",
           "tidy": "Tidy repacks one storage in the chosen order (kind, name, rank or footprint); an item that cannot be placed stays at its cells and the toast reports how many stayed.",
           "intake": "New and displaced items land in a read-only intake stash that only releases them and grows as it fills.",
-          "loadout": "Carry weight, protection, artifact effects and container warnings come from the computed loadout."
+          "loadout": "Carry weight, protection, artifact effects and container warnings come from the computed loadout.",
+          "form": "The add and edit forms follow the kind: level and a matching skin for weapons/armor, one rarity percentage for artifacts, quantity for stacks; the slot is read from the catalog."
         }
       },
       "weapons": {
@@ -1494,16 +1499,13 @@
     "maxMoney": "Maximum money",
     "stash": "Stash",
     "qty": "Quantity",
-    "qualityPlaceholder": "e.g. Rare 141%",
     "skin": "Skin",
     "noSkin": "No skin",
-    "role": "Role",
-    "rolePlaceholder": "all-round, PvE",
     "slot": "Slot",
-    "slotPlaceholder": "primary or secondary",
-    "note": "Note",
     "rarity": "Rarity",
+    "rarityPercent": "Rarity, %",
     "rarityTier": "Rarity tier",
+    "slotUnknown": "not specified",
     "rarityTierNone": "No tier",
     "layoutOverride": "Grid size and weight override",
     "layoutWidth": "Width, cells",

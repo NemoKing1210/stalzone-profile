@@ -32,8 +32,6 @@ export interface InstanceEditTarget {
   qty: number;
   quality: string | null;
   skin: string | null;
-  note: string | null;
-  role: string | null;
   slot: string | null;
   rarityPct: number | null;
   rarityTier: RarityTier | null;

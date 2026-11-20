@@ -3,8 +3,10 @@ import type { InventoryItemRead, ModuleSlot } from '@profile/shared/contracts';
 
 import { RankBadge, RarityName } from '~/entities/item';
 import { MODAL_WIDTH } from '~/shared/lib/modalWidth';
+import { rarityTierForPct } from '@profile/shared/ranks';
 
 import { detailRows } from '../model/details';
+import { itemFormFields } from '../model/itemForm';
 import ContainerPanel from './grid/ContainerPanel.vue';
 import WeaponPanel from './grid/WeaponPanel.vue';
 
@@ -87,14 +89,15 @@ function format(key: string, value: string | number): string {
 }
 
 /** Instances can be edited in place; a catalog row only opens the owned editor. */
-const form = reactive({ level: 0, quality: '', rarity: '', note: '' });
+const form = reactive({ level: 0, qty: 1, rarityPct: null as number | null });
+const fields = computed(() => itemFormFields(props.item?.kind ?? ''));
+const rarityTier = computed(() => rarityTierForPct(form.rarityPct));
 
 function fillForm(): void {
   if (!props.item) return;
   form.level = props.item.level;
-  form.quality = props.item.quality ?? '';
-  form.rarity = props.item.rarityPct == null ? '' : String(props.item.rarityPct);
-  form.note = props.item.note ?? '';
+  form.qty = props.item.qty;
+  form.rarityPct = props.item.rarityPct;
 }
 
 watch(() => props.item, fillForm, { immediate: true });
@@ -102,13 +105,9 @@ watch(() => props.item, fillForm, { immediate: true });
 const changed = computed(() => {
   const item = props.item;
   if (!item) return false;
-  if (Number(form.level) !== item.level) return true;
-  if ((form.quality.trim() || null) !== item.quality) return true;
-  if ((form.note.trim() || null) !== item.note) return true;
-  if (item.kind === 'artifact') {
-    const rarity = form.rarity === '' ? null : Number(form.rarity);
-    if (rarity !== item.rarityPct) return true;
-  }
+  if (fields.value.level && Math.trunc(form.level) !== item.level) return true;
+  if (fields.value.qty && Math.trunc(form.qty) !== item.qty) return true;
+  if (fields.value.rarity && form.rarityPct !== item.rarityPct) return true;
   return false;
 });
 
@@ -116,16 +115,15 @@ function save(): void {
   const item = props.item;
   if (!item) return;
   const patch: Record<string, unknown> = {};
-  const level = Math.max(0, Math.min(15, Number(form.level)));
-  if (level !== item.level) patch.level = level;
-  const quality = form.quality.trim() || null;
-  if (quality !== item.quality) patch.quality = quality;
-  if (item.kind === 'artifact') {
-    const rarity = form.rarity === '' ? null : Number(form.rarity);
-    if (rarity !== item.rarityPct) patch.rarityPct = rarity;
+  if (fields.value.level) {
+    const level = Math.max(0, Math.min(15, Math.trunc(Number(form.level))));
+    if (level !== item.level) patch.level = level;
   }
-  const note = form.note.trim() || null;
-  if (note !== item.note) patch.note = note;
+  if (fields.value.qty) {
+    const qty = Math.max(1, Math.min(99, Math.trunc(Number(form.qty))));
+    if (qty !== item.qty) patch.qty = qty;
+  }
+  if (fields.value.rarity && form.rarityPct !== item.rarityPct) patch.rarityPct = form.rarityPct;
   if (Object.keys(patch).length) emit('update', patch);
 }
 
@@ -211,18 +209,18 @@ function confirmRemove(): void {
         <section v-if="props.item" class="space-y-2 border-t border-[var(--sz-border)] pt-2">
           <h3 class="sz-caps text-[10.5px] text-[var(--sz-text-muted)]">{{ t('inventory.instanceSettings') }}</h3>
           <div class="grid grid-cols-2 gap-2">
-            <label class="block text-[11px] text-[var(--sz-text-muted)]">
+            <label v-if="fields.level" class="block text-[11px] text-[var(--sz-text-muted)]">
               {{ t('inventory.level') }}
               <UInput v-model.number="form.level" type="number" size="xs" class="mt-0.5 w-full" :min="0" :max="15" />
             </label>
-            <label class="block text-[11px] text-[var(--sz-text-muted)]">
-              {{ t('inventory.quality') }}
-              <UInput v-model="form.quality" size="xs" class="mt-0.5 w-full" :maxlength="100" />
+            <label v-if="fields.qty" class="block text-[11px] text-[var(--sz-text-muted)]">
+              {{ t('forms.qty') }}
+              <UInput v-model.number="form.qty" type="number" size="xs" class="mt-0.5 w-full" :min="1" :max="99" />
             </label>
-            <label v-if="props.item.kind === 'artifact'" class="col-span-2 block text-[11px] text-[var(--sz-text-muted)]">
+            <label v-if="fields.rarity" class="col-span-2 block text-[11px] text-[var(--sz-text-muted)]">
               {{ t('inventory.rarityPercent') }}
               <UInput
-                v-model="form.rarity"
+                v-model.number="form.rarityPct"
                 type="number"
                 size="xs"
                 class="mt-0.5 w-full"
@@ -230,10 +228,9 @@ function confirmRemove(): void {
                 :max="175"
                 :placeholder="t('common.noData')"
               />
-            </label>
-            <label class="col-span-2 block text-[11px] text-[var(--sz-text-muted)]">
-              {{ t('inventory.note') }}
-              <UTextarea v-model="form.note" size="xs" class="mt-0.5 w-full" :rows="2" :maxlength="2000" />
+              <span v-if="rarityTier" class="mt-0.5 block text-[10.5px] text-[var(--sz-text-dim)]">
+                {{ t('forms.rarityTier') }}: {{ t(`items.rarityTier.${rarityTier}`) }}
+              </span>
             </label>
           </div>
           <div class="flex flex-wrap gap-1">

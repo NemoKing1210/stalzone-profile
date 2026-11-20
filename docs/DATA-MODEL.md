@@ -27,7 +27,7 @@ only through new migrations in `db/migrations/`.
 | `character` | identity: nick, region, faction, alliance, clan, money |
 | `character_stat` | raw counters per character and stat, with origin `api` or `manual` |
 | `storage` | the character's own grids: exactly one 8×20 `inventory`, exactly one 40×80 `overflow` (the intake stash) and any number of 8×200 `stash` rows, each with a unique normalized name per kind; a stash size is fixed after creation |
-| `inventory_item` | one row per gear instance (weapon, armor, container, artifact, attachment, ammo, other) with level, quality, rarity, skin, note and display name; `qty > 1` only for `ammo`/`other` |
+| `inventory_item` | one row per gear instance (weapon, armor, container, artifact, attachment, ammo, other) with level, quality, rarity, skin, display name and the catalog's slot; `qty > 1` only for `ammo`/`other`. No free-text note or role columns |
 | `item_placement` | where an instance is: `grid` (storage, x, y, rotated), `equipment` (slot), `container` (container instance, slot) or `weapon_module` (weapon instance, module slot); one row per instance. `loose` survives only as a legacy/transient value: it is never a write target, `0008` converts stored rows, and the read model reports any unplaced instance as `loose` |
 | `container_data` | per-container override of type, shield, bonus, protection, slots, efficiency |
 | `attachment_compat` | EXBO/manual attachment ↔ weapon compatibility pairs |
@@ -235,7 +235,14 @@ ttk          = round((ceil(600 / displayedDmg) - 1) * 60 / rof, 2)
   (`item.motif.wpn.ks1_ssop` → token `ks1_ssop`) and written to `base_item_id`.
   EXBO's `*_style/*` categories (`weapon_style/styles`, `armor_style/styles`) are
   cosmetics too: the binder stores them as `kind = motif` with `is_cosmetic = 1`
-  instead of the group kind, so the catalog lists only real gear.
+  instead of the group kind, so the catalog lists only real gear. A write accepts a skin
+  only when the motif's `base_item_id` is the chosen item; a cross-item skin is refused.
+- Artifact rarity is one percentage (`rarity_pct`, 0…175); `rarity_tier` is derived from it
+  at the same game boundaries the calculator uses (100/115/130/145/160/175), never typed
+  separately. Other kinds cannot receive a rarity or quality from a write.
+- The instance `slot` is copied from the catalog item; the API does not accept a typed slot.
+- `level` belongs to weapons and armor, `qty` to `ammo`/`other`; the add/edit forms show
+  only the fields the chosen kind has, and `note`/`role` are not part of the model.
 - The rank belongs to the weapon/armor itself, not to the skin.
 - "(А)" is a separate item.
 - Armor bullet protection comes from the item's `bullet_dmg_factor` curve (levels 0…15);

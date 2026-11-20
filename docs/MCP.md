@@ -86,8 +86,8 @@ The `profile://schema` resource provides tool descriptions and the write rules.
 
 | Tool | Arguments |
 |---|---|
-| `add_inventory_item` | `name`, `kind`, `level?`, `skin?`, `quality?`, `rarity_pct?`, `rarity_tier?`, `note?`, `role?`, `slot?`, `qty?`, `display_name?`, `container?`, `dry_run?` |
-| `update_inventory_item` | `item_id` plus any of `level`, `skin`, `quality`, `rarity_pct`, `rarity_tier`, `note`, `role`, `slot`, `qty`, `display_name`, `container` (or `null` to clear) |
+| `add_inventory_item` | `name`, `kind`, `level?`, `skin?`, `quality?`, `rarity_pct?`, `rarity_tier?`, `qty?`, `display_name?`, `container?`, `dry_run?`; the slot comes from the catalog item and a skin must match it |
+| `update_inventory_item` | `item_id` plus any of `level`, `skin`, `quality`, `rarity_pct`, `rarity_tier`, `qty`, `display_name`, `container` (or `null` to clear); `note`, `role` and `slot` are gone |
 | `remove_inventory_item` | `item_id`, `qty?`, `dry_run?` |
 | `move_inventory_item` | `item_id`, `target`, `swap?`, `allow_unverified?`, `dry_run?` |
 | `create_storage` | `name`, `kind?` (`stash`), `max_weight?`, `sort_order?`, `dry_run?`; the grid is always 8×200 for a stash and 8×20 for the carried grid |

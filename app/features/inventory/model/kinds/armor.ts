@@ -8,7 +8,6 @@ export interface ArmorRow extends InstanceRow, InstanceLocationRow {
   qty: number;
   quality: string | null;
   skin: string | null;
-  note: string | null;
   name: string;
   rank: string | null;
   cls: string | null;
@@ -60,7 +59,6 @@ export const armorKind: InventoryKind<ArmorRow> = {
         qty: 1,
         quality: null,
         skin: null,
-        note: null,
         name: entry.name,
         rank: entry.rank ?? null,
         cls: entry.cls ?? null,
@@ -92,7 +90,6 @@ export const armorKind: InventoryKind<ArmorRow> = {
           quality: item.quality,
           // The instance carries the skin id, not its name; the editor leaves it untouched.
           skin: null,
-          note: item.note,
           name: item.displayName ?? item.name,
           rank: item.rank,
           cls: row?.cls ?? item.category,
@@ -196,9 +193,7 @@ export const armorKind: InventoryKind<ArmorRow> = {
           qty: row.qty,
           quality: row.quality,
           skin: null,
-          note: row.note,
-          role: null,
-          slot: null,
+          slot: row.item?.slot ?? null,
           rarityPct: row.item.rarityPct,
           rarityTier: row.item.rarityTier,
         },

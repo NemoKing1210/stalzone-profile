@@ -15,7 +15,6 @@ export interface ArtifactRow extends InstanceRow, InstanceLocationRow {
   qty: number;
   quality: string | null;
   skin: string | null;
-  note: string | null;
   name: string;
   type: string | null;
   q: string | null;
@@ -60,7 +59,6 @@ export const artifactsKind: InventoryKind<ArtifactRow> = {
           quality: item.quality,
           // The instance carries the skin id, not its name; the editor leaves it untouched.
           skin: null,
-          note: item.note,
           name: item.displayName ?? item.name,
           type: cardText(card, 'type') ?? item.category,
           q: item.quality,
@@ -120,8 +118,6 @@ export const artifactsKind: InventoryKind<ArtifactRow> = {
           qty: row.qty,
           quality: row.quality,
           skin: null,
-          note: row.note,
-          role: null,
           slot: null,
           rarityPct: row.item.rarityPct,
           rarityTier: row.item.rarityTier,

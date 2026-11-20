@@ -25,8 +25,6 @@ function item(overrides: Partial<InventoryItemRead> = {}): InventoryItemRead {
     qty: 1,
     skinItemId: null,
     icon: null,
-    note: null,
-    role: null,
     slot: null,
     weight: null,
     size: { width: 5, height: 2 },

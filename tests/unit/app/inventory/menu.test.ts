@@ -19,8 +19,6 @@ function item(id: number, placement: PlacementRead, extra: Partial<InventoryItem
     qty: 1,
     skinItemId: null,
     icon: null,
-    note: null,
-    role: null,
     slot: null,
     weight: 1,
     size: { width: 1, height: 1 },

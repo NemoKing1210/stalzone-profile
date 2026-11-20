@@ -20,8 +20,6 @@ const rifle: InventoryItemRead = {
   qty: 2,
   skinItemId: null,
   icon: null,
-  note: null,
-  role: null,
   slot: 'primary',
   weight: 4.2,
   size: { width: 5, height: 2 },

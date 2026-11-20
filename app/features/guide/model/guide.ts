@@ -114,6 +114,7 @@ export const GUIDE_SITE: GuideSitePage[] = [
       'guide.site.inventory.caps.tidy',
       'guide.site.inventory.caps.intake',
       'guide.site.inventory.caps.loadout',
+      'guide.site.inventory.caps.form',
     ],
   },
   {
