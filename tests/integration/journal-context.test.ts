@@ -114,6 +114,7 @@ describe('service writes carry the context without touching before/after', () =>
       'clanRank',
       'money',
       'maxMoney',
+      'profileFetchedAt',
       'stats',
       'manualStats',
     ]);

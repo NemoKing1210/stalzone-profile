@@ -19,6 +19,7 @@
     "./modules/inventory": "./src/modules/inventory/index.ts",
     "./modules/inventory/layout": "./src/modules/inventory/layout/index.ts",
     "./modules/logging": "./src/modules/logging/index.ts",
+    "./modules/chat": "./src/modules/chat/index.ts",
     "./modules/sync": "./src/modules/sync/index.ts",
     "./modules/setup": "./src/modules/setup/index.ts",
     "./modules/maintenance": "./src/modules/maintenance/index.ts",

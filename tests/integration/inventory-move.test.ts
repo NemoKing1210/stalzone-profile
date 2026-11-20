@@ -503,7 +503,13 @@ describe('inventory placement writes', () => {
 
   it('writes a skin-only change', () => {
     const rifle = make('weapon', 'АК-12');
-    item('motif', 'Камуфляж', null, null, 'skin');
+    seed.upsertItem(db, {
+      sourceId: 'local',
+      externalId: 'test:motif:camouflage',
+      name: 'Камуфляж',
+      kind: 'motif',
+      baseItemId: rifle,
+    });
 
     const result = updateInventoryItem(db, rifle, { skin: 'Камуфляж', dryRun: false });
     expect(result.eventId).toBeTypeOf('number');

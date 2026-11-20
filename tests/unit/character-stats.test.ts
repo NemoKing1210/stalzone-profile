@@ -17,7 +17,7 @@ describe('character stats', () => {
       api('sho-fir', 1000),
       api('sho-hit', 250),
       api('sho-hea', 50),
-      api('pla-tim', 'PT123H'),
+      api('pla-tim', 123),
       api('reg-tim', '2024-06-01'),
       api('ach-gai', 42),
     ]);
@@ -50,8 +50,9 @@ describe('character stats', () => {
     });
   });
 
-  it('parses ISO-8601 durations and leaves unknown text null', () => {
-    expect(deriveCharacterFields(effectiveCharacterStats([api('pla-tim', 'PT2H30M')])).hours).toBe(2.5);
+  it('reads playtime only from the numeric hours column and leaves text null', () => {
+    expect(deriveCharacterFields(effectiveCharacterStats([api('pla-tim', 'PT2H30M')])).hours).toBeNull();
     expect(deriveCharacterFields(effectiveCharacterStats([api('pla-tim', '123 ч')])).hours).toBeNull();
+    expect(deriveCharacterFields(effectiveCharacterStats([api('pla-tim', 2.5)])).hours).toBe(2.5);
   });
 });
