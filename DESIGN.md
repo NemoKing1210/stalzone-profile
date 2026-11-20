@@ -131,8 +131,10 @@ instead of mixing Bebas with a fallback.
    one clear hierarchy level per pane.
 6. **Quiet texture.** The page shell may carry a low-contrast weathered backdrop (§4.7), but
    texture never reaches a data area: panes, tables and modals keep flat opaque surfaces. No
-   scanlines or high-frequency noise under rows. A faint inset highlight on header bars and a
-   blurred backdrop behind modals remain the in-pane maximum.
+   scanlines or high-frequency noise under rows. The one exception is the 1 px diagonal hatch
+   at an 8 px pitch on item cards and `/inventory` grid tiles (owner decision 2026-11-21); a
+   faint inset highlight on header bars and a blurred backdrop behind modals remain the in-pane
+   maximum. Nothing animates, so reduced motion needs no special case.
 7. **Honest affordances.** No fake keyboard shortcuts. Keycaps appear only for shortcuts that
    really work; otherwise use web-native wording ("Open", "Edit").
 8. **Accessible by construction.** Contrast, focus, keyboard paths and touch targets are part
@@ -352,7 +354,8 @@ content:
 Rules: the layer is `position: fixed` and `pointer-events: none`, so it does not scroll with
 rows and does not capture input; it renders at z-index −1 inside an isolated stacking context,
 above the base colour and below every pane. Panes, tables, modals and the header keep opaque
-surfaces — no texture is painted inside a data area. Nothing animates, so reduced motion
+surfaces — no texture is painted inside a data area, except the static item-card/tile hatch
+(§3.6). Nothing animates, so reduced motion
 needs no special case. Weight: one CSS block plus two inline SVG data URIs; no image files
 and no network requests.
 
@@ -415,7 +418,8 @@ A single full-width pane: the shared toolbar (Owned/Catalog where the payload ha
 grid/list views, search, type/class, rank, sort and direction, grouping, reset) + card grid
 or table + a count hint. Grouping renders sections with `label · count` headings. Selecting
 an item opens its card in a modal at every width; the list is never narrowed by a side
-column. Sections are reached from the top navigation.
+column. Sections are reached from the top navigation. Item cards in the grid carry the faint
+static hatch from §3.6; the table mode stays flat.
 
 **B. Two-pane list + detail** — reserved.
 No current section uses it; the pages that did were removed or moved to archetype A.
@@ -522,7 +526,8 @@ data fetching.
    Renders: category caps, `RarityName`, a 16:9 icon/silhouette well (game icons when present,
    a generic Lucide silhouette otherwise), a footer with 2–3 stats (weight green, caliber
    neutral). Opens the details modal on a double click or Enter; a single click changes
-   nothing and leaves no selection frame. Hover: surface-alt. Click
+   nothing and leaves no selection frame. The card background carries the faint 135°/8 px
+   hatch from §3.6; the icon well and stats footer stay opaque. Hover: surface-alt. Click
    and keyboard handling live on a real `<button>`; the card is not a naked div.
 
 5. **`StorageBar.vue`** — the "Personal storage 38 / 90" bar.

@@ -95,7 +95,7 @@ watch(
   <button
     :ref="bindTile"
     type="button"
-    class="group absolute flex touch-none select-none flex-col overflow-hidden border text-left transition-colors [container-type:inline-size] bg-ink-800/60 hover:bg-ink-700/85"
+    class="sz-hatch group absolute flex touch-none select-none flex-col overflow-hidden border text-left transition-colors [container-type:inline-size] bg-ink-800/60 hover:bg-ink-700/85"
     :style="{ borderColor: edge }"
     :class="[stateClass, 'cursor-grab']"
     :aria-label="label"

@@ -64,6 +64,8 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- Item cards and `/inventory` grid tiles carry one faint static 135°/8 px hatch; panes,
+  tables and modals stay flat.
 - The ZONE FM radio is mounted again in the default layout; its FAB, bar, track list,
   persistence and Media Session behaviour are unchanged.
 - The side panel shows the character's faction emblem and name beside the nick, and its

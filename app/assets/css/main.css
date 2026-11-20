@@ -356,6 +356,16 @@
   .sz-image-label {
     text-shadow: var(--sz-shadow-image-text);
   }
+
+  /* The one texture allowed in a data area: a 1 px 135° hatch at an 8 px pitch on item
+     cards and grid tiles. It stays transparent so the card or tile background shows. */
+  .sz-hatch {
+    background-image: repeating-linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--sz-border-strong) 40%, transparent) 0 1px,
+      transparent 1px 8px
+    );
+  }
 }
 
 /* Unlayered on purpose: the nav must beat Nuxt UI's utility classes, which live in a layer.

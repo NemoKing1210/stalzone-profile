@@ -45,7 +45,7 @@ function toneClass(tone: ItemStat['tone']): string {
 <template>
   <button
     type="button"
-    class="group relative flex min-h-[112px] w-full flex-col border border-[var(--sz-border)] bg-ink-800 p-2 text-left transition-colors hover:bg-ink-700 active:bg-ink-700"
+    class="sz-hatch group relative flex min-h-[112px] w-full flex-col border border-[var(--sz-border)] bg-ink-800 p-2 text-left transition-colors hover:bg-ink-700 active:bg-ink-700"
     @dblclick="$emit('open')"
     @keydown.enter.prevent="$emit('open')"
   >
