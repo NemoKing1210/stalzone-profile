@@ -7,7 +7,7 @@ import type {
   ChatTurnResult,
 } from '@profile/shared/contracts';
 
-import { turnOutcome, type TurnToast } from '~/shared/lib/chatTurnOutcome';
+import { chatHttpStatus, turnOutcome, type TurnToast } from '~/shared/lib/chatTurnOutcome';
 
 /**
  * The assistant conversation lives here, once per SPA: an in-flight turn survives route
@@ -19,6 +19,12 @@ export const useChatStore = defineStore('chat', () => {
   const { message: apiMessage } = useApiError();
   const toast = useToast();
   const route = useRoute();
+
+  /** Provider failures arrive as `AI_HTTP_<status>`; everything else is already readable. */
+  function formatTurnError(raw: string): string {
+    const status = chatHttpStatus(raw);
+    return status ? t('chat.providerHttpError', { status }) : raw;
+  }
 
   const threads = ref<ChatThread[]>([]);
   const activeThreadId = ref<number | null>(null);
@@ -71,7 +77,7 @@ export const useChatStore = defineStore('chat', () => {
     loadError.value = null;
   }
 
-  function notify(kind: TurnToast, result: ChatTurnResult): void {
+  function notify(kind: TurnToast, result: ChatTurnResult, errorText: string | null): void {
     if (kind === 'pending') {
       toast.add({
         title: t('chat.background.pendingTitle'),
@@ -84,7 +90,7 @@ export const useChatStore = defineStore('chat', () => {
     if (kind === 'error') {
       toast.add({
         title: t('chat.failed'),
-        description: result.error || t('chat.failedDescription'),
+        description: errorText || t('chat.failedDescription'),
         color: 'error',
         icon: 'i-lucide-triangle-alert',
       });
@@ -114,12 +120,15 @@ export const useChatStore = defineStore('chat', () => {
       const outcome = turnOutcome(result, activeThreadId.value, route.path);
       // A brand-new thread may adopt its id only when the owner did not start another one.
       const adopt = outcome.apply && (requestThreadId != null || navigation === navigationAtRequest);
+      const errorText = result.error ? formatTurnError(result.error) : null;
       setPending(result.thread.id, result.pending);
       if (adopt) {
         activeThreadId.value = result.thread.id;
         messages.value = result.messages;
+        // The open conversation shows the provider failure inline; it was silent before.
+        loadError.value = errorText;
       }
-      notify(outcome.toast, result);
+      notify(outcome.toast, result, errorText);
     } catch (error) {
       const data =
         error && typeof error === 'object' && 'data' in error

@@ -2,6 +2,7 @@ import type { ChatTurnResult } from '@profile/shared/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { turnOutcome } from '~/features/chat/model/turnOutcome';
+import { chatHttpStatus } from '~/shared/lib/chatTurnOutcome';
 
 function result(overrides: Partial<ChatTurnResult> = {}): ChatTurnResult {
   return {
@@ -49,5 +50,15 @@ describe('turnOutcome', () => {
       apply: true,
       toast: null,
     });
+  });
+});
+
+describe('chatHttpStatus', () => {
+  it('extracts the status from a provider failure and ignores other messages', () => {
+    expect(chatHttpStatus('AI_HTTP_400')).toBe('400');
+    expect(chatHttpStatus('AI_HTTP_401')).toBe('401');
+    expect(chatHttpStatus('AI_NOT_CONFIGURED: set NUXT_AI_OPENAI_API_KEY')).toBeNull();
+    expect(chatHttpStatus('AI_HTTP_abc')).toBeNull();
+    expect(chatHttpStatus('boom')).toBeNull();
   });
 });

@@ -9,6 +9,11 @@ export interface TurnOutcome {
   toast: TurnToast;
 }
 
+/** The status in an `AI_HTTP_<status>` provider error, or null for any other message. */
+export function chatHttpStatus(error: string): string | null {
+  return /^AI_HTTP_(\d{3})$/.exec(error)?.[1] ?? null;
+}
+
 /**
  * The apply/toast decision for one assistant turn. The result belongs to the active thread
  * when that thread is still open, or to a brand-new thread (`activeThreadId === null`).

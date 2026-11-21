@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { ChatSend, ChatTurnResult } from '@profile/shared/contracts';
@@ -59,6 +60,14 @@ function safeJson(text: string): Json {
 }
 
 /**
+ * OpenCode Console routes a conversation by `x-opencode-session` and the Go plan refuses a
+ * request without it. Derive a stable opaque id per thread so a retry reuses its route.
+ */
+function providerSession(thread: { id: number; createdAt: string }): string {
+  return `ses_${createHash('sha256').update(`${thread.id}:${thread.createdAt}`).digest('hex').slice(0, 32)}`;
+}
+
+/**
  * One assistant turn: compose the active prompt, call the provider, run read tools freely and
  * pause on the first write with its dry-run diff. Nothing here writes profile data directly;
  * writes go through the MCP registry (and therefore the owning service and the journal).
@@ -98,6 +107,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
     .map((message) => `${message.role === 'tool' ? `tool ${message.toolName ?? ''}` : message.role}: ${message.content}`)
     .join('\n');
   const system = composeChatPrompt(db);
+  const session = providerSession(thread);
   const pendingWrite = input.confirm?.toolName
     ? { name: input.confirm.toolName, args: input.confirm.args }
     : null;
@@ -108,7 +118,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
 
   try {
     for (let round = 0; round < (options.maxRounds ?? 4); round++) {
-      const result = await callProvider(fetchImpl, settings.provider, base, key, settings.model, {
+      const result = await callProvider(fetchImpl, settings.provider, base, key, settings.model, session, {
         system,
         transcript,
         definitions,
@@ -227,18 +237,21 @@ async function callProvider(
     definitions: { name: string; description: string; parameters: Record<string, unknown> }[];
     state: unknown;
   },
+  session: string,
 ): Promise<ProviderResult> {
   if (provider === 'anthropic') return callAnthropic(fetchImpl, base, key, model, input);
   if (provider === 'google') return callGoogle(fetchImpl, base, key, model, input);
-  return callOpenAi(fetchImpl, base, key, model, input);
+  return callOpenAi(fetchImpl, provider, base, key, model, session, input);
 }
 
 async function callOpenAi(
   fetchImpl: FetchLike,
+  provider: string,
   base: string,
   key: string | null,
   model: string,
   input: { system: string; transcript: string; definitions: { name: string; description: string; parameters: Record<string, unknown> }[]; state: unknown },
+  session: string,
 ): Promise<ProviderResult> {
   const messages: OpenAiMessage[] = Array.isArray(input.state)
     ? (input.state as OpenAiMessage[])
@@ -246,9 +259,14 @@ async function callOpenAi(
         { role: 'system', content: input.system },
         { role: 'user', content: input.transcript },
       ];
+  const console = provider === 'opencode' || provider === 'opencode-go';
   const response = await fetchImpl(`${base}/chat/completions`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', ...(key ? { authorization: `Bearer ${key}` } : {}) },
+    headers: {
+      'content-type': 'application/json',
+      ...(key ? { authorization: `Bearer ${key}` } : {}),
+      ...(console ? { 'x-opencode-session': session } : {}),
+    },
     body: JSON.stringify({
       model,
       temperature: 0.2,

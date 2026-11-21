@@ -9,6 +9,11 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Fixed
 
+- OpenCode chat sends the `x-opencode-session` header, derived once per thread. The Go plan
+  rejects a chat completion without it with `400 MissingSessionID`, which is why a verified
+  Go connection produced no reply. A provider failure returned in `ChatTurnResult.error` is
+  now shown inline on `/chat` as `The provider rejected the request (HTTP …)`; previously
+  the turn was silent there because only HTTP failures set the inline error.
 - The assistant key field accepts only an uppercase environment variable name
   (`[A-Z][A-Z0-9_]*`), so a pasted API key is rejected with `422 VALIDATION` instead of
   being stored and then looked up as a variable. A value saved before this check is ignored:

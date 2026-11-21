@@ -613,6 +613,7 @@
     "send": "Send message",
     "failed": "Assistant request failed",
     "failedDescription": "Check Settings → Assistant and the provider connection.",
+    "providerHttpError": "The provider rejected the request (HTTP {status}). Check Settings → Assistant and the provider connection.",
     "pendingTitle": "Confirmation required",
     "confirm": "Confirm write",
     "decline": "Decline",

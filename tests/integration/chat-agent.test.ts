@@ -48,6 +48,35 @@ describe('chat agent', () => {
     expect(result.pending).toBeNull();
   });
 
+  it('sends a stable OpenCode session id on every Go request', async () => {
+    useProvider(db, 'opencode-go', 'https://opencode.ai/inference/go/openai/v1');
+    const headers: Record<string, string>[] = [];
+    const fetchImpl = (async (_url: string, init: RequestInit) => {
+      headers.push((init.headers ?? {}) as Record<string, string>);
+      return json({ choices: [{ message: { content: 'pong' } }] });
+    }) as typeof fetch;
+
+    const first = await runChatTurn(db, { message: 'ping', files: [] }, { fetchImpl });
+    await runChatTurn(db, { threadId: first.thread.id, message: 'again', files: [] }, { fetchImpl });
+
+    const session = headers[0]?.['x-opencode-session'];
+    expect(session).toMatch(/^ses_[0-9a-f]{32}$/);
+    expect(headers[1]?.['x-opencode-session']).toBe(session);
+    expect(first.error).toBeNull();
+  });
+
+  it('does not send the OpenCode session header to another provider', async () => {
+    useProvider(db, 'openai', 'https://api.openai.com/v1');
+    const headers: Record<string, string>[] = [];
+    const fetchImpl = (async (_url: string, init: RequestInit) => {
+      headers.push((init.headers ?? {}) as Record<string, string>);
+      return json({ choices: [{ message: { content: 'pong' } }] });
+    }) as typeof fetch;
+
+    await runChatTurn(db, { message: 'ping', files: [] }, { fetchImpl });
+    expect(headers[0]?.['x-opencode-session']).toBeUndefined();
+  });
+
   it('pauses a write with its dry-run diff and only writes after confirmation', async () => {
     setChatSettings(db);
     const fetchImpl = (async () =>
