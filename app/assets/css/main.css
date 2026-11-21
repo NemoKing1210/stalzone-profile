@@ -691,3 +691,139 @@
     animation: none;
   }
 }
+
+/* Assistant answers (§4.5, §9): markdown body on tokens only. Square surfaces, hairline
+   code blocks, no decoration; long tokens wrap instead of widening the transcript. */
+.sz-md {
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  color: var(--sz-text);
+}
+
+.sz-md > :first-child {
+  margin-top: 0;
+}
+
+.sz-md > :last-child {
+  margin-bottom: 0;
+}
+
+.sz-md p {
+  margin: 0.5em 0;
+}
+
+.sz-md h1,
+.sz-md h2,
+.sz-md h3,
+.sz-md h4 {
+  margin: 0.9em 0 0.35em;
+  font-family: var(--font-display);
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--sz-text);
+}
+
+.sz-md h1 {
+  font-size: 18px;
+}
+
+.sz-md h2 {
+  font-size: 16px;
+}
+
+.sz-md h3,
+.sz-md h4 {
+  font-size: 14px;
+}
+
+.sz-md ul,
+.sz-md ol {
+  margin: 0.5em 0;
+  padding-inline-start: 1.35em;
+}
+
+.sz-md ul {
+  list-style: disc;
+}
+
+.sz-md ol {
+  list-style: decimal;
+}
+
+.sz-md li {
+  margin: 0.15em 0;
+}
+
+.sz-md li > p {
+  margin: 0.15em 0;
+}
+
+.sz-md code {
+  padding: 0 0.25em;
+  border: 1px solid var(--sz-border);
+  background: var(--sz-surface-alt);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+
+.sz-md pre {
+  margin: 0.6em 0;
+  padding: 8px 10px;
+  border: 1px solid var(--sz-border);
+  background: var(--sz-surface-alt);
+  overflow-x: auto;
+}
+
+.sz-md pre code {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 0.92em;
+  white-space: pre;
+}
+
+.sz-md a {
+  color: var(--sz-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.sz-md blockquote {
+  margin: 0.6em 0;
+  padding-inline-start: 0.75em;
+  border-inline-start: 2px solid var(--sz-border-strong);
+  color: var(--sz-text-muted);
+}
+
+.sz-md table {
+  display: block;
+  max-width: 100%;
+  margin: 0.6em 0;
+  border-collapse: collapse;
+  overflow-x: auto;
+  font-size: 12px;
+}
+
+.sz-md th,
+.sz-md td {
+  padding: 2px 6px;
+  border: 1px solid var(--sz-border);
+  text-align: start;
+}
+
+.sz-md th {
+  background: var(--sz-surface-header);
+  font-weight: 500;
+}
+
+.sz-md hr {
+  margin: 0.8em 0;
+  border: 0;
+  border-top: 1px solid var(--sz-border);
+}
+
+.sz-md img {
+  max-width: 100%;
+}
+
