@@ -26,16 +26,18 @@ const time = computed(() => {
 
 <template>
   <article v-if="row.kind === 'user'" class="flex w-full justify-end">
-    <div class="w-fit max-w-[88%] border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] px-2.5 py-2">
-      <ChatAttachmentGrid
-        :attachments="row.attachments"
-        @open-image="emit('openImage', $event)"
-        @open-file="emit('openFile', $event)"
-      />
-      <p v-if="row.text" class="whitespace-pre-wrap break-words text-[13px]">{{ row.text }}</p>
-      <p v-if="time" class="mt-1 whitespace-nowrap text-right text-[10px] tabular-nums text-[var(--sz-text-dim)]">
+    <div class="flex w-fit max-w-[88%] flex-col items-end gap-1">
+      <p v-if="time" class="whitespace-nowrap text-[10px] tabular-nums text-[var(--sz-text-dim)]">
         <time :datetime="row.createdAt">{{ time }}</time>
       </p>
+      <div class="w-fit max-w-full border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] px-2.5 py-1.5">
+        <ChatAttachmentGrid
+          :attachments="row.attachments"
+          @open-image="emit('openImage', $event)"
+          @open-file="emit('openFile', $event)"
+        />
+        <p v-if="row.text" class="whitespace-pre-wrap break-words text-[13px] leading-snug">{{ row.text }}</p>
+      </div>
     </div>
   </article>
 
@@ -52,7 +54,7 @@ const time = computed(() => {
       :duration="row.meta?.durationMs == null ? undefined : Math.round(row.meta.durationMs / 1000)"
     />
     <ChatMarkdown :text="row.text" />
-    <div class="mt-1 flex items-center justify-between gap-2">
+    <div class="mt-1 flex items-center gap-2">
       <UButton
         color="neutral"
         variant="ghost"
@@ -62,9 +64,11 @@ const time = computed(() => {
         :aria-label="t('chat.copyMessage')"
         @click="emit('copy', row.text)"
       />
-      <p v-if="row.meta?.model || row.meta?.usage?.total" class="flex items-baseline gap-1.5 truncate text-[10px] text-[var(--sz-text-dim)]">
+      <p
+        v-if="row.meta?.model || row.meta?.usage?.total"
+        class="flex min-w-0 items-baseline gap-2 truncate text-[10px] text-[var(--sz-text-dim)]"
+      >
         <span v-if="row.meta?.model" class="font-mono">{{ row.meta.model }}</span>
-        <span v-if="row.meta?.usage?.total" aria-hidden="true">·</span>
         <span v-if="row.meta?.usage?.total">
           {{ t('chat.tokenUsage', { count: row.meta.usage.total }) }}
         </span>

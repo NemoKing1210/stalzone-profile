@@ -9,6 +9,13 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Fixed
 
+- The assistant chat's blocks read as one spacing system now: a user message is a single pane
+  bubble with its time above instead of a bubble nested inside Nuxt UI's padded card, messages
+  sit 12px apart instead of 32px, tool calls are separated by hairlines (a declined write shows
+  its label, never raw JSON), result tables use readable 24px rows, the model/token caption
+  sits beside the copy action instead of floating at the pane edge, and markdown headings keep
+  the display face without inheriting the page's tracked capitals.
+
 - The stash pane header no longer offers a second auto-arrange action: the filter row's
   tidy button is now the only control, so `i-lucide-align-start-vertical`, the dead
   `arrange` handler, the `useInventory.autoArrange` wrapper and the unused

@@ -40,20 +40,20 @@ const hasData = computed(() => {
     :default-open="hasData"
     :ui="{
       root: 'rounded-none border border-[var(--sz-border)] bg-[var(--sz-surface-alt)]/40 ring-0',
-      trigger: 'px-2 py-1',
-      body: 'max-h-[360px] overflow-y-auto px-2 py-2',
+      trigger: 'px-2.5 py-1.5',
+      body: 'max-h-[380px] overflow-y-auto px-2.5 py-2',
       content: 'motion-reduce:animate-none',
     }"
   >
-    <div class="space-y-2">
-      <div v-for="run in props.row.runs" :key="run.id">
+    <div class="divide-y divide-[var(--sz-border)]">
+      <div v-for="run in props.row.runs" :key="run.id" class="py-2 first:pt-0 last:pb-0">
         <div class="mb-1 flex items-baseline gap-2">
           <span class="font-mono text-[11px] text-[var(--sz-text-muted)]">{{ run.name }}</span>
           <span v-if="run.status === 'declined'" class="text-[11px] text-[var(--sz-warning-text)]">
             {{ t('chat.toolDeclined') }}
           </span>
         </div>
-        <ChatToolResult :tool-name="run.name" :payload="run.payload" />
+        <ChatToolResult v-if="run.status !== 'declined'" :tool-name="run.name" :payload="run.payload" />
       </div>
     </div>
   </UChatTool>

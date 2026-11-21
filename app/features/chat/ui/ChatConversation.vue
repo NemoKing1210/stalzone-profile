@@ -78,7 +78,12 @@ const uiMessages = computed(() => {
       : {}),
   }));
   if (liveHere.value)
-    list.push({ id: 'live', role: 'assistant', parts: [{ type: 'text', text: '' }], metadata: { rowId: '', live: true } });
+    list.push({
+      id: 'live',
+      role: 'assistant',
+      parts: [{ type: 'text', text: '' }],
+      metadata: { rowId: '', live: true },
+    });
   return list;
 });
 
@@ -259,7 +264,14 @@ defineExpose({ focus });
           </div>
         </div>
       </div>
-      <UChatMessages v-else :messages="uiMessages as never" :auto-scroll="true" :status="streaming ? 'streaming' : undefined">
+      <UChatMessages
+        v-else
+        :messages="uiMessages as never"
+        :auto-scroll="true"
+        :status="streaming ? 'streaming' : undefined"
+        :compact="true"
+        :user="{ side: 'right', variant: 'naked' }"
+      >
         <template #content="{ message }">
           <div :class="enterClass(rowKey(message))">
             <ChatLiveTurn v-if="isLive(message)" :live="liveHere" :streaming="streaming" />
@@ -273,7 +285,10 @@ defineExpose({ focus });
           </div>
         </template>
       </UChatMessages>
-      <p v-if="loadError" class="mt-3 border border-[var(--sz-warning)] px-2.5 py-2 text-[12px] text-[var(--sz-warning-text)]">
+      <p
+        v-if="loadError"
+        class="mt-3 border border-[var(--sz-warning)] px-2.5 py-2 text-[12px] text-[var(--sz-warning-text)]"
+      >
         {{ loadError }}
       </p>
     </div>
@@ -314,7 +329,9 @@ defineExpose({ focus });
               aria-hidden="true"
             />
             <span class="min-w-0 truncate">{{ file.name }}</span>
-            <span class="shrink-0 tabular-nums text-[var(--sz-text-dim)]">{{ formatFileSize(chatBase64Bytes(file.data)) }}</span>
+            <span class="shrink-0 tabular-nums text-[var(--sz-text-dim)]">{{
+              formatFileSize(chatBase64Bytes(file.data))
+            }}</span>
             <button
               type="button"
               class="shrink-0 text-[var(--sz-text-dim)] hover:text-[var(--sz-text)]"
@@ -329,7 +346,12 @@ defineExpose({ focus });
           <div class="mb-0.5 flex items-baseline justify-between text-[10px] text-[var(--sz-text-dim)]">
             <span>{{ t('chat.filesCount', { count: files.length, max: CHAT_ATTACHMENT_LIMITS.files }) }}</span>
             <span class="tabular-nums">
-              {{ t('chat.filesTotal', { used: formatFileSize(totalBytes), max: formatFileSize(CHAT_ATTACHMENT_LIMITS.totalBytes) }) }}
+              {{
+                t('chat.filesTotal', {
+                  used: formatFileSize(totalBytes),
+                  max: formatFileSize(CHAT_ATTACHMENT_LIMITS.totalBytes),
+                })
+              }}
             </span>
           </div>
           <div class="h-0.5 bg-[var(--sz-border)]">
@@ -337,7 +359,9 @@ defineExpose({ focus });
           </div>
         </div>
       </template>
-      <p v-if="fileError" class="mb-1.5 text-[11.5px] text-[var(--sz-warning-text)]" aria-live="polite">{{ fileError }}</p>
+      <p v-if="fileError" class="mb-1.5 text-[11.5px] text-[var(--sz-warning-text)]" aria-live="polite">
+        {{ fileError }}
+      </p>
       <p
         v-if="draft.length > MESSAGE_LIMIT * 0.9"
         class="mb-1 text-right text-[11px] tabular-nums"
@@ -383,7 +407,7 @@ defineExpose({ focus });
           />
         </template>
       </UChatPrompt>
-      <input ref="fileInput" type="file" multiple class="hidden" :accept="ACCEPT" @change="onFiles">
+      <input ref="fileInput" type="file" multiple class="hidden" :accept="ACCEPT" @change="onFiles" >
     </div>
 
     <ChatAttachmentGallery v-model:open="galleryOpen" :images="images" :start="galleryStart" />

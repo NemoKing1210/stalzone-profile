@@ -138,7 +138,7 @@ export function chatToolView(toolName: string, payload: unknown): ChatToolView {
     const source = character ?? body;
     return {
       kind: 'text',
-      text: [source.nick, source.faction, source.region].filter(Boolean).join(' · ') || '—',
+      text: [source.nick, source.faction, source.region].filter(Boolean).join(' — ') || '—',
     };
   }
 

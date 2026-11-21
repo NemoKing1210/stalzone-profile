@@ -722,6 +722,10 @@
   font-weight: 500;
   line-height: 1.25;
   color: var(--sz-text);
+  /* An answer's headings are content structure, not the page's uppercase section
+     headings: keep the display face and the size scale, drop the tracked capitals. */
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .sz-md h1 {

@@ -16,7 +16,15 @@ const view = computed(() => chatToolView(props.toolName, props.payload));
         :key="`${item.name}-${item.rank}`"
         class="flex min-w-0 items-center gap-2 border border-[var(--sz-border)] px-2 py-1.5"
       >
-        <img v-if="item.icon" :src="item.icon" alt="" width="22" height="22" loading="lazy" class="size-[22px] object-contain">
+        <img
+          v-if="item.icon"
+          :src="item.icon"
+          alt=""
+          width="22"
+          height="22"
+          loading="lazy"
+          class="size-[22px] object-contain"
+        >
         <ItemIconFallback v-else :size="16" />
         <span class="min-w-0 flex-1 truncate">{{ item.name }}</span>
         <RankBadge v-if="item.rank" :rank="item.rank" />
@@ -24,7 +32,7 @@ const view = computed(() => chatToolView(props.toolName, props.payload));
     </div>
 
     <div v-else-if="view.kind === 'prices'" class="overflow-x-auto">
-      <table class="w-full min-w-[17rem] text-[12px] [&_td]:px-1.5 [&_th]:px-1.5">
+      <table class="w-full min-w-[17rem] text-[12px] [&_td]:px-1.5 [&_td]:py-1 [&_th]:px-1.5 [&_th]:py-1">
         <thead class="text-[var(--sz-text-muted)]">
           <tr>
             <th class="text-left font-normal">{{ t('chat.columns.name') }}</th>
@@ -34,16 +42,16 @@ const view = computed(() => chatToolView(props.toolName, props.payload));
         </thead>
         <tbody>
           <tr v-for="row in view.prices" :key="row.name" class="border-t border-[var(--sz-border)]">
-            <td class="py-0.5">{{ row.name }}</td>
-            <td class="py-0.5 text-right tabular-nums">{{ row.price == null ? t('chat.noLot') : num(row.price) }}</td>
-            <td class="py-0.5 text-right tabular-nums">{{ row.lots ?? '—' }}</td>
+            <td>{{ row.name }}</td>
+            <td class="text-right tabular-nums">{{ row.price == null ? t('chat.noLot') : num(row.price) }}</td>
+            <td class="text-right tabular-nums">{{ row.lots ?? '—' }}</td>
           </tr>
         </tbody>
       </table>
     </div>
 
     <div v-else-if="view.kind === 'inventory'" class="overflow-x-auto">
-      <table class="w-full min-w-[19rem] text-[12px] [&_td]:px-1.5 [&_th]:px-1.5">
+      <table class="w-full min-w-[19rem] text-[12px] [&_td]:px-1.5 [&_td]:py-1 [&_th]:px-1.5 [&_th]:py-1">
         <thead class="text-[var(--sz-text-muted)]">
           <tr>
             <th class="text-left font-normal">{{ t('chat.columns.name') }}</th>
@@ -53,17 +61,25 @@ const view = computed(() => chatToolView(props.toolName, props.payload));
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(row, index) in view.rows" :key="`${row.name}-${index}`" class="border-t border-[var(--sz-border)]">
-            <td class="py-0.5"><span class="inline-flex items-center gap-1">{{ row.name }}<VirtualBadge v-if="row.virtual" /></span></td>
-            <td class="py-0.5 text-right tabular-nums">{{ row.level }}</td>
-            <td class="py-0.5 text-right tabular-nums">{{ row.qty }}</td>
-            <td class="py-0.5">{{ row.location }}</td>
+          <tr
+            v-for="(row, index) in view.rows"
+            :key="`${row.name}-${index}`"
+            class="border-t border-[var(--sz-border)]"
+          >
+            <td>
+              <span class="inline-flex items-center gap-1">{{ row.name }}<VirtualBadge v-if="row.virtual" /></span>
+            </td>
+            <td class="text-right tabular-nums">{{ row.level }}</td>
+            <td class="text-right tabular-nums">{{ row.qty }}</td>
+            <td>{{ row.location }}</td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <p v-else-if="view.kind === 'text'" class="text-[var(--sz-text)]">{{ view.text }}</p>
-    <pre v-else class="max-h-56 overflow-auto whitespace-pre-wrap text-[11px] text-[var(--sz-text-muted)]">{{ view.json }}</pre>
+    <p v-else-if="view.kind === 'text'" class="text-[12.5px] leading-relaxed text-[var(--sz-text)]">{{ view.text }}</p>
+    <pre v-else class="max-h-56 overflow-auto whitespace-pre-wrap text-[11px] text-[var(--sz-text-muted)]">{{
+      view.json
+    }}</pre>
   </div>
 </template>
