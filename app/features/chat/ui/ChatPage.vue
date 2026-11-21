@@ -315,9 +315,7 @@ onMounted(() => {
           </div>
         </div>
 
-        <div class="mx-auto flex min-h-0 w-full max-w-[52rem] flex-1 flex-col">
-          <ChatConversation ref="conversation" standalone class="min-h-0 flex-1" />
-        </div>
+        <ChatConversation ref="conversation" standalone class="min-h-0 flex-1" />
       </div>
     </div>
 

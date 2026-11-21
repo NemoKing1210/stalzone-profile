@@ -265,171 +265,170 @@ defineExpose({ focus });
       </p>
     </div>
 
-    <div class="min-h-0 flex-1 overflow-y-auto p-3">
-      <div v-if="!messages.length" class="flex h-full items-center justify-center p-4">
-        <div class="w-full max-w-[46ch] border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] p-3">
-          <p class="text-[12.5px] text-[var(--sz-text-muted)]">{{ t('chat.empty') }}</p>
-          <div class="mt-2 flex flex-wrap gap-1.5">
-            <button
-              v-for="suggestion in SUGGESTIONS"
-              :key="suggestion"
-              type="button"
-              class="border border-[var(--sz-border)] px-2 py-1 text-left text-[12px] text-[var(--sz-text)] transition-colors hover:border-[var(--sz-border-strong)] hover:bg-[var(--sz-surface-header)] max-sm:min-h-11"
-              @click="chat.send(t(suggestion))"
-            >
-              {{ t(suggestion) }}
-            </button>
+    <div class="min-h-0 flex-1 overflow-y-auto">
+      <div class="mx-auto flex min-h-full w-full max-w-[52rem] flex-col p-3">
+        <div v-if="!messages.length" class="flex flex-1 items-center justify-center p-4">
+          <div class="w-full max-w-[46ch] border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] p-3">
+            <p class="text-[12.5px] text-[var(--sz-text-muted)]">{{ t('chat.empty') }}</p>
+            <div class="mt-2 flex flex-wrap gap-1.5">
+              <button
+                v-for="suggestion in SUGGESTIONS"
+                :key="suggestion"
+                type="button"
+                class="border border-[var(--sz-border)] px-2 py-1 text-left text-[12px] text-[var(--sz-text)] transition-colors hover:border-[var(--sz-border-strong)] hover:bg-[var(--sz-surface-header)] max-sm:min-h-11"
+                @click="chat.send(t(suggestion))"
+              >
+                {{ t(suggestion) }}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-      <UChatMessages
-        v-else
-        :messages="uiMessages as never"
-        :auto-scroll="true"
-        :status="streaming ? 'streaming' : undefined"
-        :compact="true"
-        :user="{ side: 'right', variant: 'naked' }"
-      >
-        <template #content="{ message }">
-          <div :class="enterClass(rowKey(message))">
-            <ChatLiveTurn v-if="isLive(message)" :live="liveHere" :streaming="streaming" />
-            <ChatRowView
-              v-else
-              :row="rowOf(message)"
-              @copy="copyMessage"
-              @open-image="openImage"
-              @open-file="openFile"
-              @open-item="openItem"
-              @retry="retryMessage"
-            />
-          </div>
-        </template>
-      </UChatMessages>
-      <p
-        v-if="loadError"
-        class="mt-3 border border-[var(--sz-warning)] px-2.5 py-2 text-[12px] text-[var(--sz-warning-text)]"
-      >
-        {{ loadError }}
-      </p>
-    </div>
-
-    <div
-      v-if="pending"
-      class="border-t-2 border-t-[var(--sz-warning)] border-b border-b-[var(--sz-border)] bg-[var(--sz-surface-alt)] p-2.5"
-    >
-      <div class="flex items-baseline justify-between gap-2">
-        <p class="sz-caps text-[var(--sz-warning-text)]">{{ t('chat.pendingTitle') }}</p>
-        <span class="truncate font-mono text-[11px] text-[var(--sz-text-dim)]">{{ pending.toolName }}</span>
-      </div>
-      <p class="mt-1 text-[12.5px]">{{ pending.human }}</p>
-      <div class="mt-2 flex justify-end gap-2">
-        <UButton size="xs" color="neutral" variant="ghost" :label="t('chat.decline')" @click="chat.declinePending" />
-        <UButton size="xs" :label="t('chat.confirm')" :loading="sending" @click="chat.confirmPending" />
+        <UChatMessages
+          v-else
+          :messages="uiMessages as never"
+          :auto-scroll="true"
+          :status="streaming ? 'streaming' : undefined"
+          :compact="true"
+          :spacing-offset="24"
+          :user="{ side: 'right', variant: 'naked' }"
+        >
+          <template #content="{ message }">
+            <div :class="enterClass(rowKey(message))">
+              <ChatLiveTurn v-if="isLive(message)" :live="liveHere" :streaming="streaming" />
+              <ChatRowView
+                v-else
+                :row="rowOf(message)"
+                @copy="copyMessage"
+                @open-image="openImage"
+                @open-file="openFile"
+                @open-item="openItem"
+                @retry="retryMessage"
+              />
+            </div>
+          </template>
+        </UChatMessages>
+        <p
+          v-if="loadError"
+          class="mt-3 border border-[var(--sz-warning)] px-2.5 py-2 text-[12px] text-[var(--sz-warning-text)]"
+        >
+          {{ loadError }}
+        </p>
       </div>
     </div>
 
-    <div
-      :class="
-        props.standalone
-          ? 'p-2 pe-[4.5rem] min-[1500px]:pe-2'
-          : 'border-t border-[var(--sz-border)] p-2'
-      "
-    >
-      <template v-if="files.length">
-        <ul class="mb-1.5 flex flex-wrap gap-1.5" :aria-label="t('chat.attachments')">
-          <li
-            v-for="(file, index) in files"
-            :key="`${file.name}-${index}`"
-            class="inline-flex max-w-full items-center gap-1.5 border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] py-1 pe-1.5 ps-1 text-[11.5px]"
-          >
-            <img
-              v-if="chatFileKind(file.name, file.mimeType) === 'image'"
-              :src="`data:${file.mimeType};base64,${file.data}`"
-              alt=""
-              class="size-7 shrink-0 border border-[var(--sz-border)] object-cover"
-            >
-            <UIcon
-              v-else
-              name="i-lucide-file-text"
-              class="size-4 shrink-0 text-[var(--sz-text-muted)]"
-              aria-hidden="true"
-            />
-            <span class="min-w-0 truncate">{{ file.name }}</span>
-            <span class="shrink-0 tabular-nums text-[var(--sz-text-dim)]">{{
-              formatFileSize(chatBase64Bytes(file.data))
-            }}</span>
-            <button
-              type="button"
-              class="shrink-0 text-[var(--sz-text-dim)] hover:text-[var(--sz-text)]"
-              :aria-label="t('chat.removeFile', { name: file.name })"
-              @click="removeFile(index)"
-            >
-              <UIcon name="i-lucide-x" class="size-3.5" aria-hidden="true" />
-            </button>
-          </li>
-        </ul>
-        <div class="mb-1.5">
-          <div class="mb-0.5 flex items-baseline justify-between text-[10px] text-[var(--sz-text-dim)]">
-            <span>{{ t('chat.filesCount', { count: files.length, max: CHAT_ATTACHMENT_LIMITS.files }) }}</span>
-            <span class="tabular-nums">
-              {{
-                t('chat.filesTotal', {
-                  used: formatFileSize(totalBytes),
-                  max: formatFileSize(CHAT_ATTACHMENT_LIMITS.totalBytes),
-                })
-              }}
-            </span>
-          </div>
-          <div class="h-0.5 bg-[var(--sz-border)]">
-            <div class="h-full bg-[var(--sz-accent)] transition-[width]" :style="{ width: `${totalPercent}%` }" />
-          </div>
-        </div>
-      </template>
-      <p v-if="fileError" class="mb-1.5 text-[11.5px] text-[var(--sz-warning-text)]" aria-live="polite">
-        {{ fileError }}
-      </p>
-      <p
-        v-if="draft.length > MESSAGE_LIMIT * 0.9"
-        class="mb-1 text-right text-[11px] tabular-nums"
-        :class="draftTooLong ? 'text-[var(--sz-danger-text)]' : 'text-[var(--sz-text-dim)]'"
-        aria-live="polite"
+    <div class="mx-auto w-full max-w-[52rem]">
+      <div
+        v-if="pending"
+        class="border-t-2 border-t-[var(--sz-warning)] border-b border-b-[var(--sz-border)] bg-[var(--sz-surface-alt)] p-2.5"
       >
-        {{ t('chat.charCount', { used: draft.length, max: MESSAGE_LIMIT }) }}
-      </p>
-      <p v-if="queued" class="mb-1 text-[11px] text-[var(--sz-text-dim)]" aria-live="polite">
-        {{ t('chat.queued', { count: queued }) }}
-      </p>
-      <UChatPrompt v-model="draft" :placeholder="t('chat.placeholder')" @submit="send">
-        <template #footer>
-          <UButton
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            icon="i-lucide-paperclip"
-            :aria-label="t('chat.attach')"
-            :title="t('chat.attach')"
-            :disabled="files.length >= CHAT_ATTACHMENT_LIMITS.files"
-            @click="fileInput?.click()"
-          />
-          <UButton
-            v-if="sending"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            icon="i-lucide-square"
-            class="ms-auto max-sm:size-11"
-            :aria-label="t('chat.stop')"
-            :title="t('chat.stop')"
-            @click="chat.stop"
-          />
-          <UChatPromptSubmit
-            :class="sending ? 'max-sm:size-11' : 'ms-auto max-sm:size-11'"
-            :disabled="(!draft.trim() && !files.length) || draftTooLong"
-            :aria-label="t('chat.send')"
-          />
+        <div class="flex items-baseline justify-between gap-2">
+          <p class="sz-caps text-[var(--sz-warning-text)]">{{ t('chat.pendingTitle') }}</p>
+          <span class="truncate font-mono text-[11px] text-[var(--sz-text-dim)]">{{ pending.toolName }}</span>
+        </div>
+        <p class="mt-1 text-[12.5px]">{{ pending.human }}</p>
+        <div class="mt-2 flex justify-end gap-2">
+          <UButton size="xs" color="neutral" variant="ghost" :label="t('chat.decline')" @click="chat.declinePending" />
+          <UButton size="xs" :label="t('chat.confirm')" :loading="sending" @click="chat.confirmPending" />
+        </div>
+      </div>
+
+      <div :class="props.standalone ? 'p-2 pe-[4.5rem] min-[1500px]:pe-2' : 'border-t border-[var(--sz-border)] p-2'">
+        <template v-if="files.length">
+          <ul class="mb-1.5 flex flex-wrap gap-1.5" :aria-label="t('chat.attachments')">
+            <li
+              v-for="(file, index) in files"
+              :key="`${file.name}-${index}`"
+              class="inline-flex max-w-full items-center gap-1.5 border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] py-1 pe-1.5 ps-1 text-[11.5px]"
+            >
+              <img
+                v-if="chatFileKind(file.name, file.mimeType) === 'image'"
+                :src="`data:${file.mimeType};base64,${file.data}`"
+                alt=""
+                class="size-7 shrink-0 border border-[var(--sz-border)] object-cover"
+              >
+              <UIcon
+                v-else
+                name="i-lucide-file-text"
+                class="size-4 shrink-0 text-[var(--sz-text-muted)]"
+                aria-hidden="true"
+              />
+              <span class="min-w-0 truncate">{{ file.name }}</span>
+              <span class="shrink-0 tabular-nums text-[var(--sz-text-dim)]">{{
+                formatFileSize(chatBase64Bytes(file.data))
+              }}</span>
+              <button
+                type="button"
+                class="shrink-0 text-[var(--sz-text-dim)] hover:text-[var(--sz-text)]"
+                :aria-label="t('chat.removeFile', { name: file.name })"
+                @click="removeFile(index)"
+              >
+                <UIcon name="i-lucide-x" class="size-3.5" aria-hidden="true" />
+              </button>
+            </li>
+          </ul>
+          <div class="mb-1.5">
+            <div class="mb-0.5 flex items-baseline justify-between text-[10px] text-[var(--sz-text-dim)]">
+              <span>{{ t('chat.filesCount', { count: files.length, max: CHAT_ATTACHMENT_LIMITS.files }) }}</span>
+              <span class="tabular-nums">
+                {{
+                  t('chat.filesTotal', {
+                    used: formatFileSize(totalBytes),
+                    max: formatFileSize(CHAT_ATTACHMENT_LIMITS.totalBytes),
+                  })
+                }}
+              </span>
+            </div>
+            <div class="h-0.5 bg-[var(--sz-border)]">
+              <div class="h-full bg-[var(--sz-accent)] transition-[width]" :style="{ width: `${totalPercent}%` }" />
+            </div>
+          </div>
         </template>
-      </UChatPrompt>
-      <input ref="fileInput" type="file" multiple class="hidden" :accept="ACCEPT" @change="onFiles" >
+        <p v-if="fileError" class="mb-1.5 text-[11.5px] text-[var(--sz-warning-text)]" aria-live="polite">
+          {{ fileError }}
+        </p>
+        <p
+          v-if="draft.length > MESSAGE_LIMIT * 0.9"
+          class="mb-1 text-right text-[11px] tabular-nums"
+          :class="draftTooLong ? 'text-[var(--sz-danger-text)]' : 'text-[var(--sz-text-dim)]'"
+          aria-live="polite"
+        >
+          {{ t('chat.charCount', { used: draft.length, max: MESSAGE_LIMIT }) }}
+        </p>
+        <p v-if="queued" class="mb-1 text-[11px] text-[var(--sz-text-dim)]" aria-live="polite">
+          {{ t('chat.queued', { count: queued }) }}
+        </p>
+        <UChatPrompt v-model="draft" :placeholder="t('chat.placeholder')" @submit="send">
+          <template #footer>
+            <UButton
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              icon="i-lucide-paperclip"
+              :aria-label="t('chat.attach')"
+              :title="t('chat.attach')"
+              :disabled="files.length >= CHAT_ATTACHMENT_LIMITS.files"
+              @click="fileInput?.click()"
+            />
+            <UButton
+              v-if="sending"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              icon="i-lucide-square"
+              class="ms-auto max-sm:size-11"
+              :aria-label="t('chat.stop')"
+              :title="t('chat.stop')"
+              @click="chat.stop"
+            />
+            <UChatPromptSubmit
+              :class="sending ? 'max-sm:size-11' : 'ms-auto max-sm:size-11'"
+              :disabled="(!draft.trim() && !files.length) || draftTooLong"
+              :aria-label="t('chat.send')"
+            />
+          </template>
+        </UChatPrompt>
+        <input ref="fileInput" type="file" multiple class="hidden" :accept="ACCEPT" @change="onFiles" >
+      </div>
     </div>
 
     <ChatAttachmentGallery v-model:open="galleryOpen" :images="images" :start="galleryStart" />

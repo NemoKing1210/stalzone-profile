@@ -31,6 +31,10 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
+- The assistant conversation scrolls at the page edge: the message list keeps its centred
+  52 rem column and padding, but the scroll container spans the whole screen column, so the
+  scrollbar sits against the right edge on `/chat` and inside the assistant slideover instead
+  of next to the centred content.
 - Assistant chat is a full-height two-column screen instead of a padded page: the thread
   rail with search, New thread, day groups and hover delete docks directly to the site
   navigation (same ink, one 48 px header line, the active thread carrying the nav's 2 px
