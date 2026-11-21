@@ -127,6 +127,12 @@ export interface ItemLayoutInput {
   dryRun: boolean;
 }
 
+export interface PriceOptions {
+  sort?: 'price_asc' | 'price_desc';
+  onlyWithLot?: boolean;
+  limit?: number;
+}
+
 export interface InventoryListQuery {
   kind?: string;
   location?: 'grid' | 'equipment' | 'container' | 'weapon_modification' | 'loose';
@@ -154,7 +160,7 @@ export interface ProfileClient {
   listInventoryItems(query?: InventoryListQuery): Promise<InventoryItemRead[]>;
   listContainers(): Promise<Json[]>;
   planArtifactBuild(input: PlanInput): Promise<Json>;
-  getPrices(names: string[], quality?: string | null): Promise<Json>;
+  getPrices(names: string[], quality?: string | null, options?: PriceOptions): Promise<Json>;
   sourcesStatus(): Promise<Json[]>;
   exportProfileJson(): Promise<Json>;
   addInventoryItem(input: InventoryItemCreate): Promise<WriteResult>;
@@ -358,17 +364,27 @@ export function localClient(db: Db, syncOptions: LocalClientOptions = {}): Profi
       }) as unknown as Json;
     },
 
-    async getPrices(names, quality) {
-      if (quality) {
-        return Object.fromEntries(
-          names.map((name) => [name, latestPriceRows(db, name, quality).map(priceJson)]),
-        );
-      }
+    async getPrices(names, quality, options = {}) {
+      const source = quality
+        ? Object.fromEntries(names.map((name) => [name, latestPriceRows(db, name, quality)]))
+        : latestPricesForNames(db, names);
+      const limit = options.limit ?? 20;
       return Object.fromEntries(
-        Object.entries(latestPricesForNames(db, names)).map(([name, rows]) => [
-          name,
-          rows.map(priceJson),
-        ]),
+        Object.entries(source).map(([name, rows]) => {
+          let list = options.onlyWithLot ? rows.filter((row) => row.lot_price != null) : rows;
+          if (options.sort) {
+            const direction = options.sort === 'price_asc' ? 1 : -1;
+            list = [...list].sort((left, right) => {
+              const leftPrice = left.lot_price ?? left.current_price ?? left.last_trade;
+              const rightPrice = right.lot_price ?? right.current_price ?? right.last_trade;
+              if (leftPrice == null && rightPrice == null) return 0;
+              if (leftPrice == null) return 1;
+              if (rightPrice == null) return -1;
+              return (leftPrice - rightPrice) * direction;
+            });
+          }
+          return [name, list.slice(0, limit).map(priceJson)];
+        }),
       );
     },
 
@@ -658,8 +674,16 @@ export function httpClient(baseUrl: string, token: string): ProfileClient {
     async planArtifactBuild(input) {
       return (await call('plan_artifact_build', input as Record<string, unknown>)).plan as Json;
     },
-    async getPrices(names, quality) {
-      return (await call('get_prices', quality ? { names, quality } : { names })).prices as Json;
+    async getPrices(names, quality, options = {}) {
+      return (
+        await call('get_prices', {
+          names,
+          ...(quality ? { quality } : {}),
+          ...(options.sort ? { sort: options.sort } : {}),
+          only_with_lot: options.onlyWithLot ?? false,
+          limit: options.limit ?? 20,
+        })
+      ).prices as Json;
     },
     async sourcesStatus() {
       return (await call('sources_status')).sources as Json[];

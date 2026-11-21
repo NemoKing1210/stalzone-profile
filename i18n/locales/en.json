@@ -1602,7 +1602,7 @@
         "list_inventory_items": "Inventory items filtered by kind, location or storage.",
         "list_containers": "Containers with their current fill.",
         "plan_artifact_build": "Pick artifacts for an effect preset, slots and budget.",
-        "get_prices": "Latest auction prices by item name.",
+        "get_prices": "Latest auction prices by item name, sorted and filtered to lots on request.",
         "sources_status": "Source state and freshness.",
         "export_profile_json": "Export the profile as portable JSON.",
         "add_inventory_item": "Add an item instance, optionally at a placement target; without one it lands in intake.",

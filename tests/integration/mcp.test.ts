@@ -593,3 +593,24 @@ describe('MCP instance, freshness and tidy', () => {
     expect((real.structuredContent as { dryRun: boolean }).dryRun).toBe(false);
   });
 });
+
+describe('MCP prices', () => {
+  it('sorts price rows and drops names without lots on request', async () => {
+    seed.insertPriceQuote(db, { name: 'АК-12', quality: 'Обычный', lotPrice: null, currentPrice: 500 });
+    seed.insertPriceQuote(db, { name: 'АК-12', quality: 'Редкий 2', lotPrice: 2000 });
+    const result = await callTool('get_prices', {
+      names: ['АК-12'],
+      sort: 'price_asc',
+      only_with_lot: true,
+      limit: 5,
+    });
+    const prices = (result.structuredContent as { prices: Record<string, { lotPrice: number | null }[]> })
+      .prices;
+    const rows = prices['АК-12'] ?? [];
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((row) => row.lotPrice != null)).toBe(true);
+    expect(rows.map((row) => row.lotPrice!)).toEqual(
+      [...rows.map((row) => row.lotPrice!)].sort((a, b) => a - b),
+    );
+  });
+});

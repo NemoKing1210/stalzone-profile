@@ -88,7 +88,7 @@ The `profile://schema` resource provides tool descriptions and the write rules.
 | `list_inventory_items` | `kind?`, `location?`, `storage_id?`, `virtual?` | flat inventory instances with placement, size, container data and the virtual mark; `virtual` filters to only virtual or only real instances |
 | `list_containers` | — | container instances and their fill from instance placements |
 | `plan_artifact_build` | preset/effects, slots, budget, mode, quality, unique, requireLot | an artifact plan by price |
-| `get_prices` | `names[]`, `quality?` | latest prices for each combination |
+| `get_prices` | `names[]`, `quality?`, `sort?`, `only_with_lot?`, `limit?` | latest prices per combination, optionally sorted and filtered to lots |
 | `sources_status` | — | source status, `lastOkAt`, `lastError` |
 | `export_profile_json` | — | the typed profile JSON (the same shape as `GET /api/v1/admin/export`) |
 | `list_logs` | `levels?`, `categories?`, `sources?`, `since?`, `until?`, `text?`, `request_id?`, `fingerprint?`, `min_duration_ms?`, `before?`, `limit?` | `LogQueryResult`: entries, repeat groups and the next cursor |

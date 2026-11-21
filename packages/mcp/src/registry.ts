@@ -73,6 +73,9 @@ const GetItemInputSchema = z
 const GetPricesInputSchema = z.object({
   names: z.union([z.string().min(1), z.array(z.string().min(1)).min(1).max(100)]),
   quality: z.string().nullish(),
+  sort: z.enum(['price_asc', 'price_desc']).optional(),
+  only_with_lot: z.boolean().default(false),
+  limit: z.number().int().min(1).max(100).default(20),
 });
 
 const SyncSourceInputSchema = z.object({
@@ -242,7 +245,7 @@ const TOOL_DOCS: Record<string, string> = {
     list_inventory_items: 'Inventory instances filtered by kind, location or storage',
     list_containers: 'Containers with their current fill',
     plan_artifact_build: 'Pick artifacts for an effect preset, slots and budget',
-    get_prices: 'Latest auction prices by item name',
+    get_prices: 'Latest auction prices by item name, optionally sorted and filtered to lots',
     sources_status: 'Data source state and freshness',
     export_profile_json: 'Export the profile as portable JSON',
     add_inventory_item: 'Add an item instance to intake; virtual marks it as not owned in game (dry_run by default)',
@@ -628,7 +631,13 @@ export function createProfileServer(
     async (args) => {
       try {
         const names = Array.isArray(args.names) ? args.names : [args.names];
-        return ok({ prices: await client.getPrices(names, args.quality ?? null) });
+        return ok({
+          prices: await client.getPrices(names, args.quality ?? null, {
+            sort: args.sort,
+            onlyWithLot: args.only_with_lot,
+            limit: args.limit,
+          }),
+        });
       } catch (error) {
         return errorResult(error);
       }
