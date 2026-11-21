@@ -127,24 +127,28 @@ export const ChatSettingsSchema = z.object({
 export type ChatSettings = z.infer<typeof ChatSettingsSchema>;
 
 export const ChatSettingsUpdateSchema = ChatSettingsSchema.omit({ updatedAt: true }).partial().extend({
+  /** Write-only token; `null` clears it. It is never returned or written to the journal. */
+  apiKey: z.string().min(1).max(5_000).nullable().optional(),
   dryRun: z.boolean().default(false),
 });
 export type ChatSettingsUpdate = z.infer<typeof ChatSettingsUpdateSchema>;
 
-/** The read shape adds whether the configured key is present, never the key itself. */
+/** The read shape adds whether a key is present, never the key itself. */
 export const ChatSettingsReadSchema = ChatSettingsSchema.extend({
-  /** The env var actually consulted: the stored override or the provider default. */
+  /** The env var consulted when no token is stored: the override or the provider default. */
   apiKeyEnvResolved: z.string().min(1).max(100),
   apiKeyConfigured: z.boolean(),
+  /** Where the effective key came from: the profile row, the environment, or nowhere. */
+  apiKeySource: z.enum(['stored', 'env', 'none']),
   enabled: z.boolean(),
-  /** A stored value that is not a variable name; it is never returned and is ignored. */
-  apiKeyEnvInvalid: z.boolean(),
 });
 export type ChatSettingsRead = z.infer<typeof ChatSettingsReadSchema>;
 
 export const ChatTestConnectionSchema = z.object({
   provider: ChatProviderSchema.optional(),
   baseUrl: z.string().url().max(300).nullable().optional(),
+  /** An unsaved token from the form; it is used for this request and never stored. */
+  apiKey: z.string().min(1).max(5_000).nullable().optional(),
   model: z.string().min(1).max(120).optional(),
   timeoutMs: z.number().int().min(1_000).max(120_000).optional(),
 });
@@ -163,6 +167,8 @@ export const ChatModelsRequestSchema = z.object({
   baseUrl: z.string().url().max(300).nullable().optional(),
   /** An env variable name the form names but has not saved yet. */
   apiKeyEnv: ChatEnvVarNameSchema.nullable().optional(),
+  /** An unsaved token from the form; it is used for this request and never stored. */
+  apiKey: z.string().min(1).max(5_000).nullable().optional(),
   timeoutMs: z.number().int().min(1_000).max(120_000).optional(),
 });
 export type ChatModelsRequest = z.infer<typeof ChatModelsRequestSchema>;

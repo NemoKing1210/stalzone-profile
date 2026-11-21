@@ -57,6 +57,14 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
+- Settings → Assistant accepts the API token itself, not only the name of an environment
+  variable. The token is stored in `chat_settings.api_key` (migration `0019`), wins over the
+  `NUXT_AI_*` fallback, is write-only through the REST API, never enters `event_log`, and a
+  settings rollback leaves it unchanged. Switching provider clears a stored token. Migration
+  `0019` moves a legacy pasted value from `api_key_env` into `api_key`; the field is no longer
+  shown in the UI. Owner decision recorded in the assistant design and
+  `docs/CONFIGURATION.md`: the token lives in plain text inside the SQLite file and its
+  backups.
 - Settings → Assistant treats the base URL as optional for every built-in provider: the
   documented endpoint comes from the shared `CHAT_PROVIDER_META` catalog, a Custom endpoint
   switch reveals the input only for a proxy or self-hosted gateway, and switching provider

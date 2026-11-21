@@ -13,7 +13,6 @@ import { CHAT_PROVIDER_META, CHAT_PROVIDERS } from '@profile/shared/contracts';
 import {
   assistantBlocks,
   baseUrlFor,
-  isEnvVarName,
   isHttpUrl,
   readAssistantMode,
   writeAssistantMode,
@@ -42,6 +41,9 @@ let hydrated = false;
 
 /** Off means "use the provider default"; the stored value stays null. */
 const customBaseUrl = ref(false);
+/** The token is write-only, so the form starts empty and a stored one is cleared explicitly. */
+const clearApiKey = ref(false);
+const showApiKey = ref(false);
 
 const form = reactive({
   provider: 'openai' as ChatProvider,
@@ -55,7 +57,7 @@ const form = reactive({
   readToolAllowList: '',
   dataScopePrices: false,
   dataScopeLogs: false,
-  apiKeyEnv: '',
+  apiKey: '',
 });
 
 /** Basic is the default; the choice is read after mount so SSR and hydration agree. */
@@ -110,9 +112,7 @@ const effectiveBaseUrl = computed(() =>
   customBaseUrl.value ? endpointValue.value : providerMeta.value.defaultBaseUrl,
 );
 const endpointInvalid = computed(() => (customBaseUrl.value || endpointMissing.value) && !isHttpUrl(endpointValue.value));
-const envValue = computed(() => form.apiKeyEnv.trim());
-const envInvalid = computed(() => envValue.value !== '' && !isEnvVarName(envValue.value));
-const formInvalid = computed(() => endpointInvalid.value || envInvalid.value);
+const formInvalid = computed(() => endpointInvalid.value);
 const endpointHint = computed(() => {
   if (endpointInvalid.value) return { className: 'text-[var(--sz-warning-text)]', text: t('settings.assistant.baseUrlInvalid') };
   if (customBaseUrl.value) return { className: 'text-[var(--sz-text-dim)]', text: t('settings.assistant.baseUrlCustomHint') };
@@ -122,33 +122,48 @@ const endpointHint = computed(() => {
   };
 });
 
-/** The key status is honest only for the saved provider; an unsaved switch shows its variable. */
+/** The fallback variable for the selected provider; a stored token wins over it. */
 const keyEnvName = computed(() =>
-  isEnvVarName(envValue.value) ? envValue.value : providerMeta.value.keyEnv,
+  settings.value?.provider === form.provider ? settings.value.apiKeyEnvResolved : providerMeta.value.keyEnv,
 );
 const keyStatus = computed(() => {
   if (form.provider === 'ollama') {
     return { className: 'text-[var(--sz-text-dim)]', text: t('settings.assistant.keyOptional', { env: keyEnvName.value }) };
   }
-  if (settings.value?.apiKeyEnvInvalid && form.provider === settings.value.provider && envValue.value === '') {
-    return { className: 'text-[var(--sz-warning-text)]', text: t('settings.assistant.apiKeyEnvInvalidSaved') };
+  if (form.apiKey.trim() !== '') {
+    return { className: 'text-[var(--sz-text-dim)]', text: t('settings.assistant.apiKeyPending') };
   }
-  const envDirty = envValue.value !== (settings.value?.apiKeyEnv ?? '');
-  if (form.provider !== settings.value?.provider || envDirty) {
-    return { className: 'text-[var(--sz-text-dim)]', text: t('settings.assistant.keyEnvHint', { env: keyEnvName.value }) };
+  if (clearApiKey.value) {
+    return { className: 'text-[var(--sz-warning-text)]', text: t('settings.assistant.apiKeyClearing', { env: keyEnvName.value }) };
   }
-  return settings.value?.apiKeyConfigured
-    ? { className: 'text-[var(--sz-success-text)]', text: t('settings.assistant.keyConfigured') }
-    : { className: 'text-[var(--sz-warning-text)]', text: t('settings.assistant.keyMissing') };
+  const stored = settings.value?.provider === form.provider ? settings.value : null;
+  if (stored?.apiKeySource === 'stored') {
+    return { className: 'text-[var(--sz-success-text)]', text: t('settings.assistant.apiKeyStored') };
+  }
+  if (stored?.apiKeySource === 'env') {
+    return {
+      className: 'text-[var(--sz-success-text)]',
+      text: t('settings.assistant.apiKeyEnvUsing', { env: stored.apiKeyEnvResolved }),
+    };
+  }
+  return {
+    className: 'text-[var(--sz-warning-text)]',
+    text: t('settings.assistant.apiKeyMissing', { env: keyEnvName.value }),
+  };
 });
 
-/** Switching provider drops a custom endpoint and an untouched default model. */
+/**
+ * Switching provider drops a custom endpoint, an untouched default model and a typed token.
+ * A stored token belongs to the old provider, so saving the switch clears it.
+ */
 function setProvider(next: ChatProvider): void {
   if (next === form.provider) return;
   const previousDefault = CHAT_PROVIDER_META[form.provider].defaultModel;
   form.provider = next;
   customBaseUrl.value = CHAT_PROVIDER_META[next].defaultBaseUrl == null;
   form.baseUrl = '';
+  form.apiKey = '';
+  clearApiKey.value = settings.value?.apiKeySource === 'stored' && next !== settings.value.provider;
   if (form.model.trim() === '' || form.model.trim() === previousDefault) {
     form.model = CHAT_PROVIDER_META[next].defaultModel;
   }
@@ -173,7 +188,7 @@ function modelsBody(): Record<string, unknown> {
   return {
     provider: form.provider,
     baseUrl: baseUrlFor(customBaseUrl.value, form.baseUrl),
-    apiKeyEnv: form.apiKeyEnv.trim() === '' ? null : form.apiKeyEnv.trim(),
+    apiKey: form.apiKey.trim() === '' ? undefined : form.apiKey.trim(),
     timeoutMs: form.timeoutMs,
   };
 }
@@ -206,7 +221,7 @@ function scheduleModels(): void {
 }
 
 watch(
-  [() => form.provider, () => form.baseUrl, customBaseUrl, () => form.apiKeyEnv],
+  [() => form.provider, () => form.baseUrl, customBaseUrl, () => form.apiKey],
   scheduleModels,
 );
 
@@ -226,9 +241,10 @@ async function load(): Promise<void> {
     readToolAllowList: settings.value.readToolAllowList.join(', '),
     dataScopePrices: settings.value.dataScopePrices,
     dataScopeLogs: settings.value.dataScopeLogs,
-    apiKeyEnv: settings.value.apiKeyEnv ?? '',
+    apiKey: '',
   });
   customBaseUrl.value = settings.value.baseUrl != null;
+  clearApiKey.value = false;
 }
 
 onMounted(async () => {
@@ -258,7 +274,11 @@ function body(): Record<string, unknown> {
       .filter(Boolean),
     dataScopePrices: form.dataScopePrices,
     dataScopeLogs: form.dataScopeLogs,
-    apiKeyEnv: form.apiKeyEnv.trim() === '' ? null : form.apiKeyEnv.trim(),
+    ...(form.apiKey.trim() !== ''
+      ? { apiKey: form.apiKey.trim() }
+      : clearApiKey.value
+        ? { apiKey: null }
+        : {}),
   };
 }
 
@@ -284,6 +304,7 @@ async function testConnection(): Promise<void> {
       body: {
         provider: form.provider,
         baseUrl: baseUrlFor(customBaseUrl.value, form.baseUrl),
+        apiKey: form.apiKey.trim() === '' ? undefined : form.apiKey.trim(),
         model: form.model.trim(),
         timeoutMs: form.timeoutMs,
       },
@@ -461,14 +482,36 @@ async function togglePrompt(prompt: ChatPrompt): Promise<void> {
                       class="mt-2 w-full font-mono"
                     />
                   </UFormField>
-                  <UFormField
-                    :label="t('settings.assistant.apiKeyEnv')"
-                    name="apiKeyEnv"
-                    class="sm:col-span-2"
-                    :error="envInvalid ? t('settings.assistant.apiKeyEnvInvalid') : undefined"
-                  >
-                    <UInput v-model="form.apiKeyEnv" :placeholder="providerMeta.keyEnv" class="w-full font-mono" />
-                    <p class="mt-1 text-[11px]" :class="keyStatus.className">{{ keyStatus.text }}</p>
+                  <UFormField :label="t('settings.assistant.apiKey')" name="apiKey" class="sm:col-span-2">
+                    <div class="flex gap-1">
+                      <UInput
+                        v-model="form.apiKey"
+                        :type="showApiKey ? 'text' : 'password'"
+                        autocomplete="off"
+                        spellcheck="false"
+                        :placeholder="t('settings.assistant.apiKeyPlaceholder')"
+                        class="w-full font-mono"
+                      />
+                      <UButton
+                        type="button"
+                        color="neutral"
+                        variant="outline"
+                        :icon="showApiKey ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+                        :aria-label="showApiKey ? t('settings.assistant.apiKeyHide') : t('settings.assistant.apiKeyShow')"
+                        :title="showApiKey ? t('settings.assistant.apiKeyHide') : t('settings.assistant.apiKeyShow')"
+                        @click="showApiKey = !showApiKey"
+                      />
+                    </div>
+                    <div class="mt-1 flex flex-wrap items-center gap-2">
+                      <p class="text-[11px]" :class="keyStatus.className">{{ keyStatus.text }}</p>
+                      <USwitch
+                        v-if="settings?.apiKeySource === 'stored' && settings.provider === form.provider"
+                        v-model="clearApiKey"
+                        :label="t('settings.assistant.apiKeyClear')"
+                        size="sm"
+                        class="ml-auto"
+                      />
+                    </div>
                   </UFormField>
                 </div>
 

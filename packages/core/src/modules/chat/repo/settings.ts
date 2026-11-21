@@ -4,6 +4,8 @@ import type { Db } from '../../../platform/db/index.js';
 export interface ChatSettingsRow {
   provider: ChatProvider;
   base_url: string | null;
+  /** Stored token; never leaves the writer, the read shape and the journal exclude it. */
+  api_key: string | null;
   model: string;
   temperature: number;
   max_tokens: number;
@@ -17,12 +19,17 @@ export interface ChatSettingsRow {
   updated_at: string;
 }
 
+/** Settings plus the stored token, which is not part of the public `ChatSettings` shape. */
+export interface StoredChatSettings extends ChatSettings {
+  apiKey: string | null;
+}
+
 /** The stored settings; the table is seeded by migration 0013 with one row. */
 export function getChatSettingsRow(db: Db): ChatSettingsRow {
   return db.prepare(`SELECT * FROM chat_settings WHERE id = 1`).get() as ChatSettingsRow;
 }
 
-export function toChatSettings(row: ChatSettingsRow): ChatSettings {
+export function toChatSettings(row: ChatSettingsRow): StoredChatSettings {
   let tools: string[] = [];
   try {
     const parsed = JSON.parse(row.read_tool_allow_list) as unknown;
@@ -33,6 +40,7 @@ export function toChatSettings(row: ChatSettingsRow): ChatSettings {
   return {
     provider: row.provider,
     baseUrl: row.base_url,
+    apiKey: row.api_key,
     model: row.model,
     temperature: row.temperature,
     maxTokens: row.max_tokens,
@@ -47,11 +55,12 @@ export function toChatSettings(row: ChatSettingsRow): ChatSettings {
   };
 }
 
-export function upsertChatSettings(db: Db, settings: ChatSettings, updatedAt: string): void {
+export function upsertChatSettings(db: Db, settings: StoredChatSettings, updatedAt: string): void {
   db.prepare(
     `UPDATE chat_settings SET
-       provider = @provider, base_url = @base_url, model = @model, temperature = @temperature,
-       max_tokens = @max_tokens, reasoning_effort = @reasoning_effort, timeout_ms = @timeout_ms,
+       provider = @provider, base_url = @base_url, api_key = @api_key, model = @model,
+       temperature = @temperature, max_tokens = @max_tokens,
+       reasoning_effort = @reasoning_effort, timeout_ms = @timeout_ms,
        retries = @retries, read_tool_allow_list = @read_tool_allow_list,
        data_scope_prices = @data_scope_prices, data_scope_logs = @data_scope_logs,
        api_key_env = @api_key_env, updated_at = @updated_at
@@ -59,6 +68,7 @@ export function upsertChatSettings(db: Db, settings: ChatSettings, updatedAt: st
   ).run({
     provider: settings.provider,
     base_url: settings.baseUrl,
+    api_key: settings.apiKey,
     model: settings.model,
     temperature: settings.temperature,
     max_tokens: settings.maxTokens,

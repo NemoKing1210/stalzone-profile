@@ -2,6 +2,7 @@ import type { ChatModel, ChatModelsResult, ChatProvider, ChatSettings, ChatTestR
 import { CHAT_ENV_VAR_NAME, CHAT_PROVIDER_META } from '@profile/shared/contracts';
 import { WriteError } from '../../../platform/journal/index.js';
 import * as repo from '../repo/settings.js';
+import type { StoredChatSettings } from '../repo/settings.js';
 import type { Db } from '../../../platform/db/index.js';
 
 interface ProviderConfig {
@@ -41,11 +42,20 @@ function envValue(name: string | null): string | null {
   return value && value.trim() !== '' ? value : null;
 }
 
-/** The key for the configured provider: the named env var, then the provider's default. */
-export function resolveApiKey(settings: ChatSettings): { env: string; key: string | null } {
+/**
+ * The key for the configured provider: the token stored in the profile, then the named env
+ * variable, then the provider's default variable.
+ */
+export function resolveApiKey(settings: StoredChatSettings): {
+  env: string;
+  key: string | null;
+  source: 'stored' | 'env' | 'none';
+} {
   const config = providerConfig(settings.provider);
   const env = isEnvVarName(settings.apiKeyEnv) ? settings.apiKeyEnv : config.keyEnv;
-  return { env, key: envValue(env) ?? envValue(config.keyEnv) };
+  if (settings.apiKey) return { env, key: settings.apiKey, source: 'stored' };
+  const key = envValue(env) ?? envValue(config.keyEnv);
+  return { env, key, source: key ? 'env' : 'none' };
 }
 
 export function resolveBaseUrl(settings: ChatSettings): string | null {
@@ -55,15 +65,15 @@ export function resolveBaseUrl(settings: ChatSettings): string | null {
 /** Read shape: resolved values plus whether a key exists, never the key. */
 export function chatSettingsRead(db: Db) {
   const settings = repo.toChatSettings(repo.getChatSettingsRow(db));
-  const { env, key } = resolveApiKey(settings);
-  const apiKeyEnvInvalid = settings.apiKeyEnv != null && !isEnvVarName(settings.apiKeyEnv);
+  const { env, key, source } = resolveApiKey(settings);
+  const { apiKey: _token, ...publicSettings } = settings;
   return {
-    ...settings,
-    // A pasted key is never echoed back; the owner sees the flag and sets a variable name.
-    apiKeyEnv: apiKeyEnvInvalid ? null : settings.apiKeyEnv,
-    apiKeyEnvInvalid,
+    ...publicSettings,
+    // A legacy pasted key is never echoed back; it is ignored in favour of the default var.
+    apiKeyEnv: isEnvVarName(settings.apiKeyEnv) ? settings.apiKeyEnv : null,
     apiKeyEnvResolved: env,
     apiKeyConfigured: key != null,
+    apiKeySource: source,
     enabled: key != null || settings.provider === 'ollama',
   };
 }
@@ -94,14 +104,15 @@ interface TestOptions {
 /** One GET against the provider's model list; no chat message is sent or stored. */
 export async function testChatConnection(
   db: Db,
-  overrides: { provider?: ChatProvider; baseUrl?: string | null; model?: string; timeoutMs?: number },
+  overrides: { provider?: ChatProvider; baseUrl?: string | null; apiKey?: string | null; model?: string; timeoutMs?: number },
   options: TestOptions = {},
 ): Promise<ChatTestResult> {
   const stored = repo.toChatSettings(repo.getChatSettingsRow(db));
-  const settings: ChatSettings = {
+  const settings: StoredChatSettings = {
     ...stored,
     ...(overrides.provider ? { provider: overrides.provider } : {}),
     ...(overrides.baseUrl !== undefined ? { baseUrl: overrides.baseUrl } : {}),
+    ...(overrides.apiKey !== undefined ? { apiKey: overrides.apiKey } : {}),
     ...(overrides.model ? { model: overrides.model } : {}),
     ...(overrides.timeoutMs ? { timeoutMs: overrides.timeoutMs } : {}),
   };
@@ -201,15 +212,22 @@ function parseModels(provider: ChatProvider, body: unknown): ChatModel[] {
  */
 export async function listChatModels(
   db: Db,
-  overrides: { provider?: ChatProvider; baseUrl?: string | null; apiKeyEnv?: string | null; timeoutMs?: number },
+  overrides: {
+    provider?: ChatProvider;
+    baseUrl?: string | null;
+    apiKeyEnv?: string | null;
+    apiKey?: string | null;
+    timeoutMs?: number;
+  },
   options: ModelsOptions = {},
 ): Promise<ChatModelsResult> {
   const stored = repo.toChatSettings(repo.getChatSettingsRow(db));
-  const settings: ChatSettings = {
+  const settings: StoredChatSettings = {
     ...stored,
     ...(overrides.provider ? { provider: overrides.provider } : {}),
     ...(overrides.baseUrl !== undefined ? { baseUrl: overrides.baseUrl } : {}),
     ...(overrides.apiKeyEnv !== undefined ? { apiKeyEnv: overrides.apiKeyEnv } : {}),
+    ...(overrides.apiKey !== undefined ? { apiKey: overrides.apiKey } : {}),
     ...(overrides.timeoutMs ? { timeoutMs: overrides.timeoutMs } : {}),
   };
   const config = providerConfig(settings.provider);

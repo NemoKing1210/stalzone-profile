@@ -3,9 +3,10 @@ import { CHAT_ENV_VAR_NAME, ChatSettingsSchema } from '@profile/shared/contracts
 import type { Db } from '../../../platform/db/index.js';
 import { logEvent, withTransaction, type WriteResult } from '../../../platform/journal/index.js';
 import * as repo from '../repo/settings.js';
+import type { StoredChatSettings } from '../repo/settings.js';
 
-function merged(current: ChatSettings, patch: ChatSettingsUpdate): ChatSettings {
-  const next: ChatSettings = { ...current };
+function merged(current: StoredChatSettings, patch: ChatSettingsUpdate): StoredChatSettings {
+  const next: StoredChatSettings = { ...current };
   if (patch.provider !== undefined) next.provider = patch.provider;
   if (patch.baseUrl !== undefined) next.baseUrl = patch.baseUrl;
   if (patch.model !== undefined) next.model = patch.model;
@@ -20,12 +21,20 @@ function merged(current: ChatSettings, patch: ChatSettingsUpdate): ChatSettings 
   if (patch.apiKeyEnv !== undefined) next.apiKeyEnv = patch.apiKeyEnv;
   // A value stored before validation (often a pasted key) is dropped on the next write.
   else if (next.apiKeyEnv != null && !CHAT_ENV_VAR_NAME.test(next.apiKeyEnv)) next.apiKeyEnv = null;
-  return ChatSettingsSchema.parse({ ...next, updatedAt: current.updatedAt });
+  if (patch.apiKey !== undefined) next.apiKey = patch.apiKey;
+  const parsed = ChatSettingsSchema.parse({ ...next, updatedAt: current.updatedAt });
+  return { ...parsed, apiKey: next.apiKey };
 }
 
-function human(before: ChatSettings, after: ChatSettings): string {
+/** The public shape: the stored token is write-only and never enters a diff or the journal. */
+function withoutToken(settings: StoredChatSettings): ChatSettings {
+  const { apiKey: _token, ...rest } = settings;
+  return rest;
+}
+
+function human(before: StoredChatSettings, after: StoredChatSettings): string {
   const changed: string[] = [];
-  for (const key of Object.keys(after) as (keyof ChatSettings)[]) {
+  for (const key of Object.keys(after) as (keyof StoredChatSettings)[]) {
     if (key === 'updatedAt') continue;
     if (JSON.stringify(before[key]) !== JSON.stringify(after[key])) changed.push(key);
   }
@@ -36,7 +45,9 @@ function human(before: ChatSettings, after: ChatSettings): string {
 export function updateChatSettings(db: Db, patch: ChatSettingsUpdate): WriteResult {
   const before = repo.toChatSettings(repo.getChatSettingsRow(db));
   const after = merged(before, patch);
-  const diff = { before, after, human: human(before, after) };
+  const publicBefore = withoutToken(before);
+  const publicAfter = withoutToken(after);
+  const diff = { before: publicBefore, after: publicAfter, human: human(before, after) };
   if (patch.dryRun) return { dryRun: true, diff };
 
   let eventId: number | undefined;
@@ -47,16 +58,20 @@ export function updateChatSettings(db: Db, patch: ChatSettingsUpdate): WriteResu
       action: 'chat.settings.update',
       entity: 'chat',
       entityId: 1,
-      before,
-      after,
+      before: publicBefore,
+      after: publicAfter,
     });
   });
   return { dryRun: false, diff, eventId };
 }
 
-/** Restores the `chat.settings.update` before state; the caller holds the transaction. */
+/**
+ * Restores the `chat.settings.update` before state; the caller holds the transaction.
+ * The token is not part of the journal, so a rollback keeps the token that is current now.
+ */
 export function restoreChatSettingsTx(db: Db, target: unknown): void {
   if (!target || typeof target !== 'object') return;
   const settings = ChatSettingsSchema.parse(target);
-  repo.upsertChatSettings(db, settings, new Date().toISOString());
+  const current = repo.toChatSettings(repo.getChatSettingsRow(db));
+  repo.upsertChatSettings(db, { ...settings, apiKey: current.apiKey }, new Date().toISOString());
 }

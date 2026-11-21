@@ -4,6 +4,7 @@ import {
   CHAT_PROVIDER_META,
   ChatModelsRequestSchema,
   ChatSettingsUpdateSchema,
+  ChatTestConnectionSchema,
   CharacterCreateSchema,
   CharacterPatchSchema,
   CleanupRequestSchema,
@@ -266,5 +267,13 @@ describe('assistant provider catalog', () => {
     expect(ChatSettingsUpdateSchema.safeParse({ apiKeyEnv: null }).success).toBe(true);
     expect(ChatSettingsUpdateSchema.safeParse({ apiKeyEnv: 'oc_sk_1a2b3c4d5e6f' }).success).toBe(false);
     expect(ChatModelsRequestSchema.safeParse({ apiKeyEnv: 'oc_sk_1a2b3c4d5e6f' }).success).toBe(false);
+  });
+
+  it('accepts a write-only token and rejects an empty one', () => {
+    expect(ChatSettingsUpdateSchema.safeParse({ apiKey: 'oc_sk_1a2b3c4d5e6f' }).success).toBe(true);
+    expect(ChatSettingsUpdateSchema.safeParse({ apiKey: null }).success).toBe(true);
+    expect(ChatSettingsUpdateSchema.safeParse({ apiKey: '' }).success).toBe(false);
+    expect(ChatModelsRequestSchema.safeParse({ apiKey: 'stored-token' }).success).toBe(true);
+    expect(ChatTestConnectionSchema.safeParse({ apiKey: 'stored-token' }).success).toBe(true);
   });
 });

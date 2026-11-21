@@ -99,7 +99,51 @@ describe('assistant settings', () => {
     const read = chatSettingsRead(db);
     expect(read.apiKeyConfigured).toBe(true);
     expect(read.apiKeyEnv).toBe('PROFILE_TEST_CHAT_KEY');
+    expect(read.apiKeySource).toBe('env');
     expect(JSON.stringify(read)).not.toContain('secret-value');
+  });
+
+  it('stores the token write-only and uses it before the environment', async () => {
+    process.env.NUXT_AI_OPENAI_API_KEY = 'env-key';
+    const result = updateChatSettings(db, ChatSettingsUpdateSchema.parse({ apiKey: 'stored-token' }));
+
+    expect(getChatSettingsRow(db).api_key).toBe('stored-token');
+    expect(JSON.stringify(result.diff)).not.toContain('stored-token');
+    expect(JSON.stringify(listEvents(db))).not.toContain('stored-token');
+
+    const read = chatSettingsRead(db);
+    expect(read).toMatchObject({ apiKeyConfigured: true, apiKeySource: 'stored', enabled: true });
+    expect(JSON.stringify(read)).not.toContain('stored-token');
+
+    const seen: string[] = [];
+    const fetchImpl = (async (_url: string, init: RequestInit) => {
+      seen.push((init.headers as Record<string, string>).authorization ?? '');
+      return new Response('{}', { status: 200 });
+    }) as typeof fetch;
+
+    await testChatConnection(db, {}, { fetchImpl });
+    expect(seen[0]).toBe('Bearer stored-token');
+
+    await testChatConnection(db, { apiKey: 'form-token' }, { fetchImpl });
+    expect(seen[1]).toBe('Bearer form-token');
+  });
+
+  it('clears the stored token and falls back to the environment', () => {
+    process.env.NUXT_AI_OPENAI_API_KEY = 'env-key';
+    updateChatSettings(db, ChatSettingsUpdateSchema.parse({ apiKey: 'stored-token' }));
+    updateChatSettings(db, ChatSettingsUpdateSchema.parse({ apiKey: null }));
+
+    expect(getChatSettingsRow(db).api_key).toBeNull();
+    expect(chatSettingsRead(db).apiKeySource).toBe('env');
+  });
+
+  it('keeps the token when a settings event is rolled back', () => {
+    updateChatSettings(db, ChatSettingsUpdateSchema.parse({ apiKey: 'stored-token' }));
+    const result = updateChatSettings(db, ChatSettingsUpdateSchema.parse({ model: 'gpt-4.1' }));
+    rollbackEvent(db, result.eventId!, false);
+
+    expect(getChatSettingsRow(db).model).toBe('gpt-4.1-mini');
+    expect(getChatSettingsRow(db).api_key).toBe('stored-token');
   });
 
   it('falls back to the provider-specific env variable', () => {
@@ -119,7 +163,7 @@ describe('assistant settings', () => {
 
     const read = chatSettingsRead(db);
     expect(read.apiKeyEnv).toBeNull();
-    expect(read.apiKeyEnvInvalid).toBe(true);
+    expect(read.apiKeySource).toBe('none');
     expect(read.apiKeyEnvResolved).toBe('NUXT_AI_OPENAI_API_KEY');
     expect(JSON.stringify(read)).not.toContain('oc_sk_secret_value');
 
