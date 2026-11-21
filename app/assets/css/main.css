@@ -701,6 +701,18 @@
   color: var(--sz-text);
 }
 
+/* A known item token is one inline reference chip; unknown tokens stay plain prose. */
+.sz-chat-ref {
+  color: var(--sz-accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.sz-chat-ref:hover {
+  color: var(--sz-text);
+}
+
 .sz-md > :first-child {
   margin-top: 0;
 }

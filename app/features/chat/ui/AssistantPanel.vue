@@ -29,6 +29,8 @@ watch(
   async (open) => {
     if (!open) return;
     await chat.init();
+    // The shelf can change in another surface or tab; refresh the compact list on open.
+    await chat.loadPins();
     await nextTick();
     conversation.value?.focus();
   },

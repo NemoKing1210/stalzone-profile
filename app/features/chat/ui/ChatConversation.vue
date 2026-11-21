@@ -1,22 +1,40 @@
 <script setup lang="ts">
 import {
   CHAT_ATTACHMENT_LIMITS,
+  CHAT_REF_LIMIT,
   chatBase64Bytes,
   chatFileKind,
   type ChatAttachment,
   type ChatAttachmentInput,
+  type ChatPin,
+  type ChatSendRef,
+  type ItemSummary,
 } from '@profile/shared/contracts';
 import { storeToRefs } from 'pinia';
 
-import { useChatStore } from '~/stores/chat';
 import { CHAT_MESSAGE_ENTER_CLASS } from '~/shared/lib/motion';
+import { useChatStore } from '~/stores/chat';
+import { useProfileData } from '~/stores/profile-data';
 import { addChatFiles, formatFileSize, type ChatFileIssue } from '../model/files';
 import { threadImages } from '../model/gallery';
+import {
+  catalogCandidate,
+  inventoryCandidates,
+  mentionQueryAt,
+  mergeCandidates,
+  pruneMentionRefs,
+  rankCandidates,
+  replaceMention,
+  type ChatItemCandidate,
+  type MentionRange,
+} from '../model/mentions';
 import { chatItemLink, type ChatItemView } from '../model/render';
 import { chatRows, type ChatRow } from '../model/rows';
 import ChatAttachmentGallery from './ChatAttachmentGallery.vue';
 import ChatFilePreview from './ChatFilePreview.vue';
+import ChatItemMenu from './ChatItemMenu.vue';
 import ChatLiveTurn from './ChatLiveTurn.vue';
+import ChatPinShelf from './ChatPinShelf.vue';
 import ChatRowView from './ChatRowView.vue';
 
 /**
@@ -46,6 +64,48 @@ let dragDepth = 0;
 const SUGGESTIONS = ['chat.suggestions.inventory', 'chat.suggestions.prices', 'chat.suggestions.loadout'] as const;
 const MESSAGE_LIMIT = 8_000;
 const draftTooLong = computed(() => draft.value.length > MESSAGE_LIMIT);
+
+const prompt = ref<{ textareaRef?: HTMLTextAreaElement | null } | null>(null);
+const listId = useId();
+const { payload } = useProfileData();
+/** The tokens inserted into this draft, with their exact identity for the turn. */
+const mentions = ref<ChatSendRef[]>([]);
+const menuOpen = ref(false);
+const menuRange = ref<MentionRange | null>(null);
+const menuActive = ref(0);
+const catalogResults = ref<ChatItemCandidate[]>([]);
+const catalogLoading = ref(false);
+let catalogRequest = 0;
+let searchTimer: ReturnType<typeof setTimeout> | undefined;
+
+const pinnedCandidates = computed<ChatItemCandidate[]>(() =>
+  chat.pins.map((pin) => ({
+    token: pin.token,
+    kind: pin.kind,
+    itemId: pin.itemId,
+    instanceId: pin.instanceId,
+    name: pin.name,
+    rank: pin.rank,
+    icon: pin.icon,
+    level: pin.level,
+    quality: pin.quality,
+    virtual: pin.virtual,
+    source: 'pinned',
+  })),
+);
+const ownedCandidates = computed(() => inventoryCandidates(payload.value?.inventory ?? null));
+const allCandidates = computed(() =>
+  mergeCandidates([...pinnedCandidates.value, ...ownedCandidates.value, ...catalogResults.value]),
+);
+const menuCandidates = computed(() => {
+  const range = menuRange.value;
+  if (!range) return [];
+  const pool = allCandidates.value.filter((candidate) => !range.kind || candidate.kind === range.kind);
+  return rankCandidates(range.query, pool).slice(0, 12);
+});
+const pinnedKeys = computed(
+  () => new Set(chat.pins.map((pin) => `${pin.kind}:${pin.itemId}:${pin.instanceId ?? 'catalog'}`)),
+);
 
 const ACCEPT = [
   'image/png',
@@ -227,14 +287,184 @@ async function copyMessage(text: string): Promise<void> {
   }
 }
 
+function closeMenu(): void {
+  menuOpen.value = false;
+  menuRange.value = null;
+  catalogResults.value = [];
+  catalogLoading.value = false;
+  catalogRequest += 1;
+  clearTimeout(searchTimer);
+}
+
+/** One debounced catalog query for the active `kind:name`; owned items filter locally. */
+function searchCatalog(range: MentionRange): void {
+  const colon = range.query.indexOf(':');
+  const term = range.kind ? range.query.slice(colon + 1) : range.query;
+  const q = term.trim();
+  clearTimeout(searchTimer);
+  if (!q) {
+    catalogResults.value = [];
+    catalogLoading.value = false;
+    return;
+  }
+  catalogLoading.value = true;
+  const request = ++catalogRequest;
+  searchTimer = setTimeout(async () => {
+    try {
+      const rows = await $fetch<ItemSummary[]>('/api/v1/items', {
+        query: { q, ...(range.kind ? { kind: range.kind } : {}), limit: 12 },
+      });
+      if (request !== catalogRequest) return;
+      catalogResults.value = rows
+        .map((row) => catalogCandidate(row))
+        .filter((row): row is ChatItemCandidate => row != null);
+    } catch {
+      if (request === catalogRequest) catalogResults.value = [];
+    } finally {
+      if (request === catalogRequest) catalogLoading.value = false;
+    }
+  }, 200);
+}
+
+function updateMenu(): void {
+  const textarea = prompt.value?.textareaRef;
+  const caret = textarea?.selectionStart ?? draft.value.length;
+  const range = mentionQueryAt(draft.value, caret);
+  if (!range) {
+    closeMenu();
+    return;
+  }
+  menuRange.value = range;
+  menuOpen.value = true;
+  menuActive.value = Math.min(menuActive.value, Math.max(0, menuCandidates.value.length - 1));
+  searchCatalog(range);
+}
+
+function focusAt(position: number): void {
+  nextTick(() => {
+    const textarea = prompt.value?.textareaRef;
+    if (!textarea) return;
+    textarea.focus();
+    textarea.setSelectionRange(position, position);
+  });
+}
+
+function selectCandidate(index: number): void {
+  const candidate = menuCandidates.value[index];
+  const range = menuRange.value;
+  if (!candidate || !range) return;
+  const live = pruneMentionRefs(draft.value, mentions.value);
+  const already = live.some((ref) => ref.token === candidate.token);
+  if (!already && live.length >= CHAT_REF_LIMIT) {
+    toast.add({
+      title: t('chat.mention.limit', { max: CHAT_REF_LIMIT }),
+      color: 'warning',
+      icon: 'i-lucide-at-sign',
+    });
+    return;
+  }
+  const result = replaceMention(draft.value, range, candidate.token);
+  draft.value = result.text;
+  if (!already) {
+    mentions.value = [
+      ...mentions.value,
+      {
+        token: candidate.token,
+        kind: candidate.kind,
+        itemId: candidate.itemId,
+        ...(candidate.instanceId == null ? {} : { instanceId: candidate.instanceId }),
+      },
+    ];
+  }
+  closeMenu();
+  focusAt(result.caret);
+}
+
+/** A pin click is a deliberate action; removing the query keeps the draft clean. */
+function toggleMenuPin(index: number): void {
+  const candidate = menuCandidates.value[index];
+  const range = menuRange.value;
+  if (!candidate || !range) return;
+  void chat.togglePin({
+    kind: candidate.kind,
+    itemId: candidate.itemId,
+    ...(candidate.instanceId == null ? {} : { instanceId: candidate.instanceId }),
+  });
+  draft.value = `${draft.value.slice(0, range.start)}${draft.value.slice(range.end)}`;
+  closeMenu();
+  focusAt(range.start);
+}
+
+/** The shelf and the @ button both insert a query at the caret. */
+function openMention(): void {
+  const textarea = prompt.value?.textareaRef;
+  const caret = textarea?.selectionStart ?? draft.value.length;
+  const before = draft.value.slice(0, caret);
+  const insert = caret > 0 && !/\s/u.test(before.at(-1) ?? '') ? ' @' : '@';
+  draft.value = `${before}${insert}${draft.value.slice(caret)}`;
+  focusAt(caret + insert.length);
+  nextTick(updateMenu);
+}
+
+async function removePin(pin: ChatPin): Promise<void> {
+  await chat.togglePin({
+    kind: pin.kind,
+    itemId: pin.itemId,
+    ...(pin.instanceId == null ? {} : { instanceId: pin.instanceId }),
+  });
+}
+
+function hoverCandidate(index: number): void {
+  menuActive.value = index;
+}
+
+function onKeydown(event: KeyboardEvent): void {
+  if (menuOpen.value) {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const count = menuCandidates.value.length;
+      if (!count) return;
+      const step = event.key === 'ArrowDown' ? 1 : count - 1;
+      menuActive.value = (menuActive.value + step) % count;
+      return;
+    }
+    if (event.key === 'Enter' || event.key === 'Tab') {
+      if (!menuCandidates.value.length) {
+        closeMenu();
+        return;
+      }
+      event.preventDefault();
+      selectCandidate(menuActive.value);
+      return;
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeMenu();
+      return;
+    }
+    return;
+  }
+  if (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
+    event.preventDefault();
+    void send();
+  }
+}
+
+watch(draft, () => {
+  void nextTick(updateMenu);
+});
+
 async function send(): Promise<void> {
   const text = draft.value.trim();
   if ((!text && !files.value.length) || draftTooLong.value) return;
   const outgoing = files.value;
+  const refs = pruneMentionRefs(text, mentions.value);
   draft.value = '';
   files.value = [];
   fileError.value = '';
-  await chat.send(text, outgoing);
+  mentions.value = [];
+  closeMenu();
+  await chat.send(text, outgoing, refs);
 }
 
 /** The panel focuses the composer when it opens; the page does not need to. */
@@ -333,6 +563,14 @@ defineExpose({ focus });
       </div>
 
       <div :class="props.standalone ? 'p-2 pe-[4.5rem] min-[1500px]:pe-2' : 'border-t border-[var(--sz-border)] p-2'">
+        <ChatPinShelf
+          :pins="chat.pins"
+          :limit="chat.pinLimit"
+          :loading="chat.pinsLoading"
+          class="mb-2"
+          @add="openMention"
+          @remove="removePin"
+        />
         <template v-if="files.length">
           <ul class="mb-1.5 flex flex-wrap gap-1.5" :aria-label="t('chat.attachments')">
             <li
@@ -397,36 +635,69 @@ defineExpose({ focus });
         <p v-if="queued" class="mb-1 text-[11px] text-[var(--sz-text-dim)]" aria-live="polite">
           {{ t('chat.queued', { count: queued }) }}
         </p>
-        <UChatPrompt v-model="draft" :placeholder="t('chat.placeholder')" @submit="send">
-          <template #footer>
-            <UButton
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              icon="i-lucide-paperclip"
-              :aria-label="t('chat.attach')"
-              :title="t('chat.attach')"
-              :disabled="files.length >= CHAT_ATTACHMENT_LIMITS.files"
-              @click="fileInput?.click()"
-            />
-            <UButton
-              v-if="sending"
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              icon="i-lucide-square"
-              class="ms-auto max-sm:size-11"
-              :aria-label="t('chat.stop')"
-              :title="t('chat.stop')"
-              @click="chat.stop"
-            />
-            <UChatPromptSubmit
-              :class="sending ? 'max-sm:size-11' : 'ms-auto max-sm:size-11'"
-              :disabled="(!draft.trim() && !files.length) || draftTooLong"
-              :aria-label="t('chat.send')"
-            />
-          </template>
-        </UChatPrompt>
+        <div class="relative">
+          <ChatItemMenu
+            v-if="menuOpen"
+            :id="listId"
+            :candidates="menuCandidates"
+            :active-index="menuActive"
+            :pinned="pinnedKeys"
+            :loading="catalogLoading"
+            @select="selectCandidate"
+            @pin="toggleMenuPin"
+            @hover="hoverCandidate"
+          />
+          <UChatPrompt
+            ref="prompt"
+            v-model="draft"
+            :placeholder="t('chat.placeholder')"
+            :submit-on-enter="false"
+            aria-autocomplete="list"
+            :aria-controls="listId"
+            :aria-expanded="menuOpen"
+            @submit="send"
+            @keydown="onKeydown"
+            @click="updateMenu"
+          >
+            <template #footer>
+              <UButton
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                icon="i-lucide-at-sign"
+                :aria-label="t('chat.mention.title')"
+                :title="t('chat.mention.title')"
+                @click="openMention"
+              />
+              <UButton
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                icon="i-lucide-paperclip"
+                :aria-label="t('chat.attach')"
+                :title="t('chat.attach')"
+                :disabled="files.length >= CHAT_ATTACHMENT_LIMITS.files"
+                @click="fileInput?.click()"
+              />
+              <UButton
+                v-if="sending"
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                icon="i-lucide-square"
+                class="ms-auto max-sm:size-11"
+                :aria-label="t('chat.stop')"
+                :title="t('chat.stop')"
+                @click="chat.stop"
+              />
+              <UChatPromptSubmit
+                :class="sending ? 'max-sm:size-11' : 'ms-auto max-sm:size-11'"
+                :disabled="(!draft.trim() && !files.length) || draftTooLong"
+                :aria-label="t('chat.send')"
+              />
+            </template>
+          </UChatPrompt>
+        </div>
         <input ref="fileInput" type="file" multiple class="hidden" :accept="ACCEPT" @change="onFiles" >
       </div>
     </div>

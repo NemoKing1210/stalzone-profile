@@ -191,6 +191,16 @@ One tool registry (`packages/mcp/src/registry.ts`) serves both transports:
 Writes: `dry_run` by default, `confirm: true` is mandatory, no more than 30 changes per
 minute. The `profile://schema` resource describes the tools and the write rules.
 
+## Assistant pinned context
+
+The assistant reads `chat_pin` and the current message's stored references through
+`modules/chat/service/items.ts`. A target is a catalog item or an owned instance; the service
+re-reads its name, rank, icon, level and quality from SQLite and builds a deterministic fact
+block with the same `metricRow`/`itemStats` path the catalog uses. That block is appended to
+the system prompt for the turn; the rest of the inventory is never added. The browser sends
+ids only, and a chip in a stored message is rendered from the refs saved with that message,
+never by re-resolving a display name.
+
 ## Diagnostic logging
 
 ```

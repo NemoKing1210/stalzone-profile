@@ -652,7 +652,7 @@
     "groupToday": "Today",
     "groupYesterday": "Yesterday",
     "groupEarlier": "Earlier",
-    "empty": "Ask about the character, inventory, prices or a planned change.",
+    "empty": "Ask about the character, inventory, prices or a planned change. Type {'@'} to reference an item.",
     "suggestions": {
       "inventory": "What is in my backpack?",
       "prices": "What are assault rifles worth right now?",
@@ -773,6 +773,29 @@
       "replyTitle": "Assistant replied",
       "pendingTitle": "Assistant needs confirmation",
       "pendingText": "A write is waiting in “{title}”."
+    },
+    "pins": {
+      "title": "Pinned items",
+      "add": "Pin an item",
+      "remove": "Unpin {name}",
+      "full": "You can pin up to {max} items",
+      "fullHint": "Remove one to pin another.",
+      "failed": "Could not update pinned items",
+      "added": "Pinned {name}",
+      "removed": "Unpinned {name}",
+      "empty": "No pinned items"
+    },
+    "mention": {
+      "title": "Reference an item",
+      "pinned": "Pinned",
+      "owned": "Owned",
+      "catalog": "Catalog",
+      "empty": "No matching items",
+      "loading": "Searching…",
+      "level": "lvl {level}",
+      "limit": "Up to {max} item references per message",
+      "pin": "Pin {name}",
+      "unpin": "Unpin {name}"
     },
     "panelTitle": "Assistant",
     "panelOpen": "Open assistant panel",
@@ -1353,7 +1376,8 @@
           "panel": "A right-side panel on every page except /chat reuses the same conversation and composer; closing it never stops a turn.",
           "files": "Images and text files attached to a message travel to the model with that turn; they live in the profile DB, are verified from their bytes, and are served only through the session. An image opens a carousel with thumbnails and zoom; a text file opens a readable preview with copy and download.",
           "streaming": "Answers stream token by token; Stop aborts the provider call, and an incomplete answer is never saved. A turn that finishes while another page is open reports through a toast.",
-          "reasoning": "When the provider returns its reasoning, it sits in a collapsed block above the answer and can be expanded; it is stored with the message but never sent back to the model."
+          "reasoning": "When the provider returns its reasoning, it sits in a collapsed block above the answer and can be expanded; it is stored with the message but never sent back to the model.",
+          "pins": "Pin up to eight items above the composer; every pinned item is sent with every message. Type {'@'} for a searchable mention, and a known token renders as a link to the item page in both the owner's text and the assistant's answer."
         }
       },
       "inventory": {
@@ -1609,6 +1633,8 @@
         "threadsRead": "Assistant threads, newest first.",
         "threadRead": "One thread with its ordered messages, including tool payloads.",
         "threadDelete": "Delete one thread and its messages and files; the audited event is not rollbackable.",
+        "pinsRead": "The pinned item shelf: resolved catalog items and owned instances in order, plus the fixed cap.",
+        "pins": "Replace the pinned shelf; each target is re-read from SQLite and at most eight are kept.",
         "turn": "Run one assistant turn: reads execute, the first write returns its dry-run diff and waits for confirm.",
         "turnStream": "Stream one assistant turn as server-sent events: the stored user message, provider text/reasoning deltas, tool phases, a pending write and one terminal done frame; aborting stores no partial answer.",
         "test": "Send one model-list request to the configured provider and report its status.",

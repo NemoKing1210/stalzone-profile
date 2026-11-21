@@ -9,6 +9,11 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- The assistant has a pinned-item shelf and `@` references: up to eight catalog items or owned
+  instances are sent with every turn, `@kind:name` opens a searchable menu with pinned, owned
+  and catalog rows, and stored messages render known tokens as links to the item page. Pins and
+  message refs are chat state (`chat_pin`, `chat_message.refs`, migration `0027`), not audited
+  profile writes; the provider receives only the compact fact block for the selected items.
 - MCP catalog and gear tools: `find_items` now returns kind metrics (`damage`, `dps`, `ttk`,
   `rof`, `recoil`, `spread`, `mag`, `armor`, `protectionBullet`, `slots`, `effectiveness`,
   `slotEquivalent`, `weight`, `caliber`) at a chosen level and target HP, sorts by a metric or

@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 import {
   inventoryCandidates,
   mentionQueryAt,
+  mergeCandidates,
   pruneMentionRefs,
   rankCandidates,
   replaceMention,
@@ -139,6 +140,25 @@ describe('item mention composer', () => {
       '@weapon:ак-12',
       '@weapon:ак-12#11',
       '@weapon:ак-12~21',
+    ]);
+  });
+
+  it('keeps one candidate per identity and prefers the pinned copy', () => {
+    const owned = {
+      token: '@weapon:ак-12#11',
+      kind: 'weapon' as const,
+      itemId: 11,
+      instanceId: 11,
+      name: 'АК-12',
+      rank: null,
+      icon: null,
+      level: 12,
+      quality: null,
+      virtual: false,
+      source: 'owned' as const,
+    };
+    expect(mergeCandidates([{ ...owned, source: 'pinned' }, owned])).toEqual([
+      { ...owned, source: 'pinned' },
     ]);
   });
 

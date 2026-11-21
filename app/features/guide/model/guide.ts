@@ -116,6 +116,7 @@ export const GUIDE_SITE: GuideSitePage[] = [
       'guide.site.chat.caps.files',
       'guide.site.chat.caps.streaming',
       'guide.site.chat.caps.reasoning',
+      'guide.site.chat.caps.pins',
     ],
   },
   {
@@ -417,6 +418,8 @@ export const GUIDE_API: GuideApiEndpoint[] = [
   { method: 'GET', path: '/api/v1/chat/threads', group: 'read', descriptionKey: 'guide.api.chat.threadsRead' },
   { method: 'GET', path: '/api/v1/chat/threads/:id', group: 'read', descriptionKey: 'guide.api.chat.threadRead' },
   { method: 'DELETE', path: '/api/v1/chat/threads/:id', group: 'write', descriptionKey: 'guide.api.chat.threadDelete' },
+  { method: 'GET', path: '/api/v1/chat/pins', group: 'read', descriptionKey: 'guide.api.chat.pinsRead' },
+  { method: 'PUT', path: '/api/v1/chat/pins', group: 'write', descriptionKey: 'guide.api.chat.pins' },
   { method: 'GET', path: '/api/v1/chat/attachments/:id', group: 'read', descriptionKey: 'guide.api.chat.attachment' },
   { method: 'POST', path: '/api/v1/chat/turn', group: 'write', descriptionKey: 'guide.api.chat.turn' },
   { method: 'POST', path: '/api/v1/chat/turn/stream', group: 'write', descriptionKey: 'guide.api.chat.turnStream' },

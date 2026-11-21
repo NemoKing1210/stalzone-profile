@@ -152,6 +152,19 @@ export function pruneMentionRefs(text: string, refs: readonly ChatSendRef[]): Ch
   return refs.filter((ref) => present.has(ref.token));
 }
 
+/** One candidate per identity, first wins; the pinned copy comes before the owned copy. */
+export function mergeCandidates(candidates: readonly ChatItemCandidate[]): ChatItemCandidate[] {
+  const seen = new Set<string>();
+  const out: ChatItemCandidate[] = [];
+  for (const candidate of candidates) {
+    const key = `${candidate.kind}:${candidate.itemId}:${candidate.instanceId ?? 'catalog'}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(candidate);
+  }
+  return out;
+}
+
 /** Pinned first, then exact/prefix/substring, owned before catalog on a tie. */
 export function rankCandidates(
   query: string,

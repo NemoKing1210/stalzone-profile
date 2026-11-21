@@ -33,6 +33,7 @@ describe('baseline schema', () => {
       'character_stat',
       'chat_attachment',
       'chat_message',
+      'chat_pin',
       'chat_prompt',
       'chat_prompt_active',
       'chat_settings',
