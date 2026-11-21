@@ -202,6 +202,11 @@ function openFile(file: ChatAttachment): void {
 }
 
 /** A tool card leads to the page that owns the kind, where the instance has its actions. */
+function retryMessage(id: string): void {
+  const messageId = Number(id);
+  if (Number.isInteger(messageId)) void chat.retry(messageId);
+}
+
 function openItem(item: ChatItemView): void {
   const link = chatItemLink(item);
   if (link) void router.push(link);
@@ -289,6 +294,7 @@ defineExpose({ focus });
               @open-image="openImage"
               @open-file="openFile"
               @open-item="openItem"
+              @retry="retryMessage"
             />
           </div>
         </template>

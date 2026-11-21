@@ -8,7 +8,7 @@ import type {
   ChatTurnResult,
 } from '@profile/shared/contracts';
 
-import { chatHttpStatus, turnOutcome, type TurnToast } from '~/shared/lib/chatTurnOutcome';
+import { formatChatError, turnOutcome, type TurnToast } from '~/shared/lib/chatTurnOutcome';
 import { emptyLiveTurn, parseSseChunk, reduceLiveTurn, threadToReloadAfterAbort, type LiveTurn } from '~/shared/lib/chatStream';
 
 /**
@@ -25,18 +25,6 @@ export const useChatStore = defineStore('chat', () => {
   const toast = useToast();
   const route = useRoute();
 
-  /** Provider failures arrive as `AI_HTTP_<status>`; everything else is already readable. */
-  function formatTurnError(raw: string): string {
-    const status = chatHttpStatus(raw);
-    if (status) return t('chat.providerHttpError', { status });
-    if (raw.startsWith('AI_EMPTY')) return t('chat.emptyReply');
-    if (raw.startsWith('AI_NOT_CONFIGURED')) {
-      const env = raw.includes('set ') ? raw.slice(raw.indexOf('set ') + 4).trim() : '';
-      return env ? t('chat.notConfigured', { env }) : t('chat.failedDescription');
-    }
-    return raw;
-  }
-
   const threads = ref<ChatThread[]>([]);
   const activeThreadId = ref<number | null>(null);
   const messages = ref<ChatMessage[]>([]);
@@ -46,6 +34,8 @@ export const useChatStore = defineStore('chat', () => {
   /** Turns waiting behind the one in flight; the composer keeps accepting messages meanwhile. */
   const queue = ref<{ body: Record<string, unknown>; threadId: number | null }[]>([]);
   let pumping = false;
+  /** The message a queued retry is re-running, so a double click cannot queue it twice. */
+  let runningRetry: number | null = null;
   /** True only while the provider is delivering fragments; `sending` stays true through the save. */
   const streaming = ref(false);
   /** The answer being streamed; persisted rows are replaced by the canonical list on `done`. */
@@ -161,8 +151,13 @@ export const useChatStore = defineStore('chat', () => {
         const next = queue.value[0];
         if (!next) break;
         queue.value = queue.value.slice(1);
-        // A turn composed in a brand-new thread joins the thread the previous turn adopted.
-        await runTurn(next.threadId ?? activeThreadId.value, next.body);
+        runningRetry = typeof next.body.retryOf === 'number' ? next.body.retryOf : null;
+        try {
+          // A turn composed in a brand-new thread joins the thread the previous turn adopted.
+          await runTurn(next.threadId ?? activeThreadId.value, next.body);
+        } finally {
+          runningRetry = null;
+        }
       }
     } finally {
       pumping = false;
@@ -253,13 +248,13 @@ export const useChatStore = defineStore('chat', () => {
       const outcome = turnOutcome(terminal, activeThreadId.value, route.path);
       // A brand-new thread may adopt its id only when the owner did not start another one.
       const adopt = outcome.apply && (requestThreadId != null || navigation === navigationAtRequest);
-      const errorText = terminal.error ? formatTurnError(terminal.error) : null;
+      const errorText = terminal.error ? formatChatError(terminal.error, t) : null;
       setPending(terminal.thread.id, terminal.pending);
       if (adopt) {
         activeThreadId.value = terminal.thread.id;
         messages.value = terminal.messages;
-        // The open conversation shows the provider failure inline; it was silent before.
-        loadError.value = errorText;
+        // The failed user message carries the reason; only an error without one needs the inline box.
+        loadError.value = terminal.messages.some((message) => message.error) ? null : errorText;
       }
       notify(outcome.toast, terminal, errorText);
     } catch (error) {
@@ -269,7 +264,7 @@ export const useChatStore = defineStore('chat', () => {
         if (reload != null) await openThread(reload).catch(() => undefined);
         return;
       }
-      const message = error instanceof Error ? formatTurnError(error.message) : t('chat.failedDescription');
+      const message = error instanceof Error ? formatChatError(error.message, t) : t('chat.failedDescription');
       showFailure(message);
     } finally {
       streaming.value = false;
@@ -284,6 +279,14 @@ export const useChatStore = defineStore('chat', () => {
     const text = message.trim();
     if (!text && files.length === 0) return;
     enqueue({ message: text, ...(files.length ? { files } : {}) });
+  }
+
+  /** Re-runs a failed user message in place; the server reuses its row and discards the failed attempt. */
+  async function retry(messageId: number): Promise<void> {
+    if (runningRetry === messageId || queue.value.some((item) => item.body.retryOf === messageId)) return;
+    const target = messages.value.find((message) => message.id === messageId && message.role === 'user');
+    if (!target) return;
+    enqueue({ retryOf: messageId }, target.threadId);
   }
 
   /**
@@ -350,6 +353,7 @@ export const useChatStore = defineStore('chat', () => {
     openThread,
     newThread,
     send,
+    retry,
     stop,
     deleteThread,
     confirmPending,

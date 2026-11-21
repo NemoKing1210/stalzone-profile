@@ -288,6 +288,68 @@ describe('chat agent', () => {
     expect(call).toBe(1);
   });
 
+  it('marks a failed turn on its user message and retries that message in place', async () => {
+    setChatSettings(db);
+    const failing = (async () => new Response('bad request', { status: 400 })) as unknown as typeof fetch;
+    const failed = await runChatTurn(db, { message: 'Hello' }, { fetchImpl: failing });
+
+    expect(failed.error).toBe('AI_HTTP_400');
+    const user = failed.messages.find((message) => message.role === 'user');
+    expect(user).toMatchObject({ content: 'Hello', error: 'AI_HTTP_400' });
+    if (!user) throw new Error('missing user message');
+
+    const succeeding = (async () =>
+      json({ choices: [{ message: { content: 'Recovered.' } }] })) as unknown as typeof fetch;
+    const retried = await runChatTurn(db, { message: '', retryOf: user.id }, { fetchImpl: succeeding });
+
+    expect(retried.error).toBeNull();
+    expect(retried.messages.filter((message) => message.role === 'user')).toHaveLength(1);
+    expect(retried.messages.find((message) => message.role === 'user')).toMatchObject({
+      id: user.id,
+      content: 'Hello',
+      error: null,
+    });
+    expect(retried.messages.at(-1)).toMatchObject({ role: 'assistant', content: 'Recovered.' });
+  });
+
+  it('discards a failed attempt\'s partial rows before retrying', async () => {
+    setChatSettings(db);
+    const failing = (async () => new Response('bad request', { status: 400 })) as unknown as typeof fetch;
+    const failed = await runChatTurn(db, { message: 'Hello' }, { fetchImpl: failing });
+    const userId = failed.messages.find((message) => message.role === 'user')?.id;
+    if (userId == null) throw new Error('missing user message');
+    appendChatMessage(db, { threadId: failed.thread.id, role: 'assistant', content: 'Stale partial answer' });
+    appendChatMessage(db, {
+      threadId: failed.thread.id,
+      role: 'tool',
+      content: '{}',
+      toolName: 'find_items',
+      toolCallId: 'stale-call',
+      payload: {},
+    });
+
+    const succeeding = (async () =>
+      json({ choices: [{ message: { content: 'Fresh answer.' } }] })) as unknown as typeof fetch;
+    const retried = await runChatTurn(db, { message: '', retryOf: userId }, { fetchImpl: succeeding });
+
+    expect(retried.messages.some((message) => message.content === 'Stale partial answer')).toBe(false);
+    expect(retried.messages.some((message) => message.toolCallId === 'stale-call')).toBe(false);
+    expect(retried.messages.at(-1)).toMatchObject({ role: 'assistant', content: 'Fresh answer.' });
+  });
+
+  it('does not mark a stopped turn as not delivered', async () => {
+    setChatSettings(db);
+    const controller = new AbortController();
+    const aborting = (async () => {
+      controller.abort();
+      throw new DOMException('aborted', 'AbortError');
+    }) as unknown as typeof fetch;
+
+    const result = await runChatTurn(db, { message: 'Stop' }, { fetchImpl: aborting, signal: controller.signal });
+
+    expect(result.messages.find((message) => message.role === 'user')).toMatchObject({ error: null });
+  });
+
   it('sends a stable OpenCode session id on every Go request', async () => {
     useProvider(db, 'opencode-go', 'https://opencode.ai/inference/go/openai/v1');
     const headers: Record<string, string>[] = [];

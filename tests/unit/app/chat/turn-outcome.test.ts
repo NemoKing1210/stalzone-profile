@@ -2,7 +2,7 @@ import type { ChatTurnResult } from '@profile/shared/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { turnOutcome } from '~/features/chat/model/turnOutcome';
-import { chatHttpStatus } from '~/shared/lib/chatTurnOutcome';
+import { chatHttpStatus, formatChatError } from '~/shared/lib/chatTurnOutcome';
 
 function result(overrides: Partial<ChatTurnResult> = {}): ChatTurnResult {
   return {
@@ -50,6 +50,25 @@ describe('turnOutcome', () => {
       apply: true,
       toast: null,
     });
+  });
+});
+
+describe('formatChatError', () => {
+  const t = (key: string, named?: Record<string, unknown>) => `${key}${named ? `:${JSON.stringify(named)}` : ''}`;
+
+  it('translates a provider status and a missing key', () => {
+    expect(formatChatError('AI_HTTP_429', t)).toBe('chat.providerHttpError:{"status":"429"}');
+    expect(formatChatError('AI_NOT_CONFIGURED: set NUXT_AI_OPENAI_API_KEY', t)).toBe(
+      'chat.notConfigured:{"env":"NUXT_AI_OPENAI_API_KEY"}',
+    );
+  });
+
+  it('replaces a network failure with the generic hint', () => {
+    expect(formatChatError('fetch failed', t)).toBe('chat.failedDescription');
+  });
+
+  it('keeps an unrecognized product code readable', () => {
+    expect(formatChatError('AI_STREAM: closed', t)).toBe('AI_STREAM: closed');
   });
 });
 

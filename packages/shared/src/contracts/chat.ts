@@ -461,6 +461,8 @@ export const ChatMessageSchema = z.object({
   meta: ChatMessageMetaSchema.nullable().default(null),
   /** Files the owner attached to this message; metadata only, bytes are served separately. */
   attachments: z.array(ChatAttachmentSchema).default([]),
+  /** Why the turn behind a user message failed; null means delivered (or still in flight). */
+  error: z.string().nullable().default(null),
   createdAt: z.string(),
 });
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;
@@ -478,6 +480,8 @@ export const ChatSendSchema = z
     message: z.string().max(8_000).default(''),
     /** The files travel with the turn; an empty message is valid when at least one is attached. */
     files: z.array(ChatAttachmentInputSchema).max(CHAT_ATTACHMENT_LIMITS.files).optional(),
+    /** Retry this stored user message: no new row is created and the failed attempt is discarded. */
+    retryOf: z.number().int().positive().optional(),
     /** A write the model proposed and the owner confirmed in a previous turn. */
     confirm: z
       .object({
@@ -493,7 +497,7 @@ export const ChatSendSchema = z
       .optional(),
   })
   .superRefine((turn, ctx) => {
-    if (!turn.message.trim() && !turn.files?.length) {
+    if (turn.retryOf == null && !turn.message.trim() && !turn.files?.length) {
       ctx.addIssue({ code: 'custom', path: ['message'], message: 'EMPTY_TURN' });
     }
     const total = (turn.files ?? []).reduce((sum, file) => sum + chatBase64Bytes(file.data), 0);

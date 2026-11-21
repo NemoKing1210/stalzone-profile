@@ -701,6 +701,8 @@
     "copyMessage": "Копировать сообщение",
     "roleAssistant": "Ассистент",
     "queued": "В очереди: {count}",
+    "notDelivered": "Не доставлено",
+    "retry": "Повторить",
     "toolsUsed": "Вызовы инструментов: {count}",
     "toolDeclined": "отклонено",
     "download": "Скачать",

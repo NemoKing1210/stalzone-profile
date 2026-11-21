@@ -15,6 +15,8 @@ import {
   composeChatPrompt,
   createChatThread,
   currentEventContext,
+  deleteChatMessagesAfter,
+  getChatMessageRow,
   getChatSettingsRow,
   getChatThread,
   getLogger,
@@ -24,6 +26,7 @@ import {
   prepareChatAttachment,
   resolveApiKey,
   resolveBaseUrl,
+  setChatMessageError,
   toChatSettings,
   type ChatAttachmentData,
   type Db,
@@ -253,7 +256,22 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
       data: Buffer.from(file.data, 'base64'),
     }),
   );
+  // A retry reuses its stored user message: no duplicate row, no second title, same files.
+  const retryMessage = input.retryOf == null ? null : getChatMessageRow(db, input.retryOf);
+  if (input.retryOf != null) {
+    if (!retryMessage || retryMessage.role !== 'user') {
+      turnLogger.error('chat retry message missing', { messageId: input.retryOf });
+      throw new Error('retry message not found');
+    }
+    if (input.threadId != null && input.threadId !== retryMessage.thread_id) {
+      turnLogger.error('chat retry thread mismatch', { messageId: input.retryOf, threadId: input.threadId });
+      throw new Error('retry message belongs to another thread');
+    }
+    // The previous attempt's partial answer and tool rows would otherwise reach the provider.
+    deleteChatMessagesAfter(db, retryMessage.thread_id, retryMessage.id);
+  }
   const threadId =
+    retryMessage?.thread_id ??
     input.threadId ??
     createChatThread(db, (input.title ?? input.message).trim().slice(0, 80) || attachments[0]?.name || 'New thread');
   const thread = getChatThread(db, threadId);
@@ -262,32 +280,33 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
     throw new Error('thread not found');
   }
 
-  appendChatMessage(db, {
-    threadId,
-    role: 'user',
-    content: input.message,
-    attachments,
-  });
+  const userMessageId =
+    retryMessage?.id ??
+    appendChatMessage(db, {
+      threadId,
+      role: 'user',
+      content: input.message,
+      attachments,
+    });
   const userMessage = listChatMessages(db, threadId).at(-1);
   if (userMessage) emit({ type: 'meta', thread, message: userMessage });
 
+  /** A provider failure is stored on the user message; Stop is not a failure and leaves no mark. */
+  const markFailure = (message: string): void => {
+    if (!options.signal?.aborted) setChatMessageError(db, userMessageId, message);
+  };
+
   if (!base) {
+    const message = `AI_NOT_CONFIGURED: set a base URL`;
     turnLogger.warn('chat not configured', { provider: settings.provider, missing: 'baseUrl' });
-    return finish({
-      thread,
-      messages: listChatMessages(db, threadId),
-      pending: null,
-      error: `AI_NOT_CONFIGURED: set a base URL`,
-    });
+    markFailure(message);
+    return finish({ thread, messages: listChatMessages(db, threadId), pending: null, error: message });
   }
   if (!key && settings.provider !== 'ollama') {
+    const message = `AI_NOT_CONFIGURED: set ${env}`;
     turnLogger.warn('chat not configured', { provider: settings.provider, missing: 'apiKey' });
-    return finish({
-      thread,
-      messages: listChatMessages(db, threadId),
-      pending: null,
-      error: `AI_NOT_CONFIGURED: set ${env}`,
-    });
+    markFailure(message);
+    return finish({ thread, messages: listChatMessages(db, threadId), pending: null, error: message });
   }
 
   const client = options.client ?? localClient(db);
@@ -468,11 +487,13 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
   } catch (turnError) {
     failure = turnError;
     error = turnError instanceof Error ? turnError.message : String(turnError);
+    markFailure(error);
   } finally {
     await sdk.close().catch(() => undefined);
     await server.close().catch(() => undefined);
   }
 
+  if (error == null) setChatMessageError(db, userMessageId, null);
   const durationMs = Date.now() - startedAt;
   const summary = {
     provider: settings.provider,
@@ -594,7 +615,7 @@ async function callProviderWithRetry(
     try {
       return await callProvider(fetchImpl, settings.provider, base, key, settings.model, session, attemptInput);
     } catch (error) {
-      if (attempt >= settings.retries || emitted || !retryable(error)) throw error;
+      if (input.signal?.aborted || attempt >= settings.retries || emitted || !retryable(error)) throw error;
       // A short backoff keeps a 429/5xx from turning one turn into a burst.
       await delay(250 * (attempt + 1));
     }

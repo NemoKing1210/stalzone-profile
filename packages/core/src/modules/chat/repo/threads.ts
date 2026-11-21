@@ -19,6 +19,7 @@ export interface ChatMessageRow {
   payload: string | null;
   reasoning: string | null;
   meta: string | null;
+  error: string | null;
   created_at: string;
 }
 
@@ -102,6 +103,7 @@ function message(row: ChatMessageRow, attachments: ChatAttachment[] = []): ChatM
     reasoning: row.reasoning ?? null,
     meta,
     attachments,
+    error: row.error ?? null,
     createdAt: row.created_at,
   };
 }
@@ -112,6 +114,21 @@ function thread(row: ChatThreadRow): ChatThread {
 
 export function listChatThreads(db: Db): ChatThread[] {
   return (db.prepare(`SELECT * FROM chat_thread ORDER BY updated_at DESC, id DESC`).all() as ChatThreadRow[]).map(thread);
+}
+
+export function getChatMessageRow(db: Db, id: number): ChatMessageRow | null {
+  return (db.prepare(`SELECT * FROM chat_message WHERE id = ?`).get(id) as ChatMessageRow | undefined) ?? null;
+}
+
+/** `null` clears a marker after a successful delivery; the caller holds the turn. */
+export function setChatMessageError(db: Db, id: number, error: string | null): void {
+  db.prepare(`UPDATE chat_message SET error = ? WHERE id = ?`).run(error, id);
+}
+
+/** A retry re-runs from the user message, so a failed attempt's partial rows are discarded. */
+export function deleteChatMessagesAfter(db: Db, threadId: number, afterId: number): number {
+  const info = db.prepare(`DELETE FROM chat_message WHERE thread_id = ? AND id > ?`).run(threadId, afterId);
+  return info.changes;
 }
 
 export function getChatThread(db: Db, id: number): ChatThread | null {

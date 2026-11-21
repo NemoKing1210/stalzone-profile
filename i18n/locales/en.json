@@ -701,6 +701,8 @@
     "copyMessage": "Copy message",
     "roleAssistant": "Assistant",
     "queued": "{count} queued",
+    "notDelivered": "Not delivered",
+    "retry": "Retry",
     "toolsUsed": "Tool calls: {count}",
     "toolDeclined": "declined",
     "download": "Download",

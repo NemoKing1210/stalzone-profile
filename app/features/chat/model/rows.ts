@@ -12,7 +12,15 @@ export interface ChatToolRunView {
 }
 
 export type ChatRow =
-  | { kind: 'user'; id: string; text: string; attachments: ChatAttachment[]; createdAt: string }
+  | {
+      kind: 'user';
+      id: string;
+      text: string;
+      attachments: ChatAttachment[];
+      /** Set when the turn failed; the bubble marks it as not delivered and offers Retry. */
+      error: string | null;
+      createdAt: string;
+    }
   | {
       kind: 'assistant';
       id: string;
@@ -64,6 +72,7 @@ export function chatRows(messages: readonly ChatMessage[]): ChatRow[] {
         id: String(message.id),
         text: message.content,
         attachments: message.attachments,
+        error: message.error,
         createdAt: message.createdAt,
       });
       continue;

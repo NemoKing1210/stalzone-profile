@@ -13,12 +13,17 @@ const emit = defineEmits<{
   openImage: [file: ChatAttachment];
   openFile: [file: ChatAttachment];
   openItem: [item: ChatItemView];
+  retry: [messageId: string];
 }>();
 
 const { t } = useI18n();
 
 /** One badge per distinct action over the whole group, e.g. find_items ×2, get_prices ×1. */
 const counts = computed(() => (props.row?.kind === 'tools' ? toolRunCounts(props.row.runs) : []));
+
+function retry(): void {
+  if (props.row?.kind === 'user') emit('retry', props.row.id);
+}
 </script>
 
 <template>
@@ -28,6 +33,7 @@ const counts = computed(() => (props.row?.kind === 'tools' ? toolRunCounts(props
     @copy="emit('copy', $event)"
     @open-image="emit('openImage', $event)"
     @open-file="emit('openFile', $event)"
+    @retry="retry"
   />
 
   <UCollapsible

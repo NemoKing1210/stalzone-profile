@@ -39,7 +39,7 @@ only through new migrations in `db/migrations/`.
 | Table | Purpose |
 |---|---|
 | `chat_settings` | one row: provider, endpoint override, model, limits, read-tool allow-list, price/log data scope and the write-only token; secrets never enter `event_log` |
-| `chat_thread`, `chat_message` | the owner's threads and their ordered messages (`user`, `assistant`, `tool`) with the rendered tool `payload`, the provider's `reasoning` and a `meta` JSON (`model`, round duration, token usage); a value the provider did not send stays `NULL` |
+| `chat_thread`, `chat_message` | the owner's threads and their ordered messages (`user`, `assistant`, `tool`) with the rendered tool `payload`, the provider's `reasoning` and a `meta` JSON (`model`, round duration, token usage), plus `error` on a user message whose turn failed (cleared by a successful retry); a value the provider did not send stays `NULL` |
 | `chat_attachment` | a file the owner attached to one user message: `name`, `mime_type`, `size`, `sha256` and the bytes in `data`; bytes are verified at write time (magic-byte image type, UTF-8 text without NUL), cascade with the message and thread, and the read API returns metadata only |
 | `chat_prompt`, `chat_prompt_active` | versioned `system`/`skill` prompts and the active pointer |
 
@@ -93,7 +93,9 @@ read as real and a rollback restores the exact flag. `0021_chat_attachments.sql`
 adds `sha256`, which doubles as the attachment route's strong ETag; `0023_chat_attachment_ids.sql`
 rebuilds the table with `AUTOINCREMENT` so a deleted attachment id is never reused.
 `0024_chat_message_meta.sql` adds `chat_message.reasoning` and `chat_message.meta`; both stay
-`NULL` when the provider reported nothing. `0025_rename_modules_to_modifications.sql` renames
+`NULL` when the provider reported nothing. `0026_chat_message_error.sql` adds
+`chat_message.error`: a failed turn stores its reason on the user message, a successful retry
+clears it, and a stopped turn leaves it `NULL` because Stop is not a delivery failure. `0025_rename_modules_to_modifications.sql` renames
 the gear concept in the schema and stored values: kinds `attachment` → `modification`,
 placement `weapon_module`/`module_slot` → `weapon_modification`/`modification_slot`, the
 `attachment_compat` table → `modification_compat`, and the `inventory.item.module` journal

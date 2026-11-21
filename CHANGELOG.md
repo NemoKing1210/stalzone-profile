@@ -19,6 +19,10 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
   `NO_COMPAT_DATA`), `get_inventory_item` and `get_meta` close the REST parity gaps,
   `tidy_storage` joins the write tools, and `get_prices` sorts and filters lots. No schema
   change; every number still comes from `displayDmg`/`displayDps`/`displayTtk`/`armorAtLevel`.
+- A failed assistant turn marks its user message as not delivered: the bubble shows the reason
+  and a Retry button. Retry re-runs that stored message in place (`retryOf`), discards the failed
+  attempt's partial assistant/tool rows and clears the mark on success; Stop is not marked.
+
 ### Changed
 
 - Assistant item results are cards, not text rows: `find_items`, `get_item`,

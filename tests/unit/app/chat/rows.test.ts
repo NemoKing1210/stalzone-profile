@@ -12,6 +12,7 @@ function message(overrides: Partial<ChatMessage> & Pick<ChatMessage, 'id' | 'rol
     reasoning: null,
     meta: null,
     attachments: [],
+    error: null,
     createdAt: '2026-11-21T10:00:00.000Z',
     ...overrides,
   };
@@ -63,6 +64,11 @@ describe('chat rows', () => {
       createdAt: '2026-11-21T10:00:00.000Z',
     };
     expect(chatRows([user(1, '', [png])])[0]).toMatchObject({ kind: 'user', text: '', attachments: [png] });
+  });
+
+  it('keeps the failure mark on a user message', () => {
+    const row = chatRows([message({ id: 1, role: 'user', content: 'hello', error: 'AI_HTTP_503' })])[0];
+    expect(row).toMatchObject({ kind: 'user', error: 'AI_HTTP_503' });
   });
 
   it('counts distinct tool actions for the header badges', () => {
