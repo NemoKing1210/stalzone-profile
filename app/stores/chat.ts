@@ -1,11 +1,16 @@
 import { defineStore } from 'pinia';
-import type {
-  ChatAttachmentInput,
-  ChatMessage,
-  ChatPendingWrite,
-  ChatThread,
-  ChatThreadRead,
-  ChatTurnResult,
+import {
+  CHAT_PIN_LIMIT,
+  type ChatAttachmentInput,
+  type ChatMessage,
+  type ChatPendingWrite,
+  type ChatPin,
+  type ChatPinsRead,
+  type ChatPinTarget,
+  type ChatSendRef,
+  type ChatThread,
+  type ChatThreadRead,
+  type ChatTurnResult,
 } from '@profile/shared/contracts';
 
 import { formatChatError, turnOutcome, type TurnToast } from '~/shared/lib/chatTurnOutcome';
@@ -43,6 +48,11 @@ export const useChatStore = defineStore('chat', () => {
   const aborter = ref<AbortController | null>(null);
   const loadError = ref<string | null>(null);
   const threadsLoaded = ref(false);
+  const pins = ref<ChatPin[]>([]);
+  const pinLimit = ref(CHAT_PIN_LIMIT);
+  const pinsLoading = ref(false);
+  const pinsLoaded = ref(false);
+  const pinsError = ref<string | null>(null);
 
   /** A new/open-thread navigation; a stale turn cannot adopt a conversation the owner left. */
   let navigation = 0;
@@ -67,9 +77,109 @@ export const useChatStore = defineStore('chat', () => {
     threadsLoaded.value = true;
   }
 
+  /** The shelf is auxiliary: a failed read leaves chat usable and reports on the next toggle. */
+  async function loadPins(): Promise<void> {
+    if (pinsLoading.value) return;
+    pinsLoading.value = true;
+    try {
+      const read = await $fetch<ChatPinsRead>('/api/v1/chat/pins');
+      pins.value = read.pins;
+      pinLimit.value = read.limit;
+      pinsLoaded.value = true;
+      pinsError.value = null;
+    } catch (error) {
+      pinsError.value = errorMessage(error, t('chat.pins.failed'));
+    } finally {
+      pinsLoading.value = false;
+    }
+  }
+
+  function errorDetails(error: unknown): { code?: string; message?: string } {
+    if (!error || typeof error !== 'object' || !('data' in error)) return {};
+    const data = error.data;
+    if (!data || typeof data !== 'object' || !('error' in data)) return {};
+    const body = data.error;
+    if (!body || typeof body !== 'object') return {};
+    return {
+      code: 'code' in body && typeof body.code === 'string' ? body.code : undefined,
+      message: 'message' in body && typeof body.message === 'string' ? body.message : undefined,
+    };
+  }
+
+  function errorMessage(error: unknown, fallback: string): string {
+    const detail = errorDetails(error);
+    return apiMessage(detail.code, detail.message || fallback);
+  }
+
+  /** Replace the shelf; the server returns the canonical, enriched list. */
+  async function setPins(targets: ChatPinTarget[]): Promise<boolean> {
+    if (pinsLoading.value) return false;
+    pinsLoading.value = true;
+    try {
+      const read = await $fetch<ChatPinsRead>('/api/v1/chat/pins', {
+        method: 'PUT',
+        body: { pins: targets },
+      });
+      pins.value = read.pins;
+      pinLimit.value = read.limit;
+      pinsLoaded.value = true;
+      pinsError.value = null;
+      return true;
+    } catch (error) {
+      const message = errorMessage(error, t('chat.pins.failed'));
+      pinsError.value = message;
+      toast.add({
+        title: t('chat.pins.failed'),
+        description: message,
+        color: 'error',
+        icon: 'i-lucide-triangle-alert',
+      });
+      return false;
+    } finally {
+      pinsLoading.value = false;
+    }
+  }
+
+  function pinTarget(pin: ChatPin | ChatPinTarget): ChatPinTarget {
+    return {
+      kind: pin.kind,
+      itemId: pin.itemId,
+      ...('instanceId' in pin && pin.instanceId != null ? { instanceId: pin.instanceId } : {}),
+    };
+  }
+
+  /** A pin is cheap to keep and easy to remove; the cap is checked before the request. */
+  async function togglePin(target: ChatPinTarget): Promise<boolean> {
+    const key = (pin: { kind: string; itemId: number; instanceId?: number | null }): string =>
+      `${pin.kind}:${pin.itemId}:${pin.instanceId ?? 'catalog'}`;
+    const existing = pins.value.find((pin) => key(pin) === key(target));
+    const next = existing
+      ? pins.value.filter((pin) => key(pin) !== key(target))
+      : [...pins.value, target];
+    if (!existing && next.length > pinLimit.value) {
+      toast.add({
+        title: t('chat.pins.full', { max: pinLimit.value }),
+        description: t('chat.pins.fullHint'),
+        color: 'warning',
+        icon: 'i-lucide-pin',
+      });
+      return false;
+    }
+    const saved = await setPins(next.map(pinTarget));
+    if (saved && existing) {
+      toast.add({ title: t('chat.pins.removed', { name: existing.name }), color: 'success', icon: 'i-lucide-pin-off' });
+    }
+    if (saved && !existing) {
+      const added = pins.value.find((pin) => key(pin) === key(target));
+      toast.add({ title: t('chat.pins.added', { name: added?.name ?? '' }), color: 'success', icon: 'i-lucide-pin' });
+    }
+    return saved;
+  }
+
   /** Idempotent first load; a return to `/chat` keeps the stored thread and messages. */
   async function init(): Promise<void> {
     if (!threadsLoaded.value) await loadThreads();
+    if (!pinsLoaded.value) await loadPins();
   }
 
   async function openThread(id: number): Promise<void> {
@@ -275,10 +385,18 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  async function send(message: string, files: ChatAttachmentInput[] = []): Promise<void> {
+  async function send(
+    message: string,
+    files: ChatAttachmentInput[] = [],
+    refs: ChatSendRef[] = [],
+  ): Promise<void> {
     const text = message.trim();
     if (!text && files.length === 0) return;
-    enqueue({ message: text, ...(files.length ? { files } : {}) });
+    enqueue({
+      message: text,
+      ...(files.length ? { files } : {}),
+      ...(refs.length ? { refs } : {}),
+    });
   }
 
   /** Re-runs a failed user message in place; the server reuses its row and discards the failed attempt. */
@@ -348,8 +466,15 @@ export const useChatStore = defineStore('chat', () => {
     loadError,
     activeThread,
     pending,
+    pins,
+    pinLimit,
+    pinsLoading,
+    pinsError,
     init,
     loadThreads,
+    loadPins,
+    setPins,
+    togglePin,
     openThread,
     newThread,
     send,
