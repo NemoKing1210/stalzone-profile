@@ -1,34 +1,40 @@
 <script setup lang="ts">
-import { ItemIconFallback, RankBadge, VirtualBadge } from '~/entities/item';
-import { chatToolView } from '../model/render';
+import { ProfileItemCard } from '~/entities/item';
+import { chatToolView, type ChatItemView } from '../model/render';
 
 const props = defineProps<{ toolName: string; payload: unknown }>();
+const emit = defineEmits<{ openItem: [item: ChatItemView] }>();
+
 const { t } = useI18n();
 const { num } = useFormat();
 const view = computed(() => chatToolView(props.toolName, props.payload));
+
+/** The two facts a card adds to the entity card; weight and level already sit there. */
+function statsOf(item: ChatItemView): { label: string; value: string }[] {
+  const stats: { label: string; value: string }[] = [];
+  if (item.qty != null) stats.push({ label: t('chat.columns.qty'), value: String(item.qty) });
+  if (item.location) stats.push({ label: t('chat.columns.location'), value: item.location });
+  return stats;
+}
 </script>
 
 <template>
   <div class="text-[12.5px]">
     <div v-if="view.kind === 'items'" class="grid gap-1.5 sm:grid-cols-2">
-      <div
-        v-for="item in view.items"
-        :key="`${item.name}-${item.rank}`"
-        class="flex min-w-0 items-center gap-2 border border-[var(--sz-border)] px-2 py-1.5"
-      >
-        <img
-          v-if="item.icon"
-          :src="item.icon"
-          alt=""
-          width="22"
-          height="22"
-          loading="lazy"
-          class="size-[22px] object-contain"
-        >
-        <ItemIconFallback v-else :size="16" />
-        <span class="min-w-0 flex-1 truncate">{{ item.name }}</span>
-        <RankBadge v-if="item.rank" :rank="item.rank" />
-      </div>
+      <ProfileItemCard
+        v-for="(item, index) in view.items"
+        :key="item.instanceId ?? `${item.name}-${index}`"
+        :name="item.name"
+        :rank="item.rank"
+        :category="item.category"
+        :level="item.level"
+        :icon="item.icon"
+        :virtual="item.virtual"
+        :stats="statsOf(item)"
+        :priority="index < 4"
+        open-on-click
+        @open="emit('openItem', item)"
+      />
     </div>
 
     <div v-else-if="view.kind === 'prices'" class="overflow-x-auto">
@@ -45,33 +51,6 @@ const view = computed(() => chatToolView(props.toolName, props.payload));
             <td>{{ row.name }}</td>
             <td class="text-right tabular-nums">{{ row.price == null ? t('chat.noLot') : num(row.price) }}</td>
             <td class="text-right tabular-nums">{{ row.lots ?? '—' }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div v-else-if="view.kind === 'inventory'" class="overflow-x-auto">
-      <table class="w-full min-w-[19rem] text-[12px] [&_td]:px-1.5 [&_td]:py-1 [&_th]:px-1.5 [&_th]:py-1">
-        <thead class="text-[var(--sz-text-muted)]">
-          <tr>
-            <th class="text-left font-normal">{{ t('chat.columns.name') }}</th>
-            <th class="text-right font-normal">{{ t('chat.columns.level') }}</th>
-            <th class="text-right font-normal">{{ t('chat.columns.qty') }}</th>
-            <th class="text-left font-normal">{{ t('chat.columns.location') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="(row, index) in view.rows"
-            :key="`${row.name}-${index}`"
-            class="border-t border-[var(--sz-border)]"
-          >
-            <td>
-              <span class="inline-flex items-center gap-1">{{ row.name }}<VirtualBadge v-if="row.virtual" /></span>
-            </td>
-            <td class="text-right tabular-nums">{{ row.level }}</td>
-            <td class="text-right tabular-nums">{{ row.qty }}</td>
-            <td>{{ row.location }}</td>
           </tr>
         </tbody>
       </table>

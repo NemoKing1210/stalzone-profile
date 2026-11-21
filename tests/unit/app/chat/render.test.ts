@@ -1,27 +1,108 @@
 import { describe, expect, it } from 'vitest';
 
-import { chatToolView } from '~/features/chat/model/render';
+import { chatItemLink, chatToolView, type ChatItemView } from '~/features/chat/model/render';
+
+const card = (overrides: Partial<ChatItemView> = {}): ChatItemView => ({
+  name: 'АК-12',
+  rank: 'RANK_MASTER',
+  kind: 'weapon',
+  category: 'weapon/assault_rifle',
+  icon: '/icons/a.png',
+  instanceId: null,
+  level: null,
+  qty: null,
+  virtual: false,
+  location: null,
+  ...overrides,
+});
 
 describe('assistant tool rendering', () => {
-  it('maps item searches to name/rank rows', () => {
-    const view = chatToolView('find_items', {
-      items: [{ name: 'АК-12', rank: 'master', kind: 'weapon', category: 'weapon/assault_rifle', icon: '/icons/a.png' }],
+  it('maps catalog searches to item cards', () => {
+    expect(
+      chatToolView('find_items', {
+        items: [
+          {
+            id: 2110,
+            name: 'АК-12',
+            rank: 'RANK_MASTER',
+            kind: 'weapon',
+            category: 'weapon/assault_rifle',
+            icon: '/icons/a.png',
+          },
+        ],
+      }),
+    ).toEqual({ kind: 'items', items: [card()] });
+  });
+
+  it('maps a single catalog item from get_item', () => {
+    expect(
+      chatToolView('get_item', {
+        item: { name: 'АК-12', rank: 'RANK_MASTER', kind: 'weapon', category: 'weapon/assault_rifle', icon: '/icons/a.png' },
+      }),
+    ).toEqual({ kind: 'items', items: [card()] });
+  });
+
+  it('maps owned instances with their id, level, qty and placement', () => {
+    const view = chatToolView('list_inventory_items', {
+      items: [
+        {
+          id: 1,
+          name: 'AA-12',
+          kind: 'weapon',
+          category: 'weapon/shotgun_rifle',
+          rank: 'RANK_MASTER',
+          level: 10,
+          qty: 1,
+          virtual: false,
+          icon: '/icons/b.png',
+          placement: { location: 'grid', storageId: 2, x: 1, y: 0 },
+        },
+      ],
     });
     expect(view).toEqual({
       kind: 'items',
-      items: [{ name: 'АК-12', rank: 'master', kind: 'weapon', category: 'weapon/assault_rifle', icon: '/icons/a.png' }],
+      items: [
+        card({
+          name: 'AA-12',
+          rank: 'RANK_MASTER',
+          category: 'weapon/shotgun_rifle',
+          icon: '/icons/b.png',
+          instanceId: 1,
+          level: 10,
+          qty: 1,
+          location: 'grid',
+        }),
+      ],
     });
   });
 
-  it('maps a single item card from get_item', () => {
-    expect(
-      chatToolView('get_item', {
-        item: { name: 'АК-12', rank: 'master', kind: 'weapon', category: 'weapon/assault_rifle', icon: '/icons/a.png' },
-      }),
-    ).toEqual({
-      kind: 'items',
-      items: [{ name: 'АК-12', rank: 'master', kind: 'weapon', category: 'weapon/assault_rifle', icon: '/icons/a.png' }],
+  it('flattens inventory storages, equipment and loose instances', () => {
+    const view = chatToolView('get_inventory', {
+      storages: [{ name: 'Inventory', items: [{ id: 7, name: 'АК-12', kind: 'weapon', level: 5, qty: 1 }] }],
+      equipment: { primary: { id: 8, name: 'АК-12', kind: 'weapon', level: 5, qty: 1 }, secondary: null },
+      loose: [{ id: 9, name: 'Виток', kind: 'artifact', level: 0, qty: 1 }],
     });
+    expect(view.kind).toBe('items');
+    if (view.kind !== 'items') return;
+    expect(view.items.map((item) => [item.instanceId, item.location])).toEqual([
+      [7, 'Inventory'],
+      [8, 'equipment'],
+      [9, 'loose'],
+    ]);
+  });
+
+  it('uses the equipment slot as the location of an equipped instance', () => {
+    const view = chatToolView('list_inventory_items', {
+      items: [{ id: 2, name: 'АК-12', kind: 'weapon', placement: { location: 'equipment', slot: 'primary' } }],
+    });
+    expect(view.kind === 'items' && view.items[0]?.location).toBe('primary');
+  });
+
+  it('marks a virtual instance', () => {
+    const view = chatToolView('list_inventory_items', {
+      items: [{ id: 3, name: 'Пузырь', kind: 'artifact', virtual: true }],
+    });
+    expect(view.kind === 'items' && view.items[0]?.virtual).toBe(true);
   });
 
   it('maps prices and keeps a missing lot null', () => {
@@ -35,34 +116,27 @@ describe('assistant tool rendering', () => {
     });
   });
 
-  it('flattens inventory storages, equipment and loose rows', () => {
-    const view = chatToolView('get_inventory', {
-      storages: [{ name: 'Inventory', items: [{ name: 'АК-12', level: 5, qty: 1 }] }],
-      equipment: { primary: { name: 'АК-12', level: 5, qty: 1 }, secondary: null },
-      loose: [{ name: 'Виток', level: 0, qty: 1 }],
-    });
-    expect(view.kind).toBe('inventory');
-    if (view.kind !== 'inventory') return;
-    expect(view.rows).toEqual([
-      { name: 'АК-12', level: 5, qty: 1, virtual: false, location: 'Inventory' },
-      { name: 'АК-12', level: 5, qty: 1, virtual: false, location: 'equipment' },
-      { name: 'Виток', level: 0, qty: 1, virtual: false, location: 'loose' },
-    ]);
-  });
-
-  it('keeps the virtual mark on an inventory row', () => {
-    const view = chatToolView('list_inventory_items', {
-      items: [{ name: 'Пузырь', level: 0, qty: 1, virtual: true, placement: { location: 'grid' } }],
-    });
-    expect(view.kind).toBe('inventory');
-    if (view.kind !== 'inventory') return;
-    expect(view.rows[0]).toMatchObject({ name: 'Пузырь', virtual: true });
-  });
-
   it('falls back to a readable JSON block for an unknown tool', () => {
     expect(chatToolView('sources_status', { ok: true })).toEqual({
       kind: 'json',
       json: '{\n  "ok": true\n}',
     });
+  });
+});
+
+describe('chat card links', () => {
+  it('opens an owned instance on the page that owns its kind', () => {
+    expect(chatItemLink(card({ instanceId: 42 }))).toBe('/weapons?item=42');
+  });
+
+  it('opens a catalog row on the catalog tab filtered to its name', () => {
+    expect(chatItemLink(card({ kind: 'modification', name: 'АКМЛ' }))).toBe(
+      `/modifications?mode=catalog&name=${encodeURIComponent('АКМЛ')}`,
+    );
+  });
+
+  it('has no page for a stackable or unknown kind', () => {
+    expect(chatItemLink(card({ kind: 'ammo' }))).toBeNull();
+    expect(chatItemLink(card({ kind: null }))).toBeNull();
   });
 });

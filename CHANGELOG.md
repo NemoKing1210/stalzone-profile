@@ -9,6 +9,13 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
+- Assistant item results are cards, not text rows: `find_items`, `get_item`,
+  `list_inventory_items`, `get_inventory` and `list_storages` render the site's item card with
+  icon, rank, level, quantity and location. A click opens the page that owns the kind and the
+  instance modal (`/weapons?item=<id>`) or the catalog row (`?mode=catalog&name=…`); an unknown
+  or stackable kind stays a plain card. The tool block still starts collapsed.
+- The composed assistant prompt tells the model the interface renders tool results as cards
+  and tables, so the answer gives the conclusion instead of repeating the rows.
 - The assistant composer no longer locks while a turn is in flight: messages sent meanwhile
   queue in the store and run one turn at a time, the queue size shows above the composer, and
   Stop clears the queue with the active turn.

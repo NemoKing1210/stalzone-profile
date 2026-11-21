@@ -1,8 +1,10 @@
 <script setup lang="ts" generic="TRow extends { key: string; name: string; rank: string | null }">
 import { h, type VNode } from 'vue';
+import type { LocationQueryRaw } from 'vue-router';
 
 import { ItemCard, rankOptions } from '~/entities/item';
 import { barScale } from '../model/comparisonBars';
+import { findRowForDeepLink, parseInventoryDeepLink, withoutInventoryDeepLink } from '../model/deepLink';
 import ValueWithBar from './kinds/ValueWithBar.vue';
 import ItemIconCell from './kinds/ItemIconCell.vue';
 import ItemDetailsModal from './ItemDetailsModal.vue';
@@ -204,8 +206,15 @@ const emptyText = computed(() =>
 
 const addOpen = ref(false);
 const route = useRoute();
+const router = useRouter();
+const deepLink = computed(() => parseInventoryDeepLink(route.query as Record<string, unknown>));
+/** Captured once: the watcher clears the query before `useFilters` loads its stored mode. */
+const initialDeepLink = parseInventoryDeepLink(route.query as Record<string, unknown>);
 onMounted(() => {
   if (route.query.add === '1' && ui.value.actions) addOpen.value = true;
+  // Runs after `useFilters` loaded its stored mode, so the deep link's tab is not overwritten.
+  const link = deepLink.value ?? initialDeepLink;
+  if (link && props.kind.modes) filters.mode = link.itemId != null ? 'owned' : 'catalog';
 });
 /** The target HP lives with the other filters, so the choice survives a reload. */
 function setTargetHp(value: number): void {
@@ -298,6 +307,24 @@ function openRow(row: TRow): void {
     void loadCard(`${prefix}:${row.name}`);
   }
 }
+
+/** A card in the assistant links here; open the row once its payload arrived, then clear the query. */
+watch(
+  [rows, () => route.query],
+  () => {
+    const link = deepLink.value;
+    if (!link) return;
+    // The row must be visible for `selected` to resolve: an owned id needs the owned tab.
+    if (props.kind.modes) filters.mode = link.itemId != null ? 'owned' : 'catalog';
+    const row = findRowForDeepLink(rows.value, link);
+    if (!row) return;
+    openRow(row);
+    void router.replace({
+      query: withoutInventoryDeepLink(route.query as Record<string, unknown>) as LocationQueryRaw,
+    });
+  },
+  { immediate: true, flush: 'post' },
+);
 
 const selectedItem = computed<InventoryItemRead | null>(
   () => (selected.value as unknown as { item?: InventoryItemRead | null } | null)?.item ?? null,

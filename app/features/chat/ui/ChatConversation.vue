@@ -12,6 +12,7 @@ import { useChatStore } from '~/stores/chat';
 import { CHAT_MESSAGE_ENTER_CLASS } from '~/shared/lib/motion';
 import { addChatFiles, formatFileSize, type ChatFileIssue } from '../model/files';
 import { threadImages } from '../model/gallery';
+import { chatItemLink, type ChatItemView } from '../model/render';
 import { chatRows, type ChatRow } from '../model/rows';
 import ChatAttachmentGallery from './ChatAttachmentGallery.vue';
 import ChatFilePreview from './ChatFilePreview.vue';
@@ -21,6 +22,7 @@ import ChatRowView from './ChatRowView.vue';
 const chat = useChatStore();
 const { messages, pending, sending, queued, streaming, live, loadError } = storeToRefs(chat);
 const { t } = useI18n();
+const router = useRouter();
 const toast = useToast();
 const draft = ref('');
 const files = ref<ChatAttachmentInput[]>([]);
@@ -199,6 +201,12 @@ function openFile(file: ChatAttachment): void {
   previewOpen.value = true;
 }
 
+/** A tool card leads to the page that owns the kind, where the instance has its actions. */
+function openItem(item: ChatItemView): void {
+  const link = chatItemLink(item);
+  if (link) void router.push(link);
+}
+
 async function copyMessage(text: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(text);
@@ -280,6 +288,7 @@ defineExpose({ focus });
               @copy="copyMessage"
               @open-image="openImage"
               @open-file="openFile"
+              @open-item="openItem"
             />
           </div>
         </template>

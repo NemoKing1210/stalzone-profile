@@ -48,6 +48,7 @@ describe('assistant prompts', () => {
     expect(composed).toContain('## inventory');
     expect(composed).toContain('## Rules');
     expect(composed).toContain('Never buy or list on the auction');
+    expect(composed).toContain('do not repeat or enumerate the rows');
     expect(composed.indexOf('## Rules')).toBeGreaterThan(composed.indexOf('## writes'));
   });
 

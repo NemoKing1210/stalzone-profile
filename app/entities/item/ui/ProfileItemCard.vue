@@ -22,6 +22,8 @@ withDefaults(
     stats?: ItemStat[];
     description?: string;
     priority?: boolean;
+    /** Chat cards open on one click; the inventory grid keeps double-click and Enter. */
+    openOnClick?: boolean;
   }>(),
   {
     rank: undefined,
@@ -33,6 +35,7 @@ withDefaults(
     stats: undefined,
     description: undefined,
     priority: false,
+    openOnClick: false,
   },
 );
 
@@ -55,6 +58,7 @@ function toneClass(tone: ItemStat['tone']): string {
   <button
     type="button"
     class="sz-hatch group relative flex min-h-[112px] w-full flex-col border border-[var(--sz-border)] bg-ink-800 p-2 text-left transition-[color,background-color,border-color,transform] duration-[120ms] hover:-translate-y-px hover:bg-ink-700 active:bg-ink-700 motion-reduce:transform-none"
+    @click="openOnClick && $emit('open')"
     @dblclick="$emit('open')"
     @keydown.enter.prevent="$emit('open')"
   >

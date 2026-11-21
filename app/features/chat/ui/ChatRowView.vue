@@ -2,6 +2,7 @@
 import type { ChatAttachment } from '@profile/shared/contracts';
 import { computed } from 'vue';
 
+import type { ChatItemView } from '../model/render';
 import { toolRunCounts, type ChatRow } from '../model/rows';
 import ChatMessageRow from './ChatMessageRow.vue';
 import ChatToolResult from './ChatToolResult.vue';
@@ -11,6 +12,7 @@ const emit = defineEmits<{
   copy: [text: string];
   openImage: [file: ChatAttachment];
   openFile: [file: ChatAttachment];
+  openItem: [item: ChatItemView];
 }>();
 
 const { t } = useI18n();
@@ -72,7 +74,12 @@ const counts = computed(() => (props.row?.kind === 'tools' ? toolRunCounts(props
               {{ t('chat.toolDeclined') }}
             </span>
           </div>
-          <ChatToolResult v-if="run.status !== 'declined'" :tool-name="run.name" :payload="run.payload" />
+          <ChatToolResult
+            v-if="run.status !== 'declined'"
+            :tool-name="run.name"
+            :payload="run.payload"
+            @open-item="emit('openItem', $event)"
+          />
         </div>
       </div>
     </template>
