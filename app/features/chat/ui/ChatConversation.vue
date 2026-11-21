@@ -9,17 +9,28 @@ import {
 import { storeToRefs } from 'pinia';
 
 import { useChatStore } from '~/stores/chat';
-import { addChatFiles, formatFileSize, type ChatFileProblem } from '../model/files';
+import { addChatFiles, formatFileSize, type ChatFileIssue } from '../model/files';
+import { threadImages } from '../model/gallery';
+import ChatAttachmentGallery from './ChatAttachmentGallery.vue';
+import ChatAttachmentGrid from './ChatAttachmentGrid.vue';
+import ChatFilePreview from './ChatFilePreview.vue';
 import ChatToolResult from './ChatToolResult.vue';
 
 const chat = useChatStore();
 const { messages, pending, sending, loadError } = storeToRefs(chat);
 const { t } = useI18n();
+const toast = useToast();
 const draft = ref('');
 const files = ref<ChatAttachmentInput[]>([]);
 const fileError = ref('');
 const fileInput = ref<HTMLInputElement | null>(null);
 const root = ref<HTMLElement | null>(null);
+const galleryOpen = ref(false);
+const galleryStart = ref(0);
+const previewOpen = ref(false);
+const previewFile = ref<ChatAttachment | null>(null);
+const dragging = ref(false);
+let dragDepth = 0;
 
 const ACCEPT = [
   'image/png',
@@ -62,7 +73,13 @@ const uiMessages = computed<UiMessage[]>(() =>
   })),
 );
 
-function problemText(problem: ChatFileProblem): string {
+const images = computed(() => threadImages(messages.value));
+const totalBytes = computed(() => files.value.reduce((sum, file) => sum + chatBase64Bytes(file.data), 0));
+const totalPercent = computed(() =>
+  Math.min(100, Math.round((totalBytes.value / CHAT_ATTACHMENT_LIMITS.totalBytes) * 100)),
+);
+
+function problemText(problem: ChatFileIssue): string {
   switch (problem.code) {
     case 'too-many':
       return t('chat.fileTooMany', { max: CHAT_ATTACHMENT_LIMITS.files });
@@ -75,19 +92,27 @@ function problemText(problem: ChatFileProblem): string {
       return t('chat.fileTotalTooLarge', { max: formatFileSize(CHAT_ATTACHMENT_LIMITS.totalBytes) });
     case 'unsupported':
       return t('chat.fileUnsupported', { name: problem.name });
+    case 'type-mismatch':
+      return t('chat.fileTypeMismatch', { name: problem.name });
+    case 'not-text':
+      return t('chat.fileNotText', { name: problem.name });
     case 'read-failed':
       return t('chat.fileReadFailed', { name: problem.name });
   }
+}
+
+async function addFiles(picked: File[]): Promise<void> {
+  if (!picked.length) return;
+  const result = await addChatFiles(files.value, picked);
+  files.value = result.files;
+  fileError.value = result.problems.map(problemText).join(' ');
 }
 
 async function onFiles(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement;
   const picked = Array.from(input.files ?? []);
   input.value = '';
-  if (!picked.length) return;
-  const result = await addChatFiles(files.value, picked);
-  files.value = result.files;
-  fileError.value = result.problems.map(problemText).join(' ');
+  await addFiles(picked);
 }
 
 function removeFile(index: number): void {
@@ -95,8 +120,50 @@ function removeFile(index: number): void {
   fileError.value = '';
 }
 
-function attachmentUrl(id: number): string {
-  return `/api/v1/chat/attachments/${id}`;
+function onDragEnter(event: DragEvent): void {
+  if (!event.dataTransfer?.types.includes('Files')) return;
+  dragDepth += 1;
+  dragging.value = true;
+}
+
+function onDragLeave(): void {
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (dragDepth === 0) dragging.value = false;
+}
+
+async function onDrop(event: DragEvent): Promise<void> {
+  dragDepth = 0;
+  dragging.value = false;
+  await addFiles(Array.from(event.dataTransfer?.files ?? []));
+}
+
+async function onPaste(event: ClipboardEvent): Promise<void> {
+  const picked = Array.from(event.clipboardData?.files ?? []);
+  if (!picked.length) return;
+  event.preventDefault();
+  await addFiles(picked);
+}
+
+function openImage(file: ChatAttachment): void {
+  galleryStart.value = Math.max(
+    0,
+    images.value.findIndex((image) => image.id === file.id),
+  );
+  galleryOpen.value = true;
+}
+
+function openFile(file: ChatAttachment): void {
+  previewFile.value = file;
+  previewOpen.value = true;
+}
+
+async function copyMessage(text: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast.add({ title: t('chat.copied'), color: 'success', icon: 'i-lucide-check' });
+  } catch {
+    toast.add({ title: t('chat.copyFailed'), color: 'error', icon: 'i-lucide-triangle-alert' });
+  }
 }
 
 async function send(): Promise<void> {
@@ -118,7 +185,25 @@ defineExpose({ focus });
 </script>
 
 <template>
-  <div ref="root" class="flex min-h-0 flex-1 flex-col">
+  <div
+    ref="root"
+    class="relative flex min-h-0 flex-1 flex-col"
+    @paste="onPaste"
+    @dragenter.prevent="onDragEnter"
+    @dragover.prevent
+    @dragleave.prevent="onDragLeave"
+    @drop.prevent="onDrop"
+  >
+    <div
+      v-if="dragging"
+      class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center border-2 border-dashed border-[var(--sz-accent)] bg-[var(--sz-bg)]/90"
+    >
+      <p class="flex items-center gap-2 text-[13px] text-[var(--sz-text)]">
+        <UIcon name="i-lucide-paperclip" class="size-4" aria-hidden="true" />
+        {{ t('chat.dropFiles') }}
+      </p>
+    </div>
+
     <div class="min-h-0 flex-1 overflow-y-auto p-3">
       <div v-if="!messages.length" class="flex h-full items-center justify-center px-6 text-center">
         <p class="max-w-[34ch] text-[12.5px] text-[var(--sz-text-dim)]">{{ t('chat.empty') }}</p>
@@ -130,46 +215,25 @@ defineExpose({ focus });
             :tool-name="(message as unknown as UiMessage).metadata.toolName ?? 'tool'"
             :payload="(message as unknown as UiMessage).metadata.payload"
           />
-          <template v-else>
-            <ul
-              v-if="(message as unknown as UiMessage).metadata.attachments.length"
-              class="mb-1.5 flex flex-wrap gap-1.5"
-            >
-              <li
-                v-for="file in (message as unknown as UiMessage).metadata.attachments"
-                :key="file.id"
-                class="max-w-full"
-              >
-                <a
-                  v-if="file.mimeType.startsWith('image/')"
-                  :href="attachmentUrl(file.id)"
-                  target="_blank"
-                  rel="noopener"
-                  class="block border border-[var(--sz-border)]"
-                >
-                  <img
-                    :src="attachmentUrl(file.id)"
-                    :alt="file.name"
-                    loading="lazy"
-                    class="max-h-48 max-w-full object-contain"
-                  >
-                </a>
-                <a
-                  v-else
-                  :href="attachmentUrl(file.id)"
-                  :download="file.name"
-                  class="inline-flex max-w-full items-center gap-1.5 border border-[var(--sz-border)] bg-[var(--sz-surface)] px-2 py-1 text-[11.5px] text-[var(--sz-text-muted)] hover:text-[var(--sz-text)]"
-                >
-                  <UIcon name="i-lucide-file-text" class="size-3.5 shrink-0" aria-hidden="true" />
-                  <span class="truncate">{{ file.name }}</span>
-                  <span class="shrink-0 tabular-nums text-[var(--sz-text-dim)]">{{ formatFileSize(file.size) }}</span>
-                </a>
-              </li>
-            </ul>
-            <span v-if="(message as unknown as UiMessage).parts[0]?.text" class="whitespace-pre-wrap">{{
-              (message as unknown as UiMessage).parts[0]?.text
-            }}</span>
-          </template>
+          <div v-else class="group">
+            <ChatAttachmentGrid
+              :attachments="(message as unknown as UiMessage).metadata.attachments"
+              @open-image="openImage"
+              @open-file="openFile"
+            />
+            <div v-if="(message as unknown as UiMessage).parts[0]?.text" class="flex items-start gap-1">
+              <span class="min-w-0 whitespace-pre-wrap">{{ (message as unknown as UiMessage).parts[0]?.text }}</span>
+              <UButton
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                icon="i-lucide-copy"
+                class="mt-0.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                :aria-label="t('chat.copyMessage')"
+                @click="copyMessage((message as unknown as UiMessage).parts[0]?.text ?? '')"
+              />
+            </div>
+          </div>
         </template>
       </UChatMessages>
       <p v-if="loadError" class="mt-3 border border-[var(--sz-warning)] px-2.5 py-2 text-[12px] text-[var(--sz-warning-text)]">
@@ -190,30 +254,50 @@ defineExpose({ focus });
     </div>
 
     <div class="border-t border-[var(--sz-border)] p-2">
-      <ul v-if="files.length" class="mb-1.5 flex flex-wrap gap-1.5" :aria-label="t('chat.attachments')">
-        <li
-          v-for="(file, index) in files"
-          :key="`${file.name}-${index}`"
-          class="inline-flex max-w-full items-center gap-1.5 border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] px-2 py-1 text-[11.5px]"
-        >
-          <UIcon
-            :name="chatFileKind(file.name, file.mimeType) === 'image' ? 'i-lucide-image' : 'i-lucide-file-text'"
-            class="size-3.5 shrink-0 text-[var(--sz-text-muted)]"
-            aria-hidden="true"
-          />
-          <span class="min-w-0 truncate">{{ file.name }}</span>
-          <span class="shrink-0 tabular-nums text-[var(--sz-text-dim)]">{{ formatFileSize(chatBase64Bytes(file.data)) }}</span>
-          <button
-            type="button"
-            class="shrink-0 text-[var(--sz-text-dim)] hover:text-[var(--sz-text)]"
-            :aria-label="t('chat.removeFile', { name: file.name })"
-            @click="removeFile(index)"
+      <template v-if="files.length">
+        <ul class="mb-1.5 flex flex-wrap gap-1.5" :aria-label="t('chat.attachments')">
+          <li
+            v-for="(file, index) in files"
+            :key="`${file.name}-${index}`"
+            class="inline-flex max-w-full items-center gap-1.5 border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] py-1 pe-1.5 ps-1 text-[11.5px]"
           >
-            <UIcon name="i-lucide-x" class="size-3.5" aria-hidden="true" />
-          </button>
-        </li>
-      </ul>
-      <p v-if="fileError" class="mb-1.5 text-[11.5px] text-[var(--sz-warning-text)]">{{ fileError }}</p>
+            <img
+              v-if="chatFileKind(file.name, file.mimeType) === 'image'"
+              :src="`data:${file.mimeType};base64,${file.data}`"
+              alt=""
+              class="size-7 shrink-0 border border-[var(--sz-border)] object-cover"
+            >
+            <UIcon
+              v-else
+              name="i-lucide-file-text"
+              class="size-4 shrink-0 text-[var(--sz-text-muted)]"
+              aria-hidden="true"
+            />
+            <span class="min-w-0 truncate">{{ file.name }}</span>
+            <span class="shrink-0 tabular-nums text-[var(--sz-text-dim)]">{{ formatFileSize(chatBase64Bytes(file.data)) }}</span>
+            <button
+              type="button"
+              class="shrink-0 text-[var(--sz-text-dim)] hover:text-[var(--sz-text)]"
+              :aria-label="t('chat.removeFile', { name: file.name })"
+              @click="removeFile(index)"
+            >
+              <UIcon name="i-lucide-x" class="size-3.5" aria-hidden="true" />
+            </button>
+          </li>
+        </ul>
+        <div class="mb-1.5">
+          <div class="mb-0.5 flex items-baseline justify-between text-[10px] text-[var(--sz-text-dim)]">
+            <span>{{ t('chat.filesCount', { count: files.length, max: CHAT_ATTACHMENT_LIMITS.files }) }}</span>
+            <span class="tabular-nums">
+              {{ t('chat.filesTotal', { used: formatFileSize(totalBytes), max: formatFileSize(CHAT_ATTACHMENT_LIMITS.totalBytes) }) }}
+            </span>
+          </div>
+          <div class="h-0.5 bg-[var(--sz-border)]">
+            <div class="h-full bg-[var(--sz-accent)] transition-[width]" :style="{ width: `${totalPercent}%` }" />
+          </div>
+        </div>
+      </template>
+      <p v-if="fileError" class="mb-1.5 text-[11.5px] text-[var(--sz-warning-text)]" aria-live="polite">{{ fileError }}</p>
       <UChatPrompt
         v-model="draft"
         :placeholder="t('chat.placeholder')"
@@ -240,14 +324,10 @@ defineExpose({ focus });
           />
         </template>
       </UChatPrompt>
-      <input
-        ref="fileInput"
-        type="file"
-        multiple
-        class="hidden"
-        :accept="ACCEPT"
-        @change="onFiles"
-      >
+      <input ref="fileInput" type="file" multiple class="hidden" :accept="ACCEPT" @change="onFiles">
     </div>
+
+    <ChatAttachmentGallery v-model:open="galleryOpen" :images="images" :start="galleryStart" />
+    <ChatFilePreview v-model:open="previewOpen" :file="previewFile" />
   </div>
 </template>

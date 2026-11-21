@@ -1,3 +1,4 @@
+export * from './files.js';
 export * from './repo/settings.js';
 export * from './repo/prompts.js';
 export * from './repo/threads.js';

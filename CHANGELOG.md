@@ -9,6 +9,14 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Fixed
 
+- Attachment storage is now byte-verified and safe to serve: an image must match its magic
+  bytes, text must decode as UTF-8 without NUL, the canonical type and SHA-256 are stored
+  (migration `0022`), text attachments are always served as `text/plain` with an attachment
+  disposition (an uploaded HTML/JS file can no longer run on this origin), and every response
+  carries `nosniff`, a sandbox CSP and `same-origin`. Attachment ids are `AUTOINCREMENT`
+  (migration `0023`) so a deleted file's id is never reused, and the private cache
+  revalidates through the `sha256` ETag instead of staying immutable, which previously could
+  show an old file after an id was reused.
 - OpenCode chat sends the `x-opencode-session` header, derived once per thread. The Go plan
   rejects a chat completion without it with `400 MissingSessionID`, which is why a verified
   Go connection produced no reply. A provider failure returned in `ChatTurnResult.error` is
@@ -44,6 +52,11 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- Chat files have real viewers: an image thumbnail opens a full-screen carousel with a
+  counter, thumbnails, arrow/keyboard navigation, zoom, download and "open original"; a text
+  file opens a readable preview with copy and download; every message gains a copy action.
+  The composer accepts files by picker, drag-and-drop and paste, shows image thumbnails and
+  a running count/aggregate-size meter for the 4-file / 6 MiB budget.
 - The assistant composer accepts files: images (`png`, `jpeg`, `webp`, `gif`) and text files
   with a 4-file / 4 MiB-per-file / 6 MiB-total budget. The files travel with the turn, are
   stored in `chat_attachment` (migration `0021`) beside the user message and cascade with the

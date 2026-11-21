@@ -40,7 +40,7 @@ only through new migrations in `db/migrations/`.
 |---|---|
 | `chat_settings` | one row: provider, endpoint override, model, limits, read-tool allow-list, price/log data scope and the write-only token; secrets never enter `event_log` |
 | `chat_thread`, `chat_message` | the owner's threads and their ordered messages (`user`, `assistant`, `tool`) with the rendered tool `payload` |
-| `chat_attachment` | a file the owner attached to one user message: `name`, `mime_type`, `size` and the bytes in `data`; cascades with its message and thread, and the read API returns metadata only |
+| `chat_attachment` | a file the owner attached to one user message: `name`, `mime_type`, `size`, `sha256` and the bytes in `data`; bytes are verified at write time (magic-byte image type, UTF-8 text without NUL), cascade with the message and thread, and the read API returns metadata only |
 | `chat_prompt`, `chat_prompt_active` | versioned `system`/`skill` prompts and the active pointer |
 
 ### Diagnostics (not profile data)
@@ -89,7 +89,9 @@ turning, so no manual, preview or automatic rotation exists. Unrotated rows keep
 A legacy rollback snapshot containing `rotated: true` restores into the intake unrotated.
 `0018_inventory_virtual.sql` adds `inventory_item.is_virtual` (0/1, default 0), so old rows
 read as real and a rollback restores the exact flag. `0021_chat_attachments.sql` adds
-`chat_attachment`, the files attached to an assistant message.
+`chat_attachment`, the files attached to an assistant message. `0022_chat_attachment_hash.sql`
+adds `sha256`, which doubles as the attachment route's strong ETag; `0023_chat_attachment_ids.sql`
+rebuilds the table with `AUTOINCREMENT` so a deleted attachment id is never reused.
 
 ## Source authority
 

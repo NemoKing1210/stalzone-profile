@@ -1,5 +1,6 @@
 import type { ChatAttachment, ChatMessage, ChatThread } from '@profile/shared/contracts';
 import type { Db } from '../../../platform/db/index.js';
+import { prepareChatAttachment } from '../files.js';
 
 export interface ChatThreadRow {
   id: number;
@@ -25,6 +26,7 @@ export interface ChatAttachmentRow {
   name: string;
   mime_type: string;
   size: number;
+  sha256: string;
   data: Buffer;
   created_at: string;
 }
@@ -36,6 +38,7 @@ export interface ChatAttachmentData {
   name: string;
   mimeType: string;
   size: number;
+  sha256: string;
   data: Buffer;
   createdAt: string;
 }
@@ -63,6 +66,7 @@ function stored(row: ChatAttachmentRow): ChatAttachmentData {
     name: row.name,
     mimeType: row.mime_type,
     size: row.size,
+    sha256: row.sha256,
     data: row.data,
     createdAt: row.created_at,
   };
@@ -165,8 +169,8 @@ export function appendChatMessage(
 ): number {
   const now = new Date().toISOString();
   const insertAttachment = db.prepare(
-    `INSERT INTO chat_attachment (message_id, name, mime_type, size, data, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO chat_attachment (message_id, name, mime_type, size, sha256, data, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
   );
   return db.transaction(() => {
     const info = db
@@ -185,8 +189,16 @@ export function appendChatMessage(
       });
     const messageId = Number(info.lastInsertRowid);
     for (const file of input.attachments ?? []) {
-      const name = file.name.trim().replace(/[\\/]+/g, '-').slice(0, 200) || 'file';
-      insertAttachment.run(messageId, name, file.mimeType, file.data.length, file.data, now);
+      const prepared = prepareChatAttachment(file);
+      insertAttachment.run(
+        messageId,
+        prepared.name,
+        prepared.mimeType,
+        prepared.data.length,
+        prepared.sha256,
+        prepared.data,
+        now,
+      );
     }
     db.prepare(`UPDATE chat_thread SET updated_at = ? WHERE id = ?`).run(now, input.threadId);
     return messageId;

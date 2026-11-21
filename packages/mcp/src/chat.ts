@@ -16,6 +16,7 @@ import {
   listChatAttachmentData,
   listChatMessages,
   listChatThreads,
+  prepareChatAttachment,
   resolveApiKey,
   resolveBaseUrl,
   toChatSettings,
@@ -128,11 +129,19 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
   const settings = toChatSettings(getChatSettingsRow(db));
   const base = resolveBaseUrl(settings);
   const { key, env } = resolveApiKey(settings);
+  // Validate before creating a thread: a rejected file must not leave an empty conversation.
+  const attachments = (input.files ?? []).map((file) =>
+    prepareChatAttachment({
+      name: file.name,
+      mimeType: file.mimeType,
+      data: Buffer.from(file.data, 'base64'),
+    }),
+  );
   const threadId =
     input.threadId ??
     createChatThread(
       db,
-      (input.title ?? input.message).trim().slice(0, 80) || input.files?.[0]?.name || 'New thread',
+      (input.title ?? input.message).trim().slice(0, 80) || attachments[0]?.name || 'New thread',
     );
   const thread = getChatThread(db, threadId);
   if (!thread) throw new Error('thread not found');
@@ -141,11 +150,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
     threadId,
     role: 'user',
     content: input.message,
-    attachments: (input.files ?? []).map((file) => ({
-      name: file.name,
-      mimeType: file.mimeType,
-      data: Buffer.from(file.data, 'base64'),
-    })),
+    attachments,
   });
 
   if (!base) {

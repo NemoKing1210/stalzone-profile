@@ -5,6 +5,8 @@ import {
   ChatSendSchema,
   chatBase64Bytes,
   chatFileKind,
+  inspectChatFile,
+  sniffImageMime,
 } from '@profile/shared/contracts';
 
 function base64(bytes: number): string {
@@ -21,6 +23,32 @@ describe('chat attachment contract', () => {
     expect(chatFileKind('notes.md', '')).toBe('text');
     expect(chatFileKind('config.yaml', 'application/octet-stream')).toBe('text');
     expect(chatFileKind('log.txt', 'text/plain; charset=utf-8')).toBe('text');
+    expect(chatFileKind('dropped.png', '')).toBe('image');
+  });
+
+  it('trusts magic bytes over the declared image type', () => {
+    const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
+    const jpeg = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0]);
+
+    expect(sniffImageMime(png)).toBe('image/png');
+    expect(sniffImageMime(jpeg)).toBe('image/jpeg');
+    expect(inspectChatFile('shot.png', 'image/png', png)).toEqual({ kind: 'image', mimeType: 'image/png' });
+    expect(inspectChatFile('shot.jpg', '', jpeg)).toEqual({ kind: 'image', mimeType: 'image/jpeg' });
+    expect(inspectChatFile('shot.png', 'image/png', jpeg)).toEqual({ problem: 'type-mismatch' });
+    expect(inspectChatFile('shot.png', 'image/png', Uint8Array.from([1, 2, 3]))).toEqual({
+      problem: 'type-mismatch',
+    });
+  });
+
+  it('accepts only UTF-8 text and canonicalizes its media type', () => {
+    expect(inspectChatFile('page.html', 'text/html', new TextEncoder().encode('<p>hi</p>'))).toEqual({
+      kind: 'text',
+      mimeType: 'text/plain; charset=utf-8',
+    });
+    expect(inspectChatFile('note.txt', 'text/plain', Uint8Array.from([0xff, 0xfe]))).toEqual({ problem: 'not-text' });
+    expect(inspectChatFile('note.txt', 'text/plain', Uint8Array.from([0x61, 0x00, 0x62]))).toEqual({
+      problem: 'not-text',
+    });
   });
 
   it('refuses a binary type it cannot send to the model', () => {

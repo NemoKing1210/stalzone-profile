@@ -2,12 +2,14 @@ import {
   CHAT_ATTACHMENT_LIMITS,
   chatBase64Bytes,
   chatFileKind,
+  inspectChatFile,
   type ChatAttachmentInput,
+  type ChatFileProblem,
 } from '@profile/shared/contracts';
 
-export type ChatFileProblemCode = 'unsupported' | 'too-large' | 'too-many' | 'total-too-large' | 'read-failed';
+export type ChatFileProblemCode = ChatFileProblem | 'too-large' | 'too-many' | 'total-too-large' | 'read-failed';
 
-export interface ChatFileProblem {
+export interface ChatFileIssue {
   name: string;
   code: ChatFileProblemCode;
 }
@@ -29,9 +31,9 @@ function base64FromBytes(bytes: Uint8Array): string {
 export async function addChatFiles(
   existing: ChatAttachmentInput[],
   incoming: File[],
-): Promise<{ files: ChatAttachmentInput[]; problems: ChatFileProblem[] }> {
+): Promise<{ files: ChatAttachmentInput[]; problems: ChatFileIssue[] }> {
   const files = [...existing];
-  const problems: ChatFileProblem[] = [];
+  const problems: ChatFileIssue[] = [];
   let total = existing.reduce((sum, file) => sum + chatBase64Bytes(file.data), 0);
 
   for (const file of incoming) {
@@ -61,9 +63,16 @@ export async function addChatFiles(
       continue;
     }
 
+    // The bytes, not the browser label, decide the stored type; the server repeats the check.
+    const inspected = inspectChatFile(file.name, file.type, bytes);
+    if ('problem' in inspected) {
+      problems.push({ name: file.name, code: inspected.problem });
+      continue;
+    }
+
     files.push({
       name: file.name,
-      mimeType: file.type || (kind === 'text' ? 'text/plain' : 'application/octet-stream'),
+      mimeType: inspected.mimeType,
       data: base64FromBytes(bytes),
     });
     total += bytes.byteLength;
@@ -77,4 +86,18 @@ export function formatFileSize(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1).replace(/\.0$/, '')} MiB`;
   if (bytes >= 1024) return `${Math.round(bytes / 1024)} KiB`;
   return `${bytes} B`;
+}
+
+/** One attachment URL; `download` asks the route for an attachment disposition. */
+export function attachmentUrl(id: number, download = false): string {
+  return `/api/v1/chat/attachments/${id}${download ? '?download=1' : ''}`;
+}
+
+/** The text viewer keeps the response bounded even for a large notes file. */
+export const CHAT_TEXT_PREVIEW_CHARS = 200_000;
+
+export function clampTextPreview(raw: string): { text: string; truncated: boolean } {
+  return raw.length > CHAT_TEXT_PREVIEW_CHARS
+    ? { text: raw.slice(0, CHAT_TEXT_PREVIEW_CHARS), truncated: true }
+    : { text: raw, truncated: false };
 }

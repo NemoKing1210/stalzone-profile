@@ -627,6 +627,26 @@
     "fileTooMany": "At most {max} files per message.",
     "fileTotalTooLarge": "Files are larger than {max} in total.",
     "fileReadFailed": "{name}: could not be read.",
+    "fileTypeMismatch": "{name}: the file contents do not match its type.",
+    "fileNotText": "{name}: the file is not valid UTF-8 text.",
+    "dropFiles": "Drop files to attach",
+    "filesCount": "{count}/{max} files",
+    "filesTotal": "{used} of {max}",
+    "galleryTitle": "Image viewer",
+    "previewTitle": "File preview",
+    "previewLoading": "Loading…",
+    "previewFailed": "Could not load the file.",
+    "previewTruncated": "Showing the first {count} characters. Download the file to read the rest.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "copyFailed": "Could not copy",
+    "copyMessage": "Copy message",
+    "download": "Download",
+    "openOriginal": "Open original",
+    "previousImage": "Previous image",
+    "nextImage": "Next image",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
     "noLot": "no lot",
     "columns": {
       "name": "Name",
@@ -1222,7 +1242,7 @@
           "model": "The header switches the assistant model through the same audited setting Settings → Assistant uses; a provider without a list still accepts a typed id.",
           "background": "A turn keeps running after leaving the page; its reply, pending write or error arrives as a toast, and returning reuses the stored thread.",
           "panel": "A right-side panel on every page except /chat reuses the same conversation and composer; closing it never stops a turn.",
-          "files": "Images and text files attached to a message travel to the model with that turn; they live in the profile DB and are served only through the session."
+          "files": "Images and text files attached to a message travel to the model with that turn; they live in the profile DB, are verified from their bytes, and are served only through the session. An image opens a carousel with thumbnails and zoom; a text file opens a readable preview with copy and download."
         }
       },
       "inventory": {
@@ -1468,7 +1488,7 @@
         "turn": "Run one assistant turn: reads execute, the first write returns its dry-run diff and waits for confirm.",
         "test": "Send one model-list request to the configured provider and report its status.",
         "models": "Reads the provider's model list for the settings picker; the key comes only from the named env variable and nothing is written.",
-        "attachment": "Bytes of one assistant attachment; the session cookie is required and the response is served inline with nosniff."
+        "attachment": "Bytes of one assistant attachment behind the session; images keep their sniffed type, text is served as plain text, sha256 is the ETag, and download/sandbox headers are always set."
       }
     },
     "mcp": {

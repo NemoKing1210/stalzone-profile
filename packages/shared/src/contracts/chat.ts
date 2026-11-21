@@ -311,8 +311,9 @@ export function chatFileKind(name: string, mimeType: string): ChatFileKind | nul
   if (Object.hasOwn(IMAGE_MIME_TYPES, mime)) return 'image';
   if (mime.startsWith('text/') || Object.hasOwn(TEXT_MIME_TYPES, mime)) return 'text';
   const extension = /\.([a-z0-9]+)$/i.exec(name.trim())?.[1]?.toLowerCase();
-  if (extension && Object.hasOwn(TEXT_EXTENSIONS, extension) && (mime === '' || mime === 'application/octet-stream')) {
-    return 'text';
+  if (extension && (mime === '' || mime === 'application/octet-stream')) {
+    if (Object.hasOwn(IMAGE_EXTENSIONS, extension)) return 'image';
+    if (Object.hasOwn(TEXT_EXTENSIONS, extension)) return 'text';
   }
   return null;
 }
@@ -323,6 +324,67 @@ export function chatBase64Bytes(data: string): number {
   if (!clean) return 0;
   const padding = clean.endsWith('==') ? 2 : clean.endsWith('=') ? 1 : 0;
   return Math.max(0, Math.floor((clean.length * 3) / 4) - padding);
+}
+
+/** A declared file the inspector cannot trust; the API maps these to 422 codes. */
+export type ChatFileProblem = 'unsupported' | 'type-mismatch' | 'not-text';
+
+export interface ChatFileInspection {
+  kind: ChatFileKind;
+  /** Canonical type used for storage and serving, whatever the browser declared. */
+  mimeType: string;
+}
+
+const IMAGE_EXTENSIONS: Record<string, true> = {
+  png: true,
+  jpg: true,
+  jpeg: true,
+  webp: true,
+  gif: true,
+};
+
+/** Magic-byte sniffing is the only trusted source of an image type. */
+export function sniffImageMime(bytes: Uint8Array): string | null {
+  const at = (offset: number, signature: number[]): boolean =>
+    signature.every((byte, index) => bytes[offset + index] === byte);
+  if (at(0, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return 'image/png';
+  if (at(0, [0xff, 0xd8, 0xff])) return 'image/jpeg';
+  if (at(0, [0x47, 0x49, 0x46, 0x38]) && (bytes[4] === 0x37 || bytes[4] === 0x39) && bytes[5] === 0x61) {
+    return 'image/gif';
+  }
+  if (at(0, [0x52, 0x49, 0x46, 0x46]) && at(8, [0x57, 0x45, 0x42, 0x50])) return 'image/webp';
+  return null;
+}
+
+/**
+ * Validates the bytes, not the browser's label: an image must match its magic bytes, and a
+ * text file must decode as UTF-8 without NUL bytes. Returns the canonical stored type.
+ */
+export function inspectChatFile(
+  name: string,
+  mimeType: string,
+  bytes: Uint8Array,
+): ChatFileInspection | { problem: ChatFileProblem } {
+  const kind = chatFileKind(name, mimeType);
+  if (!kind) return { problem: 'unsupported' };
+
+  if (kind === 'image') {
+    const declared = mimeType.toLowerCase().split(';')[0]!.trim();
+    const canonical = declared === 'image/jpg' ? 'image/jpeg' : declared;
+    const sniffed = sniffImageMime(bytes);
+    if (!sniffed || (canonical.startsWith('image/') && canonical !== sniffed)) {
+      return { problem: 'type-mismatch' };
+    }
+    return { kind, mimeType: sniffed };
+  }
+
+  try {
+    const decoded = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    if (decoded.includes('\u0000')) return { problem: 'not-text' };
+  } catch {
+    return { problem: 'not-text' };
+  }
+  return { kind, mimeType: 'text/plain; charset=utf-8' };
 }
 
 const BASE64_PATTERN = /^[A-Za-z0-9+/]+={0,2}$/;

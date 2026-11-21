@@ -36,10 +36,11 @@ const notes = {
   mimeType: 'text/markdown',
   data: Buffer.from('# Notes\nRemember the stash.').toString('base64'),
 };
+const png = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const screenshot = {
   name: 'shot.png',
   mimeType: 'image/png',
-  data: Buffer.from([0x89, 0x50, 0x4e, 0x47]).toString('base64'),
+  data: Buffer.from(png).toString('base64'),
 };
 
 function toolCall(name: string, args: Record<string, unknown>, id = 'call-1') {
@@ -160,14 +161,14 @@ describe('chat agent', () => {
 
     expect(result.error).toBeNull();
     expect(result.messages[0]!.attachments).toEqual([
-      expect.objectContaining({ name: 'notes.md', mimeType: 'text/markdown' }),
+      expect.objectContaining({ name: 'notes.md', mimeType: 'text/plain; charset=utf-8' }),
       expect.objectContaining({ name: 'shot.png', mimeType: 'image/png' }),
     ]);
     expect(result.messages[0]!.attachments[0]).not.toHaveProperty('data');
     expect(bodies[0]).toContain('[Attached file: notes.md]');
     expect(bodies[0]).toContain('Remember the stash.');
     expect(bodies[0]).toContain('"type":"image_url"');
-    expect(bodies[0]).toContain('data:image/png;base64,iVBORw==');
+    expect(bodies[0]).toContain(`data:image/png;base64,${Buffer.from(png).toString('base64')}`);
   });
 
   it('keeps an earlier image available on the next turn of the same thread', async () => {
@@ -183,7 +184,7 @@ describe('chat agent', () => {
     const first = await runChatTurn(db, { message: 'Remember this shot.', files: [screenshot] }, { fetchImpl });
     await runChatTurn(db, { threadId: first.thread.id, message: 'What did I show you?' }, { fetchImpl });
 
-    expect(bodies[1]).toContain('data:image/png;base64,iVBORw==');
+    expect(bodies[1]).toContain(`data:image/png;base64,${Buffer.from(png).toString('base64')}`);
   });
 
   it('maps attachments to Anthropic image blocks and Google inline data', async () => {

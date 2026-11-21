@@ -12,15 +12,27 @@ describe('chat composer files', () => {
 
     expect(result.problems).toEqual([]);
     expect(result.files).toEqual([
-      { name: 'notes.md', mimeType: 'text/plain', data: Buffer.from('# Notes').toString('base64') },
+      { name: 'notes.md', mimeType: 'text/plain; charset=utf-8', data: Buffer.from('# Notes').toString('base64') },
     ]);
   });
 
-  it('keeps the browser media type for an image', async () => {
-    const result = await addChatFiles([], [textFile('shot.png', new Uint8Array([0x89, 0x50, 0x4e, 0x47]), 'image/png')]);
+  it('keeps the sniffed media type for an image', async () => {
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const result = await addChatFiles([], [textFile('shot.png', png, 'image/png')]);
 
     expect(result.problems).toEqual([]);
     expect(result.files[0]).toMatchObject({ name: 'shot.png', mimeType: 'image/png' });
+  });
+
+  it('refuses an image whose bytes do not match its name and a binary disguised as text', async () => {
+    const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
+    const mismatch = await addChatFiles([], [textFile('shot.png', jpeg, 'image/png')]);
+    expect(mismatch.files).toEqual([]);
+    expect(mismatch.problems).toEqual([{ name: 'shot.png', code: 'type-mismatch' }]);
+
+    const binary = await addChatFiles([], [textFile('note.txt', new Uint8Array([0xff, 0xfe]), 'text/plain')]);
+    expect(binary.files).toEqual([]);
+    expect(binary.problems).toEqual([{ name: 'note.txt', code: 'not-text' }]);
   });
 
   it('refuses an unsupported type without reading it into the turn', async () => {
