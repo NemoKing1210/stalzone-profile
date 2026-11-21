@@ -28,6 +28,25 @@ export function listItemEffects(db: Db, itemId: number): ItemEffectRow[] {
     .all(itemId) as ItemEffectRow[];
 }
 
+function placeholders(count: number): string {
+  return Array.from({ length: count }, () => '?').join(', ');
+}
+
+/** Effect labels for the given items only; the payload does not scan the whole table. */
+export function itemEffectsFor(db: Db, itemIds: readonly number[]): Record<number, ItemEffectRow[]> {
+  if (!itemIds.length) return {};
+  const rows = db
+    .prepare(
+      `SELECT item_id, position, label, is_positive FROM item_effect
+        WHERE item_id IN (${placeholders(itemIds.length)})
+        ORDER BY item_id, position`,
+    )
+    .all(...itemIds) as ItemEffectRow[];
+  const out: Record<number, ItemEffectRow[]> = {};
+  for (const row of rows) (out[row.item_id] ||= []).push(row);
+  return out;
+}
+
 export function allItemEffects(db: Db): Record<number, ItemEffectRow[]> {
   const rows = db
     .prepare(`SELECT item_id, position, label, is_positive FROM item_effect ORDER BY item_id, position`)

@@ -15,7 +15,6 @@ _Nothing agreed._
 
 ## Next
 
-- [ ] performance: the payload stops rebuilding all 662 detail cards after every write — measured baseline: cold `buildPayload` 149 ms, 902 KB serialized, warm <0.1 ms (`scripts/perf-audit.ts`, `docs/PERFORMANCE.md`); the cache keys on `total_changes()` with a 30 s TTL (`read-model/payload.ts:306-330`) and every page carries the full `details` map even though only a screen's visible rows need cards. Build or refresh `details` per item (or keep a card cache across payload generations, invalidated only by the item/stat rows it reads) and leave `details` out of the page payload, fetching the visible set through `/api/v1/details/:key` or a batched read; the list screens must still render type/caliber/cls/effects without a second round trip. Prove with the same script showing cold time and bytes (target: under 400 KB and 60 ms), an `EXPLAIN QUERY PLAN` for the new card query, unchanged `npm run golden`, green `npm run check`, and a manual pass over `/weapons`, `/armor`, `/artifacts`, `/containers`, `/inventory` and `/` in both themes. — proven by the before/after `scripts/perf-audit.ts` output recorded in `docs/PERFORMANCE.md`.
 ## Later
 
 _Nothing agreed._

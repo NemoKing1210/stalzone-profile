@@ -47,7 +47,10 @@ function main(): void {
       warm.push(ms(start));
     }
 
-    const details = Object.keys(cold.details).length;
+    const instanceCards = cold.inventory.storages.reduce(
+      (sum, storage) => sum + storage.items.filter((item) => item.card).length,
+      0,
+    );
     const catalogRows = {
       weapons: cold.catalog.weapons.length,
       armor: cold.catalog.armor.length,
@@ -59,8 +62,13 @@ function main(): void {
     };
 
     const queryPlan = db
-      .prepare('EXPLAIN QUERY PLAN SELECT * FROM item_stat WHERE item_id = ? AND level = ?')
-      .all(1, 0)
+      .prepare(
+        `EXPLAIN QUERY PLAN
+         SELECT item_id, stat_id, label, level, value_num, value_min, value_max, value_text, pct,
+                is_positive, is_additional, source_id
+           FROM item_stat WHERE item_id = ? AND level IN (0, 15)`,
+      )
+      .all(1)
       .map((row) => (row as { detail: string }).detail);
 
     console.log(
@@ -71,7 +79,7 @@ function main(): void {
           coldMs: Number(coldMs.toFixed(1)),
           coldBytes,
           warmMs: warm.map((value) => Number(value.toFixed(2))),
-          details,
+          instanceCards,
           catalogRows,
           queryPlan,
         },

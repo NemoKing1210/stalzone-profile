@@ -1,5 +1,4 @@
 import { ALL_RANKS } from '~/entities/item/model/rankOptions';
-import { findDetailsCard } from '~/entities/item/model/details';
 
 import {
   buildInventoryIndex,
@@ -48,7 +47,7 @@ export const artifactsKind: InventoryKind<ArtifactRow> = {
     return index.items
       .filter((item) => item.kind === 'artifact')
       .map((item) => {
-        const card = findDetailsCard(payload.details, 'art', item.name);
+        const card = (item.card as Record<string, unknown> | null | undefined) ?? null;
         return {
           key: `instance-${item.id}`,
           instanceId: item.id,

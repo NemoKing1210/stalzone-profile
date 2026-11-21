@@ -22,8 +22,6 @@ const props = withDefaults(
     /** Equipment slots, read by the tile context menu's "Equip" action. */
     equipment?: EquipmentRead | null;
     busy?: boolean;
-    /** `payload.details`: type and caliber for the tiles that show them. */
-    details?: Record<string, unknown> | null;
     /** Registers each tile with the shared drag layer. */
     attachTile?: (el: HTMLElement | null, item: InventoryItemRead | null) => void;
     /** Fixed cell size in pixels; the carried grid and the stash share one width. */
@@ -40,7 +38,6 @@ const props = withDefaults(
     storages: () => [],
     equipment: null,
     busy: false,
-    details: null,
     attachTile: undefined,
     cell: null,
     filter: null,
@@ -159,7 +156,6 @@ function cells(x: number, y: number, size: { width: number; height: number }): R
       >
         <ItemTile
           :item="item"
-          :details="props.details"
           :picked="item.id === props.pickedId"
           :rotated="item.placement.location === 'grid' && item.placement.rotated"
           :attach="props.attachTile"

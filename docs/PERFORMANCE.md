@@ -12,22 +12,21 @@ so the live file is never opened by a second writer.
 
 | Metric                                        | Baseline       |
 | --------------------------------------------- | -------------- |
-| Cold build (fresh cache)                      | 149 ms         |
 | Cold build (fresh cache)                      | 57–60 ms       |
 | Warm build (same `total_changes`)             | < 0.1 ms       |
-| Serialized payload                            | 902 KB         |
-| `details` cards                               | 662            |
 | Serialized payload                            | 184 KB         |
 | `details` cards in the page payload           | 0              |
 | Cards on owned rows/inventory items           | 6              |
 | Catalog rows (weapons / armor / devices)      | 354 / 137 / 17 |
-| `item_stat` rows read for the catalog context | 54 415         |
 | `item_stat` rows read for the catalog context | ~5 100         |
 
-The payload cache keys on `total_changes()` with a 30 s TTL (`read-model/payload.ts`):
-every write forces the next request to rebuild all 662 cards. `EXPLAIN QUERY PLAN` for the
-per-item stat read shows the expected covering index:
-`SEARCH item_stat USING INDEX item_stat_level (item_id=? AND level=?)`.
+The payload cache keys on `total_changes()` with a 30 s TTL (`read-model/payload.ts`).
+Detail cards are no longer part of the page payload: owned rows and inventory items carry
+their own `card`, and a catalog row fetches `/api/v1/details/:key` when its modal opens. The
+server reads catalog stats with the exact columns the cards display: weapons at levels 0/15
+for `damage.start`, rate of fire, magazine and caliber; armor only the `bullet_dmg_factor`
+curve for its +15 value. `EXPLAIN QUERY PLAN` now reports
+`SEARCH item_stat USING COVERING INDEX item_stat_read (item_id=? AND level=?)`.
 
 ## Client: first paint (dev server, warm route)
 

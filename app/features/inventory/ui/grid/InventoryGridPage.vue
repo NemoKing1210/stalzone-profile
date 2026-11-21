@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { InventoryItemRead, ModuleSlot, StorageRead } from '@profile/shared/contracts';
 
-import { findDetailsCard } from '~/entities/item';
 import { ConfirmActionModal, ProfilePane } from '~/shared/ui';
 import type { DropTarget } from '../../model/drag';
 import { storageLabel } from '../../model/labels';
@@ -11,7 +10,6 @@ import { useContainerFilters } from '../../model/useContainerFilters';
 import type { ContainerFilter } from '../../model/containerFilters';
 import { stashTabs } from '../../model/stashTabs';
 import { MODAL_WIDTH } from '~/shared/lib/modalWidth';
-import { useProfileData } from '~/stores/profile-data';
 import { useInventory } from '../../model/useInventory';
 import WeightHud from './WeightHud.vue';
 import DragPreview from './DragPreview.vue';
@@ -37,8 +35,6 @@ const tidyOrder = useFilters<{ order: 'kind' | 'name' | 'rank' | 'footprint' }>(
 });
 const { place: playPlace } = useUiSounds();
 /** Catalog cards behind the instances: the tiles read type and caliber from them. */
-const { payload } = useProfileData();
-const details = computed(() => payload.value?.details ?? null);
 
 /* ------------------------------------------------------------------ */
 /* Drag state shared by both grids, the paper-doll and the panels      */
@@ -144,9 +140,8 @@ const itemMap = computed(() => {
 
 const allItems = computed(() => [...itemMap.value.values()]);
 const selectedItem = computed(() => (selectedId.value == null ? null : (itemMap.value.get(selectedId.value) ?? null)));
-const CARD_PREFIX: Record<string, string> = { weapon: 'w', armor: 'a', artifact: 'art', container: 'c' };
 const selectedCard = computed(() =>
-  selectedItem.value ? findDetailsCard(details.value, CARD_PREFIX[selectedItem.value.kind] ?? '', selectedItem.value.name) : null,
+  selectedItem.value?.card ?? null,
 );
 
 const artifactCandidates = computed(() => allItems.value.filter((item) => item.kind === 'artifact'));
@@ -291,7 +286,7 @@ const containerNames = computed<Record<number, string>>(() => {
 
 <template>
   <section class="space-y-3">
-    <DragPreview :details="details" />
+    <DragPreview />
 
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
@@ -447,7 +442,6 @@ const containerNames = computed<Record<number, string>>(() => {
                   :storages="inventory.storages.value"
                   :equipment="inventory.equipment.value"
                   :busy="inventory.busy.value"
-                  :details="details"
                   :drop-enabled="inventory.selectedStorage.value.kind !== 'overflow'"
                   :empty-text="
                     inventory.selectedStorage.value.kind === 'overflow' ? t('inventory.overflowEmpty') : undefined
@@ -496,7 +490,6 @@ const containerNames = computed<Record<number, string>>(() => {
               :storages="inventory.storages.value"
               :equipment="inventory.equipment.value"
               :busy="inventory.busy.value"
-              :details="details"
               :attach-tile="drag.attachTile"
               @open="openItem"
               @pick="pickItem"

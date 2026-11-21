@@ -319,6 +319,26 @@ export function listItems(db: Db, kind?: string, realm = 'ru'): ItemRow[] {
   return db.prepare(`SELECT * FROM item WHERE realm = ? ORDER BY kind, name_norm`).all(realm) as ItemRow[];
 }
 
+/**
+ * The rows the page payload needs: catalog weapons/armor, device-category rows and the items
+ * an owned instance points at. Other catalog kinds stay out so the read does not scan them.
+ */
+export function listPayloadItems(db: Db, ownedIds: readonly number[]): ItemRow[] {
+  const ownedClause = ownedIds.length ? ` OR id IN (${placeholders(ownedIds.length)})` : '';
+  return db
+    .prepare(
+      `SELECT * FROM item
+        WHERE realm = 'ru'
+          AND (kind IN ('weapon', 'armor')
+            OR category = 'device'
+            OR category LIKE 'device/%'
+            OR category LIKE '%/device'
+            OR category LIKE '%/device/%'${ownedClause})
+        ORDER BY kind, name_norm`,
+    )
+    .all(...ownedIds) as ItemRow[];
+}
+
 export function itemStats(db: Db, itemId: number, level?: number): ItemStatRow[] {
   const rows =
     level == null
@@ -376,15 +396,26 @@ export function itemsByIds(db: Db, ids: number[]): Map<number, ItemRow> {
   return out;
 }
 
-export function statsByItemIds(db: Db, ids: number[]): Map<number, ItemStatRow[]> {
+export function statsByItemIds(
+  db: Db,
+  ids: number[],
+  levels?: readonly number[],
+  statIds?: readonly string[],
+): Map<number, ItemStatRow[]> {
   const out = new Map<number, ItemStatRow[]>();
   if (!ids.length) return out;
+  if (levels && !levels.length) return out;
+  if (statIds && !statIds.length) return out;
+  const levelClause = levels ? ` AND level IN (${placeholders(levels.length)})` : '';
+  const statClause = statIds ? ` AND stat_id IN (${placeholders(statIds.length)})` : '';
   const rows = db
     .prepare(
-      `SELECT * FROM item_stat WHERE item_id IN (${placeholders(ids.length)})
-       ORDER BY item_id, stat_id, level, is_additional`,
+      `SELECT item_id, stat_id, label, level, value_num, value_min, value_max, value_text, pct,
+              is_positive, is_additional, source_id
+         FROM item_stat WHERE item_id IN (${placeholders(ids.length)})${levelClause}${statClause}
+        ORDER BY item_id, stat_id, level, is_additional`,
     )
-    .all(...ids) as ItemStatRow[];
+    .all(...ids, ...(levels ?? []), ...(statIds ?? [])) as ItemStatRow[];
   for (const row of rows) {
     const list = out.get(row.item_id) ?? [];
     list.push(row);

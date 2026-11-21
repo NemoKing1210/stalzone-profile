@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import { useProfileData } from '~/stores/profile-data';
 
 import type { InventoryItemRead, ModuleSlot } from '@profile/shared/contracts';
 
-import { findDetailsCard } from '~/entities/item';
 
 import { useGridDragContext } from './drag-context';
 
@@ -31,7 +29,6 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
-const { payload } = useProfileData();
 const { g2, num } = useFormat();
 
 const SLOTS: { slot: ModuleSlot; icon: string }[] = [
@@ -46,7 +43,7 @@ const SLOTS: { slot: ModuleSlot; icon: string }[] = [
 
 const selectedSlot = ref<ModuleSlot>('scope');
 
-const card = computed(() => findDetailsCard(payload.value?.details, 'w', props.weapon.name));
+const card = computed(() => props.weapon.card ?? null);
 
 const BASE_STATS: { key: string; label: string; digits: number }[] = [
   { key: 'weight', label: 'items.fields.weight', digits: 2 },

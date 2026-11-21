@@ -72,6 +72,8 @@ normalizes the carried grid to 8×20 and every stash to 8×200, and leaves the t
 intake unchanged. `0015_intake_grid_width.sql` resizes the intake to eight columns, keeps its
 80-row base height and repacks every intake placement into one column (x=0, unrotated,
 cumulative y) through a temp copy, then rebuilds the unique grid-origin index.
+`0016_item_stat_read_index.sql` adds a covering index over the card columns of `item_stat`, so
+the payload reads its stats without a table lookup.
 
 ## Source authority
 
@@ -104,7 +106,8 @@ owns itself.
 
 - Every table is `STRICT`; SQL uses prepared statements only.
 - `item` is unique by `(realm, external_id)`; `name_norm` is lower/ё→е/without quotes.
-- `item_stat` is keyed `(item_id, stat_id, level, is_additional)`; a new EXBO stat needs a
+- `item_stat` is keyed `(item_id, stat_id, level, is_additional)` and has the covering
+  `item_stat_read` index for the card columns; a new EXBO stat needs a
   `stat_definition` row, not a migration.
 - `inventory_item` holds one row per owned thing; only `ammo` and `other` may carry `qty > 1`.
   A weapon, armor, container, artifact or attachment is never collapsed into another row,

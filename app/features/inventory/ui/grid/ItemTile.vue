@@ -1,30 +1,23 @@
 <script setup lang="ts">
 import type { InventoryItemRead } from '@profile/shared/contracts';
 
-import { findDetailsCard } from '~/entities/item/model/details';
-
 import { effectiveSize } from '../../model/grid';
 
 const props = withDefaults(
   defineProps<{
     item: InventoryItemRead;
-    /** `payload.details`: the catalog card behind the instance, read for type and caliber. */
-    details?: Record<string, unknown> | null;
     picked?: boolean;
     rotated?: boolean;
     /** Registers the tile with the drag layer; the tile itself moves under the pointer. */
     attach?: (el: HTMLElement | null, item: InventoryItemRead | null) => void;
   }>(),
-  { details: null, picked: false, rotated: false, attach: undefined },
+  { picked: false, rotated: false, attach: undefined },
 );
 
 defineEmits<{ open: []; pick: [event: KeyboardEvent] }>();
 
 const { t } = useI18n();
 const { rankColor, rankTextColor } = useFormat();
-
-/** Card keys are prefixed by kind in `payload.details` (`cardKey` in core). */
-const DETAIL_PREFIX: Record<string, string> = { weapon: 'w', armor: 'a', artifact: 'art', container: 'c' };
 
 const size = computed(() => effectiveSize(props.item.size, props.rotated));
 const name = computed(() => props.item.displayName ?? props.item.name);
@@ -34,7 +27,7 @@ const artifacts = computed(() => props.item.artifacts?.length ?? 0);
 const modules = computed(() => props.item.modules?.length ?? 0);
 const attached = computed(() => artifacts.value || modules.value);
 
-const card = computed(() => findDetailsCard(props.details, DETAIL_PREFIX[props.item.kind] ?? '', props.item.name));
+const card = computed(() => props.item.card ?? null);
 const type = computed(() => {
   // Weapons carry their class in `type`, armor carries it in `cls`; other kinds stay plain.
   const raw = props.item.kind === 'weapon' ? card.value?.type : props.item.kind === 'armor' ? card.value?.cls : null;

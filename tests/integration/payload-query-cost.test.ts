@@ -59,14 +59,15 @@ describe('payload catalog read cost', () => {
 
     // A per-item query pattern used to add ~6 statements per catalog item (600 here).
     expect(grown - baseline).toBeLessThanOrEqual(20);
-    // One context per section: the absolute count must not grow with the catalog either.
-    expect(baseline).toBeLessThanOrEqual(20);
+    // The read model now uses four narrow contexts (weapon / armor / device / owned) plus
+    // one shared icon query; the count is fixed and must not grow with the catalog.
+    expect(baseline).toBeLessThanOrEqual(22);
   });
 
   it('still exposes the extra catalog rows', () => {
     addWeapons(3);
     const payload = buildPayload(db);
-    expect(Object.keys(payload.details)).toContain('w:Bulk Weapon 0');
+    expect(payload).not.toHaveProperty('details');
     expect(payload.catalog.weapons.map((row) => row.name)).toContain('Bulk Weapon 2');
   });
 });

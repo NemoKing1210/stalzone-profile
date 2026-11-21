@@ -122,7 +122,10 @@ function main(): void {
           armor: payload.armor.length,
           containers: payload.containers.length,
           artifacts: payload.artifacts.length,
-          details: Object.keys(payload.details).length,
+          instanceCards: payload.inventory.storages.reduce(
+            (sum, storage) => sum + storage.items.filter((item) => item.card).length,
+            0,
+          ),
           catalogWeapons: payload.catalog.weapons.length,
           catalogArmor: payload.catalog.armor.length,
           mismatches: mismatches.length,

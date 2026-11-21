@@ -1,7 +1,7 @@
 <script setup lang="ts" generic="TRow extends { key: string; name: string; rank: string | null }">
 import { h, type VNode } from 'vue';
 
-import { ItemCard, findDetailsCard, rankOptions } from '~/entities/item';
+import { ItemCard, rankOptions } from '~/entities/item';
 import { barScale } from '../model/comparisonBars';
 import ValueWithBar from './kinds/ValueWithBar.vue';
 import ItemIconCell from './kinds/ItemIconCell.vue';
@@ -197,7 +197,7 @@ const artifactOpen = computed({
   },
 });
 const artifactCard = computed(() =>
-  artifactTarget.value ? findDetailsCard(payload.value?.details, 'art', artifactTarget.value.name) : null,
+  artifactTarget.value ? (fetchedCards.value.get(`art:${artifactTarget.value.name}`) ?? null) : null,
 );
 
 const editOpen = computed({
@@ -225,13 +225,44 @@ const attachmentCandidates = computed(() =>
 const selected = computed<TRow | null>(() => rows.value.find((row) => row.key === selectedKey.value) ?? null);
 
 const CARD_PREFIX: Record<string, string> = { weapon: 'w', armor: 'a', artifact: 'art', container: 'c' };
-const selectedCard = computed(() =>
-  selected.value ? findDetailsCard(payload.value?.details, CARD_PREFIX[props.kind.key] ?? '', selected.value.name) : null,
-);
+const fetchedCards = ref(new Map<string, Record<string, unknown> | null>());
+const pendingCards = new Set<string>();
+const request = useRequestFetch();
+
+/** Owned rows carry their card; a catalog row fetches it once, keyed by `<prefix>:<name>`. */
+function localCard(row: TRow): Record<string, unknown> | null {
+  const own = row as unknown as { card?: Record<string, unknown> | null; item?: { card?: Record<string, unknown> | null } };
+  return own.card ?? own.item?.card ?? null;
+}
+
+async function loadCard(key: string): Promise<void> {
+  if (fetchedCards.value.has(key) || pendingCards.has(key)) return;
+  pendingCards.add(key);
+  try {
+    const response = await request<{ data?: Record<string, unknown> }>(`/api/v1/details/${encodeURIComponent(key)}`);
+    fetchedCards.value.set(key, response?.data ?? null);
+  } catch {
+    fetchedCards.value.set(key, null);
+  } finally {
+    pendingCards.delete(key);
+  }
+}
+
+const selectedCard = computed(() => {
+  const row = selected.value;
+  if (!row) return null;
+  const own = localCard(row);
+  if (own) return own;
+  return fetchedCards.value.get(`${CARD_PREFIX[props.kind.key] ?? ''}:${row.name}`) ?? null;
+});
 
 function openRow(row: TRow): void {
   selectedKey.value = row.key;
   dialogOpen.value = true;
+  if (!localCard(row)) {
+    const prefix = CARD_PREFIX[props.kind.key] ?? '';
+    void loadCard(`${prefix}:${row.name}`);
+  }
 }
 
 const selectedItem = computed<InventoryItemRead | null>(
@@ -301,6 +332,7 @@ function requestFill(): void {
 function openArtifact(name: string, level: number): void {
   dialogOpen.value = false;
   artifactTarget.value = { name, level };
+  void loadCard(`art:${name}`);
 }
 </script>
 

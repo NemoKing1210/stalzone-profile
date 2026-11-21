@@ -33,7 +33,6 @@ describe('buildPayload contract', () => {
       'catalog',
       'character',
       'containers',
-      'details',
       'freshness',
       'icons',
       'inventory',
@@ -98,14 +97,27 @@ describe('buildPayload contract', () => {
     });
   });
 
-  it('builds the catalog and details sections from typed rows', () => {
+  it('builds the catalog rows from typed rows and keeps cards out of the page payload', () => {
     expect(payload.catalog.weapons.map((w) => w.name)).toEqual(['АК-12', 'KS-1']);
     expect(payload.catalog.weapons.find((w) => w.name === 'АК-12')).toMatchObject({
       dmg15: 55,
       dps15: 550,
       ttk15: 1,
     });
-    expect(payload.details['art:Нервяк']).toMatchObject({ kind: 'artifact', name: 'Нервяк', effects: 'Скорость' });
+    expect(payload).not.toHaveProperty('details');
+  });
+
+  it('attaches the card to owned rows and keeps the full map in the export', () => {
+    const owned = [
+      ...payload.weapons,
+      ...payload.armor,
+      ...payload.containers,
+      ...payload.artifacts,
+    ] as { card?: { kind?: string; name?: string } }[];
+    expect(owned.length).toBeGreaterThan(0);
+    for (const row of owned) expect(row.card).toMatchObject({ kind: expect.any(String), name: expect.any(String) });
+
+    expect(exportProfileJson(db).details['art:Нервяк']).toMatchObject({ name: 'Нервяк' });
   });
 
   it('exports the new profile shape without legacy sections', () => {
@@ -121,6 +133,7 @@ describe('buildPayload contract', () => {
       'meta',
       'weapons',
     ]);
+    expect(exported.details['art:Нервяк']).toMatchObject({ kind: 'artifact', name: 'Нервяк', effects: 'Скорость' });
     expect(exported).not.toHaveProperty('career');
     expect(exported).not.toHaveProperty('recommendations');
     expect(exported).not.toHaveProperty('earnings');
@@ -142,7 +155,6 @@ describe('buildPayload contract', () => {
       const out = buildPayload(empty);
       expect(out.character).toEqual({});
       expect(out.weapons).toEqual([]);
-      expect(out.details).toEqual({});
       expect(out.catalog).toEqual({
         weapons: [],
         armor: [],

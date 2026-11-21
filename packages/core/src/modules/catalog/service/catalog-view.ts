@@ -94,16 +94,6 @@ export function itemText(rows: ItemStatRow[], statId: string): string | null {
   );
 }
 
-function damagePoint(rows: ItemStatRow[], level: number): DamagePoint {
-  return {
-    d0: itemValueExact(rows, 'damage.start', level),
-    dB: itemValueExact(rows, 'damage.end', level),
-    distA: itemValueExact(rows, 'damage.decrease_start', level),
-    distB: itemValueExact(rows, 'damage.decrease_end', level),
-    distMax: itemValueExact(rows, 'damage.max_distance', level),
-  };
-}
-
 function effectsText(db: Db, itemId: number): string {
   return repo
     .listItemEffects(db, itemId)
@@ -124,28 +114,51 @@ export interface CatalogContext extends ItemCardContext {
 }
 
 /** Loads the item rows and every per-card map once for the whole read model. */
-export function loadCatalogContext(db: Db, items: ItemRow[]): CatalogContext {
+export function loadCatalogContext(
+  db: Db,
+  items: ItemRow[],
+  levels?: readonly number[],
+  statIds?: readonly string[],
+  includeEffects = true,
+  icons?: Map<number, string>,
+): CatalogContext {
   return {
     items: new Map(items.map((item) => [item.id, item])),
     ...loadItemCardContext(
       db,
       items.map((item) => item.id),
+      levels,
+      statIds,
+      includeEffects,
+      icons,
     ),
   };
 }
 
-/** Loads stats, icons and effect labels in three statements for any number of items. */
-export function loadItemCardContext(db: Db, itemIds: number[]): ItemCardContext {
+/**
+ * Loads stats, icons and effect labels in three statements for any number of items.
+ * `levels` narrows the stat read when the caller only needs catalog base/+15 values.
+ */
+export function loadItemCardContext(
+  db: Db,
+  itemIds: number[],
+  levels?: readonly number[],
+  statIds?: readonly string[],
+  includeEffects = true,
+  icons?: Map<number, string>,
+): ItemCardContext {
   const effects = new Map<number, string>();
-  for (const [itemId, rows] of Object.entries(repo.allItemEffects(db))) {
-    effects.set(
-      Number(itemId),
-      rows.map((effect) => effect.label).join(', '),
-    );
+  if (includeEffects) {
+    for (const [itemId, rows] of Object.entries(repo.itemEffectsFor(db, itemIds))) {
+      effects.set(
+        Number(itemId),
+        rows.map((effect) => effect.label).join(', '),
+      );
+    }
   }
   return {
-    stats: repo.statsByItemIds(db, itemIds),
-    icons: repo.iconsByItemIds(db, itemIds),
+    stats: repo.statsByItemIds(db, itemIds, levels, statIds),
+    icons: icons ?? repo.iconsByItemIds(db, itemIds),
     effects,
   };
 }
@@ -173,6 +186,26 @@ function armorMods(rows: ItemStatRow[]): { name: string; value: number; pct: boo
 }
 
 function buildCard(item: ItemRow, rows: ItemStatRow[], icon: string | null, effects: string): ItemCard {
+  // One index per item: a card reads ~20 stats, and re-filtering the row list for each
+  // lookup dominated the cold payload build.
+  const byStat = new Map<string, ItemStatRow[]>();
+  for (const row of rows) {
+    const list = byStat.get(row.stat_id) ?? [];
+    list.push(row);
+    byStat.set(row.stat_id, list);
+  }
+  const value = (statId: string, level?: number): number | null =>
+    preferredStat(byStat.get(statId) ?? [], statId, level)?.value_num ?? null;
+  const exact = (statId: string, level: number): number | null => itemValueExact(byStat.get(statId) ?? [], statId, level);
+  const text = (statId: string): string | null => itemText(byStat.get(statId) ?? [], statId);
+  const point = (level: number): DamagePoint => ({
+    d0: exact('damage.start', level),
+    dB: exact('damage.end', level),
+    distA: exact('damage.decrease_start', level),
+    distB: exact('damage.decrease_end', level),
+    distMax: exact('damage.max_distance', level),
+  });
+
   const base: ItemCard = {
     kind: item.kind,
     name: item.name,
@@ -185,30 +218,30 @@ function buildCard(item: ItemRow, rows: ItemStatRow[], icon: string | null, effe
   };
 
   if (item.kind === 'weapon') {
-    const rof = itemValue(rows, 'weapon.tooltip.weapon.info.rate_of_fire', 15);
+    const rof = value('weapon.tooltip.weapon.info.rate_of_fire', 15);
     return {
       ...base,
-      caliber: itemText(rows, 'kv:weapon.tooltip.weapon.info.ammo_type'),
-      mag: itemValue(rows, 'weapon.tooltip.weapon.info.clip_size'),
-      rof: itemValue(rows, 'weapon.tooltip.weapon.info.rate_of_fire'),
-      spread: itemValue(rows, 'weapon.tooltip.weapon.info.spread'),
-      hipSpread: itemValue(rows, 'weapon.tooltip.weapon.info.hip_spread'),
-      recoil: itemValue(rows, 'weapon.tooltip.weapon.info.recoil'),
-      reload: itemValue(rows, 'weapon.tooltip.magazine.info.reload_time'),
-      reloadTac: itemValue(rows, 'weapon.tooltip.magazine.info.reload_time_tactical'),
-      ergonomics: itemValue(rows, 'weapon.stat_factor.reload_modifier'),
-      draw: itemValue(rows, 'weapon.tooltip.weapon.info.draw_time'),
-      aim: itemValue(rows, 'weapon.tooltip.weapon.info.aim_switch'),
-      platePen: itemValue(rows, 'weapon.tooltip.weapon.info.plate_penetrating'),
-      pierce: itemValue(rows, 'weapon.tooltip.weapon.info.piercing'),
+      caliber: text('kv:weapon.tooltip.weapon.info.ammo_type'),
+      mag: value('weapon.tooltip.weapon.info.clip_size'),
+      rof: value('weapon.tooltip.weapon.info.rate_of_fire'),
+      spread: value('weapon.tooltip.weapon.info.spread'),
+      hipSpread: value('weapon.tooltip.weapon.info.hip_spread'),
+      recoil: value('weapon.tooltip.weapon.info.recoil'),
+      reload: value('weapon.tooltip.magazine.info.reload_time'),
+      reloadTac: value('weapon.tooltip.magazine.info.reload_time_tactical'),
+      ergonomics: value('weapon.stat_factor.reload_modifier'),
+      draw: value('weapon.tooltip.weapon.info.draw_time'),
+      aim: value('weapon.tooltip.weapon.info.aim_switch'),
+      platePen: value('weapon.tooltip.weapon.info.plate_penetrating'),
+      pierce: value('weapon.tooltip.weapon.info.piercing'),
       mods3: {
-        head: itemValue(rows, 'weapon.tooltip.weapon.info.head_damage_multiplier'),
-        limbs: itemValue(rows, 'weapon.tooltip.weapon.info.limbs_damage_multiplier'),
+        head: value('weapon.tooltip.weapon.info.head_damage_multiplier'),
+        limbs: value('weapon.tooltip.weapon.info.limbs_damage_multiplier'),
       },
-      p0: damagePoint(rows, 0),
-      p15: damagePoint(rows, 15),
-      dps15: displayDps(itemValueExact(rows, 'damage.start', 15), rof),
-      ttk15: displayTtk(itemValueExact(rows, 'damage.start', 15), rof),
+      p0: point(0),
+      p15: point(15),
+      dps15: displayDps(exact('damage.start', 15), rof),
+      ttk15: displayTtk(exact('damage.start', 15), rof),
     };
   }
 
@@ -236,14 +269,14 @@ function buildCard(item: ItemRow, rows: ItemStatRow[], icon: string | null, effe
   }
 
   if (item.kind === 'container') {
-    const slots = itemValue(rows, 'container.slots');
-    const eff = itemValue(rows, 'container.effectiveness');
+    const slots = value('container.slots');
+    const eff = value('container.effectiveness');
     return {
       ...base,
       slots,
       eff,
-      prot: itemValue(rows, 'container.protection'),
-      slotEq: slots != null && eff != null ? round((slots * eff) / 100, 2) : itemValue(rows, 'container.slot_equivalent'),
+      prot: value('container.protection'),
+      slotEq: slots != null && eff != null ? round((slots * eff) / 100, 2) : value('container.slot_equivalent'),
       shield: null,
       bonus: null,
     };

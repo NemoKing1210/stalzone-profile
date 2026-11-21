@@ -3,7 +3,6 @@ import type { Payload } from '@profile/shared/contracts';
 import { dataVersion, type Db } from '../../platform/db/index.js';
 import {
   armorAtLevel,
-  buildCardIndex,
   buildCatalogFrom,
   buildDeviceCatalogFrom,
   buildItemCardFrom,
@@ -13,13 +12,13 @@ import {
   displayTtk,
   headMultiplier,
   iconMapFrom,
+  iconsByItemIds,
   isDeviceCategory,
   itemText,
   itemValue,
   itemValueExact,
-  itemsByIds,
   latestPriceFetchedAt,
-  listItems,
+  listPayloadItems,
   loadCatalogContext,
   protKeyFor,
   type CatalogContext,
@@ -55,7 +54,6 @@ export interface PayloadFreshness {
 }
 
 const REFERENCE_SOURCES = ['exbo_base', 'wiki', 'motifs'] as const;
-const CARD_KINDS: Record<string, true> = { weapon: true, armor: true, artifact: true, container: true };
 
 export function newest(values: (string | null | undefined)[]): string | null {
   let best: string | null = null;
@@ -366,20 +364,32 @@ function buildPayloadUncached(db: Db, characterId?: number): Payload {
   const ownedIds = new Set(instances.map((row) => row.item_id));
   const catalogItems = listPayloadItems(db, [...ownedIds]);
   const itemsById = new Map(catalogItems.map((item) => [item.id, item]));
-  const missingIds = [...new Set(instances.map((row) => row.item_id))].filter((id) => !itemsById.has(id));
-  if (missingIds.length) {
-    for (const [id, item] of itemsByIds(db, missingIds)) itemsById.set(id, item);
-  }
-  // Details and catalogs only need the four card kinds; other catalog rows cost a full stats read.
-  const instanceItemIds = new Set(instances.map((row) => row.item_id));
-  const allItems = [...itemsById.values()].filter(
-    (item) => CARD_KINDS[item.kind] === true || instanceItemIds.has(item.id) || isDeviceCategory(item.category),
+  const all = [...itemsById.values()];
+  const devices = all.filter((item) => isDeviceCategory(item.category));
+  const weaponItems = all.filter((item) => item.kind === 'weapon' && !isDeviceCategory(item.category));
+  const armorItems = all.filter((item) => item.kind === 'armor');
+  const ownedItems = all.filter((item) => ownedIds.has(item.id));
+  // Catalog cards only display base and +15 values; armor needs only its 0..15 curve.
+  const iconMap = iconsByItemIds(db, [...itemsById.keys()]);
+  const weaponCtx = loadCatalogContext(
+    db,
+    weaponItems,
+    [0, 15],
+    [
+      'damage.start',
+      'weapon.tooltip.weapon.info.rate_of_fire',
+      'weapon.tooltip.weapon.info.clip_size',
+      'kv:weapon.tooltip.weapon.info.ammo_type',
+    ],
+    false,
+    iconMap,
   );
-  const ctx: CatalogContext = loadCatalogContext(db, allItems);
-  const cards = buildCardIndex(ctx);
-  const catalogWeapons = buildCatalogFrom(ctx, 'weapon', cards.byId);
-  const catalogArmor = buildCatalogFrom(ctx, 'armor', cards.byId);
-  const catalogDevices = buildDeviceCatalogFrom(ctx, cards.byId);
+  const armorCtx = loadCatalogContext(db, armorItems, undefined, ['bullet_dmg_factor'], false, iconMap);
+  const deviceCtx = loadCatalogContext(db, devices, [0], [], false, iconMap);
+  const ownedCtx = loadCatalogContext(db, ownedItems, undefined, undefined, true, iconMap);
+  const catalogWeapons = buildCatalogFrom(weaponCtx, 'weapon');
+  const catalogArmor = buildCatalogFrom(armorCtx, 'armor');
+  const catalogDevices = buildDeviceCatalogFrom(deviceCtx);
   const stats = listCharacterStats(db, character.id);
   const meta = catalogMeta(sourceById, countItems(db));
   const inventory = inventoryReadFrom(db, character.id, snapshot);
@@ -404,14 +414,14 @@ function buildPayloadUncached(db: Db, characterId?: number): Payload {
       statsFetched: newest(stats.map((stat) => stat.fetched_at)),
     },
     character: characterPayload(character, stats),
-    weapons: instances.filter((row) => row.kind === 'weapon').map((row) => weaponPayload(ctx, row, placements)),
-    armor: instances.filter((row) => row.kind === 'armor').map((row) => armorPayload(ctx, ctx, row, placements)),
+    weapons: instances.filter((row) => row.kind === 'weapon').map((row) => weaponPayload(ownedCtx, row, placements)),
+    armor: instances.filter((row) => row.kind === 'armor').map((row) => armorPayload(ownedCtx, ownedCtx, row, placements)),
     containers: instances
       .filter((row) => row.kind === 'container')
-      .map((row) => containerPayload(ctx, row, snapshot.containers, fills, placements)),
+      .map((row) => containerPayload(ownedCtx, row, snapshot.containers, fills, placements)),
     artifacts: instances
       .filter((row) => row.kind === 'artifact')
-      .map((row) => artifactPayload(ctx, ctx.effects, row, placements)),
+      .map((row) => artifactPayload(ownedCtx, ownedCtx.effects, row, placements)),
     catalog: {
       weapons: catalogWeapons,
       armor: catalogArmor,
@@ -419,7 +429,7 @@ function buildPayloadUncached(db: Db, characterId?: number): Payload {
       meta,
     },
     inventory,
-    icons: iconMapFrom(allItems, ctx.icons),
+    icons: iconMapFrom(all, iconMap),
     freshness: freshness(sources, latestPrice, character.updated_at),
   } as Payload;
 }
