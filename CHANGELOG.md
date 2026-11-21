@@ -65,8 +65,10 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
   `base_item_id` from the style token; the next catalog sync also corrects rows stored
   as gear.
 
-### Added
+### Changed
 
+- Inventory list mode renders one 40-row window of the sorted and filtered rows across all
+  grouped sections, with a Load more control; grid mode, sorting and filtering are unchanged.
 - Theme changes cross-fade for 200 ms where the View Transition API exists (instant without
   it or under reduced motion); settings/guide tab panels replay a 160 ms enter, sliders scale
   their thumb on press and catalog cards lift 1 px on hover.

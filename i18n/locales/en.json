@@ -424,6 +424,7 @@
     "noLimit": "no limit",
     "fixedSizeHint": "Every stash is 8 × 200 cells and its size is fixed. Move items to the carried grid or another stash instead.",
     "tidy": "Tidy up",
+    "loadMore": "Load more",
     "tidyOrder": "Layout order",
     "tidyOrders": {
       "kind": "Kind, then name",

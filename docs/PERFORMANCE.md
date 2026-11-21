@@ -32,6 +32,7 @@ per-item stat read shows the expected covering index:
 | `/inventory` | 222 ms | 276 ms | 285       | —             |
 | `/devices`   | 429 ms | 500 ms | 357       | 17            |
 | `/weapons`   | 70 ms  | 140 ms | 7 707     | 354           |
+| `/weapons`   | 70 ms  | 140 ms | 1 163     | 40 of 354     |
 
 The `/weapons` first measurement (2.1 s) was a cold Vite compile; the table records the
 warm reload. The table view renders all 354 catalog rows with no pagination or

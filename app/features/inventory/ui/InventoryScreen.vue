@@ -21,6 +21,7 @@ import {
   typeOptions,
 } from '../model/filters';
 import { allInventoryItems } from '../model/instances';
+import { windowSections } from '../model/listWindow';
 import { sortableHeader } from '../model/tableHeader';
 import type { InventoryColumn, InventoryKind } from '../model/types';
 import { useFilters } from '../model/useFilters';
@@ -97,6 +98,15 @@ const sortedRows = computed(() => sortInventoryRows(filteredRows.value, sortKey.
 const sections = computed(() =>
   inventorySections(sortedRows.value, filters.group, props.kind.groupKey, t('filters.noType')),
 );
+
+/** List mode renders one bounded window of the sorted rows; grid mode is untouched. */
+const LIST_WINDOW = 40;
+const listLimit = ref(LIST_WINDOW);
+const listWindow = computed(() => windowSections(sections.value, listLimit.value));
+const shownRows = computed(() => listWindow.value.sections.reduce((sum, section) => sum + section.rows.length, 0));
+watch(sections, () => {
+  listLimit.value = LIST_WINDOW;
+});
 
 function tdClass(column: InventoryColumn<TRow>): string | undefined {
   const classes = [
@@ -380,10 +390,10 @@ function openArtifact(name: string, level: number): void {
             :title="t('common.empty')"
             :description="emptyText"
           />
-          <template v-for="section in sections" :key="`table-${section.key}`">
+          <template v-for="section in listWindow.sections" :key="`table-${section.key}`">
             <h2 v-if="section.label" class="sz-caps mb-1 text-[11px] text-[var(--sz-text-muted)] [overflow-wrap:break-word]">
               {{ section.label }}
-              <span class="tabular-nums">({{ section.rows.length }})</span>
+              <span class="tabular-nums">({{ section.total }})</span>
             </h2>
             <UTable
               v-model:sorting="sorting"
@@ -403,6 +413,21 @@ function openArtifact(name: string, level: number): void {
               </template>
             </UTable>
           </template>
+          <div
+            v-if="listWindow.hidden"
+            class="mt-2 flex items-center justify-between gap-2 border-t border-[var(--sz-border)] pt-2"
+          >
+            <span class="text-[11px] tabular-nums text-[var(--sz-text-dim)]">
+              {{ shownRows }} / {{ sortedRows.length }}
+            </span>
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="outline"
+              :label="t('inventory.loadMore')"
+              @click="listLimit += LIST_WINDOW"
+            />
+          </div>
         </template>
       </div>
     </ProfilePane>
