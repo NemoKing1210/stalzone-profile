@@ -9,6 +9,12 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Fixed
 
+- The assistant now receives each tool's real argument schema instead of an empty object.
+  Without it the model called `find_items({})`, got a page of ammo, retried with the same
+  or guessed arguments, and used every tool round; the turn then ended with no assistant
+  message and no error — the silent “did nothing” reply. The last allowed round is now sent
+  without tools so the model must summarize the results it already has, and a provider that
+  returns no text at all yields `AI_EMPTY` instead of an empty turn.
 - The weapons chart no longer stretches its x axis to the longest-range outlier: it ends at
   the furthest damage-falloff end, so the curves fill the frame instead of bunching at the
   left, and the flat constant tail is not drawn. The crosshair readout has a fixed height,

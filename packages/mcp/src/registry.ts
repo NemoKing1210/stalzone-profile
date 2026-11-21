@@ -142,6 +142,52 @@ const RollbackInputSchema = z.object({
   confirm: z.boolean().default(false),
 });
 
+const ListInventoryItemsInputSchema = z.object({
+  kind: ItemKindSchema.optional(),
+  location: z.enum(['grid', 'equipment', 'container', 'weapon_module', 'loose']).optional(),
+  storage_id: z.number().int().positive().optional(),
+  virtual: z.boolean().optional(),
+});
+
+/**
+ * The one input schema per tool. The registry validates with it and the assistant receives
+ * the same shape as provider JSON Schema — a tool without `properties` gives the model no
+ * way to know its arguments and it calls the tool with `{}`.
+ */
+const TOOL_SCHEMAS = {
+  get_character: z.object({}),
+  find_items: FindItemsQuerySchema,
+  get_item: GetItemInputSchema,
+  compare_items: CompareItemsInputSchema,
+  get_inventory: z.object({}),
+  list_storages: z.object({}),
+  list_inventory_items: ListInventoryItemsInputSchema,
+  list_containers: z.object({}),
+  plan_artifact_build: PlanArtifactBuildInputSchema,
+  get_prices: GetPricesInputSchema,
+  sources_status: z.object({}),
+  export_profile_json: z.object({}),
+  add_inventory_item: AddInventoryItemInputSchema,
+  update_inventory_item: UpdateInventoryItemInputSchema,
+  remove_inventory_item: RemoveInventoryItemInputSchema,
+  move_inventory_item: MoveInventoryItemInputSchema,
+  create_storage: CreateStorageInputSchema,
+  update_storage: UpdateStorageInputSchema,
+  delete_storage: DeleteStorageInputSchema,
+  set_container_artifacts: SetContainerArtifactsInputSchema,
+  set_weapon_module: SetWeaponModuleInputSchema,
+  set_item_layout: SetItemLayoutInputSchema,
+  auto_arrange_storage: AutoArrangeStorageInputSchema,
+  sync_source: SyncSourceInputSchema,
+  rebuild_site: z.object({}),
+  rollback_event: RollbackInputSchema,
+  list_logs: ListLogsInputSchema,
+  log_stats: LogStatsInputSchema,
+  get_logging: z.object({}),
+  update_logging: UpdateLoggingInputSchema,
+  clear_logs: ClearLogsInputSchema,
+} as const;
+
 /** Read-only tools with sample arguments; used by the stdio smoke and integration tests. */
 export const READ_TOOLS: { name: string; args: Record<string, unknown> }[] = [
   { name: 'get_character', args: {} },
@@ -238,8 +284,17 @@ export function toolDefinitions(allowList?: readonly string[]): {
     .map(([name, description]) => ({
       name,
       description,
-      parameters: { type: 'object', properties: {}, additionalProperties: true },
+      parameters: toolJsonSchema(name),
     }));
+}
+
+/** The actual argument shape, so the model can call `find_items({ q, kind, limit })`. */
+function toolJsonSchema(name: string): Record<string, unknown> {
+  const schema = (TOOL_SCHEMAS as Record<string, z.ZodTypeAny>)[name];
+  if (!schema) return { type: 'object', properties: {}, additionalProperties: true };
+  const json = z.toJSONSchema(schema, { io: 'input', unrepresentable: 'any' }) as Record<string, unknown>;
+  delete json.$schema;
+  return json;
 }
 
 function ok(data: unknown) {
@@ -370,7 +425,7 @@ export function createProfileServer(
 
   server.registerTool(
     'get_character',
-    { description: TOOL_DOCS.get_character, inputSchema: z.object({}) },
+    { description: TOOL_DOCS.get_character, inputSchema: TOOL_SCHEMAS.get_character },
     async () => {
       try {
         return ok(await client.getCharacter());
@@ -382,7 +437,7 @@ export function createProfileServer(
 
   server.registerTool(
     'find_items',
-    { description: TOOL_DOCS.find_items, inputSchema: FindItemsQuerySchema },
+    { description: TOOL_DOCS.find_items, inputSchema: TOOL_SCHEMAS.find_items },
     async (args) => {
       try {
         return ok({ items: await client.findItems(args) });
@@ -394,7 +449,7 @@ export function createProfileServer(
 
   server.registerTool(
     'get_item',
-    { description: TOOL_DOCS.get_item, inputSchema: GetItemInputSchema },
+    { description: TOOL_DOCS.get_item, inputSchema: TOOL_SCHEMAS.get_item },
     async (args) => {
       try {
         const item = await client.getItem(args);
@@ -408,7 +463,7 @@ export function createProfileServer(
 
   server.registerTool(
     'compare_items',
-    { description: TOOL_DOCS.compare_items, inputSchema: CompareItemsInputSchema },
+    { description: TOOL_DOCS.compare_items, inputSchema: TOOL_SCHEMAS.compare_items },
     async (args) => {
       try {
         return ok({ items: await client.compareItems(args.a, args.b, args.level) });
@@ -420,7 +475,7 @@ export function createProfileServer(
 
   server.registerTool(
     'get_inventory',
-    { description: TOOL_DOCS.get_inventory, inputSchema: z.object({}) },
+    { description: TOOL_DOCS.get_inventory, inputSchema: TOOL_SCHEMAS.get_inventory },
     async () => {
       try {
         return ok(await client.getInventory());
@@ -432,7 +487,7 @@ export function createProfileServer(
 
   server.registerTool(
     'list_storages',
-    { description: TOOL_DOCS.list_storages, inputSchema: z.object({}) },
+    { description: TOOL_DOCS.list_storages, inputSchema: TOOL_SCHEMAS.list_storages },
     async () => {
       try {
         return ok({ storages: await client.listStorages() });
@@ -446,12 +501,7 @@ export function createProfileServer(
     'list_inventory_items',
     {
       description: TOOL_DOCS.list_inventory_items,
-      inputSchema: z.object({
-        kind: ItemKindSchema.optional(),
-        location: z.enum(['grid', 'equipment', 'container', 'weapon_module', 'loose']).optional(),
-        storage_id: z.number().int().positive().optional(),
-        virtual: z.boolean().optional(),
-      }),
+      inputSchema: TOOL_SCHEMAS.list_inventory_items,
     },
     async (args) => {
       try {
@@ -471,7 +521,7 @@ export function createProfileServer(
 
   server.registerTool(
     'list_containers',
-    { description: TOOL_DOCS.list_containers, inputSchema: z.object({}) },
+    { description: TOOL_DOCS.list_containers, inputSchema: TOOL_SCHEMAS.list_containers },
     async () => {
       try {
         return ok({ items: await client.listContainers() });
@@ -483,7 +533,7 @@ export function createProfileServer(
 
   server.registerTool(
     'plan_artifact_build',
-    { description: TOOL_DOCS.plan_artifact_build, inputSchema: PlanArtifactBuildInputSchema },
+    { description: TOOL_DOCS.plan_artifact_build, inputSchema: TOOL_SCHEMAS.plan_artifact_build },
     async (args) => {
       try {
         return ok({ plan: await client.planArtifactBuild(args as unknown as Parameters<ProfileClient['planArtifactBuild']>[0]) });
@@ -495,7 +545,7 @@ export function createProfileServer(
 
   server.registerTool(
     'get_prices',
-    { description: TOOL_DOCS.get_prices, inputSchema: GetPricesInputSchema },
+    { description: TOOL_DOCS.get_prices, inputSchema: TOOL_SCHEMAS.get_prices },
     async (args) => {
       try {
         const names = Array.isArray(args.names) ? args.names : [args.names];
@@ -508,7 +558,7 @@ export function createProfileServer(
 
   server.registerTool(
     'sources_status',
-    { description: TOOL_DOCS.sources_status, inputSchema: z.object({}) },
+    { description: TOOL_DOCS.sources_status, inputSchema: TOOL_SCHEMAS.sources_status },
     async () => {
       try {
         return ok({ sources: await client.sourcesStatus() });
@@ -520,7 +570,7 @@ export function createProfileServer(
 
   server.registerTool(
     'export_profile_json',
-    { description: TOOL_DOCS.export_profile_json, inputSchema: z.object({}) },
+    { description: TOOL_DOCS.export_profile_json, inputSchema: TOOL_SCHEMAS.export_profile_json },
     async () => {
       try {
         return ok({ profile: await client.exportProfileJson() });
@@ -532,7 +582,7 @@ export function createProfileServer(
 
   server.registerTool(
     'list_logs',
-    { description: TOOL_DOCS.list_logs, inputSchema: ListLogsInputSchema },
+    { description: TOOL_DOCS.list_logs, inputSchema: TOOL_SCHEMAS.list_logs },
     async (args) => {
       try {
         return ok(
@@ -558,7 +608,7 @@ export function createProfileServer(
 
   server.registerTool(
     'log_stats',
-    { description: TOOL_DOCS.log_stats, inputSchema: LogStatsInputSchema },
+    { description: TOOL_DOCS.log_stats, inputSchema: TOOL_SCHEMAS.log_stats },
     async (args) => {
       try {
         return ok(await client.logStats(args.window_hours));
@@ -570,7 +620,7 @@ export function createProfileServer(
 
   server.registerTool(
     'get_logging',
-    { description: TOOL_DOCS.get_logging, inputSchema: z.object({}) },
+    { description: TOOL_DOCS.get_logging, inputSchema: TOOL_SCHEMAS.get_logging },
     async () => {
       try {
         return ok(await client.getLogging());
@@ -584,7 +634,7 @@ export function createProfileServer(
     server,
     limiter,
     'add_inventory_item',
-    AddInventoryItemInputSchema,
+    TOOL_SCHEMAS.add_inventory_item,
     async (raw, dryRun) => {
       const args = raw as unknown as AddInventoryItemInput;
       return client.addInventoryItem({
@@ -609,7 +659,7 @@ export function createProfileServer(
     server,
     limiter,
     'update_inventory_item',
-    UpdateInventoryItemInputSchema,
+    TOOL_SCHEMAS.update_inventory_item,
     async (raw, dryRun) => {
       const args = raw as unknown as UpdateInventoryItemInput;
       return client.updateInventoryItem(args.item_id, itemPatch(args, dryRun));
@@ -620,7 +670,7 @@ export function createProfileServer(
     server,
     limiter,
     'remove_inventory_item',
-    RemoveInventoryItemInputSchema,
+    TOOL_SCHEMAS.remove_inventory_item,
     async (raw, dryRun) => {
       const args = raw as unknown as { item_id: number; qty?: number };
       return client.removeInventoryItem(args.item_id, { qty: args.qty, dryRun });
@@ -631,7 +681,7 @@ export function createProfileServer(
     server,
     limiter,
     'move_inventory_item',
-    MoveInventoryItemInputSchema,
+    TOOL_SCHEMAS.move_inventory_item,
     async (raw, dryRun) => {
       const args = raw as unknown as {
         item_id: number;
@@ -648,7 +698,7 @@ export function createProfileServer(
     },
   );
 
-  registerWriteTool(server, limiter, 'create_storage', CreateStorageInputSchema, async (raw, dryRun) => {
+  registerWriteTool(server, limiter, 'create_storage', TOOL_SCHEMAS.create_storage, async (raw, dryRun) => {
     const args = raw as unknown as {
       kind: 'inventory' | 'stash';
       name: string;
@@ -664,12 +714,12 @@ export function createProfileServer(
     });
   });
 
-  registerWriteTool(server, limiter, 'update_storage', UpdateStorageInputSchema, async (raw, dryRun) => {
+  registerWriteTool(server, limiter, 'update_storage', TOOL_SCHEMAS.update_storage, async (raw, dryRun) => {
     const args = raw as unknown as UpdateStorageInput;
     return client.updateStorage(args.storage_id, storagePatch(args, dryRun));
   });
 
-  registerWriteTool(server, limiter, 'delete_storage', DeleteStorageInputSchema, async (raw, dryRun) => {
+  registerWriteTool(server, limiter, 'delete_storage', TOOL_SCHEMAS.delete_storage, async (raw, dryRun) => {
     const args = raw as unknown as { storage_id: number };
     return client.deleteStorage(args.storage_id, { dryRun });
   });
@@ -678,7 +728,7 @@ export function createProfileServer(
     server,
     limiter,
     'auto_arrange_storage',
-    AutoArrangeStorageInputSchema,
+    TOOL_SCHEMAS.auto_arrange_storage,
     async (raw, dryRun) => {
       const args = raw as unknown as { storage_id: number };
       return client.autoArrangeStorage(args.storage_id, dryRun);
@@ -689,7 +739,7 @@ export function createProfileServer(
     server,
     limiter,
     'set_container_artifacts',
-    SetContainerArtifactsInputSchema,
+    TOOL_SCHEMAS.set_container_artifacts,
     async (raw, dryRun) => {
       const args = raw as unknown as { container_item_id: number; slots: (number | null)[] };
       return client.setContainerArtifacts({
@@ -704,7 +754,7 @@ export function createProfileServer(
     server,
     limiter,
     'set_weapon_module',
-    SetWeaponModuleInputSchema,
+    TOOL_SCHEMAS.set_weapon_module,
     async (raw, dryRun) => {
       const args = raw as unknown as {
         weapon_item_id: number;
@@ -720,7 +770,7 @@ export function createProfileServer(
     },
   );
 
-  registerWriteTool(server, limiter, 'set_item_layout', SetItemLayoutInputSchema, async (raw, dryRun) => {
+  registerWriteTool(server, limiter, 'set_item_layout', TOOL_SCHEMAS.set_item_layout, async (raw, dryRun) => {
     const args = raw as unknown as {
       item_id: number;
       width: number;
@@ -738,7 +788,7 @@ export function createProfileServer(
 
   server.registerTool(
     'sync_source',
-    { description: TOOL_DOCS.sync_source, inputSchema: SyncSourceInputSchema },
+    { description: TOOL_DOCS.sync_source, inputSchema: TOOL_SCHEMAS.sync_source },
     async (args) => {
       if (!args.confirm) {
         return fail('CONFIRM_REQUIRED', 'Sync changes data: pass confirm: true');
@@ -754,7 +804,7 @@ export function createProfileServer(
 
   server.registerTool(
     'rebuild_site',
-    { description: TOOL_DOCS.rebuild_site, inputSchema: z.object({}) },
+    { description: TOOL_DOCS.rebuild_site, inputSchema: TOOL_SCHEMAS.rebuild_site },
     async () => {
       try {
         return ok({ result: await client.rebuildSite() });
@@ -766,7 +816,7 @@ export function createProfileServer(
 
   server.registerTool(
     'rollback_event',
-    { description: TOOL_DOCS.rollback_event, inputSchema: RollbackInputSchema },
+    { description: TOOL_DOCS.rollback_event, inputSchema: TOOL_SCHEMAS.rollback_event },
     async (args) => {
       const dryRun = args.dry_run ?? true;
       const gate = confirmation(dryRun, args.confirm ?? false);
@@ -780,7 +830,7 @@ export function createProfileServer(
     },
   );
 
-  registerWriteTool(server, limiter, 'update_logging', UpdateLoggingInputSchema, async (raw, dryRun) => {
+  registerWriteTool(server, limiter, 'update_logging', TOOL_SCHEMAS.update_logging, async (raw, dryRun) => {
     const args = raw as unknown as {
       enabled: boolean;
       min_level: 'debug' | 'info' | 'warn' | 'error';
@@ -804,7 +854,7 @@ export function createProfileServer(
     });
   });
 
-  registerWriteTool(server, limiter, 'clear_logs', ClearLogsInputSchema, async (raw, dryRun) => {
+  registerWriteTool(server, limiter, 'clear_logs', TOOL_SCHEMAS.clear_logs, async (raw, dryRun) => {
     const args = raw as unknown as {
       scope: 'all' | 'filtered';
       filter?: {

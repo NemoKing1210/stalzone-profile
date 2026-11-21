@@ -635,6 +635,7 @@
     "failed": "Assistant request failed",
     "failedDescription": "Check Settings → Assistant and the provider connection.",
     "providerHttpError": "The provider rejected the request (HTTP {status}). Check Settings → Assistant and the provider connection.",
+    "emptyReply": "The provider returned an empty reply. Send the message again or pick another model.",
     "pendingTitle": "Confirmation required",
     "confirm": "Confirm write",
     "decline": "Decline",

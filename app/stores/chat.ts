@@ -27,7 +27,9 @@ export const useChatStore = defineStore('chat', () => {
   /** Provider failures arrive as `AI_HTTP_<status>`; everything else is already readable. */
   function formatTurnError(raw: string): string {
     const status = chatHttpStatus(raw);
-    return status ? t('chat.providerHttpError', { status }) : raw;
+    if (status) return t('chat.providerHttpError', { status });
+    if (raw.startsWith('AI_EMPTY')) return t('chat.emptyReply');
+    return raw;
   }
 
   const threads = ref<ChatThread[]>([]);

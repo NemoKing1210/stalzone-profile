@@ -196,15 +196,20 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
 
   let state: unknown = null;
   let error: string | null = null;
+  let replied = false;
   let pending: ChatTurnResult['pending'] = null;
 
   try {
-    for (let round = 0; round < (options.maxRounds ?? 4); round++) {
+    const maxRounds = options.maxRounds ?? 4;
+    for (let round = 0; round < maxRounds; round++) {
+      // The last round has no tools: the model must summarize what it already fetched
+      // instead of the loop ending silently after another tool call.
+      const lastRound = round === maxRounds - 1;
       const result = await callProviderWithRetry(fetchImpl, settings, base, key, session, {
         system,
         transcript,
         images,
-        definitions,
+        definitions: lastRound ? [] : definitions,
         state,
         temperature: settings.temperature,
         maxTokens: settings.maxTokens,
@@ -213,6 +218,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
       });
       state = result.state;
       if (result.reply.text.trim()) {
+        replied = true;
         appendChatMessage(db, { threadId, role: 'assistant', content: result.reply.text.trim() });
       }
       if (!result.reply.calls.length) break;
@@ -283,6 +289,9 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
       if (stopped) break;
       state = appendToolRound(state, settings.provider, result.reply, runs);
     }
+    // A compliant provider answers the tool-less last round; an empty one must not look
+    // like a delivered reply, which was the silent "did nothing" turn.
+    if (!replied && !pending) error = 'AI_EMPTY: the provider returned no text';
   } catch (turnError) {
     error = turnError instanceof Error ? turnError.message : String(turnError);
   } finally {
@@ -430,8 +439,12 @@ async function callOpenAi(
       temperature: input.temperature,
       max_tokens: input.maxTokens,
       messages,
-      tools: input.definitions.map((definition) => ({ type: 'function', function: definition })),
-      tool_choice: 'auto',
+      ...(input.definitions.length
+        ? {
+            tools: input.definitions.map((definition) => ({ type: 'function', function: definition })),
+            tool_choice: 'auto',
+          }
+        : {}),
       ...effort,
     }),
     signal: AbortSignal.timeout(input.timeoutMs),
@@ -482,11 +495,15 @@ async function callAnthropic(
       temperature: input.temperature,
       system: input.system,
       messages,
-      tools: input.definitions.map((definition) => ({
-        name: definition.name,
-        description: definition.description,
-        input_schema: definition.parameters,
-      })),
+      ...(input.definitions.length
+        ? {
+            tools: input.definitions.map((definition) => ({
+              name: definition.name,
+              description: definition.description,
+              input_schema: definition.parameters,
+            })),
+          }
+        : {}),
     }),
     signal: AbortSignal.timeout(input.timeoutMs),
   });
@@ -523,7 +540,7 @@ async function callGoogle(
       systemInstruction: { parts: [{ text: input.system }] },
       contents,
       generationConfig: { temperature: input.temperature, maxOutputTokens: input.maxTokens },
-      tools: [{ functionDeclarations: input.definitions }],
+      ...(input.definitions.length ? { tools: [{ functionDeclarations: input.definitions }] } : {}),
     }),
     signal: AbortSignal.timeout(input.timeoutMs),
   });

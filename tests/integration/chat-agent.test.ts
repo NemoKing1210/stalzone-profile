@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { closeDb, ensureDefaultSources, migrate, openDb, type Db, listEvents, updateChatSettings } from '@profile/core';
-import { runChatTurn } from '@profile/mcp';
+import { runChatTurn, toolDefinitions } from '@profile/mcp';
 import { CHAT_PROVIDER_META, ChatSettingsUpdateSchema, type ChatProvider } from '@profile/shared/contracts';
 import { setChatSettings } from './chat-test-helpers';
 
@@ -64,6 +64,36 @@ describe('chat agent', () => {
     });
     expect(result.messages.at(-1)).toMatchObject({ role: 'assistant', content: 'Here is your character.' });
     expect(result.pending).toBeNull();
+  });
+
+  it('exposes the real tool arguments to the model', () => {
+    const find = toolDefinitions(['find_items']).find((definition) => definition.name === 'find_items');
+    const parameters = find?.parameters as { type?: string; properties?: Record<string, unknown>; $schema?: string };
+    expect(parameters.type).toBe('object');
+    expect(Object.keys(parameters.properties ?? {})).toEqual(expect.arrayContaining(['q', 'kind', 'rank', 'slot', 'limit']));
+    expect(parameters).not.toHaveProperty('$schema');
+    for (const definition of toolDefinitions()) {
+      expect(definition.parameters).toMatchObject({ type: 'object' });
+    }
+  });
+
+  it('forces a text answer on the last round instead of ending after a tool call', async () => {
+    setChatSettings(db);
+    const bodies: Record<string, unknown>[] = [];
+    let call = 0;
+    const fetchImpl = (async (_url: string, init: RequestInit) => {
+      bodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+      call += 1;
+      return call === 1
+        ? json(toolCall('get_character', {}))
+        : json({ choices: [{ message: { content: 'Final answer.' } }] });
+    }) as unknown as typeof fetch;
+
+    const result = await runChatTurn(db, { message: 'Who am I?' }, { fetchImpl, maxRounds: 2 });
+
+    expect(result.error).toBeNull();
+    expect(result.messages.at(-1)).toMatchObject({ role: 'assistant', content: 'Final answer.' });
+    expect(bodies[1]).not.toHaveProperty('tools');
   });
 
   it('returns an OpenAI-compatible tool result as a protocol tool message', async () => {
