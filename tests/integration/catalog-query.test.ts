@@ -51,6 +51,7 @@ describe('queryCatalog', () => {
     const dps = result.items.map((row) => Number(row.metrics?.dps ?? -1));
     expect(dps).toEqual([...dps].sort((a, b) => b - a));
     expect(result.items[0].name).toBe('АК-12');
+    expect(result).toMatchObject({ level: 15, hp: 600 });
   });
 
   it('filters by a metric and a stat id, and excludes nulls from a min filter', () => {
