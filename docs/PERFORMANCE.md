@@ -31,12 +31,13 @@ per-item stat read shows the expected covering index:
 | `/`          | 49 ms  | 104 ms | 242       | —             |
 | `/inventory` | 222 ms | 276 ms | 285       | —             |
 | `/devices`   | 429 ms | 500 ms | 357       | 17            |
-| `/weapons`   | 70 ms  | 140 ms | 7 707     | 354           |
 | `/weapons`   | 70 ms  | 140 ms | 1 163     | 40 of 354     |
 
 The `/weapons` first measurement (2.1 s) was a cold Vite compile; the table records the
-warm reload. The table view renders all 354 catalog rows with no pagination or
-virtualization (`inventory/ui/InventoryScreen.vue`), which is the largest DOM count measured.
+warm reload. List mode now renders one 40-row window of the already sorted and filtered
+rows (`app/features/inventory/model/listWindow.ts`); the shared "Load more" control extends
+the window across groups. The first window measures 1 163 DOM nodes, and 80 rows measure
+2 083, instead of the former 7 707 for all 354 rows. Grid mode is unchanged.
 
 ## Budget
 
@@ -54,7 +55,7 @@ risks are recorded as their own `TODO.md` entries:
 1. **payload size/cold cost** — 662 detail cards and 902 KB are rebuilt for every page after
    any write. Candidate: build card details lazily or cache them per item across cache
    generations.
-2. **catalog list rendering** — 354 rows and 7 707 nodes on `/weapons`. Candidate:
-   pagination or virtual scrolling once the catalog grows.
+2. **catalog list rendering** — the 40-row window keeps the first paint at 1 163 nodes;
+   re-check when the catalog or a screen's window grows.
 
 Re-run the script and the browser capture after either change and update this table.
