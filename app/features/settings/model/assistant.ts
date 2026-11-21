@@ -1,3 +1,5 @@
+import { CHAT_ENV_VAR_NAME } from '@profile/shared/contracts';
+
 export const ASSISTANT_MODE_KEY = 'profile:settings:assistant-mode';
 
 export type AssistantMode = 'basic' | 'advanced';
@@ -83,4 +85,9 @@ export function isHttpUrl(value: string): boolean {
 export function baseUrlFor(custom: boolean, value: string): string | null {
   const trimmed = value.trim();
   return custom && trimmed !== '' ? trimmed : null;
+}
+
+/** The key field holds a variable name; a pasted secret fails this and is never saved. */
+export function isEnvVarName(value: string): boolean {
+  return CHAT_ENV_VAR_NAME.test(value);
 }

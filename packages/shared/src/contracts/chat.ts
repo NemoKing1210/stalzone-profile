@@ -94,6 +94,17 @@ export const CHAT_PROVIDER_META: Record<ChatProvider, ChatProviderMeta> = {
   },
 };
 
+/**
+ * An uppercase environment variable name; the key's value is never stored or returned.
+ * Uppercase is what separates a name from a provider key such as `oc_sk_…`, which is
+ * otherwise identifier-shaped.
+ */
+export const CHAT_ENV_VAR_NAME = /^[A-Z][A-Z0-9_]*$/;
+export const ChatEnvVarNameSchema = z
+  .string()
+  .max(100)
+  .regex(CHAT_ENV_VAR_NAME, 'Use an uppercase variable name, not the key itself');
+
 export const ChatReasoningEffortSchema = z.enum(['low', 'medium', 'high']).nullable();
 
 export const ChatSettingsSchema = z.object({
@@ -110,7 +121,7 @@ export const ChatSettingsSchema = z.object({
   dataScopePrices: z.boolean(),
   dataScopeLogs: z.boolean(),
   /** Environment variable that holds the key; the value is never stored. */
-  apiKeyEnv: z.string().min(1).max(100).nullable(),
+  apiKeyEnv: ChatEnvVarNameSchema.nullable(),
   updatedAt: z.string().nullable(),
 });
 export type ChatSettings = z.infer<typeof ChatSettingsSchema>;
@@ -126,6 +137,8 @@ export const ChatSettingsReadSchema = ChatSettingsSchema.extend({
   apiKeyEnvResolved: z.string().min(1).max(100),
   apiKeyConfigured: z.boolean(),
   enabled: z.boolean(),
+  /** A stored value that is not a variable name; it is never returned and is ignored. */
+  apiKeyEnvInvalid: z.boolean(),
 });
 export type ChatSettingsRead = z.infer<typeof ChatSettingsReadSchema>;
 
@@ -149,7 +162,7 @@ export const ChatModelsRequestSchema = z.object({
   provider: ChatProviderSchema.optional(),
   baseUrl: z.string().url().max(300).nullable().optional(),
   /** An env variable name the form names but has not saved yet. */
-  apiKeyEnv: z.string().min(1).max(100).nullable().optional(),
+  apiKeyEnv: ChatEnvVarNameSchema.nullable().optional(),
   timeoutMs: z.number().int().min(1_000).max(120_000).optional(),
 });
 export type ChatModelsRequest = z.infer<typeof ChatModelsRequestSchema>;

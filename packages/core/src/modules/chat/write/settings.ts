@@ -1,5 +1,5 @@
 import type { ChatSettings, ChatSettingsUpdate } from '@profile/shared/contracts';
-import { ChatSettingsSchema } from '@profile/shared/contracts';
+import { CHAT_ENV_VAR_NAME, ChatSettingsSchema } from '@profile/shared/contracts';
 import type { Db } from '../../../platform/db/index.js';
 import { logEvent, withTransaction, type WriteResult } from '../../../platform/journal/index.js';
 import * as repo from '../repo/settings.js';
@@ -18,6 +18,8 @@ function merged(current: ChatSettings, patch: ChatSettingsUpdate): ChatSettings 
   if (patch.dataScopePrices !== undefined) next.dataScopePrices = patch.dataScopePrices;
   if (patch.dataScopeLogs !== undefined) next.dataScopeLogs = patch.dataScopeLogs;
   if (patch.apiKeyEnv !== undefined) next.apiKeyEnv = patch.apiKeyEnv;
+  // A value stored before validation (often a pasted key) is dropped on the next write.
+  else if (next.apiKeyEnv != null && !CHAT_ENV_VAR_NAME.test(next.apiKeyEnv)) next.apiKeyEnv = null;
   return ChatSettingsSchema.parse({ ...next, updatedAt: current.updatedAt });
 }
 

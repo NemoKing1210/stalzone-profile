@@ -13,6 +13,7 @@ import { CHAT_PROVIDER_META, CHAT_PROVIDERS } from '@profile/shared/contracts';
 import {
   assistantBlocks,
   baseUrlFor,
+  isEnvVarName,
   isHttpUrl,
   readAssistantMode,
   writeAssistantMode,
@@ -109,6 +110,9 @@ const effectiveBaseUrl = computed(() =>
   customBaseUrl.value ? endpointValue.value : providerMeta.value.defaultBaseUrl,
 );
 const endpointInvalid = computed(() => (customBaseUrl.value || endpointMissing.value) && !isHttpUrl(endpointValue.value));
+const envValue = computed(() => form.apiKeyEnv.trim());
+const envInvalid = computed(() => envValue.value !== '' && !isEnvVarName(envValue.value));
+const formInvalid = computed(() => endpointInvalid.value || envInvalid.value);
 const endpointHint = computed(() => {
   if (endpointInvalid.value) return { className: 'text-[var(--sz-warning-text)]', text: t('settings.assistant.baseUrlInvalid') };
   if (customBaseUrl.value) return { className: 'text-[var(--sz-text-dim)]', text: t('settings.assistant.baseUrlCustomHint') };
@@ -119,12 +123,17 @@ const endpointHint = computed(() => {
 });
 
 /** The key status is honest only for the saved provider; an unsaved switch shows its variable. */
-const keyEnvName = computed(() => form.apiKeyEnv.trim() || providerMeta.value.keyEnv);
+const keyEnvName = computed(() =>
+  isEnvVarName(envValue.value) ? envValue.value : providerMeta.value.keyEnv,
+);
 const keyStatus = computed(() => {
   if (form.provider === 'ollama') {
     return { className: 'text-[var(--sz-text-dim)]', text: t('settings.assistant.keyOptional', { env: keyEnvName.value }) };
   }
-  const envDirty = form.apiKeyEnv.trim() !== (settings.value?.apiKeyEnv ?? '');
+  if (settings.value?.apiKeyEnvInvalid && form.provider === settings.value.provider && envValue.value === '') {
+    return { className: 'text-[var(--sz-warning-text)]', text: t('settings.assistant.apiKeyEnvInvalidSaved') };
+  }
+  const envDirty = envValue.value !== (settings.value?.apiKeyEnv ?? '');
   if (form.provider !== settings.value?.provider || envDirty) {
     return { className: 'text-[var(--sz-text-dim)]', text: t('settings.assistant.keyEnvHint', { env: keyEnvName.value }) };
   }
@@ -191,7 +200,7 @@ async function loadModels(): Promise<void> {
 
 /** The server resolves the key and reports a missing one, so every change may retry. */
 function scheduleModels(): void {
-  if (!hydrated || endpointInvalid.value) return;
+  if (!hydrated || formInvalid.value) return;
   clearTimeout(modelsTimer);
   modelsTimer = setTimeout(() => void loadModels(), 500);
 }
@@ -254,7 +263,7 @@ function body(): Record<string, unknown> {
 }
 
 async function save(): Promise<void> {
-  if (endpointInvalid.value) return;
+  if (formInvalid.value) return;
   const result = await write<{ dryRun: boolean; diff: { human: string } }>('/api/v1/chat/settings', {
     method: 'PATCH',
     body: { ...body(), dryRun: false },
@@ -266,7 +275,7 @@ async function save(): Promise<void> {
 }
 
 async function testConnection(): Promise<void> {
-  if (endpointInvalid.value) return;
+  if (formInvalid.value) return;
   testing.value = true;
   testResult.value = null;
   try {
@@ -452,7 +461,12 @@ async function togglePrompt(prompt: ChatPrompt): Promise<void> {
                       class="mt-2 w-full font-mono"
                     />
                   </UFormField>
-                  <UFormField :label="t('settings.assistant.apiKeyEnv')" name="apiKeyEnv" class="sm:col-span-2">
+                  <UFormField
+                    :label="t('settings.assistant.apiKeyEnv')"
+                    name="apiKeyEnv"
+                    class="sm:col-span-2"
+                    :error="envInvalid ? t('settings.assistant.apiKeyEnvInvalid') : undefined"
+                  >
                     <UInput v-model="form.apiKeyEnv" :placeholder="providerMeta.keyEnv" class="w-full font-mono" />
                     <p class="mt-1 text-[11px]" :class="keyStatus.className">{{ keyStatus.text }}</p>
                   </UFormField>
@@ -475,7 +489,7 @@ async function togglePrompt(prompt: ChatPrompt): Promise<void> {
                     icon="i-lucide-plug"
                     :label="t('settings.assistant.test')"
                     :loading="testing"
-                    :disabled="endpointInvalid"
+                    :disabled="formInvalid"
                     @click="testConnection"
                   />
                 </div>
@@ -566,7 +580,7 @@ async function togglePrompt(prompt: ChatPrompt): Promise<void> {
       </div>
 
       <div class="flex justify-end">
-        <UButton type="submit" :loading="busy" :disabled="endpointInvalid" :label="t('common.save')" />
+        <UButton type="submit" :loading="busy" :disabled="formInvalid" :label="t('common.save')" />
       </div>
     </UForm>
   </section>

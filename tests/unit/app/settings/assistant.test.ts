@@ -4,6 +4,7 @@ import {
   ASSISTANT_MODE_KEY,
   assistantBlocks,
   baseUrlFor,
+  isEnvVarName,
   isHttpUrl,
   parseAssistantMode,
   readAssistantMode,
@@ -78,5 +79,13 @@ describe('assistant endpoint', () => {
     expect(baseUrlFor(false, 'https://gateway.internal/v1')).toBeNull();
     expect(baseUrlFor(true, '  https://gateway.internal/v1  ')).toBe('https://gateway.internal/v1');
     expect(baseUrlFor(true, '   ')).toBeNull();
+  });
+
+  it('treats only an env variable name as a key source', () => {
+    expect(isEnvVarName('NUXT_AI_OPENAI_API_KEY')).toBe(true);
+    expect(isEnvVarName('MY_KEY_2')).toBe(true);
+    expect(isEnvVarName('oc_sk_1a2b3c4d5e6f')).toBe(false);
+    expect(isEnvVarName('sk-proj-abc')).toBe(false);
+    expect(isEnvVarName('')).toBe(false);
   });
 });

@@ -9,6 +9,12 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Fixed
 
+- The assistant key field accepts only an uppercase environment variable name
+  (`[A-Z][A-Z0-9_]*`), so a pasted API key is rejected with `422 VALIDATION` instead of
+  being stored and then looked up as a variable. A value saved before this check is ignored:
+  `GET /api/v1/chat/settings` returns `apiKeyEnv: null` with `apiKeyEnvInvalid: true`, the
+  provider's default variable is consulted, and `AI_NOT_CONFIGURED` names that variable
+  instead of echoing the pasted secret.
 - The assistant side panel fits its own controls: the header is two rows (the panel name and
   active thread, then the thread selector, New thread and Open full chat), so nothing sits
   under the close button; the panel widens to `min(94vw, 34rem)`; the thread menu opens above

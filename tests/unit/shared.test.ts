@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   CHAT_PROVIDERS,
   CHAT_PROVIDER_META,
+  ChatModelsRequestSchema,
+  ChatSettingsUpdateSchema,
   CharacterCreateSchema,
   CharacterPatchSchema,
   CleanupRequestSchema,
@@ -257,5 +259,12 @@ describe('assistant provider catalog', () => {
     const endpoints = CHAT_PROVIDERS.map((provider) => CHAT_PROVIDER_META[provider].defaultBaseUrl);
     expect(new Set(keyEnvs).size).toBe(keyEnvs.length);
     expect(new Set(endpoints).size).toBe(endpoints.length);
+  });
+
+  it('accepts a variable name and rejects a pasted key in apiKeyEnv', () => {
+    expect(ChatSettingsUpdateSchema.safeParse({ apiKeyEnv: 'NUXT_AI_OPENAI_API_KEY' }).success).toBe(true);
+    expect(ChatSettingsUpdateSchema.safeParse({ apiKeyEnv: null }).success).toBe(true);
+    expect(ChatSettingsUpdateSchema.safeParse({ apiKeyEnv: 'oc_sk_1a2b3c4d5e6f' }).success).toBe(false);
+    expect(ChatModelsRequestSchema.safeParse({ apiKeyEnv: 'oc_sk_1a2b3c4d5e6f' }).success).toBe(false);
   });
 });

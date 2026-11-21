@@ -1,5 +1,5 @@
 import type { ChatModel, ChatModelsResult, ChatProvider, ChatSettings, ChatTestResult } from '@profile/shared/contracts';
-import { CHAT_PROVIDER_META } from '@profile/shared/contracts';
+import { CHAT_ENV_VAR_NAME, CHAT_PROVIDER_META } from '@profile/shared/contracts';
 import { WriteError } from '../../../platform/journal/index.js';
 import * as repo from '../repo/settings.js';
 import type { Db } from '../../../platform/db/index.js';
@@ -30,6 +30,11 @@ export function providerConfig(provider: ChatProvider): ProviderConfig {
   return { label: meta.label, baseUrl: meta.defaultBaseUrl, keyEnv: meta.keyEnv, auth: AUTH[provider] };
 }
 
+/** A stored override is usable only when it is a variable name, never a pasted key. */
+export function isEnvVarName(value: string | null | undefined): value is string {
+  return typeof value === 'string' && CHAT_ENV_VAR_NAME.test(value);
+}
+
 function envValue(name: string | null): string | null {
   if (!name) return null;
   const value = process.env[name];
@@ -39,7 +44,7 @@ function envValue(name: string | null): string | null {
 /** The key for the configured provider: the named env var, then the provider's default. */
 export function resolveApiKey(settings: ChatSettings): { env: string; key: string | null } {
   const config = providerConfig(settings.provider);
-  const env = settings.apiKeyEnv ?? config.keyEnv;
+  const env = isEnvVarName(settings.apiKeyEnv) ? settings.apiKeyEnv : config.keyEnv;
   return { env, key: envValue(env) ?? envValue(config.keyEnv) };
 }
 
@@ -51,9 +56,12 @@ export function resolveBaseUrl(settings: ChatSettings): string | null {
 export function chatSettingsRead(db: Db) {
   const settings = repo.toChatSettings(repo.getChatSettingsRow(db));
   const { env, key } = resolveApiKey(settings);
+  const apiKeyEnvInvalid = settings.apiKeyEnv != null && !isEnvVarName(settings.apiKeyEnv);
   return {
     ...settings,
-    apiKeyEnv: settings.apiKeyEnv,
+    // A pasted key is never echoed back; the owner sees the flag and sets a variable name.
+    apiKeyEnv: apiKeyEnvInvalid ? null : settings.apiKeyEnv,
+    apiKeyEnvInvalid,
     apiKeyEnvResolved: env,
     apiKeyConfigured: key != null,
     enabled: key != null || settings.provider === 'ollama',
@@ -99,13 +107,13 @@ export async function testChatConnection(
   };
   const config = providerConfig(settings.provider);
   const base = configuredBaseUrl(settings);
-  const { key } = resolveApiKey(settings);
+  const { env, key } = resolveApiKey(settings);
   if (config.auth !== 'none' && !key) {
     return {
       ok: false,
       provider: settings.provider,
       status: null,
-      message: `AI_NOT_CONFIGURED: set ${settings.apiKeyEnv ?? config.keyEnv}`,
+      message: `AI_NOT_CONFIGURED: set ${env}`,
     };
   }
 
@@ -217,12 +225,12 @@ export async function listChatModels(
     };
   }
 
-  const { key } = resolveApiKey(settings);
+  const { env, key } = resolveApiKey(settings);
   if (config.auth !== 'none' && !key) {
     return {
       ok: false,
       status: null,
-      message: `AI_NOT_CONFIGURED: set ${settings.apiKeyEnv ?? config.keyEnv}`,
+      message: `AI_NOT_CONFIGURED: set ${env}`,
       models: [],
     };
   }

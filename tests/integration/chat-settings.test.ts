@@ -111,6 +111,26 @@ describe('assistant settings', () => {
     expect(read.apiKeyEnvResolved).toBe('NUXT_AI_OPENAI_API_KEY');
   });
 
+  it('ignores a stored value that is not a variable name and never echoes it', async () => {
+    db.prepare('UPDATE chat_settings SET api_key_env = ? WHERE id = 1').run('oc_sk_secret_value');
+    const fetchImpl = (async () => {
+      throw new Error('a missing key must not reach the provider');
+    }) as typeof fetch;
+
+    const read = chatSettingsRead(db);
+    expect(read.apiKeyEnv).toBeNull();
+    expect(read.apiKeyEnvInvalid).toBe(true);
+    expect(read.apiKeyEnvResolved).toBe('NUXT_AI_OPENAI_API_KEY');
+    expect(JSON.stringify(read)).not.toContain('oc_sk_secret_value');
+
+    const result = await listChatModels(db, {}, { fetchImpl });
+    expect(result.message).toBe('AI_NOT_CONFIGURED: set NUXT_AI_OPENAI_API_KEY');
+    expect(result.message).not.toContain('oc_sk_secret_value');
+
+    updateChatSettings(db, ChatSettingsUpdateSchema.parse({ model: 'gpt-4.1' }));
+    expect(getChatSettingsRow(db).api_key_env).toBeNull();
+  });
+
   it('tests a connection with the provider endpoint and never sends the key anywhere else', async () => {
     process.env.NUXT_AI_OPENAI_API_KEY = 'provider-key';
     const seen: { url: string; headers: Record<string, string> }[] = [];
