@@ -58,12 +58,12 @@ describe('container filter', () => {
 
 describe('filtered drop guard', () => {
   it('refuses a same-storage grid drop while that storage is filtered', () => {
-    expect(filteredDropBlocked(item(), { location: 'grid', storageId: 7 }, new Set([7]))).toBe(true);
+    expect(filteredDropBlocked({ location: 'grid', storageId: 7 }, new Set([7]))).toBe(true);
   });
 
   it('allows a drop into another storage or when no filter is active', () => {
-    expect(filteredDropBlocked(item(), { location: 'grid', storageId: 8 }, new Set([7]))).toBe(false);
-    expect(filteredDropBlocked(item(), { location: 'grid', storageId: 7 }, new Set())).toBe(false);
+    expect(filteredDropBlocked({ location: 'grid', storageId: 8 }, new Set([7]))).toBe(false);
+    expect(filteredDropBlocked({ location: 'grid', storageId: 7 }, new Set())).toBe(false);
   });
 
   it('refuses any grid target that is filtered, whatever the source storage', () => {
