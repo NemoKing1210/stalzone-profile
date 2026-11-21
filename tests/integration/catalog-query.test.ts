@@ -44,7 +44,7 @@ afterEach(() => {
 
 describe('queryCatalog', () => {
   it('sorts weapons by DPS descending and reports the total', () => {
-    const result = queryCatalog(db, { kind: 'weapon', sort: { by: 'dps', direction: 'desc' }, limit: 2 });
+    const result = queryCatalog(db, { kind: 'weapon', sort: 'dps', direction: 'desc', limit: 2 });
     expect(result.items).toHaveLength(2);
     expect(result.total).toBe(3);
     expect(result.truncated).toBe(false);

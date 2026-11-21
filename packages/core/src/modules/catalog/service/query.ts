@@ -1,5 +1,6 @@
 import { rankKey } from '@profile/shared';
-import type { CatalogQuery, CatalogQueryResult, CatalogRow, ItemSummary } from '@profile/shared/contracts';
+import { CatalogQuerySchema } from '@profile/shared/contracts';
+import type { CatalogQueryInput, CatalogQueryResult, CatalogRow, ItemSummary } from '@profile/shared/contracts';
 import type { Db } from '../../../platform/db/index.js';
 import { WriteError } from '../../../platform/journal/index.js';
 import { CATALOG_METRICS, metricByKey, metricRow, metricValue, type MetricContext } from '../metrics.js';
@@ -62,23 +63,19 @@ function compareValues(a: FilterValue, b: FilterValue, direction: 'asc' | 'desc'
  * sorting/filtering, an in-memory filter/sort/slice, and the page's card context only when
  * `include: 'full'` asks for it. Missing values stay `null` and sort last.
  */
-export function queryCatalog(db: Db, input: Partial<CatalogQuery> = {}): CatalogQueryResult {
-  const limit = input.limit ?? 20;
-  const offset = input.offset ?? 0;
-  const level = input.level ?? 15;
-  const hp = input.hp ?? 600;
-  const include = input.include ?? 'metrics';
-  const filters = input.filters ?? [];
-  const sort = input.sort;
+export function queryCatalog(db: Db, input: CatalogQueryInput = {}): CatalogQueryResult {
+  const query = CatalogQuerySchema.parse(input);
+  const { limit, offset, level, hp, include, sort } = query;
+  const filters = query.filters ?? [];
   const known = knownKeys(db);
   for (const filter of filters) validateKey(filter.key, known);
-  if (sort) validateKey(sort.by, known);
+  if (sort) validateKey(sort, known);
 
   const candidates = searchItems(db, {
-    q: input.q ?? null,
-    kind: input.kind ?? null,
-    rank: input.rank ?? null,
-    slot: input.slot ?? null,
+    q: query.q ?? null,
+    kind: query.kind ?? null,
+    rank: query.rank ?? null,
+    slot: query.slot ?? null,
     limit: CANDIDATE_LIMIT,
   });
   const truncated = candidates.length === CANDIDATE_LIMIT;
@@ -102,9 +99,9 @@ export function queryCatalog(db: Db, input: Partial<CatalogQuery> = {}): Catalog
       const leftCtx: MetricContext = { item: left, rows: candidateStats?.get(left.id) ?? [], level, hp };
       const rightCtx: MetricContext = { item: right, rows: candidateStats?.get(right.id) ?? [], level, hp };
       const compared = compareValues(
-        filterValue(leftCtx, sort.by, known),
-        filterValue(rightCtx, sort.by, known),
-        sort.direction,
+        filterValue(leftCtx, sort, known),
+        filterValue(rightCtx, sort, known),
+        query.direction,
       );
       if (compared !== 0) return compared;
       return left.name_norm.localeCompare(right.name_norm, 'ru', { numeric: true });

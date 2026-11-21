@@ -81,3 +81,42 @@ export function buildCatalogSection(
 ): Record<string, unknown>[] {
   return buildCatalog(db, kind);
 }
+
+/**
+ * The assistant's dictionary: which kinds exist, which metrics each kind exposes and which
+ * stat ids are actually stored. Counts and freshness come from the same meta composition
+ * the site uses, so the tool cannot describe a catalog the server does not serve.
+ */
+export function describeCatalog(db: Db, kind?: string): CatalogDescription {
+  const kinds = db
+    .prepare(`SELECT kind, COUNT(*) AS count FROM item GROUP BY kind ORDER BY kind`)
+    .all() as { kind: string; count: number }[];
+  const definitions = new Map(listStatDefinitions(db).map((definition) => [definition.id, definition]));
+  const stats = statUsage(db, kind).map((row) => {
+    const definition = definitions.get(row.id);
+    return {
+      id: row.id,
+      label: definition?.label_ru ?? row.label,
+      category: definition?.category ?? null,
+      valueType: definition?.value_type ?? null,
+      pct: row.pct === 1,
+      positive: row.positive == null ? null : row.positive === 1,
+      kinds: row.kinds ? row.kinds.split(',') : [],
+      count: row.count,
+    };
+  });
+  const metrics = CATALOG_METRICS.filter(
+    (metric) => !kind || metric.kinds.some((entry) => entry === kind),
+  ).map((metric) => ({
+    key: metric.key,
+    label: metric.label,
+    unit: metric.unit,
+    direction: metric.direction,
+    kinds: [...metric.kinds],
+    leveled: metric.leveled,
+  }));
+  const meta = buildMetaSection(db);
+  // buildMetaSection types catalogMeta as a JSON record; the shared schema pins these fields.
+  const catalogMetaValue = meta.catalogMeta as CatalogMeta;
+  return { kinds, metrics, stats, meta: catalogMetaValue, freshness: meta.freshness };
+}

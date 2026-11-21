@@ -51,11 +51,7 @@ export const CatalogFilterSchema = z
   });
 export type CatalogFilter = z.infer<typeof CatalogFilterSchema>;
 
-export const CatalogSortSchema = z.object({
-  by: z.string().min(1).max(160),
-  direction: z.enum(['asc', 'desc']).default('desc'),
-});
-export type CatalogSort = z.infer<typeof CatalogSortSchema>;
+
 
 export const CatalogIncludeSchema = z.enum(['summary', 'metrics', 'full']);
 

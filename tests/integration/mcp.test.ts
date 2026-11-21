@@ -156,6 +156,7 @@ describe('MCP registry', () => {
       direction: 'desc',
       limit: 2,
     });
+    expect(result.isError, JSON.stringify(result.content)).not.toBe(true);
     const body = result.structuredContent as {
       items: { name: string; metrics: { dps: number | null } }[];
       total: number;
@@ -169,6 +170,7 @@ describe('MCP registry', () => {
 
   it('describes the metric vocabulary', async () => {
     const result = await callTool('describe_catalog', {});
+    expect(result.isError, JSON.stringify(result.content)).not.toBe(true);
     const body = result.structuredContent as { metrics: { key: string; direction: string }[] };
     expect(body.metrics.find((metric) => metric.key === 'recoil')?.direction).toBe('lower');
     expect(body.metrics.find((metric) => metric.key === 'dps')?.direction).toBe('higher');
