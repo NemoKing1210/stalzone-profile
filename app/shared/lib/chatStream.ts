@@ -1,4 +1,4 @@
-import { ChatStreamEventSchema, type ChatPendingWrite, type ChatStreamEvent } from '@profile/shared/contracts';
+import { ChatStreamEventSchema, type ChatStreamEvent } from '@profile/shared/contracts';
 
 export type LiveToolPhase = 'running' | 'done' | 'declined';
 
@@ -15,11 +15,10 @@ export interface LiveTurn {
   text: string;
   reasoning: string;
   tools: Record<string, LiveTool>;
-  pending: ChatPendingWrite | null;
 }
 
 export function emptyLiveTurn(): LiveTurn {
-  return { threadId: null, messageId: null, text: '', reasoning: '', tools: {}, pending: null };
+  return { threadId: null, messageId: null, text: '', reasoning: '', tools: {} };
 }
 
 /**
@@ -71,9 +70,15 @@ export function reduceLiveTurn(state: LiveTurn, event: ChatStreamEvent): LiveTur
           },
         },
       };
-    case 'pending':
-      return { ...state, pending: event.pending };
     default:
       return state;
   }
+}
+
+/**
+ * After Stop, the database is the truth — but only reload the thread the owner is still
+ * looking at. A turn abandoned in thread 5 must not yank the reader out of thread 7.
+ */
+export function threadToReloadAfterAbort(activeThreadId: number | null, streamingThreadId: number | null): number | null {
+  return streamingThreadId != null && activeThreadId === streamingThreadId ? streamingThreadId : null;
 }

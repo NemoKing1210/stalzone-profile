@@ -7,7 +7,9 @@ const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 /** The declared-body budget for one path; only the assistant turn carries files. */
 export function maxBodyBytes(pathname: string): number {
-  return pathname === '/api/v1/chat/turn' ? CHAT_TURN_MAX_BYTES : MAX_BODY_BYTES;
+  return pathname === '/api/v1/chat/turn' || pathname === '/api/v1/chat/turn/stream'
+    ? CHAT_TURN_MAX_BYTES
+    : MAX_BODY_BYTES;
 }
 
 /** True when a declared body exceeds the budget; a missing or malformed length is unknown. */

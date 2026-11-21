@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { emptyLiveTurn, parseSseChunk, reduceLiveTurn } from '~/shared/lib/chatStream';
+import { emptyLiveTurn, parseSseChunk, reduceLiveTurn, threadToReloadAfterAbort } from '~/shared/lib/chatStream';
 
 describe('chat sse parser', () => {
   it('keeps a partial frame until the next chunk completes it', () => {
@@ -44,12 +44,16 @@ describe('chat live reducer', () => {
     });
     expect(state.tools.c1).toMatchObject({ name: 'find_items', phase: 'running' });
 
-    state = reduceLiveTurn(state, { type: 'tool', callId: 'c1', name: 'find_items', phase: 'done', payload: {} });
+    state = reduceLiveTurn(state, { type: 'tool', callId: 'c1', name: 'find_items', phase: 'done' });
     expect(state.tools.c1?.phase).toBe('done');
   });
+});
 
-  it('raises the pending write', () => {
-    const pending = { toolName: 'add_item', args: {}, human: 'Add item', diff: {} };
-    expect(reduceLiveTurn(emptyLiveTurn(), { type: 'pending', pending }).pending).toEqual(pending);
+describe('stop reload', () => {
+  it('reloads the streamed thread only while the owner is looking at it', () => {
+    expect(threadToReloadAfterAbort(5, 5)).toBe(5);
+    expect(threadToReloadAfterAbort(7, 5)).toBeNull();
+    expect(threadToReloadAfterAbort(null, 5)).toBeNull();
+    expect(threadToReloadAfterAbort(5, null)).toBeNull();
   });
 });

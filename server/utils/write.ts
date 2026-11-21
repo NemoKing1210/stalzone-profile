@@ -7,7 +7,7 @@ import { apiError, type ApiErrorBody } from './errors';
  * Facts every HTTP write attaches to its journal entry: the request id shared with
  * `log_entry`/`x-request-id`, and whether the caller used the session or the bearer token.
  */
-function requestEventContext(event: H3Event): EventContext {
+export function requestEventContext(event: H3Event): EventContext {
   return {
     requestId: (event.context.requestId as string | undefined) ?? null,
     origin: hasValidBearer(event) ? 'api' : 'http',

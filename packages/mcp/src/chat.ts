@@ -231,7 +231,13 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
   const { key, env } = resolveApiKey(settings);
   const emit = options.onEvent ?? (() => {});
   const finish = (result: ChatTurnResult): ChatTurnResult => {
-    emit({ type: 'done', thread: result.thread, messages: result.messages, pending: result.pending, error: result.error });
+    emit({
+      type: 'done',
+      thread: result.thread,
+      messages: result.messages,
+      pending: result.pending,
+      error: result.error,
+    });
     return result;
   };
   const requestId = currentEventContext()?.requestId ?? null;
@@ -249,10 +255,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
   );
   const threadId =
     input.threadId ??
-    createChatThread(
-      db,
-      (input.title ?? input.message).trim().slice(0, 80) || attachments[0]?.name || 'New thread',
-    );
+    createChatThread(db, (input.title ?? input.message).trim().slice(0, 80) || attachments[0]?.name || 'New thread');
   const thread = getChatThread(db, threadId);
   if (!thread) {
     turnLogger.error('chat thread missing', { threadId });
@@ -309,9 +312,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
     .map((file) => ({ mimeType: file.mimeType, data: file.data.toString('base64') }));
   const system = composeChatPrompt(db);
   const session = providerSession(thread);
-  const pendingWrite = input.confirm?.toolName
-    ? { name: input.confirm.toolName, args: input.confirm.args }
-    : null;
+  const pendingWrite = input.confirm?.toolName ? { name: input.confirm.toolName, args: input.confirm.args } : null;
 
   let state: unknown = null;
   let error: string | null = null;
@@ -386,7 +387,12 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
           emit({ type: 'tool', callId: call.id, name: call.name, phase: 'start' });
           if (pendingWrite && pendingWrite.name === call.name) {
             toolCalls += 1;
-            const done = await callRegistry(sdk, call.name, { ...call.args, ...pendingWrite.args, dry_run: false, confirm: true });
+            const done = await callRegistry(sdk, call.name, {
+              ...call.args,
+              ...pendingWrite.args,
+              dry_run: false,
+              confirm: true,
+            });
             appendChatMessage(db, {
               threadId,
               role: 'tool',
@@ -395,7 +401,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
               toolCallId: call.id,
               payload: done,
             });
-            emit({ type: 'tool', callId: call.id, name: call.name, phase: 'done', payload: done });
+            emit({ type: 'tool', callId: call.id, name: call.name, phase: 'done' });
             acted = true;
             stopped = true;
             continue;
@@ -419,8 +425,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
             toolCallId: call.id,
             payload: preview,
           });
-          emit({ type: 'pending', pending });
-          emit({ type: 'tool', callId: call.id, name: call.name, phase: 'done', payload: preview });
+          emit({ type: 'tool', callId: call.id, name: call.name, phase: 'done' });
           stopped = true;
           continue;
         }
@@ -434,7 +439,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
             toolCallId: call.id,
             payload: { declined: true },
           });
-          emit({ type: 'tool', callId: call.id, name: call.name, phase: 'declined', payload: { declined: true } });
+          emit({ type: 'tool', callId: call.id, name: call.name, phase: 'declined' });
           runs.push({ id: call.id, name: call.name, content, payload: { declined: true } });
           acted = true;
           continue;
@@ -451,7 +456,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
           toolCallId: call.id,
           payload: toolResult,
         });
-        emit({ type: 'tool', callId: call.id, name: call.name, phase: 'done', payload: toolResult });
+        emit({ type: 'tool', callId: call.id, name: call.name, phase: 'done' });
         runs.push({ id: call.id, name: call.name, content, payload: toolResult });
       }
       if (stopped) break;
@@ -481,7 +486,12 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
   if (error) turnLogger.warn('chat turn finished', summary, failure, durationMs);
   else turnLogger.info('chat turn finished', summary, undefined, durationMs);
 
-  return finish({ thread: getChatThread(db, threadId) ?? thread, messages: listChatMessages(db, threadId), pending, error });
+  return finish({
+    thread: getChatThread(db, threadId) ?? thread,
+    messages: listChatMessages(db, threadId),
+    pending,
+    error,
+  });
 }
 
 /**
@@ -516,7 +526,10 @@ function appendToolRound(state: unknown, provider: string, reply: ProviderReply,
     return [
       ...messages,
       { role: 'assistant', content: assistant },
-      { role: 'user', content: runs.map((run) => ({ type: 'tool_result', tool_use_id: run.id, content: run.content })) },
+      {
+        role: 'user',
+        content: runs.map((run) => ({ type: 'tool_result', tool_use_id: run.id, content: run.content })),
+      },
     ];
   }
   if (provider === 'google') {
@@ -877,7 +890,10 @@ async function callOpenAi(
         ];
   const messages: OpenAiMessage[] = Array.isArray(input.state)
     ? (input.state as OpenAiMessage[])
-    : [{ role: 'system', content: input.system }, { role: 'user', content: userContent }];
+    : [
+        { role: 'system', content: input.system },
+        { role: 'user', content: userContent },
+      ];
   const console = provider === 'opencode' || provider === 'opencode-go';
   const effort =
     input.reasoningEffort == null
@@ -909,9 +925,7 @@ async function callOpenAi(
       ...(input.stream
         ? {
             stream: true,
-            ...(provider === 'openai' || provider === 'openrouter'
-              ? { stream_options: { include_usage: true } }
-              : {}),
+            ...(provider === 'openai' || provider === 'openrouter' ? { stream_options: { include_usage: true } } : {}),
           }
         : {}),
     }),
@@ -1001,7 +1015,10 @@ async function callAnthropic(
   const blocks = body.content ?? [];
   return {
     reply: {
-      text: blocks.filter((block) => block.type === 'text').map((block) => block.text ?? '').join('\n'),
+      text: blocks
+        .filter((block) => block.type === 'text')
+        .map((block) => block.text ?? '')
+        .join('\n'),
       reasoning: blocks
         .filter((block) => block.type === 'thinking')
         .map((block) => block.thinking ?? '')
@@ -1028,17 +1045,20 @@ async function callGoogle(
   ];
   const contents = Array.isArray(input.state) ? input.state : [{ role: 'user', parts: requestParts }];
   const action = input.stream ? 'streamGenerateContent?alt=sse&key=' : 'generateContent?key=';
-  const response = await fetchImpl(`${base}/models/${encodeURIComponent(model)}:${action}${encodeURIComponent(key ?? '')}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: input.system }] },
-      contents,
-      generationConfig: { temperature: input.temperature, maxOutputTokens: input.maxTokens },
-      ...(input.definitions.length ? { tools: [{ functionDeclarations: input.definitions }] } : {}),
-    }),
-    signal: requestSignal(input),
-  });
+  const response = await fetchImpl(
+    `${base}/models/${encodeURIComponent(model)}:${action}${encodeURIComponent(key ?? '')}`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: input.system }] },
+        contents,
+        generationConfig: { temperature: input.temperature, maxOutputTokens: input.maxTokens },
+        ...(input.definitions.length ? { tools: [{ functionDeclarations: input.definitions }] } : {}),
+      }),
+      signal: requestSignal(input),
+    },
+  );
   if (!response.ok) throw new Error(`AI_HTTP_${response.status}`);
   if (input.stream) return streamGoogle(response, contents, input);
   const body = (await response.json()) as {
@@ -1050,8 +1070,14 @@ async function callGoogle(
   const parts = body.candidates?.[0]?.content?.parts ?? [];
   return {
     reply: {
-      text: parts.filter((part) => part.thought !== true).map((part) => part.text ?? '').join(''),
-      reasoning: parts.filter((part) => part.thought === true).map((part) => part.text ?? '').join(''),
+      text: parts
+        .filter((part) => part.thought !== true)
+        .map((part) => part.text ?? '')
+        .join(''),
+      reasoning: parts
+        .filter((part) => part.thought === true)
+        .map((part) => part.text ?? '')
+        .join(''),
       calls: parts
         .filter((part) => part.functionCall)
         .map((part) => ({

@@ -35,6 +35,7 @@ describe('request body limit', () => {
 describe('per-route body budget', () => {
   it('raises the budget only for the assistant turn, which carries files', () => {
     expect(maxBodyBytes('/api/v1/chat/turn')).toBe(CHAT_TURN_MAX_BYTES);
+    expect(maxBodyBytes('/api/v1/chat/turn/stream')).toBe(CHAT_TURN_MAX_BYTES);
     expect(CHAT_TURN_MAX_BYTES).toBeGreaterThan(MAX_BODY_BYTES);
     expect(maxBodyBytes('/api/v1/items')).toBe(MAX_BODY_BYTES);
     expect(maxBodyBytes('/api/v1/chat/turn/extra')).toBe(MAX_BODY_BYTES);

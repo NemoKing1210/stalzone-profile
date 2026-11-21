@@ -534,9 +534,7 @@ export const ChatStreamEventSchema = z.discriminatedUnion('type', [
     callId: z.string(),
     name: z.string(),
     phase: z.enum(['start', 'done', 'declined']),
-    payload: z.unknown().optional(),
   }),
-  z.object({ type: z.literal('pending'), pending: ChatPendingWriteSchema }),
   z.object({
     type: z.literal('done'),
     thread: ChatThreadSchema,

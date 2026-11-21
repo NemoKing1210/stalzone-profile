@@ -46,7 +46,11 @@ const time = computed(() => {
         <time :datetime="row.createdAt">{{ time }}</time>
       </span>
     </div>
-    <UChatReasoning v-if="row.reasoning" :text="row.reasoning" />
+    <UChatReasoning
+      v-if="row.reasoning"
+      :text="row.reasoning"
+      :duration="row.meta?.durationMs == null ? undefined : Math.round(row.meta.durationMs / 1000)"
+    />
     <ChatMarkdown :text="row.text" />
     <div class="mt-1 flex items-center justify-between gap-2">
       <UButton

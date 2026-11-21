@@ -1,10 +1,12 @@
 import { ChatSendSchema, type ChatStreamEvent } from '@profile/shared/contracts';
+import { runWithEventContext } from '@profile/core';
 import { runChatTurnStream } from '@profile/mcp';
-import { requireOrigin } from '../../../../utils/auth';
+import { requireOrigin, requireSession } from '../../../../utils/auth';
 import { CHAT_TURN_MAX_BYTES } from '../../../../utils/body';
 import { useDb } from '../../../../utils/db';
 import { validationError } from '../../../../utils/errors';
 import { readJsonBodyResult } from '../../../../utils/read-body';
+import { requestEventContext } from '../../../../utils/write';
 
 /**
  * The streamed form of `POST /api/v1/chat/turn`. Same body, same auth and origin rules; the
@@ -15,6 +17,8 @@ import { readJsonBodyResult } from '../../../../utils/read-body';
 export default defineEventHandler(async (event) => {
   const originError = requireOrigin(event);
   if (originError) return originError;
+  const sessionError = requireSession(event);
+  if (sessionError) return sessionError;
 
   const read = await readJsonBodyResult(event, CHAT_TURN_MAX_BYTES);
   if (read.error) return read.error;
@@ -41,7 +45,11 @@ export default defineEventHandler(async (event) => {
         stream.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
       };
       try {
-        await runChatTurnStream(useDb(), parsed.data, send, { signal: controller.signal });
+        // The same write/request context `handleWriteAsync` attaches on the non-stream route:
+        // assistant writes keep their `origin` and request id in `event_log`, and logs share it.
+        await runWithEventContext(requestEventContext(event), () =>
+          runChatTurnStream(useDb(), parsed.data, send, { signal: controller.signal }),
+        );
       } catch (error) {
         send({ type: 'error', message: error instanceof Error ? error.message : String(error) });
       } finally {

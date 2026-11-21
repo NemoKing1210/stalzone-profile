@@ -9,7 +9,7 @@ import type {
 } from '@profile/shared/contracts';
 
 import { chatHttpStatus, turnOutcome, type TurnToast } from '~/shared/lib/chatTurnOutcome';
-import { emptyLiveTurn, parseSseChunk, reduceLiveTurn, type LiveTurn } from '~/shared/lib/chatStream';
+import { emptyLiveTurn, parseSseChunk, reduceLiveTurn, threadToReloadAfterAbort, type LiveTurn } from '~/shared/lib/chatStream';
 
 /**
  * The assistant conversation lives here, once per SPA: an in-flight turn survives route
@@ -238,7 +238,8 @@ export const useChatStore = defineStore('chat', () => {
     } catch (error) {
       if (controller.signal.aborted) {
         // Stop or a closed tab: the database is the truth, no half-answer stays on screen.
-        if (adoptedThreadId != null) await openThread(adoptedThreadId).catch(() => undefined);
+        const reload = threadToReloadAfterAbort(activeThreadId.value, adoptedThreadId);
+        if (reload != null) await openThread(reload).catch(() => undefined);
         return;
       }
       const message = error instanceof Error ? formatTurnError(error.message) : t('chat.failedDescription');
