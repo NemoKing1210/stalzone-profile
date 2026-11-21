@@ -9,6 +9,12 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Fixed
 
+- The assistant side panel fits its own controls: the header is two rows (the panel name and
+  active thread, then the thread selector, New thread and Open full chat), so nothing sits
+  under the close button; the panel widens to `min(94vw, 34rem)`; the thread menu opens above
+  the panel instead of behind it; the composer gains a submit button (the panel was
+  unsendable on touch); tool tables scroll inside the panel; and closing returns focus to the
+  sparkles trigger in either locale instead of matching an English `aria-label`.
 - A pointer drag keeps the pressed pixel under the cursor: the floating preview is
   anchored by the exact in-cell offset (`grabOffset`) instead of the grabbed cell's
   corner, so a card no longer jumps by up to one cell — a whole tile for a 1×1 stack — the

@@ -49,8 +49,11 @@ async function startThread(): Promise<void> {
     :close="{ color: 'neutral' }"
     :ui="{
       content:
-        'z-50 w-[min(94vw,27rem)] !max-w-none border-l border-[var(--sz-border)] bg-ink-950 !shadow-none motion-reduce:animate-none motion-reduce:transition-none',
-      header: 'gap-2 p-2',
+        'z-50 w-[min(94vw,34rem)] !max-w-none border-l border-[var(--sz-border)] bg-ink-950 !shadow-none motion-reduce:animate-none motion-reduce:transition-none',
+      header: 'flex flex-wrap items-center gap-x-2 gap-y-2 px-3 py-2.5 min-h-0',
+      wrapper: 'order-1 min-w-0 flex-1 pe-10',
+      title: 'truncate',
+      description: 'mt-0.5 truncate text-[11.5px] text-[var(--sz-text-muted)]',
       body: 'flex min-h-0 flex-1 flex-col overflow-hidden p-0',
     }"
     @update:open="(value: boolean) => (value ? panel.show() : panel.hide())"
@@ -70,31 +73,48 @@ async function startThread(): Promise<void> {
     </template>
 
     <template #actions>
-      <div class="flex min-w-0 flex-wrap items-center justify-end gap-1">
+      <div class="order-2 flex w-full min-w-0 items-center gap-1.5">
         <USelectMenu
           :model-value="currentThreadItem"
           :items="threadItems"
-          size="xs"
-          class="w-28"
+          size="sm"
+          class="min-w-0 flex-1 max-sm:min-h-11"
+          :placeholder="t('chat.threads')"
+          :disabled="!threadItems.length"
+          :search-input="false"
+          :ui="{ content: 'z-[60]' }"
           :aria-label="t('chat.threads')"
           @update:model-value="selectThread"
         />
         <UButton
-          size="xs"
+          size="sm"
           color="neutral"
           variant="ghost"
           icon="i-lucide-plus"
           :aria-label="t('chat.newThread')"
           :title="t('chat.newThread')"
+          class="max-sm:size-11"
           @click="startThread"
         />
         <UButton
           to="/chat"
-          size="xs"
+          size="sm"
+          color="neutral"
+          variant="ghost"
+          icon="i-lucide-external-link"
+          :aria-label="t('chat.fullChat')"
+          :title="t('chat.fullChat')"
+          class="shrink-0 sm:hidden max-sm:size-11"
+          @click="panel.hide()"
+        />
+        <UButton
+          to="/chat"
+          size="sm"
           color="neutral"
           variant="ghost"
           icon="i-lucide-external-link"
           :label="t('chat.fullChat')"
+          class="hidden shrink-0 sm:inline-flex"
           @click="panel.hide()"
         />
       </div>

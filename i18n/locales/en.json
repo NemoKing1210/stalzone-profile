@@ -605,6 +605,7 @@
     "noThreads": "No threads yet.",
     "empty": "Ask about the character, inventory, prices or a planned change.",
     "placeholder": "Ask the assistant…",
+    "send": "Send message",
     "failed": "Assistant request failed",
     "failedDescription": "Check Settings → Assistant and the provider connection.",
     "pendingTitle": "Confirmation required",

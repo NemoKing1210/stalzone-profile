@@ -25,41 +25,45 @@ const view = computed(() => chatToolView(props.toolName, props.payload));
       </div>
     </div>
 
-    <table v-else-if="view.kind === 'prices'" class="w-full text-[12px]">
-      <thead class="text-[var(--sz-text-muted)]">
-        <tr>
-          <th class="text-left font-normal">{{ t('chat.columns.name') }}</th>
-          <th class="text-right font-normal">{{ t('chat.columns.price') }}</th>
-          <th class="text-right font-normal">{{ t('chat.columns.lots') }}</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="row in view.prices" :key="row.name" class="border-t border-[var(--sz-border)]">
-          <td class="py-0.5">{{ row.name }}</td>
-          <td class="py-0.5 text-right tabular-nums">{{ row.price == null ? t('chat.noLot') : num(row.price) }}</td>
-          <td class="py-0.5 text-right tabular-nums">{{ row.lots ?? '—' }}</td>
-        </tr>
-      </tbody>
-    </table>
+    <div v-else-if="view.kind === 'prices'" class="overflow-x-auto">
+      <table class="w-full min-w-[17rem] text-[12px]">
+        <thead class="text-[var(--sz-text-muted)]">
+          <tr>
+            <th class="text-left font-normal">{{ t('chat.columns.name') }}</th>
+            <th class="text-right font-normal">{{ t('chat.columns.price') }}</th>
+            <th class="text-right font-normal">{{ t('chat.columns.lots') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in view.prices" :key="row.name" class="border-t border-[var(--sz-border)]">
+            <td class="py-0.5">{{ row.name }}</td>
+            <td class="py-0.5 text-right tabular-nums">{{ row.price == null ? t('chat.noLot') : num(row.price) }}</td>
+            <td class="py-0.5 text-right tabular-nums">{{ row.lots ?? '—' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
-    <table v-else-if="view.kind === 'inventory'" class="w-full text-[12px]">
-      <thead class="text-[var(--sz-text-muted)]">
-        <tr>
-          <th class="text-left font-normal">{{ t('chat.columns.name') }}</th>
-          <th class="text-right font-normal">{{ t('chat.columns.level') }}</th>
-          <th class="text-right font-normal">{{ t('chat.columns.qty') }}</th>
-          <th class="text-left font-normal">{{ t('chat.columns.location') }}</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="(row, index) in view.rows" :key="`${row.name}-${index}`" class="border-t border-[var(--sz-border)]">
-          <td class="py-0.5"><span class="inline-flex items-center gap-1">{{ row.name }}<VirtualBadge v-if="row.virtual" /></span></td>
-          <td class="py-0.5 text-right tabular-nums">{{ row.level }}</td>
-          <td class="py-0.5 text-right tabular-nums">{{ row.qty }}</td>
-          <td class="py-0.5">{{ row.location }}</td>
-        </tr>
-      </tbody>
-    </table>
+    <div v-else-if="view.kind === 'inventory'" class="overflow-x-auto">
+      <table class="w-full min-w-[19rem] text-[12px]">
+        <thead class="text-[var(--sz-text-muted)]">
+          <tr>
+            <th class="text-left font-normal">{{ t('chat.columns.name') }}</th>
+            <th class="text-right font-normal">{{ t('chat.columns.level') }}</th>
+            <th class="text-right font-normal">{{ t('chat.columns.qty') }}</th>
+            <th class="text-left font-normal">{{ t('chat.columns.location') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(row, index) in view.rows" :key="`${row.name}-${index}`" class="border-t border-[var(--sz-border)]">
+            <td class="py-0.5"><span class="inline-flex items-center gap-1">{{ row.name }}<VirtualBadge v-if="row.virtual" /></span></td>
+            <td class="py-0.5 text-right tabular-nums">{{ row.level }}</td>
+            <td class="py-0.5 text-right tabular-nums">{{ row.qty }}</td>
+            <td class="py-0.5">{{ row.location }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
     <p v-else-if="view.kind === 'text'" class="text-[var(--sz-text)]">{{ view.text }}</p>
     <pre v-else class="max-h-56 overflow-auto whitespace-pre-wrap text-[11px] text-[var(--sz-text-muted)]">{{ view.json }}</pre>

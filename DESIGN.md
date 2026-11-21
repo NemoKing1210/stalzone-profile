@@ -431,13 +431,16 @@ client is hydrated:
   play; it never autoplays. See §6.4.
 - Assistant panel: a `USlideover` from the right on every authenticated page except `/chat`,
   toggled by the sparkles button in the top bar (both desktop cluster and mobile header) and
-  by the `open-assistant` palette command. Width `min(94vw, 27rem)`, full height, square
-  `bg-ink-950`, a 1px left border, no texture or shadow, z-index 50 with a modal overlay. Its
-  header names the panel and the truncated active thread and carries a thread selector, New
-  thread, Open full chat and the close button. The body is the one shared
-  `ChatConversation`, so closing never stops a turn and reopening shows the reply; opening
-  focuses the composer. It is a real dialog (title/description, focus trap, Esc/overlay
-  close, focus returns to the trigger) and reduced motion drops the slide.
+  by the `open-assistant` palette command. Width `min(94vw, 34rem)`, full height, square
+  `bg-ink-950`, a 1px left border, no texture or shadow, z-index 50 with a modal overlay. The
+  header has two rows: the panel name and the truncated active thread sit on the first, clear
+  of the close button, and the thread selector, New thread and Open full chat share the
+  second, where the selector takes the spare width; its menu opens at z-index 60 so the panel
+  cannot cover it. The body is the one shared `ChatConversation`, so closing never stops a
+  turn and reopening shows the reply; opening focuses the composer. The composer carries a
+  submit button beside the field, and on touch the panel's controls keep a 44px target. It is
+  a real dialog (title/description, focus trap, Esc/overlay close, focus returns to the
+  trigger) and reduced motion drops the slide.
 
 ### 5.2 Page archetypes
 

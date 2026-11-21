@@ -16,7 +16,7 @@ export const useAssistantPanelStore = defineStore('assistantPanel', () => {
     if (!import.meta.client) return;
     const target =
       trigger.value ??
-      [...document.querySelectorAll<HTMLElement>('button[aria-label="Open assistant panel"]')].find(
+      [...document.querySelectorAll<HTMLElement>('[data-assistant-toggle]')].find(
         (element) => element.offsetParent !== null,
       ) ??
       null;

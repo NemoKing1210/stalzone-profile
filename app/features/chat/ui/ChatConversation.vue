@@ -48,9 +48,9 @@ defineExpose({ focus });
 <template>
   <div ref="root" class="flex min-h-0 flex-1 flex-col">
     <div class="min-h-0 flex-1 overflow-y-auto p-3">
-      <p v-if="!messages.length" class="py-10 text-center text-[12.5px] text-[var(--sz-text-dim)]">
-        {{ t('chat.empty') }}
-      </p>
+      <div v-if="!messages.length" class="flex h-full items-center justify-center px-6 text-center">
+        <p class="max-w-[34ch] text-[12.5px] text-[var(--sz-text-dim)]">{{ t('chat.empty') }}</p>
+      </div>
       <UChatMessages v-else :messages="uiMessages as never" :auto-scroll="true">
         <template #content="{ message }">
           <ChatToolResult
@@ -67,7 +67,10 @@ defineExpose({ focus });
     </div>
 
     <div v-if="pending" class="border-t border-[var(--sz-border)] bg-[var(--sz-surface-alt)] p-2.5">
-      <p class="sz-caps text-[var(--sz-text-muted)]">{{ t('chat.pendingTitle') }} · {{ pending.toolName }}</p>
+      <div class="flex items-baseline justify-between gap-2">
+        <p class="sz-caps text-[var(--sz-text-muted)]">{{ t('chat.pendingTitle') }}</p>
+        <span class="truncate text-[11px] text-[var(--sz-text-dim)]">{{ pending.toolName }}</span>
+      </div>
       <p class="mt-1 text-[12.5px]">{{ pending.human }}</p>
       <div class="mt-2 flex justify-end gap-2">
         <UButton size="xs" color="neutral" variant="ghost" :label="t('chat.decline')" @click="chat.declinePending" />
@@ -82,7 +85,16 @@ defineExpose({ focus });
         :loading="sending"
         :disabled="sending"
         @submit="send"
-      />
+      >
+        <template #footer>
+          <UChatPromptSubmit
+            class="ms-auto max-sm:size-11"
+            :disabled="!draft.trim() || sending"
+            :loading="sending"
+            :aria-label="t('chat.send')"
+          />
+        </template>
+      </UChatPrompt>
     </div>
   </div>
 </template>

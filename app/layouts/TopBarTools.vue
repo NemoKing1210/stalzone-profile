@@ -27,6 +27,7 @@ const themeLabel = computed(() => (theme.value === 'dark' ? t('palette.themeLigh
       :title="t('chat.panelOpen')"
       :aria-expanded="assistant.open"
       aria-controls="assistant-panel"
+      data-assistant-toggle
       @click="togglePanel"
     >
       <UIcon name="i-lucide-sparkles" class="size-4" aria-hidden="true" />
