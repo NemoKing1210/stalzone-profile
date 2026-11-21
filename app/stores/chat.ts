@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import type {
+  ChatAttachmentInput,
   ChatMessage,
   ChatPendingWrite,
   ChatThread,
@@ -149,10 +150,10 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  async function send(message: string): Promise<void> {
+  async function send(message: string, files: ChatAttachmentInput[] = []): Promise<void> {
     const text = message.trim();
-    if (!text) return;
-    await turn({ message: text });
+    if (!text && files.length === 0) return;
+    await turn({ message: text, ...(files.length ? { files } : {}) });
   }
 
   async function confirmPending(): Promise<void> {

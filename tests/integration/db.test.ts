@@ -32,6 +32,7 @@ describe('baseline schema', () => {
       'attachment_compat',
       'character',
       'character_stat',
+      'chat_attachment',
       'chat_message',
       'chat_prompt',
       'chat_prompt_active',

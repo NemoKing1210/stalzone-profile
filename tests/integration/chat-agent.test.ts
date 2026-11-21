@@ -2,8 +2,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { closeDb, ensureDefaultSources, migrate, openDb, type Db, listEvents } from '@profile/core';
+import { closeDb, ensureDefaultSources, migrate, openDb, type Db, listEvents, updateChatSettings } from '@profile/core';
 import { runChatTurn } from '@profile/mcp';
+import { CHAT_PROVIDER_META, ChatSettingsUpdateSchema, type ChatProvider } from '@profile/shared/contracts';
 import { setChatSettings } from './chat-test-helpers';
 
 let dir: string;
@@ -24,6 +25,22 @@ afterEach(() => {
 function json(body: unknown): Response {
   return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
 }
+
+function useProvider(db: Db, provider: ChatProvider, baseUrl: string): void {
+  process.env[CHAT_PROVIDER_META[provider].keyEnv] = 'test-key';
+  updateChatSettings(db, ChatSettingsUpdateSchema.parse({ provider, baseUrl, model: 'test-model' }));
+}
+
+const notes = {
+  name: 'notes.md',
+  mimeType: 'text/markdown',
+  data: Buffer.from('# Notes\nRemember the stash.').toString('base64'),
+};
+const screenshot = {
+  name: 'shot.png',
+  mimeType: 'image/png',
+  data: Buffer.from([0x89, 0x50, 0x4e, 0x47]).toString('base64'),
+};
 
 function toolCall(name: string, args: Record<string, unknown>, id = 'call-1') {
   return { choices: [{ message: { content: '', tool_calls: [{ id, type: 'function', function: { name, arguments: JSON.stringify(args) } }] } }] };
@@ -129,5 +146,68 @@ describe('chat agent', () => {
     );
     expect(declined.pending).toBeNull();
     expect((db.prepare(`SELECT COUNT(*) AS c FROM storage WHERE name = 'Nope'`).get() as { c: number }).c).toBe(0);
+  });
+
+  it('sends text files in the transcript and images as an image part to an OpenAI-compatible provider', async () => {
+    setChatSettings(db);
+    const bodies: string[] = [];
+    const fetchImpl = (async (_url: string, init: RequestInit) => {
+      bodies.push(String(init.body));
+      return json({ choices: [{ message: { content: 'Seen.' } }] });
+    }) as unknown as typeof fetch;
+
+    const result = await runChatTurn(db, { message: '', files: [notes, screenshot] }, { fetchImpl });
+
+    expect(result.error).toBeNull();
+    expect(result.messages[0]!.attachments).toEqual([
+      expect.objectContaining({ name: 'notes.md', mimeType: 'text/markdown' }),
+      expect.objectContaining({ name: 'shot.png', mimeType: 'image/png' }),
+    ]);
+    expect(result.messages[0]!.attachments[0]).not.toHaveProperty('data');
+    expect(bodies[0]).toContain('[Attached file: notes.md]');
+    expect(bodies[0]).toContain('Remember the stash.');
+    expect(bodies[0]).toContain('"type":"image_url"');
+    expect(bodies[0]).toContain('data:image/png;base64,iVBORw==');
+  });
+
+  it('keeps an earlier image available on the next turn of the same thread', async () => {
+    setChatSettings(db);
+    const bodies: string[] = [];
+    let call = 0;
+    const fetchImpl = (async (_url: string, init: RequestInit) => {
+      bodies.push(String(init.body));
+      call += 1;
+      return json({ choices: [{ message: { content: call === 1 ? 'Noted.' : 'Still here.' } }] });
+    }) as unknown as typeof fetch;
+
+    const first = await runChatTurn(db, { message: 'Remember this shot.', files: [screenshot] }, { fetchImpl });
+    await runChatTurn(db, { threadId: first.thread.id, message: 'What did I show you?' }, { fetchImpl });
+
+    expect(bodies[1]).toContain('data:image/png;base64,iVBORw==');
+  });
+
+  it('maps attachments to Anthropic image blocks and Google inline data', async () => {
+    setChatSettings(db);
+
+    useProvider(db, 'anthropic', 'http://anthropic.test/v1');
+    const anthropicBodies: string[] = [];
+    const anthropicFetch = (async (_url: string, init: RequestInit) => {
+      anthropicBodies.push(String(init.body));
+      return json({ content: [{ type: 'text', text: 'Anthropic saw it.' }] });
+    }) as unknown as typeof fetch;
+    await runChatTurn(db, { message: 'Look', files: [screenshot, notes] }, { fetchImpl: anthropicFetch });
+    expect(anthropicBodies[0]).toContain('"type":"image"');
+    expect(anthropicBodies[0]).toContain('"media_type":"image/png"');
+    expect(anthropicBodies[0]).toContain('[Attached file: notes.md]');
+
+    useProvider(db, 'google', 'http://google.test/v1beta');
+    const googleBodies: string[] = [];
+    const googleFetch = (async (_url: string, init: RequestInit) => {
+      googleBodies.push(String(init.body));
+      return json({ candidates: [{ content: { parts: [{ text: 'Google saw it.' }] } }] });
+    }) as unknown as typeof fetch;
+    await runChatTurn(db, { message: 'Look', files: [screenshot] }, { fetchImpl: googleFetch });
+    expect(googleBodies[0]).toContain('"inlineData"');
+    expect(googleBodies[0]).toContain('"mimeType":"image/png"');
   });
 });

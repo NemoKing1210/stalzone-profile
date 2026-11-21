@@ -1,7 +1,7 @@
 import { Readable } from 'node:stream';
 import type { H3Event } from 'h3';
 import { describe, expect, it } from 'vitest';
-import { MAX_BODY_BYTES, bodyTooLarge } from '../../server/utils/body';
+import { CHAT_TURN_MAX_BYTES, MAX_BODY_BYTES, bodyTooLarge, maxBodyBytes } from '../../server/utils/body';
 import { BodyTooLargeError, readJsonBody } from '../../server/utils/read-body';
 
 function fakeEvent(body: Buffer, headers: Record<string, string> = {}): H3Event {
@@ -29,6 +29,16 @@ describe('request body limit', () => {
     expect(bodyTooLarge('POST', undefined)).toBe(false);
     expect(bodyTooLarge('POST', '')).toBe(false);
     expect(bodyTooLarge('POST', 'not-a-number')).toBe(false);
+  });
+});
+
+describe('per-route body budget', () => {
+  it('raises the budget only for the assistant turn, which carries files', () => {
+    expect(maxBodyBytes('/api/v1/chat/turn')).toBe(CHAT_TURN_MAX_BYTES);
+    expect(CHAT_TURN_MAX_BYTES).toBeGreaterThan(MAX_BODY_BYTES);
+    expect(maxBodyBytes('/api/v1/items')).toBe(MAX_BODY_BYTES);
+    expect(maxBodyBytes('/api/v1/chat/turn/extra')).toBe(MAX_BODY_BYTES);
+    expect(maxBodyBytes('/api/v1/chat/turnaround')).toBe(MAX_BODY_BYTES);
   });
 });
 

@@ -1,18 +1,25 @@
 import { createHash } from 'node:crypto';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import type { ChatSend, ChatTurnResult } from '@profile/shared/contracts';
+import {
+  CHAT_ATTACHMENT_LIMITS,
+  chatFileKind,
+  type ChatSend,
+  type ChatTurnResult,
+} from '@profile/shared/contracts';
 import {
   appendChatMessage,
   composeChatPrompt,
   createChatThread,
   getChatSettingsRow,
   getChatThread,
+  listChatAttachmentData,
   listChatMessages,
   listChatThreads,
   resolveApiKey,
   resolveBaseUrl,
   toChatSettings,
+  type ChatAttachmentData,
   type Db,
 } from '@profile/core';
 import { localClient, type ProfileClient } from './client.js';
@@ -44,11 +51,56 @@ export interface ChatTurnOptions {
   client?: ProfileClient;
 }
 
+type OpenAiContentPart = { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } };
+
 interface OpenAiMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
-  content: string | null;
+  content: string | null | OpenAiContentPart[];
   tool_calls?: { id: string; type: 'function'; function: { name: string; arguments: string } }[];
   tool_call_id?: string;
+}
+
+interface ProviderImage {
+  mimeType: string;
+  /** Base64 bytes, no data-URL prefix. */
+  data: string;
+}
+
+interface ProviderInput {
+  system: string;
+  transcript: string;
+  images: ProviderImage[];
+  definitions: { name: string; description: string; parameters: Record<string, unknown> }[];
+  state: unknown;
+}
+
+/** Text files are inlined; the cap keeps one large note from crowding out the conversation. */
+function fileBlock(name: string, data: Buffer): string {
+  const text = data.toString('utf8');
+  const clipped =
+    text.length > CHAT_ATTACHMENT_LIMITS.textChars
+      ? `${text.slice(0, CHAT_ATTACHMENT_LIMITS.textChars)}\n…[truncated]`
+      : text;
+  return `\n\n[Attached file: ${name}]\n${clipped}\n[/Attached file]`;
+}
+
+function transcriptFor(db: Db, threadId: number, files: ChatAttachmentData[]): string {
+  const byMessage = new Map<number, ChatAttachmentData[]>();
+  for (const file of files) {
+    const list = byMessage.get(file.messageId) ?? [];
+    list.push(file);
+    byMessage.set(file.messageId, list);
+  }
+  return listChatMessages(db, threadId)
+    .map((message) => {
+      const label = message.role === 'tool' ? `tool ${message.toolName ?? ''}` : message.role;
+      const blocks = (byMessage.get(message.id) ?? [])
+        .filter((file) => chatFileKind(file.name, file.mimeType) === 'text')
+        .map((file) => fileBlock(file.name, file.data))
+        .join('');
+      return `${label}: ${message.content}${blocks}`;
+    })
+    .join('\n');
 }
 
 function safeJson(text: string): Json {
@@ -80,12 +132,21 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
     input.threadId ??
     createChatThread(
       db,
-      (input.title ?? input.message).trim().slice(0, 80) || 'New thread',
+      (input.title ?? input.message).trim().slice(0, 80) || input.files?.[0]?.name || 'New thread',
     );
   const thread = getChatThread(db, threadId);
   if (!thread) throw new Error('thread not found');
 
-  appendChatMessage(db, { threadId, role: 'user', content: input.message });
+  appendChatMessage(db, {
+    threadId,
+    role: 'user',
+    content: input.message,
+    attachments: (input.files ?? []).map((file) => ({
+      name: file.name,
+      mimeType: file.mimeType,
+      data: Buffer.from(file.data, 'base64'),
+    })),
+  });
 
   if (!base) {
     return { thread, messages: listChatMessages(db, threadId), pending: null, error: `AI_NOT_CONFIGURED: set a base URL` };
@@ -103,9 +164,11 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
   await sdk.connect(clientTransport);
 
   const definitions = toolDefinitions(settings.readToolAllowList);
-  const transcript = listChatMessages(db, threadId)
-    .map((message) => `${message.role === 'tool' ? `tool ${message.toolName ?? ''}` : message.role}: ${message.content}`)
-    .join('\n');
+  const storedFiles = listChatAttachmentData(db, threadId);
+  const transcript = transcriptFor(db, threadId, storedFiles);
+  const images = storedFiles
+    .filter((file) => chatFileKind(file.name, file.mimeType) === 'image')
+    .map((file) => ({ mimeType: file.mimeType, data: file.data.toString('base64') }));
   const system = composeChatPrompt(db);
   const session = providerSession(thread);
   const pendingWrite = input.confirm?.toolName
@@ -121,6 +184,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
       const result = await callProvider(fetchImpl, settings.provider, base, key, settings.model, session, {
         system,
         transcript,
+        images,
         definitions,
         state,
       });
@@ -231,13 +295,8 @@ async function callProvider(
   base: string,
   key: string | null,
   model: string,
-  input: {
-    system: string;
-    transcript: string;
-    definitions: { name: string; description: string; parameters: Record<string, unknown> }[];
-    state: unknown;
-  },
   session: string,
+  input: ProviderInput,
 ): Promise<ProviderResult> {
   if (provider === 'anthropic') return callAnthropic(fetchImpl, base, key, model, input);
   if (provider === 'google') return callGoogle(fetchImpl, base, key, model, input);
@@ -250,15 +309,22 @@ async function callOpenAi(
   base: string,
   key: string | null,
   model: string,
-  input: { system: string; transcript: string; definitions: { name: string; description: string; parameters: Record<string, unknown> }[]; state: unknown },
   session: string,
+  input: ProviderInput,
 ): Promise<ProviderResult> {
+  const userContent: OpenAiContentPart[] | string =
+    input.images.length === 0
+      ? input.transcript
+      : [
+          { type: 'text', text: input.transcript },
+          ...input.images.map((image) => ({
+            type: 'image_url' as const,
+            image_url: { url: `data:${image.mimeType};base64,${image.data}` },
+          })),
+        ];
   const messages: OpenAiMessage[] = Array.isArray(input.state)
     ? (input.state as OpenAiMessage[])
-    : [
-        { role: 'system', content: input.system },
-        { role: 'user', content: input.transcript },
-      ];
+    : [{ role: 'system', content: input.system }, { role: 'user', content: userContent }];
   const console = provider === 'opencode' || provider === 'opencode-go';
   const response = await fetchImpl(`${base}/chat/completions`, {
     method: 'POST',
@@ -298,8 +364,15 @@ async function callAnthropic(
   base: string,
   key: string | null,
   model: string,
-  input: { system: string; transcript: string; definitions: { name: string; description: string; parameters: Record<string, unknown> }[]; state: unknown },
+  input: ProviderInput,
 ): Promise<ProviderResult> {
+  const content = [
+    { type: 'text', text: input.transcript },
+    ...input.images.map((image) => ({
+      type: 'image',
+      source: { type: 'base64', media_type: image.mimeType, data: image.data },
+    })),
+  ];
   const response = await fetchImpl(`${base}/messages`, {
     method: 'POST',
     headers: {
@@ -311,7 +384,7 @@ async function callAnthropic(
       model,
       max_tokens: 2048,
       system: input.system,
-      messages: [{ role: 'user', content: input.transcript }],
+      messages: [{ role: 'user', content }],
       tools: input.definitions.map((definition) => ({
         name: definition.name,
         description: definition.description,
@@ -338,14 +411,18 @@ async function callGoogle(
   base: string,
   key: string | null,
   model: string,
-  input: { system: string; transcript: string; definitions: { name: string; description: string; parameters: Record<string, unknown> }[]; state: unknown },
+  input: ProviderInput,
 ): Promise<ProviderResult> {
+  const requestParts = [
+    { text: input.transcript },
+    ...input.images.map((image) => ({ inlineData: { mimeType: image.mimeType, data: image.data } })),
+  ];
   const response = await fetchImpl(`${base}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key ?? '')}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: input.system }] },
-      contents: [{ role: 'user', parts: [{ text: input.transcript }] }],
+      contents: [{ role: 'user', parts: requestParts }],
       tools: [{ functionDeclarations: input.definitions }],
     }),
   });

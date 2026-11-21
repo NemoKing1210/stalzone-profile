@@ -44,6 +44,16 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- The assistant composer accepts files: images (`png`, `jpeg`, `webp`, `gif`) and text files
+  with a 4-file / 4 MiB-per-file / 6 MiB-total budget. The files travel with the turn, are
+  stored in `chat_attachment` (migration `0021`) beside the user message and cascade with the
+  thread. Text is inlined into the prompt (clipped at 24,000 characters) and images become
+  real image parts for the OpenAI-compatible, Anthropic and Google mappers, so a screenshot
+  or a notes file can be discussed in the conversation. Messages show thumbnails or a named
+  download chip served by `GET /api/v1/chat/attachments/:id` behind the session; the turn
+  route alone accepts a 12 MiB body. This narrows the assistant's "no file contents" rule to
+  files the owner explicitly attaches — no `.env`, DB, snapshot or server path is read — and
+  the owner decision is recorded in the assistant design.
 - Adding an item now starts from a catalog picker instead of a raw result list: search matches
   every word in any order across Russian and English names and category paths (`12 ак`,
   `assault rifle`), the rank select narrows the catalog, and each row shows a 40 px icon, a

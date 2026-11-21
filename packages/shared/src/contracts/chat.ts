@@ -223,6 +223,147 @@ export const ChatPromptUpdateSchema = z.object({
 });
 export type ChatPromptUpdate = z.infer<typeof ChatPromptUpdateSchema>;
 
+/**
+ * Files the owner attaches to one assistant message. The bytes travel base64 inside the turn
+ * (one atomic write), are stored in `chat_attachment` and never enter `event_log`.
+ */
+export const CHAT_ATTACHMENT_LIMITS = {
+  files: 4,
+  fileBytes: 4 * 1024 * 1024,
+  totalBytes: 6 * 1024 * 1024,
+  /** Characters of a text file inlined into the prompt; the rest is marked truncated. */
+  textChars: 24_000,
+} as const;
+
+export type ChatFileKind = 'image' | 'text';
+
+const IMAGE_MIME_TYPES: Record<string, true> = {
+  'image/png': true,
+  'image/jpeg': true,
+  'image/webp': true,
+  'image/gif': true,
+};
+
+const TEXT_MIME_TYPES: Record<string, true> = {
+  'application/json': true,
+  'application/ld+json': true,
+  'application/x-ndjson': true,
+  'application/xml': true,
+  'application/xhtml+xml': true,
+  'application/yaml': true,
+  'application/x-yaml': true,
+  'application/toml': true,
+  'application/javascript': true,
+  'application/typescript': true,
+  'application/sql': true,
+  'application/csv': true,
+};
+
+/** Browsers report many notes and source files as empty or `application/octet-stream`. */
+const TEXT_EXTENSIONS: Record<string, true> = {
+  txt: true,
+  text: true,
+  md: true,
+  markdown: true,
+  mdx: true,
+  log: true,
+  csv: true,
+  tsv: true,
+  json: true,
+  jsonc: true,
+  yaml: true,
+  yml: true,
+  toml: true,
+  ini: true,
+  cfg: true,
+  conf: true,
+  xml: true,
+  html: true,
+  htm: true,
+  css: true,
+  scss: true,
+  js: true,
+  mjs: true,
+  cjs: true,
+  ts: true,
+  tsx: true,
+  jsx: true,
+  vue: true,
+  sql: true,
+  sh: true,
+  ps1: true,
+  py: true,
+  rs: true,
+  go: true,
+  java: true,
+  c: true,
+  h: true,
+  cpp: true,
+  hpp: true,
+};
+
+/**
+ * How the model receives the file: an image part, or text inlined into the transcript.
+ * `null` means the assistant cannot send it, so the API refuses the turn.
+ */
+export function chatFileKind(name: string, mimeType: string): ChatFileKind | null {
+  const mime = mimeType.toLowerCase().split(';')[0]!.trim();
+  if (Object.hasOwn(IMAGE_MIME_TYPES, mime)) return 'image';
+  if (mime.startsWith('text/') || Object.hasOwn(TEXT_MIME_TYPES, mime)) return 'text';
+  const extension = /\.([a-z0-9]+)$/i.exec(name.trim())?.[1]?.toLowerCase();
+  if (extension && Object.hasOwn(TEXT_EXTENSIONS, extension) && (mime === '' || mime === 'application/octet-stream')) {
+    return 'text';
+  }
+  return null;
+}
+
+/** Decoded byte count of a base64 payload, without allocating the buffer. */
+export function chatBase64Bytes(data: string): number {
+  const clean = data.replace(/\s+/g, '');
+  if (!clean) return 0;
+  const padding = clean.endsWith('==') ? 2 : clean.endsWith('=') ? 1 : 0;
+  return Math.max(0, Math.floor((clean.length * 3) / 4) - padding);
+}
+
+const BASE64_PATTERN = /^[A-Za-z0-9+/]+={0,2}$/;
+
+/** One attached file on the way in; `data` is base64, never a path on the server. */
+export const ChatAttachmentInputSchema = z
+  .object({
+    name: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine(
+        (name) =>
+          !name.includes('/') &&
+          !name.includes('\\') &&
+          ![...name].some((character) => character.charCodeAt(0) < 32),
+        'file name must be a basename without control characters',
+      ),
+    mimeType: z.string().max(120),
+    data: z.string().min(1).regex(BASE64_PATTERN, 'data must be base64'),
+  })
+  .superRefine((file, ctx) => {
+    if (!chatFileKind(file.name, file.mimeType)) {
+      ctx.addIssue({ code: 'custom', path: ['mimeType'], message: 'UNSUPPORTED_FILE_TYPE' });
+    }
+    if (chatBase64Bytes(file.data) > CHAT_ATTACHMENT_LIMITS.fileBytes) {
+      ctx.addIssue({ code: 'custom', path: ['data'], message: 'FILE_TOO_LARGE' });
+    }
+  });
+export type ChatAttachmentInput = z.infer<typeof ChatAttachmentInputSchema>;
+
+/** The read shape carries metadata only; bytes come from the attachment route. */
+export const ChatAttachmentSchema = z.object({
+  id: z.number().int(),
+  name: z.string().min(1).max(200),
+  mimeType: z.string().max(120),
+  size: z.number().int().min(0),
+  createdAt: z.string(),
+});
+export type ChatAttachment = z.infer<typeof ChatAttachmentSchema>;
+
 export const ChatThreadSchema = z.object({
   id: z.number().int(),
   title: z.string().min(1).max(200),
@@ -240,6 +381,8 @@ export const ChatMessageSchema = z.object({
   toolCallId: z.string().nullable(),
   /** Structured tool result the page can render with the site's components. */
   payload: z.unknown().nullable(),
+  /** Files the owner attached to this message; metadata only, bytes are served separately. */
+  attachments: z.array(ChatAttachmentSchema).default([]),
   createdAt: z.string(),
 });
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;
@@ -250,24 +393,36 @@ export const ChatThreadReadSchema = z.object({
 });
 export type ChatThreadRead = z.infer<typeof ChatThreadReadSchema>;
 
-export const ChatSendSchema = z.object({
-  threadId: z.number().int().positive().optional(),
-  title: z.string().min(1).max(200).optional(),
-  message: z.string().min(1).max(8_000),
-  /** A write the model proposed and the owner confirmed in a previous turn. */
-  confirm: z
-    .object({
-      toolName: z.string().min(1).max(80),
-      args: z.record(z.string(), z.unknown()),
-    })
-    .optional(),
-  /** A write the owner declined. */
-  decline: z
-    .object({
-      toolName: z.string().min(1).max(80),
-    })
-    .optional(),
-});
+export const ChatSendSchema = z
+  .object({
+    threadId: z.number().int().positive().optional(),
+    title: z.string().min(1).max(200).optional(),
+    message: z.string().max(8_000).default(''),
+    /** The files travel with the turn; an empty message is valid when at least one is attached. */
+    files: z.array(ChatAttachmentInputSchema).max(CHAT_ATTACHMENT_LIMITS.files).optional(),
+    /** A write the model proposed and the owner confirmed in a previous turn. */
+    confirm: z
+      .object({
+        toolName: z.string().min(1).max(80),
+        args: z.record(z.string(), z.unknown()),
+      })
+      .optional(),
+    /** A write the owner declined. */
+    decline: z
+      .object({
+        toolName: z.string().min(1).max(80),
+      })
+      .optional(),
+  })
+  .superRefine((turn, ctx) => {
+    if (!turn.message.trim() && !turn.files?.length) {
+      ctx.addIssue({ code: 'custom', path: ['message'], message: 'EMPTY_TURN' });
+    }
+    const total = (turn.files ?? []).reduce((sum, file) => sum + chatBase64Bytes(file.data), 0);
+    if (total > CHAT_ATTACHMENT_LIMITS.totalBytes) {
+      ctx.addIssue({ code: 'custom', path: ['files'], message: 'FILES_TOO_LARGE' });
+    }
+  });
 export type ChatSend = z.infer<typeof ChatSendSchema>;
 
 export const ChatPendingWriteSchema = z.object({

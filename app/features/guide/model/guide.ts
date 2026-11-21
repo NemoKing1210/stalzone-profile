@@ -113,6 +113,7 @@ export const GUIDE_SITE: GuideSitePage[] = [
       'guide.site.chat.caps.model',
       'guide.site.chat.caps.background',
       'guide.site.chat.caps.panel',
+      'guide.site.chat.caps.files',
     ],
   },
   {
@@ -399,6 +400,7 @@ export const GUIDE_API: GuideApiEndpoint[] = [
   { method: 'PATCH', path: '/api/v1/chat/prompts', group: 'write', descriptionKey: 'guide.api.chat.prompts' },
   { method: 'GET', path: '/api/v1/chat/threads', group: 'read', descriptionKey: 'guide.api.chat.threadsRead' },
   { method: 'GET', path: '/api/v1/chat/threads/:id', group: 'read', descriptionKey: 'guide.api.chat.threadRead' },
+  { method: 'GET', path: '/api/v1/chat/attachments/:id', group: 'read', descriptionKey: 'guide.api.chat.attachment' },
   { method: 'POST', path: '/api/v1/chat/turn', group: 'write', descriptionKey: 'guide.api.chat.turn' },
   { method: 'POST', path: '/api/v1/chat/test', group: 'write', descriptionKey: 'guide.api.chat.test' },
   { method: 'POST', path: '/api/v1/chat/models', group: 'write', descriptionKey: 'guide.api.chat.models' },

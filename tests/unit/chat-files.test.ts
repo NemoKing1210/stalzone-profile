@@ -1,0 +1,88 @@
+import { describe, expect, it } from 'vitest';
+import {
+  CHAT_ATTACHMENT_LIMITS,
+  ChatMessageSchema,
+  ChatSendSchema,
+  chatBase64Bytes,
+  chatFileKind,
+} from '@profile/shared/contracts';
+
+function base64(bytes: number): string {
+  return Buffer.alloc(bytes).toString('base64');
+}
+
+const image = { name: 'screenshot.png', mimeType: 'image/png', data: base64(1024) };
+const notes = { name: 'notes.md', mimeType: '', data: Buffer.from('# Notes\nhello').toString('base64') };
+
+describe('chat attachment contract', () => {
+  it('classifies images by their media type and text files by media type or extension', () => {
+    expect(chatFileKind('shot.png', 'image/png')).toBe('image');
+    expect(chatFileKind('shot.JPG', 'image/jpeg')).toBe('image');
+    expect(chatFileKind('notes.md', '')).toBe('text');
+    expect(chatFileKind('config.yaml', 'application/octet-stream')).toBe('text');
+    expect(chatFileKind('log.txt', 'text/plain; charset=utf-8')).toBe('text');
+  });
+
+  it('refuses a binary type it cannot send to the model', () => {
+    expect(chatFileKind('archive.zip', 'application/zip')).toBeNull();
+    expect(chatFileKind('model.bin', '')).toBeNull();
+  });
+
+  it('counts decoded bytes from base64, including padding', () => {
+    expect(chatBase64Bytes(Buffer.from('hello').toString('base64'))).toBe(5);
+    expect(chatBase64Bytes(Buffer.from('hi!').toString('base64'))).toBe(3);
+    expect(chatBase64Bytes('')).toBe(0);
+  });
+
+  it('accepts a turn with files and no text', () => {
+    const parsed = ChatSendSchema.safeParse({ message: '', files: [image, notes] });
+    expect(parsed.success).toBe(true);
+  });
+
+  it('accepts a text-only turn without files', () => {
+    expect(ChatSendSchema.safeParse({ message: 'Hello' }).success).toBe(true);
+  });
+
+  it('requires either text or a file', () => {
+    expect(ChatSendSchema.safeParse({ message: '   ', files: [] }).success).toBe(false);
+  });
+
+  it('rejects an unsupported file type', () => {
+    const parsed = ChatSendSchema.safeParse({
+      message: 'Read this',
+      files: [{ name: 'archive.zip', mimeType: 'application/zip', data: base64(10) }],
+    });
+    expect(parsed.success).toBe(false);
+  });
+
+  it('rejects a file above the per-file budget and a total above the aggregate budget', () => {
+    const huge = { name: 'big.txt', mimeType: 'text/plain', data: base64(CHAT_ATTACHMENT_LIMITS.fileBytes + 1) };
+    expect(ChatSendSchema.safeParse({ message: '', files: [huge] }).success).toBe(false);
+
+    const three = { name: 'three.txt', mimeType: 'text/plain', data: base64(3 * 1024 * 1024) };
+    expect(ChatSendSchema.safeParse({ message: '', files: [three, three, three] }).success).toBe(false);
+  });
+
+  it('rejects more files than the composer can attach', () => {
+    const files = Array.from({ length: CHAT_ATTACHMENT_LIMITS.files + 1 }, (_, index) => ({
+      name: `note-${index}.txt`,
+      mimeType: 'text/plain',
+      data: base64(4),
+    }));
+    expect(ChatSendSchema.safeParse({ message: '', files }).success).toBe(false);
+  });
+
+  it('gives every message an attachment list, empty when it has none', () => {
+    const parsed = ChatMessageSchema.parse({
+      id: 1,
+      threadId: 1,
+      role: 'user',
+      content: 'Hello',
+      toolName: null,
+      toolCallId: null,
+      payload: null,
+      createdAt: '2026-11-21T00:00:00.000Z',
+    });
+    expect(parsed.attachments).toEqual([]);
+  });
+});

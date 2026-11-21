@@ -619,6 +619,14 @@
     "decline": "Decline",
     "confirmed": "Confirmed.",
     "declined": "Declined.",
+    "attach": "Attach files",
+    "attachments": "Attached files",
+    "removeFile": "Remove {name}",
+    "fileUnsupported": "{name}: unsupported file type. Attach an image or a text file.",
+    "fileTooLarge": "{name}: larger than {max}.",
+    "fileTooMany": "At most {max} files per message.",
+    "fileTotalTooLarge": "Files are larger than {max} in total.",
+    "fileReadFailed": "{name}: could not be read.",
     "noLot": "no lot",
     "columns": {
       "name": "Name",
@@ -1213,7 +1221,8 @@
           "confirm": "A write first returns its dry-run diff and waits; Confirm runs it with the journal, Decline sends the refusal back to the model.",
           "model": "The header switches the assistant model through the same audited setting Settings → Assistant uses; a provider without a list still accepts a typed id.",
           "background": "A turn keeps running after leaving the page; its reply, pending write or error arrives as a toast, and returning reuses the stored thread.",
-          "panel": "A right-side panel on every page except /chat reuses the same conversation and composer; closing it never stops a turn."
+          "panel": "A right-side panel on every page except /chat reuses the same conversation and composer; closing it never stops a turn.",
+          "files": "Images and text files attached to a message travel to the model with that turn; they live in the profile DB and are served only through the session."
         }
       },
       "inventory": {
@@ -1458,7 +1467,8 @@
         "threadRead": "One thread with its ordered messages, including tool payloads.",
         "turn": "Run one assistant turn: reads execute, the first write returns its dry-run diff and waits for confirm.",
         "test": "Send one model-list request to the configured provider and report its status.",
-        "models": "Reads the provider's model list for the settings picker; the key comes only from the named env variable and nothing is written."
+        "models": "Reads the provider's model list for the settings picker; the key comes only from the named env variable and nothing is written.",
+        "attachment": "Bytes of one assistant attachment; the session cookie is required and the response is served inline with nosniff."
       }
     },
     "mcp": {

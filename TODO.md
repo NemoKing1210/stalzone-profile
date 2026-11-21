@@ -21,6 +21,7 @@ _Nothing agreed._
 
 _Newest first; keep at most ten entries._
 
+- chat(files): the composer attaches images (`png/jpeg/webp/gif`) and text files (4 files, 4 MiB each, 6 MiB total); files live in `chat_attachment` (migration `0021`), text is inlined in the prompt and images reach the provider as real image parts, and messages render thumbnails or download chips from `GET /api/v1/chat/attachments/:id` while the turn alone gets a 12 MiB body. — `feat(chat): attach files to assistant messages`
 - inventory(ui): the add-item modal searches the catalog by every word in any order across RU/EN names and category paths, with a rank filter, 40 px icons, owned-instance counts and a rich preview card; motifs, styles and cosmetic variants stay catalog-only. — `feat(inventory): add a smart catalog picker to the add-item modal`
 - chat(ui): the assistant side panel fits its controls — a two-row header clear of the close button, `min(94vw, 34rem)` width, the thread menu above the panel, a composer submit button, scrolling tool tables and a locale-independent focus return. — `fix(chat): fit the assistant side panel`
 - chat(ui): assistant turns survive leaving `/chat` — one Pinia `stores/chat.ts` keeps threads, messages, per-thread pending confirmations and the in-flight turn; a completion elsewhere toasts the reply, pending write or error through a pure `turnOutcome`, and returning reuses the stored conversation. — `feat(chat): keep assistant turns running across pages`
