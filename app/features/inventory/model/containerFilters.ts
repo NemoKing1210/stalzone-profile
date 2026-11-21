@@ -35,20 +35,12 @@ export function visibleContainerItems(
 }
 
 /**
- * While a container is filtered, a same-container drop would place an item among
- * hidden cells the owner cannot see. It is refused locally; moving into any other
- * container or stash stays possible.
+ * A filtered grid is packed for the view, so its cells no longer match stored coordinates:
+ * any grid drop into one is refused. Dragging out of a filtered grid stays allowed.
  */
 export function filteredDropBlocked(
-  item: Pick<InventoryItemRead, 'placement'>,
   target: { location: string; storageId?: number },
   activeStorages: ReadonlySet<number>,
 ): boolean {
-  return (
-    item.placement.location === 'grid' &&
-    target.location === 'grid' &&
-    target.storageId != null &&
-    item.placement.storageId === target.storageId &&
-    activeStorages.has(target.storageId)
-  );
+  return target.location === 'grid' && target.storageId != null && activeStorages.has(target.storageId);
 }

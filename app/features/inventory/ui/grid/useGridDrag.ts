@@ -248,7 +248,7 @@ export function useGridDrag(options: GridDragOptions) {
       cancel();
       return;
     }
-    if (filteredDropBlocked(item, destination, options.filteredStorageIds())) {
+    if (filteredDropBlocked(destination, options.filteredStorageIds())) {
       cancel();
       options.onDropRejected?.('filtered');
       return;

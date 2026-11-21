@@ -424,7 +424,7 @@
     "noLimit": "no limit",
     "fixedSizeHint": "Every stash is 8 × 200 cells and its size is fixed. Move items to the carried grid or another stash instead.",
     "tidy": "Tidy up",
-    "tidyOrder": "Tidy order",
+    "tidyOrder": "Layout order",
     "tidyOrders": {
       "kind": "Kind, then name",
       "name": "Name",
@@ -441,8 +441,8 @@
       "quality": "Quality",
       "allKinds": "All kinds",
       "allQualities": "All qualities",
-      "active": "Filtered view: same-storage drops are paused",
-      "noMatch": "No item matches this filter. Hidden items still occupy their cells.",
+      "active": "Filtered view: grid drops are paused",
+      "noMatch": "No item matches this filter. The matching items are packed in the layout order.",
       "dropBlocked": "This container is filtered. Clear its filter or move the item to another storage."
     },
     "deleteStash": "Delete stash",
@@ -1162,7 +1162,7 @@
           "equipment": "A paper-doll of the ten equipment slots with level, rank and quality.",
           "grid": "The left pane switches between the paper-doll and the selected stash, the carried grid stays on the right, and both are eight cells wide (the carried grid is 8×20, a stash 8×200); items move by drag and drop or with the keyboard: Space picks up, arrows move, R rotates, Enter places and Escape cancels.",
           "stash": "Stash tabs pick the left-pane stash — intake first, then the regular stashes; the storage manager creates and deletes stashes and changes their weight limit, and the wand packs items waiting in intake into the selected one.",
-          "filter": "Filter either grid by kind, rank and quality without moving anything; hidden items keep their cells and a same-container drop is refused until the filter is cleared.",
+          "filter": "Filter either grid by kind, rank and quality without moving anything; the matches repack from the top-left in the layout order, grid drops are refused while the filter is on, and clearing it restores every stored cell.",
           "tidy": "Tidy repacks one storage in the chosen order (kind, name, rank or footprint); an item that cannot be placed stays at its cells and the toast reports how many stayed.",
           "intake": "New and displaced items land in a read-only intake stash that only releases them and grows as it fills.",
           "loadout": "Carry weight, protection, artifact effects and container warnings come from the computed loadout.",

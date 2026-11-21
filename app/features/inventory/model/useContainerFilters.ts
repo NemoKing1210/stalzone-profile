@@ -14,7 +14,8 @@ function isFilter(value: unknown): value is ContainerFilter {
 
 /**
  * One persisted filter per storage. Filtering is a view: placements never leave the
- * database, so a filtered grid still knows the cells every hidden item occupies.
+ * database, and while a filter hides items the grid packs the visible ones from the
+ * top-left in the layout order; clearing it shows the stored cells again.
  */
 export function useContainerFilters() {
   const state = reactive<Record<string, ContainerFilter>>({});

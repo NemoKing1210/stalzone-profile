@@ -67,6 +67,9 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- A filtered `/inventory` grid packs the matching items from the top-left in the chosen
+  layout order, keeping each footprint and rotation; hidden items are not drawn, clearing
+  the filter restores the stored cells, and grid drops are refused while any filter is on.
 - Item cards and `/inventory` grid tiles carry one faint static 135°/8 px hatch; panes,
   tables and modals stay flat.
 - The ZONE FM radio is mounted again in the default layout; its FAB, bar, track list,

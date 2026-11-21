@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import type { EquipmentRead, InventoryItemRead, StorageRead } from '@profile/shared/contracts';
+import type { TidyOrder } from '@profile/shared/inventory-order';
 
 import { containerFilterActive, matchesContainerFilter, type ContainerFilter } from '../../model/containerFilters';
 import { effectiveSize } from '../../model/grid';
 import type { ItemMenuAction } from '../../model/menu';
+import { visualPlacements } from '../../model/visualGrid';
 import GridGhost from './GridGhost.vue';
 import ItemContextMenu from './ItemContextMenu.vue';
 import ItemTile from './ItemTile.vue';
@@ -28,6 +30,8 @@ const props = withDefaults(
     cell?: number | null;
     /** View-only filter; hidden items keep their occupied cells. */
     filter?: ContainerFilter | null;
+    /** Tidy order used to repack the visible items while the filter is active. */
+    filterOrder?: TidyOrder | null;
   }>(),
   {
     emptyText: undefined,
@@ -40,6 +44,7 @@ const props = withDefaults(
     attachTile: undefined,
     cell: null,
     filter: null,
+    filterOrder: null,
   },
 );
 
@@ -67,6 +72,14 @@ const visiblePlaced = computed(() => {
   return placed.value.filter((item) => matchesContainerFilter(item, props.filter!));
 });
 
+/** While a filter hides items, the visible ones are packed from the top-left for the view. */
+const visual = computed(() =>
+  filterActive.value && props.filterOrder
+    ? visualPlacements(visiblePlaced.value, { width: columns.value, height: rows.value }, props.filterOrder)
+    : null,
+);
+const displayRows = computed(() => visual.value?.height ?? rows.value);
+
 /** Cells divide the block evenly; the aspect ratio keeps them square, whatever the width. */
 const box = computed(() => {
   const gridLines =
@@ -74,16 +87,16 @@ const box = computed(() => {
   if (props.cell) {
     return {
       width: `${columns.value * props.cell}px`,
-      height: `${rows.value * props.cell}px`,
+      height: `${displayRows.value * props.cell}px`,
       backgroundImage: gridLines,
       backgroundSize: `${props.cell}px ${props.cell}px`,
     };
   }
   return {
     width: '100%',
-    aspectRatio: `${columns.value} / ${rows.value}`,
+    aspectRatio: `${columns.value} / ${displayRows.value}`,
     backgroundImage: gridLines,
-    backgroundSize: `calc(100% / ${columns.value}) calc(100% / ${rows.value})`,
+    backgroundSize: `calc(100% / ${columns.value}) calc(100% / ${displayRows.value})`,
   };
 });
 
@@ -94,10 +107,13 @@ function styleFor(item: InventoryItemRead): Record<string, string> {
   const placement = item.placement;
   if (placement.location !== 'grid') return {};
   const size = effectiveSize(item.size, placement.rotated);
-  const key = `${placement.x}:${placement.y}:${size.width}:${size.height}:${columns.value}:${rows.value}`;
+  const synthetic = visual.value?.placements.get(item.id);
+  const x = synthetic?.x ?? placement.x;
+  const y = synthetic?.y ?? placement.y;
+  const key = `${x}:${y}:${size.width}:${size.height}:${columns.value}:${displayRows.value}:${props.filterOrder ?? ''}`;
   const cached = styleCache.get(key);
   if (cached) return cached;
-  const style = cells(placement.x, placement.y, size);
+  const style = cells(x, y, size);
   styleCache.set(key, style);
   return style;
 }
@@ -105,9 +121,9 @@ function styleFor(item: InventoryItemRead): Record<string, string> {
 function cells(x: number, y: number, size: { width: number; height: number }): Record<string, string> {
   return {
     left: `${(x / columns.value) * 100}%`,
-    top: `${(y / rows.value) * 100}%`,
+    top: `${(y / displayRows.value) * 100}%`,
     width: `${(size.width / columns.value) * 100}%`,
-    height: `${(size.height / rows.value) * 100}%`,
+    height: `${(size.height / displayRows.value) * 100}%`,
   };
 }
 
@@ -122,9 +138,10 @@ function cells(x: number, y: number, size: { width: number; height: number }): R
     >
       <GridGhost v-if="props.storage" :storage="props.storage" :enabled="props.dropEnabled" />
 
-      <!-- A hidden item still owns its cells: a quiet hatch shows occupancy without leaking its card. -->
+      <!-- Unfiltered, a hidden item still owns its cells: a quiet hatch shows occupancy
+           without leaking its card. A filtered grid packs the visible items instead. -->
       <div
-        v-for="item in hiddenPlaced"
+        v-for="item in visual ? [] : hiddenPlaced"
         :key="`hidden-${item.id}`"
         class="pointer-events-none absolute border border-dashed border-[var(--sz-border-strong)] bg-ink-800/50 opacity-60"
         :style="styleFor(item)"

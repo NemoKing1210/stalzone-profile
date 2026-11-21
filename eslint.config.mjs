@@ -6,7 +6,7 @@ const APP_LAYER_MESSAGE =
   'shared from shared, entities from shared/entities, features from shared/entities, pages from shared/entities/features.';
 
 const SHARED_PACKAGE_MESSAGE =
-  'Import @profile/shared through a subpath: /contracts, /ranks or /format. The barrel pulls node:crypto into the browser bundle.';
+  'Import @profile/shared through a subpath: /contracts, /ranks, /format or /inventory-order. The barrel pulls node:crypto into the browser bundle.';
 
 export default withNuxt(
   {
@@ -57,6 +57,7 @@ export default withNuxt(
                 '!@profile/shared/contracts/**',
                 '!@profile/shared/ranks',
                 '!@profile/shared/format',
+                '!@profile/shared/inventory-order',
               ],
               message: SHARED_PACKAGE_MESSAGE,
             },

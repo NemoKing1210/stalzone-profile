@@ -442,6 +442,7 @@ const containerNames = computed<Record<number, string>>(() => {
               <ItemGrid
                   :storage="inventory.selectedStorage.value"
                   :filter="containerFilters.filterFor(inventory.selectedStorage.value.id)"
+                  :filter-order="tidyOrder.order"
                   :picked-id="drag.picked.value?.id ?? null"
                   :storages="inventory.storages.value"
                   :equipment="inventory.equipment.value"
@@ -490,6 +491,7 @@ const containerNames = computed<Record<number, string>>(() => {
             <ItemGrid
               :storage="inventory.inventoryStorage.value"
               :filter="containerFilters.filterFor(inventory.inventoryStorage.value.id)"
+              :filter-order="tidyOrder.order"
               :picked-id="drag.picked.value?.id ?? null"
               :storages="inventory.storages.value"
               :equipment="inventory.equipment.value"

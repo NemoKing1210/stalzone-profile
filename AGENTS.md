@@ -331,7 +331,8 @@ state lives in `app/features/inventory/ui/grid/useGridDrag.ts`. Keep geometry an
 resolution pure in `app/features/inventory/model` so they stay unit-tested; do not add
 manual `pointermove`/`pointerup` listeners for a new interaction.
 
-**Client code** imports `@profile/shared/contracts`, `/ranks` and `/format` through subpaths,
+**Client code** imports `@profile/shared/contracts`, `/ranks`, `/format` and
+`/inventory-order` through subpaths,
 never the `@profile/shared` barrel: the barrel pulls `node:crypto` into the browser bundle.
 The app imports no `@profile/core`; ESLint enforces both rules together with the
 `shared → entities → features → pages` direction.

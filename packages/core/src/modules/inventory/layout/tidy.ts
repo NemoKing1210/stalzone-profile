@@ -1,10 +1,11 @@
-import { rankKey, RANK_ORDER } from '@profile/shared/ranks';
+import { orderTidy, type TidyOrder } from '@profile/shared/inventory-order';
 
 import { itemRect, type Rect } from './geometry.js';
 import { packOrdered, type PackItem, type PackPlacement } from './pack.js';
 import type { Size } from './defaults.js';
 
-export type TidyOrder = 'kind' | 'name' | 'rank' | 'footprint';
+export type { TidyOrder };
+export { orderTidy };
 
 export interface TidyCandidate extends PackItem {
   kind: string;
