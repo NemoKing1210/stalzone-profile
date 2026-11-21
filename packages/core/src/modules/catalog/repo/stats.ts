@@ -64,3 +64,28 @@ export function getStatDefinition(db: Db, id: string): StatDefinitionRow | null 
 export function listStatDefinitions(db: Db): StatDefinitionRow[] {
   return db.prepare(`SELECT * FROM stat_definition ORDER BY id`).all() as StatDefinitionRow[];
 }
+
+export interface StatUsageRow {
+  id: string;
+  count: number;
+  label: string | null;
+  pct: number | null;
+  positive: number | null;
+  kinds: string;
+}
+
+/** Which stat ids are actually populated, optionally within one item kind. */
+export function statUsage(db: Db, kind?: string): StatUsageRow[] {
+  const where = kind ? 'WHERE i.kind = @kind' : '';
+  const statement = db.prepare(
+    `SELECT s.stat_id AS id, COUNT(*) AS count, MAX(s.label) AS label,
+            MAX(s.pct) AS pct, MAX(s.is_positive) AS positive,
+            GROUP_CONCAT(DISTINCT i.kind) AS kinds
+       FROM item_stat s
+       JOIN item i ON i.id = s.item_id
+       ${where}
+      GROUP BY s.stat_id
+      ORDER BY count DESC, id`,
+  );
+  return (kind ? statement.all({ kind }) : statement.all()) as StatUsageRow[];
+}

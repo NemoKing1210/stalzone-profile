@@ -475,7 +475,7 @@ export function createProfileServer(
     { description: TOOL_DOCS.compare_items, inputSchema: TOOL_SCHEMAS.compare_items },
     async (args) => {
       try {
-        return ok({ items: await client.compareItems(args.a, args.b, args.level) });
+        return ok({ items: await client.compareItems(args.a ?? '', args.b ?? '', args.level) });
       } catch (error) {
         return errorResult(error);
       }
