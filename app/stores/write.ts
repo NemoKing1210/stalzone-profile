@@ -31,7 +31,8 @@ export interface WriteErrorInfo {
  */
 export const useWriteStore = defineStore('write', () => {
   const toast = useToast();
-  const { t } = useI18n();
+  // A Pinia setup store is not a component setup; the global composer always exists.
+  const { t } = useNuxtApp().$i18n;
   const { message: apiMessage } = useApiError();
   const profile = useProfileStore();
   const lastError = ref<WriteErrorInfo | null>(null);

@@ -66,6 +66,120 @@ describe('chat agent', () => {
     expect(result.pending).toBeNull();
   });
 
+  it('returns an OpenAI-compatible tool result as a protocol tool message', async () => {
+    setChatSettings(db);
+    const bodies: string[] = [];
+    let call = 0;
+    const fetchImpl = (async (_url: string, init: RequestInit) => {
+      bodies.push(String(init.body));
+      call += 1;
+      return call === 1
+        ? json(toolCall('get_character', {}, 'call-42'))
+        : json({ choices: [{ message: { content: 'Here you are.' } }] });
+    }) as unknown as typeof fetch;
+
+    const result = await runChatTurn(db, { message: 'Who am I?' }, { fetchImpl });
+
+    expect(result.error).toBeNull();
+    const second = JSON.parse(bodies[1]!) as { messages: Record<string, unknown>[] };
+    const assistant = second.messages.findIndex((message) => message.role === 'assistant' && message.tool_calls);
+    expect(assistant).toBeGreaterThanOrEqual(0);
+    expect(second.messages[assistant + 1]).toMatchObject({ role: 'tool', tool_call_id: 'call-42' });
+    // The transcript was sent once; the tool round must not resend it as a second user message.
+    expect(second.messages.filter((message) => message.role === 'user')).toHaveLength(1);
+  });
+
+  it('returns Anthropic tool results as tool_result blocks', async () => {
+    useProvider(db, 'anthropic', 'http://anthropic.test/v1');
+    const bodies: string[] = [];
+    let call = 0;
+    const fetchImpl = (async (_url: string, init: RequestInit) => {
+      bodies.push(String(init.body));
+      call += 1;
+      return call === 1
+        ? json({
+            content: [
+              { type: 'text', text: 'Looking.' },
+              { type: 'tool_use', id: 'toolu_1', name: 'get_character', input: {} },
+            ],
+          })
+        : json({ content: [{ type: 'text', text: 'Done.' }] });
+    }) as unknown as typeof fetch;
+
+    const result = await runChatTurn(db, { message: 'Who am I?' }, { fetchImpl });
+
+    expect(result.error).toBeNull();
+    const second = JSON.parse(bodies[1]!) as { messages: Record<string, unknown>[] };
+    expect(second.messages[1]).toMatchObject({ role: 'assistant' });
+    expect(JSON.stringify(second.messages[1])).toContain('"tool_use"');
+    expect(JSON.stringify(second.messages[2])).toContain('"tool_result"');
+    expect(JSON.stringify(second.messages[2])).toContain('toolu_1');
+  });
+
+  it('returns Google tool results as functionResponse parts', async () => {
+    useProvider(db, 'google', 'http://google.test/v1beta');
+    const bodies: string[] = [];
+    let call = 0;
+    const fetchImpl = (async (_url: string, init: RequestInit) => {
+      bodies.push(String(init.body));
+      call += 1;
+      return call === 1
+        ? json({ candidates: [{ content: { parts: [{ functionCall: { name: 'get_character', args: {} } }] } }] })
+        : json({ candidates: [{ content: { parts: [{ text: 'Done.' }] } }] });
+    }) as unknown as typeof fetch;
+
+    const result = await runChatTurn(db, { message: 'Who am I?' }, { fetchImpl });
+
+    expect(result.error).toBeNull();
+    const second = JSON.parse(bodies[1]!) as { contents: Record<string, unknown>[] };
+    expect(second.contents[1]).toMatchObject({ role: 'model' });
+    expect(JSON.stringify(second.contents[1])).toContain('"functionCall"');
+    expect(JSON.stringify(second.contents[2])).toContain('"functionResponse"');
+  });
+
+  it('applies the stored temperature and token budget to the provider request', async () => {
+    setChatSettings(db);
+    updateChatSettings(db, ChatSettingsUpdateSchema.parse({ temperature: 0.7, maxTokens: 512, retries: 0 }));
+    const bodies: string[] = [];
+    const fetchImpl = (async (_url: string, init: RequestInit) => {
+      bodies.push(String(init.body));
+      return json({ choices: [{ message: { content: 'ok' } }] });
+    }) as unknown as typeof fetch;
+
+    await runChatTurn(db, { message: 'Hello' }, { fetchImpl });
+
+    expect(JSON.parse(bodies[0]!)).toMatchObject({ temperature: 0.7, max_tokens: 512 });
+  });
+
+  it('retries a transient provider failure before giving up', async () => {
+    setChatSettings(db);
+    let call = 0;
+    const fetchImpl = (async () => {
+      call += 1;
+      return call === 1 ? new Response('busy', { status: 503 }) : json({ choices: [{ message: { content: 'Recovered.' } }] });
+    }) as unknown as typeof fetch;
+
+    const result = await runChatTurn(db, { message: 'Hello' }, { fetchImpl });
+
+    expect(result.error).toBeNull();
+    expect(call).toBe(2);
+    expect(result.messages.at(-1)).toMatchObject({ role: 'assistant', content: 'Recovered.' });
+  });
+
+  it('does not retry a rejected request', async () => {
+    setChatSettings(db);
+    let call = 0;
+    const fetchImpl = (async () => {
+      call += 1;
+      return new Response('bad request', { status: 400 });
+    }) as unknown as typeof fetch;
+
+    const result = await runChatTurn(db, { message: 'Hello' }, { fetchImpl });
+
+    expect(result.error).toBe('AI_HTTP_400');
+    expect(call).toBe(1);
+  });
+
   it('sends a stable OpenCode session id on every Go request', async () => {
     useProvider(db, 'opencode-go', 'https://opencode.ai/inference/go/openai/v1');
     const headers: Record<string, string>[] = [];

@@ -1,10 +1,12 @@
 import { createHash } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import {
   CHAT_ATTACHMENT_LIMITS,
   chatFileKind,
   type ChatSend,
+  type ChatSettings,
   type ChatTurnResult,
 } from '@profile/shared/contracts';
 import {
@@ -73,6 +75,18 @@ interface ProviderInput {
   images: ProviderImage[];
   definitions: { name: string; description: string; parameters: Record<string, unknown> }[];
   state: unknown;
+  temperature: number;
+  maxTokens: number;
+  reasoningEffort: 'low' | 'medium' | 'high' | null;
+  timeoutMs: number;
+}
+
+/** One executed tool call, kept for the provider's continuation message. */
+interface ToolRun {
+  id: string;
+  name: string;
+  content: string;
+  payload: unknown;
 }
 
 /** Text files are inlined; the cap keeps one large note from crowding out the conversation. */
@@ -186,12 +200,16 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
 
   try {
     for (let round = 0; round < (options.maxRounds ?? 4); round++) {
-      const result = await callProvider(fetchImpl, settings.provider, base, key, settings.model, session, {
+      const result = await callProviderWithRetry(fetchImpl, settings, base, key, session, {
         system,
         transcript,
         images,
         definitions,
         state,
+        temperature: settings.temperature,
+        maxTokens: settings.maxTokens,
+        reasoningEffort: settings.reasoningEffort,
+        timeoutMs: settings.timeoutMs,
       });
       state = result.state;
       if (result.reply.text.trim()) {
@@ -199,6 +217,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
       }
       if (!result.reply.calls.length) break;
 
+      const runs: ToolRun[] = [];
       let stopped = false;
       for (const call of result.reply.calls) {
         if (isWriteTool(call.name)) {
@@ -237,28 +256,32 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
           continue;
         }
         if (input.decline?.toolName === call.name) {
+          const content = 'The owner declined this write.';
           appendChatMessage(db, {
             threadId,
             role: 'tool',
-            content: 'The owner declined this write.',
+            content,
             toolName: call.name,
             toolCallId: call.id,
             payload: { declined: true },
           });
+          runs.push({ id: call.id, name: call.name, content, payload: { declined: true } });
           continue;
         }
         const toolResult = await callRegistry(sdk, call.name, call.args);
+        const content = JSON.stringify(toolResult);
         appendChatMessage(db, {
           threadId,
           role: 'tool',
-          content: JSON.stringify(toolResult),
+          content,
           toolName: call.name,
           toolCallId: call.id,
           payload: toolResult,
         });
+        runs.push({ id: call.id, name: call.name, content, payload: toolResult });
       }
       if (stopped) break;
-      state = appendToolRound(state, settings.provider, result.reply);
+      state = appendToolRound(state, settings.provider, result.reply, runs);
     }
   } catch (turnError) {
     error = turnError instanceof Error ? turnError.message : String(turnError);
@@ -279,8 +302,34 @@ async function callRegistry(sdk: Client, name: string, args: Json): Promise<unkn
   return safeJson(text);
 }
 
-function appendToolRound(state: unknown, provider: string, reply: ProviderReply): unknown {
-  if (provider === 'anthropic' || provider === 'google') return state;
+function appendToolRound(state: unknown, provider: string, reply: ProviderReply, runs: ToolRun[]): unknown {
+  if (provider === 'anthropic') {
+    const messages = Array.isArray(state) ? state : [];
+    const assistant = [
+      ...(reply.text.trim() ? [{ type: 'text', text: reply.text }] : []),
+      ...reply.calls.map((call) => ({ type: 'tool_use', id: call.id, name: call.name, input: call.args })),
+    ];
+    return [
+      ...messages,
+      { role: 'assistant', content: assistant },
+      { role: 'user', content: runs.map((run) => ({ type: 'tool_result', tool_use_id: run.id, content: run.content })) },
+    ];
+  }
+  if (provider === 'google') {
+    const contents = Array.isArray(state) ? state : [];
+    const parts = [
+      ...(reply.text.trim() ? [{ text: reply.text }] : []),
+      ...reply.calls.map((call) => ({ functionCall: { name: call.name, args: call.args } })),
+    ];
+    return [
+      ...contents,
+      { role: 'model', parts },
+      {
+        role: 'user',
+        parts: runs.map((run) => ({ functionResponse: { name: run.name, response: { result: run.payload } } })),
+      },
+    ];
+  }
   const messages = Array.isArray(state) ? (state as OpenAiMessage[]) : [];
   messages.push({
     role: 'assistant',
@@ -291,7 +340,37 @@ function appendToolRound(state: unknown, provider: string, reply: ProviderReply)
       function: { name: call.name, arguments: JSON.stringify(call.args) },
     })),
   });
+  // OpenAI-compatible APIs reject an assistant `tool_calls` message with no `tool` reply.
+  for (const run of runs) messages.push({ role: 'tool', tool_call_id: run.id, content: run.content });
   return messages;
+}
+
+/** A network failure, timeout, 429 or 5xx may succeed on the next attempt; a 4xx will not. */
+function retryable(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  const match = /^AI_HTTP_(\d{3})$/.exec(message);
+  if (!match) return true;
+  const status = Number(match[1]);
+  return status === 429 || status >= 500;
+}
+
+async function callProviderWithRetry(
+  fetchImpl: FetchLike,
+  settings: ChatSettings,
+  base: string,
+  key: string | null,
+  session: string,
+  input: ProviderInput,
+): Promise<ProviderResult> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await callProvider(fetchImpl, settings.provider, base, key, settings.model, session, input);
+    } catch (error) {
+      if (attempt >= settings.retries || !retryable(error)) throw error;
+      // A short backoff keeps a 429/5xx from turning one turn into a burst.
+      await delay(250 * (attempt + 1));
+    }
+  }
 }
 
 async function callProvider(
@@ -331,6 +410,14 @@ async function callOpenAi(
     ? (input.state as OpenAiMessage[])
     : [{ role: 'system', content: input.system }, { role: 'user', content: userContent }];
   const console = provider === 'opencode' || provider === 'opencode-go';
+  const effort =
+    input.reasoningEffort == null
+      ? {}
+      : provider === 'openai'
+        ? { reasoning_effort: input.reasoningEffort }
+        : provider === 'openrouter'
+          ? { reasoning: { effort: input.reasoningEffort } }
+          : {};
   const response = await fetchImpl(`${base}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -340,11 +427,14 @@ async function callOpenAi(
     },
     body: JSON.stringify({
       model,
-      temperature: 0.2,
+      temperature: input.temperature,
+      max_tokens: input.maxTokens,
       messages,
       tools: input.definitions.map((definition) => ({ type: 'function', function: definition })),
       tool_choice: 'auto',
+      ...effort,
     }),
+    signal: AbortSignal.timeout(input.timeoutMs),
   });
   if (!response.ok) throw new Error(`AI_HTTP_${response.status}`);
   const body = (await response.json()) as {
@@ -378,6 +468,7 @@ async function callAnthropic(
       source: { type: 'base64', media_type: image.mimeType, data: image.data },
     })),
   ];
+  const messages = Array.isArray(input.state) ? input.state : [{ role: 'user', content }];
   const response = await fetchImpl(`${base}/messages`, {
     method: 'POST',
     headers: {
@@ -387,15 +478,17 @@ async function callAnthropic(
     },
     body: JSON.stringify({
       model,
-      max_tokens: 2048,
+      max_tokens: input.maxTokens,
+      temperature: input.temperature,
       system: input.system,
-      messages: [{ role: 'user', content }],
+      messages,
       tools: input.definitions.map((definition) => ({
         name: definition.name,
         description: definition.description,
         input_schema: definition.parameters,
       })),
     }),
+    signal: AbortSignal.timeout(input.timeoutMs),
   });
   if (!response.ok) throw new Error(`AI_HTTP_${response.status}`);
   const body = (await response.json()) as { content?: { type: string; text?: string; id?: string; name?: string; input?: Json }[] };
@@ -407,7 +500,7 @@ async function callAnthropic(
         .filter((block) => block.type === 'tool_use')
         .map((block) => ({ id: block.id ?? crypto.randomUUID(), name: block.name ?? '', args: block.input ?? {} })),
     },
-    state: null,
+    state: messages,
   };
 }
 
@@ -422,14 +515,17 @@ async function callGoogle(
     { text: input.transcript },
     ...input.images.map((image) => ({ inlineData: { mimeType: image.mimeType, data: image.data } })),
   ];
+  const contents = Array.isArray(input.state) ? input.state : [{ role: 'user', parts: requestParts }];
   const response = await fetchImpl(`${base}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key ?? '')}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: input.system }] },
-      contents: [{ role: 'user', parts: requestParts }],
+      contents,
+      generationConfig: { temperature: input.temperature, maxOutputTokens: input.maxTokens },
       tools: [{ functionDeclarations: input.definitions }],
     }),
+    signal: AbortSignal.timeout(input.timeoutMs),
   });
   if (!response.ok) throw new Error(`AI_HTTP_${response.status}`);
   const body = (await response.json()) as {
@@ -447,7 +543,7 @@ async function callGoogle(
           args: part.functionCall?.args ?? {},
         })),
     },
-    state: null,
+    state: contents,
   };
 }
 

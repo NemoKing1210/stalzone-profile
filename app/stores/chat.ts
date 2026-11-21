@@ -16,7 +16,9 @@ import { chatHttpStatus, turnOutcome, type TurnToast } from '~/shared/lib/chatTu
  * lost with the unmounted page.
  */
 export const useChatStore = defineStore('chat', () => {
-  const { t } = useI18n();
+  // Pinia setup stores are not a component setup, so `useI18n()` would throw when the
+  // store is first created outside one (a panel opened from the palette, HMR, a plugin).
+  const { t } = useNuxtApp().$i18n;
   const { message: apiMessage } = useApiError();
   const { write } = useWrite();
   const toast = useToast();
@@ -65,7 +67,20 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   async function openThread(id: number): Promise<void> {
-    const read = await $fetch<ChatThreadRead>(`/api/v1/chat/threads/${id}`);
+    let read: ChatThreadRead;
+    try {
+      read = await $fetch<ChatThreadRead>(`/api/v1/chat/threads/${id}`);
+    } catch (error) {
+      // A thread deleted in another tab (or before a reload) is gone; drop the stale row
+      // instead of leaving a list entry that fails on every click.
+      const status = (error as { statusCode?: number; status?: number } | null)?.statusCode;
+      if (status === 404) {
+        threads.value = threads.value.filter((thread) => thread.id !== id);
+        if (activeThreadId.value === id) newThread();
+        return;
+      }
+      throw error;
+    }
     navigation += 1;
     activeThreadId.value = read.thread.id;
     messages.value = read.messages;

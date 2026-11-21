@@ -9,6 +9,19 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Fixed
 
+- An assistant turn that uses a tool now keeps the provider conversation valid: every
+  executed result is returned as a `tool` message (OpenAI-compatible), a `tool_result` block
+  (Anthropic) or a `functionResponse` part (Google). Previously only the assistant
+  `tool_calls` message was replayed, so the next request carried no matching tool result and
+  the provider rejected it with `400`: a plain greeting worked, but any question that reached
+  a tool ended in “The provider rejected the request (HTTP 400)”. The saved `temperature`,
+  `maxTokens`, `timeoutMs` and `retries` settings now shape the request (only a network
+  error, `429` or `5xx` is retried), and `reasoningEffort` is sent to OpenAI/OpenRouter.
+- Assistant stores take `t` from the global composer (`useNuxtApp().$i18n`) instead of
+  `useI18n()`, which must run inside a component setup and logged `Must be called at the top
+  of a setup function` when a store was created outside one. Opening a thread deleted
+  elsewhere (`404`) now drops the stale row instead of leaving an entry that fails on every
+  click.
 - Attachment storage is now byte-verified and safe to serve: an image must match its magic
   bytes, text must decode as UTF-8 without NUL, the canonical type and SHA-256 are stored
   (migration `0022`), text attachments are always served as `text/plain` with an attachment
