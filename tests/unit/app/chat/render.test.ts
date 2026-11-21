@@ -105,6 +105,21 @@ describe('assistant tool rendering', () => {
     expect(view.kind === 'items' && view.items[0]?.virtual).toBe(true);
   });
 
+  it('attaches a chart to a metric comparison and echoes level and HP', () => {
+    const view = chatToolView('find_items', {
+      level: 15,
+      hp: 600,
+      items: [
+        { name: 'АК-12', kind: 'weapon', metrics: { ttk: 0.6, dps: 200 } },
+        { name: 'АК-15', kind: 'weapon', metrics: { ttk: 0.5, dps: 210 } },
+      ],
+    });
+    expect(view.kind).toBe('items');
+    if (view.kind !== 'items') return;
+    expect(view.chart).toMatchObject({ defaultMetric: 'ttk', level: 15, hp: 600 });
+    expect(view.chart?.metrics.map((metric) => metric.key)).toEqual(['ttk', 'dps']);
+  });
+
   it('maps prices and keeps a missing lot null', () => {
     expect(chatToolView('get_prices', { prices: [{ name: 'АК-12', price: 12500, lots: 3, quality: 'Rare' }] })).toMatchObject({
       kind: 'prices',

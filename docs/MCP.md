@@ -77,10 +77,10 @@ The `profile://schema` resource provides tool descriptions and the write rules.
 | Tool | Arguments | What it returns |
 |---|---|---|
 | `get_character` | — | `{ character, meta }`, derived fields included |
-| `find_items` | `q?`, `kind?`, `rank?`, `slot?`, `limit?`, `offset?`, `level?`, `hp?`, `sort?`, `direction?`, `filters?`, `include?` | a ranked list with kind metrics; `summary` skips stats, `full` adds the card and typed stats |
+| `find_items` | `q?`, `kind?`, `rank?`, `slot?`, `limit?`, `offset?`, `level?`, `hp?`, `sort?`, `direction?`, `filters?`, `include?` | a ranked list with kind metrics, echoing the query's `level`/`hp`; `summary` skips stats, `full` adds the card and typed stats |
 | `describe_catalog` | `kind?` | metric/stat dictionary, kind counts and catalog freshness |
 | `get_item` | `id` or `name` + `kind?`, `levels?`, `with_modifications?` | summary, `metrics`, stats filtered to `levels` (default 0 and 15), effects, icon, card; `with_modifications` adds verified compatibility or `NO_COMPAT_DATA` |
-| `compare_items` | `items[]` (2–10) or `a` + `b`, `kind?`, `level?`, `hp?` | each item's metrics and `best` per metric |
+| `compare_items` | `items[]` (2–10) or `a` + `b`, `kind?`, `level?`, `hp?` | each item's metrics, `best` per metric and the echoed `level`/`hp` |
 | `get_inventory` | — | `InventoryRead`: storages (including the intake stash), equipment and the computed loadout |
 | `get_inventory_item` | `item_id` | one instance with its placement, container fill or weapon modifications, card and metrics |
 | `get_meta` | — | catalog counts and freshness, prices age and source status (`MetaRead`) |

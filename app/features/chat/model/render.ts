@@ -1,3 +1,5 @@
+import { buildChatChart, type ChatChartData } from './chart';
+
 type Json = Record<string, unknown>;
 
 export interface ChatItemView {
@@ -24,7 +26,7 @@ export interface ChatPriceView {
 }
 
 export type ChatToolView =
-  | { kind: 'items'; items: ChatItemView[] }
+  | { kind: 'items'; items: ChatItemView[]; chart?: ChatChartData }
   | { kind: 'prices'; prices: ChatPriceView[] }
   | { kind: 'text'; text: string }
   | { kind: 'json'; json: string };
@@ -75,6 +77,15 @@ function itemView(row: Json, location: string | null = null, instance = false): 
     virtual: row.virtual === true,
     location,
   };
+}
+
+/** Catalog rows carry `metrics`; two or more comparable items become a chart. */
+function chartFor(rows: readonly Json[], body: Json): ChatChartData | undefined {
+  const entries = rows.map((row) => ({
+    item: itemView(row),
+    metrics: row.metrics && typeof row.metrics === 'object' ? (row.metrics as Json) : {},
+  }));
+  return buildChatChart(entries, num(body.level), num(body.hp)) ?? undefined;
 }
 
 /** Placement as the tool reports it: a slot name for equipment, the location otherwise. */
@@ -131,7 +142,7 @@ export function chatToolView(toolName: string, payload: unknown): ChatToolView {
 
   if (toolName === 'find_items' || toolName === 'compare_items') {
     const rows = asArray(body.items ?? (Array.isArray(body) ? body : [body]));
-    return { kind: 'items', items: rows.map((row) => itemView(row)) };
+    return { kind: 'items', items: rows.map((row) => itemView(row)), chart: chartFor(rows, body) };
   }
 
   if (toolName === 'get_character') {

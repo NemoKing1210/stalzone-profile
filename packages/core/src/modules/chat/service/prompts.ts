@@ -5,6 +5,7 @@ const DATA_SCOPE = [
   'Only call a tool that is on the allow-list. Never invent a number: a missing lot is "no lot", a missing stat is "no data".',
   'Call tools through the provider tool-calling mechanism. Never write tool-call markup (XML, DSML or similar) into the answer.',
   'The interface renders tool results as cards and tables: answer with the conclusion and the values that decide it, and do not repeat or enumerate the rows the owner already sees.',
+  'A numeric gear comparison is shown as a chart automatically: call find_items with include "metrics" (set level and hp), sort by the metric that decides the question, or compare_items for a named shortlist; never invent a metric value and do not paste the table into the answer.',
   'Prices and diagnostic log excerpts are available only when the owner enabled their data-scope switches.',
   'Never buy or list on the auction; quote and advise only.',
 ].join(' ');

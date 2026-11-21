@@ -19,6 +19,12 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
   `NO_COMPAT_DATA`), `get_inventory_item` and `get_meta` close the REST parity gaps,
   `tidy_storage` joins the write tools, and `get_prices` sorts and filters lots. No schema
   change; every number still comes from `displayDmg`/`displayDps`/`displayTtk`/`armorAtLevel`.
+- The assistant charts numeric gear comparisons: two or more items with metrics render a
+  horizontal bar chart above their cards, with a metric switch (TTK, DPS, damage, rate of fire,
+  recoil, weight, …), a best mark, the query's level and, for TTK, the dummy HP. Clicking a bar
+  opens the item like its card. `find_items`/`compare_items` echo `level` and `hp` so the chart
+  labels what the numbers mean, and the composed prompt tells the model to request metrics
+  instead of pasting the table.
 - A failed assistant turn marks its user message as not delivered: the bubble shows the reason
   and a Retry button. Retry re-runs that stored message in place (`retryOf`), discards the failed
   attempt's partial assistant/tool rows and clears the mark on success; Stop is not marked.

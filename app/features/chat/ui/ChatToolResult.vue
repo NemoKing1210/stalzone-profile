@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ProfileItemCard } from '~/entities/item';
 import { chatToolView, type ChatItemView } from '../model/render';
+import ChatChart from './ChatChart.vue';
 
 const props = defineProps<{ toolName: string; payload: unknown }>();
 const emit = defineEmits<{ openItem: [item: ChatItemView] }>();
@@ -20,21 +21,29 @@ function statsOf(item: ChatItemView): { label: string; value: string }[] {
 
 <template>
   <div class="text-[12.5px]">
-    <div v-if="view.kind === 'items'" class="grid gap-1.5 sm:grid-cols-2">
-      <ProfileItemCard
-        v-for="(item, index) in view.items"
-        :key="item.instanceId ?? `${item.name}-${index}`"
-        :name="item.name"
-        :rank="item.rank"
-        :category="item.category"
-        :level="item.level"
-        :icon="item.icon"
-        :virtual="item.virtual"
-        :stats="statsOf(item)"
-        :priority="index < 4"
-        open-on-click
-        @open="emit('openItem', item)"
+    <div v-if="view.kind === 'items'">
+      <ChatChart
+        v-if="view.chart"
+        :chart="view.chart"
+        class="mb-2"
+        @open-item="emit('openItem', $event)"
       />
+      <div class="grid gap-1.5 sm:grid-cols-2">
+        <ProfileItemCard
+          v-for="(item, index) in view.items"
+          :key="item.instanceId ?? `${item.name}-${index}`"
+          :name="item.name"
+          :rank="item.rank"
+          :category="item.category"
+          :level="item.level"
+          :icon="item.icon"
+          :virtual="item.virtual"
+          :stats="statsOf(item)"
+          :priority="index < 4"
+          open-on-click
+          @open="emit('openItem', item)"
+        />
+      </div>
     </div>
 
     <div v-else-if="view.kind === 'prices'" class="overflow-x-auto">
