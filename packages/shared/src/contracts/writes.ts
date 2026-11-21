@@ -4,7 +4,6 @@ import {
   EquipmentSlotSchema,
   FactionSchema,
   InventoryKindSchema,
-  ItemKindSchema,
   ModificationSlotSchema,
   RarityTierSchema,
   SetupRegionSchema,

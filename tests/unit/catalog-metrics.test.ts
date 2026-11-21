@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { metricByKey, metricRow, type MetricContext } from '@profile/core/modules/catalog';
-import type { ItemRow, ItemStatRow } from '@profile/core/modules/catalog';
+import {
+  metricByKey,
+  metricRow,
+  type ItemRow,
+  type ItemStatRow,
+  type MetricContext,
+} from '@profile/core/modules/catalog';
 
 function stat(statId: string, level: number, valueNum: number): ItemStatRow {
   return {
