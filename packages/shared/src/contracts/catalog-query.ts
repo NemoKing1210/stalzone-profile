@@ -74,7 +74,7 @@ export const CatalogQuerySchema = z.object({
 });
 export type CatalogQuery = z.infer<typeof CatalogQuerySchema>;
 
-export const CatalogRowSchema = ItemSummarySchema.extend({
+export const CatalogRowSchema = ItemSummarySchema.omit({ stats: true }).extend({
   metrics: z.record(z.string(), z.union([z.number(), z.string(), z.null()])).optional(),
   card: ItemCardSchema.optional(),
   stats: z.array(ItemStatSchema).optional(),
@@ -119,7 +119,7 @@ export const CatalogDescriptionSchema = z.object({
     source: z.string(),
     items: z.number().int().nonnegative(),
   }),
-  freshness: z.record(z.string(), z.unknown()),
+  freshness: z.unknown(),
 });
 export type CatalogDescription = z.infer<typeof CatalogDescriptionSchema>;
 

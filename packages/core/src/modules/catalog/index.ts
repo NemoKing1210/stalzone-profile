@@ -4,3 +4,4 @@ export * from './service/catalog-view.js';
 export * from './metrics.js';
 export * from './service/resolve.js';
 export * from './service/read.js';
+export * from './service/query.js';

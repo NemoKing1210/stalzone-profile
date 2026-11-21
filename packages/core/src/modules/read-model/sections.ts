@@ -1,5 +1,15 @@
 import type { Db } from '../../platform/db/index.js';
-import { buildCatalog, countItems, itemsByIds, latestPriceFetchedAt, loadCatalogContext } from '../catalog/index.js';
+import {
+  CATALOG_METRICS,
+  buildCatalog,
+  countItems,
+  itemsByIds,
+  latestPriceFetchedAt,
+  listStatDefinitions,
+  loadCatalogContext,
+  statUsage,
+} from '../catalog/index.js';
+import type { CatalogDescription, CatalogMeta } from '@profile/shared/contracts';
 import { getCharacter, listCharacterStats } from '../identity/index.js';
 import { loadInventorySnapshot, type InventorySnapshot } from '../inventory/service/loadout.js';
 import { listSources } from '../sync/index.js';
