@@ -429,6 +429,38 @@ are a reference, not marketing copy.
 
 - **TDD is the default** for features, bugs and behavior changes: RED first, then GREEN.
   A spike may skip it; shipping behavior needs a regression test.
+- **A test earns its place by a failure a user could see.** Keep a case only for: an
+  exchanged contract (schema shape, payload field, error code), a parser, formula, geometry
+  or ranking rule, a rollback/audit/authorization path, a drift guard no other check covers
+  (`i18n-catalogs`, `guide`, the MCP registry), or one regression test per real defect.
+  Everything else is a candidate for deletion.
+- **No source, config or framework assertions.** Do not read a file and assert that it
+  contains an import, a template tag, a class, a token, a type or an export; do not probe
+  ESLint/dependency-cruiser config; do not restate a zod default. `typecheck`, `eslint`,
+  `boundaries` and the compiler already fail on those with a better message. Two architecture
+  guards stay: `tests/unit/public-surface.test.ts` (raw write primitives must not leak) and
+  `tests/unit/app-boundaries.test.ts` (layering rules). An invariant with no runnable seam — a
+  public path or a shipped asset (`tests/unit/favicon.test.ts`) — may pin its asset or config
+  instead. Fold new guards into one of these files.
+  One exception: a reproduced defect with no runnable seam (a modal lifecycle, a template
+  branch) may pin the structure with **one** assertion and a comment naming the bug, as
+  `tests/unit/app/inventory/artifact-modal.test.ts` does.
+- **One behavior, one test; one suite per concern.** Extend the nearest existing file. A new
+  test file needs at least three distinct behaviors or a different environment (temporary
+  DB, pure DOM-free model); a one-case file is a defect. `it.each` over one table is one
+  behavior, not twelve — and a table of twelve near-identical schema parsings is one test.
+- **Layers do not repeat each other.** The pure rule is tested once where it lives; the
+  repository suite proves persistence, transactions and rollback, not the rule again; the
+  route suite proves auth, validation and the error envelope, not the service. If a lower
+  layer already asserts the expectation, the upper test asserts only the integration point.
+- **No test for appearance, copy or wiring.** CSS, spacing, text and template tweaks are
+  checked by typecheck, lint and one look at the affected state. A test that stays green on
+  a deleted production function proves nothing.
+- **Delete on touch.** When you change a suite, remove its dead, duplicated or source-grep
+  cases in the same change and say how many you deleted. Adding tests without a failing
+  behavior is not progress.
+- **The suite stays cheap.** `npm test` runs in tens of seconds on this machine and uses no
+  network, server, browser, sleep or second process.
 - Docs-only changes need no runtime test — run `git diff --check` and check that the
   commands, paths and links you touched still exist.
 - `tests/unit` — pure functions without a DB or network. `tests/integration` — a temporary
