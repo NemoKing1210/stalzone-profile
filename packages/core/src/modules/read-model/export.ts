@@ -1,5 +1,6 @@
 import type { ProfileExport } from '@profile/shared/contracts';
 import type { Db } from '../../platform/db/index.js';
+import { buildDetails } from '../catalog/index.js';
 import { buildPayload } from './payload.js';
 
 /**
@@ -17,6 +18,6 @@ export function exportProfileJson(db: Db, characterId?: number): ProfileExport {
     artifacts: payload.artifacts,
     catalog: payload.catalog,
     inventory: payload.inventory,
-    details: payload.details,
+    details: buildDetails(db),
   };
 }

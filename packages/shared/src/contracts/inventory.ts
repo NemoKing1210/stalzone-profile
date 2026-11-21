@@ -94,6 +94,8 @@ export const ContainerReadSchema = z.object({
   instanceId: z.number().int().optional(),
   storageId: z.number().int().nullable().optional(),
   placement: PlacementReadSchema.optional(),
+  /** The full card for an owned container; catalog rows fetch it on demand. */
+  card: z.record(z.string(), z.unknown()).nullable().optional(),
 });
 export type ContainerRead = z.infer<typeof ContainerReadSchema>;
 
@@ -119,6 +121,8 @@ export interface InventoryItemRead {
   container: ContainerDataRead | null;
   artifacts?: InventoryItemRead[];
   modules?: InventoryItemRead[];
+  /** The full card for an owned instance; the grid tile reads type and caliber here. */
+  card?: Record<string, unknown> | null;
 }
 
 export const InventoryItemReadSchema: z.ZodType<InventoryItemRead> = z.lazy(() =>
@@ -144,6 +148,7 @@ export const InventoryItemReadSchema: z.ZodType<InventoryItemRead> = z.lazy(() =
     container: ContainerDataReadSchema.nullable(),
     artifacts: z.array(InventoryItemReadSchema).optional(),
     modules: z.array(InventoryItemReadSchema).optional(),
+    card: z.record(z.string(), z.unknown()).nullable().optional(),
   }),
 );
 

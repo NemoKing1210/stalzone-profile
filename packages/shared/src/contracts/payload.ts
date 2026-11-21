@@ -76,12 +76,13 @@ export const PayloadSchema = z.object({
     meta: CatalogMetaSchema,
   }),
   inventory: InventoryReadSchema,
-  details: z.record(z.string(), ItemCardSchema),
   icons: z.record(z.string(), z.string()),
   freshness: FreshnessSchema,
 });
 export type Payload = z.infer<typeof PayloadSchema>;
 
-/** The portable export keeps the profile sections and drops display-only freshness. */
-export const ProfileExportSchema = PayloadSchema.omit({ icons: true, freshness: true });
+/** The portable export keeps the profile sections and adds the detail cards. */
+export const ProfileExportSchema = PayloadSchema.omit({ icons: true, freshness: true }).extend({
+  details: z.record(z.string(), ItemCardSchema),
+});
 export type ProfileExport = z.infer<typeof ProfileExportSchema>;

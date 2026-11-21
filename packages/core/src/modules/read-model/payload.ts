@@ -141,6 +141,7 @@ function weaponPayload(ctx: CatalogContext, owned: InventoryItemJoined, placemen
     headMul: headMultiplier({
       stats: { 'weapon.tooltip.weapon.info.head_damage_multiplier': itemValue(rows, 'weapon.tooltip.weapon.info.head_damage_multiplier') },
     }),
+    card: buildItemCardFrom(ctx, item),
     icon: iconOf(ctx, item),
   };
 }
@@ -185,6 +186,7 @@ function armorPayload(
     armor15: armorAtLevel(curve, 15),
     prot: armorProtection(rows, curve, owned.level),
     mods: card.mods ?? [],
+    card,
     icon: iconOf(ctx, item),
   };
 }
@@ -217,6 +219,7 @@ export function containerPayload(
     rank: rankKey(item?.rank) ?? null,
     artifacts: fill,
     artifactsAsOf: null,
+    card: item ? buildItemCardFrom(ctx, item) : null,
     icon: iconOf(ctx, item),
   };
 }
@@ -240,6 +243,7 @@ function artifactPayload(
     lvl: owned.level,
     effects,
     rank: rankKey(item?.rank) ?? 'default',
+    card: item ? buildItemCardFrom(ctx, item) : null,
     icon: iconOf(ctx, item),
   };
 }
@@ -347,7 +351,6 @@ function buildPayloadUncached(db: Db, characterId?: number): Payload {
       artifacts: [],
       catalog: { weapons: [], armor: [], devices: [], meta: { updated: null, source: '', items: 0 } },
       inventory: inventoryRead(db, characterId),
-      details: {},
       icons: {},
       freshness: freshness(sources, latestPrice, null),
     } as Payload;
@@ -359,8 +362,9 @@ function buildPayloadUncached(db: Db, characterId?: number): Payload {
   const placements = snapshot.placements;
   const fills = containerFills(instances, [...placements.values()]);
 
-  // One item/stat/icon/effect context serves details, both catalogs and every instance row.
-  const catalogItems = listItems(db);
+  // Catalogs need only their own rows; owned instances read their full stat history separately.
+  const ownedIds = new Set(instances.map((row) => row.item_id));
+  const catalogItems = listPayloadItems(db, [...ownedIds]);
   const itemsById = new Map(catalogItems.map((item) => [item.id, item]));
   const missingIds = [...new Set(instances.map((row) => row.item_id))].filter((id) => !itemsById.has(id));
   if (missingIds.length) {
@@ -378,6 +382,20 @@ function buildPayloadUncached(db: Db, characterId?: number): Payload {
   const catalogDevices = buildDeviceCatalogFrom(ctx, cards.byId);
   const stats = listCharacterStats(db, character.id);
   const meta = catalogMeta(sourceById, countItems(db));
+  const inventory = inventoryReadFrom(db, character.id, snapshot);
+  const withCards = (item: (typeof inventory.storages)[number]['items'][number]): Record<string, unknown> => {
+    const row = ownedCtx.items.get(item.itemId);
+    return {
+      ...item,
+      card: row ? buildItemCardFrom(ownedCtx, row) : null,
+      ...(item.artifacts ? { artifacts: item.artifacts.map(withCards) } : {}),
+      ...(item.modules ? { modules: item.modules.map(withCards) } : {}),
+    };
+  };
+  for (const storage of inventory.storages) {
+    storage.items = storage.items.map(withCards) as unknown as typeof storage.items;
+  }
+  if (inventory.loose) inventory.loose = inventory.loose.map(withCards) as unknown as typeof inventory.loose;
 
   return {
     meta: {
@@ -400,8 +418,7 @@ function buildPayloadUncached(db: Db, characterId?: number): Payload {
       devices: catalogDevices,
       meta,
     },
-    inventory: inventoryReadFrom(db, character.id, snapshot),
-    details: cards.details,
+    inventory,
     icons: iconMapFrom(allItems, ctx.icons),
     freshness: freshness(sources, latestPrice, character.updated_at),
   } as Payload;

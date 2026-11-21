@@ -67,6 +67,10 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
+- The page payload no longer carries the 662-card `details` map: owned rows and inventory
+  items carry their own card, a catalog modal fetches `/api/v1/details/:key` once, and the
+  read model loads only the stats each surface displays. Cold `buildPayload` drops from
+  149 ms/902 KB to ~58 ms/184 KB; `docs/PERFORMANCE.md` records the capture.
 - Inventory list mode renders one 40-row window of the sorted and filtered rows across all
   grouped sections, with a Load more control; grid mode, sorting and filtering are unchanged.
 - Theme changes cross-fade for 200 ms where the View Transition API exists (instant without

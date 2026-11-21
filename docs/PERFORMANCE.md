@@ -13,11 +13,16 @@ so the live file is never opened by a second writer.
 | Metric                                        | Baseline       |
 | --------------------------------------------- | -------------- |
 | Cold build (fresh cache)                      | 149 ms         |
+| Cold build (fresh cache)                      | 57–60 ms       |
 | Warm build (same `total_changes`)             | < 0.1 ms       |
 | Serialized payload                            | 902 KB         |
 | `details` cards                               | 662            |
+| Serialized payload                            | 184 KB         |
+| `details` cards in the page payload           | 0              |
+| Cards on owned rows/inventory items           | 6              |
 | Catalog rows (weapons / armor / devices)      | 354 / 137 / 17 |
 | `item_stat` rows read for the catalog context | 54 415         |
+| `item_stat` rows read for the catalog context | ~5 100         |
 
 The payload cache keys on `total_changes()` with a 30 s TTL (`read-model/payload.ts`):
 every write forces the next request to rebuild all 662 cards. `EXPLAIN QUERY PLAN` for the
