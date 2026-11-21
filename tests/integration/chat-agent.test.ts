@@ -267,6 +267,7 @@ describe('chat agent', () => {
     );
 
     expect(confirmed.pending).toBeNull();
+    expect(confirmed.error).toBeNull();
     expect(followUp).toBe(1);
     expect((db.prepare(`SELECT COUNT(*) AS c FROM storage WHERE name = 'QA stash'`).get() as { c: number }).c).toBe(1);
     expect(listEvents(db).filter((event) => event.action === 'inventory.storage.create')).toHaveLength(1);

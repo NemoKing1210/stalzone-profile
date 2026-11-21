@@ -13,6 +13,17 @@ describe('assistant tool rendering', () => {
     });
   });
 
+  it('maps a single item card from get_item', () => {
+    expect(
+      chatToolView('get_item', {
+        item: { name: 'АК-12', rank: 'master', kind: 'weapon', category: 'weapon/assault_rifle', icon: '/icons/a.png' },
+      }),
+    ).toEqual({
+      kind: 'items',
+      items: [{ name: 'АК-12', rank: 'master', kind: 'weapon', category: 'weapon/assault_rifle', icon: '/icons/a.png' }],
+    });
+  });
+
   it('maps prices and keeps a missing lot null', () => {
     expect(chatToolView('get_prices', { prices: [{ name: 'АК-12', price: 12500, lots: 3, quality: 'Rare' }] })).toMatchObject({
       kind: 'prices',

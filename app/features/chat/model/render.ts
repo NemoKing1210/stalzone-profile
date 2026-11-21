@@ -122,7 +122,13 @@ export function chatToolView(toolName: string, payload: unknown): ChatToolView {
     return { kind: 'inventory', rows };
   }
 
-  if (toolName === 'find_items' || toolName === 'get_item' || toolName === 'compare_items') {
+  if (toolName === 'get_item') {
+    const item = body.item;
+    const rows = item && typeof item === 'object' ? [item as Json] : asArray(body.items);
+    return { kind: 'items', items: rows.map(itemView) };
+  }
+
+  if (toolName === 'find_items' || toolName === 'compare_items') {
     const rows = asArray(body.items ?? (Array.isArray(body) ? body : [body]));
     return { kind: 'items', items: rows.map(itemView) };
   }

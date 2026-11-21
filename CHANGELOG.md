@@ -9,6 +9,11 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Fixed
 
+- Audit follow-ups in the assistant: a `get_item` tool card renders the item instead of a
+  placeholder “—” (the payload is `{ item }`, not `{ items }`), a confirmed write no longer
+  reports `AI_EMPTY` when the model sends no closing text, and `useApiError` takes `t` from the
+  global composer so a Pinia store created outside a component setup cannot throw
+  `Must be called at the top of a setup function`.
 - The assistant now receives each tool's real argument schema instead of an empty object.
   Without it the model called `find_items({})`, got a page of ammo, retried with the same
   or guessed arguments, and used every tool round; the turn then ended with no assistant

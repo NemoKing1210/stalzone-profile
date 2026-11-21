@@ -197,6 +197,8 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
   let state: unknown = null;
   let error: string | null = null;
   let replied = false;
+  /** A confirmed write or a declined one is a delivered result even with no assistant text. */
+  let acted = false;
   let pending: ChatTurnResult['pending'] = null;
 
   try {
@@ -237,6 +239,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
               toolCallId: call.id,
               payload: done,
             });
+            acted = true;
             stopped = true;
             continue;
           }
@@ -272,6 +275,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
             payload: { declined: true },
           });
           runs.push({ id: call.id, name: call.name, content, payload: { declined: true } });
+          acted = true;
           continue;
         }
         const toolResult = await callRegistry(sdk, call.name, call.args);
@@ -291,7 +295,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
     }
     // A compliant provider answers the tool-less last round; an empty one must not look
     // like a delivered reply, which was the silent "did nothing" turn.
-    if (!replied && !pending) error = 'AI_EMPTY: the provider returned no text';
+    if (!replied && !pending && !acted) error = 'AI_EMPTY: the provider returned no text';
   } catch (turnError) {
     error = turnError instanceof Error ? turnError.message : String(turnError);
   } finally {
