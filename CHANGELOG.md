@@ -36,6 +36,14 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
+- The equipment pane reads like the rest of the inventory: worn gear uses the same hatched,
+  rank-edged card as a grid tile (name, class, level, icon, caliber/attachments), empty slots
+  carry corner brackets that turn accent on a compatible drag, and the doll is capped at 560px
+  so the loadout panel can sit beside it on wide screens. Protections, artifact effects,
+  containers and warnings are hairline chip groups with one glyph per damage type and a
+  plus/minus/eraser mark per effect bucket. `GET /api/v1/payload` now attaches the catalog
+  `card` to equipped instances as it already did for storage rows, so the equipment card can
+  print the class and caliber.
 - The add-item modal no longer jumps while its catalog is filtered or an item is picked. On
   desktop the frame has one fixed height and the list and preview column scroll inside it;
   the list keeps its previous rows (dimmed) until the next query answers instead of collapsing

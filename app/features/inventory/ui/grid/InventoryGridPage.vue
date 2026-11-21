@@ -402,18 +402,22 @@ const containerNames = computed<Record<number, string>>(() => {
           <div class="h-full overflow-auto">
             <div class="p-2.5">
             <template v-if="leftPane === 'equipment'">
-              <EquipmentDoll
-                :equipment="inventory.equipment.value"
-                :storages="inventory.storages.value"
-                :busy="inventory.busy.value"
-                :attach-tile="drag.attachTile"
-                @open="openItem"
-                @pick="pickItem"
-                @quick="quickItem"
-                @menu="itemMenu"
-              />
-              <div class="mt-3">
-                <LoadoutPanel :stats="inventory.stats.value" :names="containerNames" />
+              <div class="[container-type:inline-size]">
+                <div class="grid gap-3 @min-[860px]:grid-cols-[minmax(0,560px)_minmax(0,1fr)] @min-[860px]:items-start">
+                  <div class="mx-auto w-full max-w-[560px]">
+                    <EquipmentDoll
+                      :equipment="inventory.equipment.value"
+                      :storages="inventory.storages.value"
+                      :busy="inventory.busy.value"
+                      :attach-tile="drag.attachTile"
+                      @open="openItem"
+                      @pick="pickItem"
+                      @quick="quickItem"
+                      @menu="itemMenu"
+                    />
+                  </div>
+                  <LoadoutPanel :stats="inventory.stats.value" :names="containerNames" />
+                </div>
               </div>
             </template>
 

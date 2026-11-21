@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildPayload, closeDb, exportProfileJson, migrate, openDb, type Db } from '@profile/core';
 import * as seed from '@profile/core/testing';
 import { seedCatalog } from '../fixtures/seed';
+import { seedInventory } from '../fixtures/inventory';
 
 const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
 
@@ -121,6 +122,15 @@ describe('buildPayload contract', () => {
     for (const row of owned) expect(row.card).toMatchObject({ kind: expect.any(String), name: expect.any(String) });
 
     expect(exportProfileJson(db).details['art:Нервяк']).toMatchObject({ name: 'Нервяк' });
+  });
+
+  it('attaches the card to equipped items, nested artifacts included', () => {
+    seedInventory(db);
+    const equipped = buildPayload(db).inventory.equipment;
+
+    expect(equipped.primary?.card).toMatchObject({ kind: 'weapon', type: 'Автоматы' });
+    expect(equipped.container?.card).toMatchObject({ kind: 'container' });
+    expect(equipped.container?.artifacts?.[0]?.card).toMatchObject({ kind: 'artifact' });
   });
 
   it('exports the new profile shape without legacy sections', () => {

@@ -421,6 +421,11 @@ function buildPayloadUncached(db: Db, characterId?: number): Payload {
     storage.items = storage.items.map(withCards) as unknown as typeof storage.items;
   }
   if (inventory.loose) inventory.loose = inventory.loose.map(withCards) as unknown as typeof inventory.loose;
+  // The equipment rack draws the same card as a grid tile, so worn items carry it too.
+  for (const slot of Object.keys(inventory.equipment) as (keyof typeof inventory.equipment)[]) {
+    const item = inventory.equipment[slot];
+    if (item) inventory.equipment[slot] = withCards(item) as unknown as typeof item;
+  }
 
   return {
     meta: {
