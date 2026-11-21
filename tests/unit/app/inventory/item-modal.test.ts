@@ -1,7 +1,7 @@
 import type { InventoryItemRead, InventoryRead, RangeValue } from '@profile/shared/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { catalogKey, catalogRow, findInstance, itemPageHref } from '~/shared/lib/itemModal';
+import { catalogKey, catalogRow, findInstance, itemPageHref, rowOnlyKind } from '~/shared/lib/itemModal';
 
 const range: RangeValue = { min: 0, max: 0, value: 0, missing: [] };
 
@@ -78,6 +78,12 @@ describe('item modal targets', () => {
     expect(catalogKey('ammo', 'Патроны')).toBeNull();
     expect(catalogKey(null, 'АК-12')).toBeNull();
     expect(catalogKey('weapon', '  ')).toBeNull();
+  });
+
+  it('opens a gadget row without a detail card', () => {
+    expect(rowOnlyKind('device')).toBe(true);
+    expect(rowOnlyKind('weapon')).toBe(false);
+    expect(rowOnlyKind(null)).toBe(false);
   });
 
   it('finds an instance nested inside a weapon or a container', () => {

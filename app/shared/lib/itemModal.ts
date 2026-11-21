@@ -35,10 +35,18 @@ const KIND_PATHS: Record<string, string> = {
   modification: '/modifications',
 };
 
+/** Kinds whose page shows a catalog row without a detail card (gadgets have no card yet). */
+const ROW_ONLY_KINDS: Record<string, true> = { device: true };
+
 /** The detail-card key the catalog endpoint expects; unsupported or unnamed kinds have none. */
 export function catalogKey(kind: string | null, name: string): string | null {
   const prefix = kind ? CARD_PREFIX[kind] : undefined;
   return prefix && name.trim() !== '' ? `${prefix}:${name}` : null;
+}
+
+/** A row-only kind opens from the row alone; every other kind needs its fetched card. */
+export function rowOnlyKind(kind: string | null): boolean {
+  return kind != null && ROW_ONLY_KINDS[kind] === true;
 }
 
 /** The `/weapons?item=` style link a chip keeps for copy and new-tab; unknown kinds have none. */

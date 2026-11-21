@@ -3,6 +3,7 @@ import SiteNav from './SiteNav.vue';
 import CommandPalette from './CommandPalette.vue';
 import TopBarTools from './TopBarTools.vue';
 import { AssistantPanel } from '~/features/chat';
+import { ItemModalHost } from '~/features/inventory';
 import { ZoneRadio } from '~/features/radio';
 import { useAssistantPanelStore } from '~/stores/assistantPanel';
 import { useProfileData } from '~/stores/profile-data';
@@ -135,6 +136,7 @@ const sideWidth = computed(() => (collapsed.value ? COLLAPSED_WIDTH : EXPANDED_W
 
     <ZoneRadio />
     <AssistantPanel />
+    <ItemModalHost />
     <CommandPalette />
   </div>
 </template>

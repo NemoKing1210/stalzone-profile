@@ -1,5 +1,6 @@
 export { default as InventoryScreen } from './ui/InventoryScreen.vue';
 export { default as InventoryGridPage } from './ui/grid/InventoryGridPage.vue';
+export { default as ItemModalHost } from './ui/ItemModalHost.vue';
 export { canDrop, cellAt, effectiveSize, itemRects } from './model/grid';
 export type { GridBounds, GridItem, GridPlacement, Rect, Size } from './model/grid';
 export { useInventory } from './model/useInventory';

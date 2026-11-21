@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InventoryItemRead, ModificationSlot, StorageRead } from '@profile/shared/contracts';
+import type { InventoryItemRead, StorageRead } from '@profile/shared/contracts';
 
 import { ProfilePane } from '~/shared/ui';
 import type { DropTarget } from '../../model/drag';
@@ -11,10 +11,10 @@ import type { ContainerFilter } from '../../model/containerFilters';
 import { stashTabs } from '../../model/stashTabs';
 import { MODAL_WIDTH } from '~/shared/lib/modalWidth';
 import { useInventory } from '../../model/useInventory';
+import { useItemModalStore } from '~/stores/itemModal';
 import WeightHud from './WeightHud.vue';
 import DragPreview from './DragPreview.vue';
 import EquipmentDoll from './EquipmentDoll.vue';
-import ItemDetailsModal from '../ItemDetailsModal.vue';
 import RemoveItemModal from '../RemoveItemModal.vue';
 import AddOwnedModal from '../AddOwnedModal.vue';
 import ItemGrid from './ItemGrid.vue';
@@ -69,8 +69,7 @@ async function dropItem(itemId: number, target: DropTarget): Promise<void> {
 /** The details panel opens on a double click or Enter; a single click changes nothing. */
 function openItem(item: InventoryItemRead): void {
   if (drag.shouldIgnoreClick() || drag.picked.value) return;
-  selectedId.value = item.id;
-  detailsOpen.value = true;
+  itemModal.openInstance(item.id, item.kind);
 }
 
 function pickItem(item: InventoryItemRead, event: KeyboardEvent): void {
@@ -117,8 +116,7 @@ function itemMenu(item: InventoryItemRead, action: ItemMenuAction): void {
 /* Item lookup: the payload refreshes after every write, so keep ids   */
 /* ------------------------------------------------------------------ */
 
-const selectedId = ref<number | null>(null);
-const detailsOpen = ref(false);
+const itemModal = useItemModalStore();
 const storageOpen = ref(false);
 const addOpen = ref(false);
 /** The header toggle: the left column shows the worn equipment or the selected stash. */
@@ -157,36 +155,6 @@ const itemMap = computed(() => {
 });
 
 const allItems = computed(() => [...itemMap.value.values()]);
-const selectedItem = computed(() => (selectedId.value == null ? null : (itemMap.value.get(selectedId.value) ?? null)));
-const selectedCard = computed(() =>
-  selectedItem.value?.card ?? null,
-);
-
-const artifactCandidates = computed(() => allItems.value.filter((item) => item.kind === 'artifact'));
-const modificationCandidates = computed(() => allItems.value.filter((item) => item.kind === 'modification'));
-
-watch(selectedItem, (item) => {
-  if (!item) detailsOpen.value = false;
-});
-
-/* ------------------------------------------------------------------ */
-/* Writes                                                              */
-/* ------------------------------------------------------------------ */
-
-async function updateSelected(patch: Record<string, unknown>): Promise<void> {
-  const item = selectedItem.value;
-  if (item) await inventory.updateItem(item.id, patch);
-}
-
-async function removeSelected(qty: number): Promise<void> {
-  const item = selectedItem.value;
-  if (!item) return;
-  const result = await inventory.removeItem(item.id, qty);
-  if (result && qty >= item.qty) {
-    detailsOpen.value = false;
-    selectedId.value = null;
-  }
-}
 
 async function confirmRemoval(qty: number): Promise<void> {
   const item = removal.value;
@@ -194,47 +162,11 @@ async function confirmRemoval(qty: number): Promise<void> {
   const result = await inventory.removeItem(item.id, qty);
   if (!result) return;
   removal.value = null;
-  if (qty >= item.qty && selectedId.value === item.id) {
-    detailsOpen.value = false;
-    selectedId.value = null;
-  }
-}
-
-async function applyFill(slots: (number | null)[]): Promise<void> {
-  const container = selectedItem.value;
-  if (container?.kind !== 'container') return;
-  await inventory.setContainerFill(container.id, slots);
 }
 
 const stashPaneTitle = computed(() =>
   inventory.selectedStorage.value ? storageLabel(inventory.selectedStorage.value, t) : t('inventory.stash'),
 );
-
-const pendingUnverified = ref<{ weaponId: number; slot: ModificationSlot; modificationItemId: number } | null>(null);
-
-async function installModification(
-  slot: ModificationSlot,
-  modificationItemId: number | null,
-): Promise<void> {
-  const weapon = selectedItem.value;
-  if (weapon?.kind !== 'weapon') return;
-  const result = await inventory.setWeaponModification(weapon.id, slot, modificationItemId);
-  if (
-    !result &&
-    modificationItemId != null &&
-    inventory.lastError.value?.code === 'INCOMPATIBLE_MODIFICATION'
-  ) {
-    pendingUnverified.value = { weaponId: weapon.id, slot, modificationItemId };
-  }
-}
-
-async function confirmUnverified(): Promise<void> {
-  const pending = pendingUnverified.value;
-  pendingUnverified.value = null;
-  if (pending) {
-    await inventory.setWeaponModification(pending.weaponId, pending.slot, pending.modificationItemId, true);
-  }
-}
 
 /* ------------------------------------------------------------------ */
 /* Stashes                                                             */
@@ -518,21 +450,6 @@ const containerNames = computed<Record<number, string>>(() => {
       </div>
     </template>
 
-    <ItemDetailsModal
-      v-model:open="detailsOpen"
-      :kind="selectedItem?.kind ?? 'other'"
-      :name="selectedItem?.displayName ?? selectedItem?.name ?? ''"
-      :item="selectedItem"
-      :card="selectedCard"
-      :attachments="modificationCandidates"
-      :artifacts="artifactCandidates"
-      :busy="inventory.busy.value"
-      @update="updateSelected"
-      @remove="removeSelected"
-      @install="installModification"
-      @fill="applyFill"
-    />
-
     <RemoveItemModal
       :open="removal !== null"
       :name="removal?.displayName ?? removal?.name ?? ''"
@@ -557,23 +474,6 @@ const containerNames = computed<Record<number, string>>(() => {
           @update="updateStash"
           @remove="removeStash"
         />
-      </template>
-    </UModal>
-
-    <UModal
-      :open="Boolean(pendingUnverified)"
-      :title="t('inventory.unverifiedTitle')"
-      :ui="{ content: MODAL_WIDTH.narrow }"
-      @update:open="(value) => !value && (pendingUnverified = null)"
-    >
-      <template #body>
-        <p class="text-[12.5px]">{{ t('inventory.unverifiedDesc') }}</p>
-      </template>
-      <template #footer>
-        <div class="flex w-full justify-end gap-2">
-          <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="pendingUnverified = null" />
-          <UButton :loading="inventory.busy.value" :label="t('inventory.unverifiedConfirm')" @click="confirmUnverified" />
-        </div>
       </template>
     </UModal>
 

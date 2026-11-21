@@ -2,20 +2,14 @@
 import { h, type VNode } from 'vue';
 import type { LocationQueryRaw } from 'vue-router';
 
-import { ItemCard, rankOptions } from '~/entities/item';
+import { rankOptions } from '~/entities/item';
 import { barScale } from '../model/comparisonBars';
 import { findRowForDeepLink, parseInventoryDeepLink, withoutInventoryDeepLink } from '../model/deepLink';
 import ValueWithBar from './kinds/ValueWithBar.vue';
 import ItemIconCell from './kinds/ItemIconCell.vue';
-import ItemDetailsModal from './ItemDetailsModal.vue';
-import { useInventory } from '../model/useInventory';
 import { useProfileData } from '~/stores/profile-data';
-import { ProfilePane, KeyHint } from '~/shared/ui';
-import { MODAL_WIDTH } from '~/shared/lib/modalWidth';
-
-import type { InventoryItemRead, ModificationSlot } from '@profile/shared/contracts';
-import { allInventoryItems } from '~/shared/lib/inventory';
-import type { ContainerFillTarget, InstanceEditTarget } from '~/shared/types/profile';
+import { useItemModalStore } from '~/stores/itemModal';
+import { ProfilePane } from '~/shared/ui';
 import {
   filterInventoryRows,
   inventorySections,
@@ -29,8 +23,6 @@ import type { InventoryColumn, InventoryKind } from '../model/types';
 import { useFilters } from '../model/useFilters';
 import { usePersistentSorting } from '../model/usePersistentSorting';
 import CatalogNotice from './CatalogNotice.vue';
-import ContainerFillEditor from './ContainerFillEditor.vue';
-import EditOwnedModal from './EditOwnedModal.vue';
 import InventoryToolbar from './InventoryToolbar.vue';
 import { INVENTORY_UI } from './kinds/registry';
 
@@ -39,7 +31,6 @@ const props = defineProps<{ kind: InventoryKind<TRow> }>();
 const { t } = useI18n();
 const { payload } = useProfileData();
 const { g1, g2, num } = useFormat();
-const inventory = useInventory();
 useHead(() => ({ title: `${t(props.kind.labels.pageTitle)} // ${t('common.appName')}` }));
 
 const ui = computed(() => INVENTORY_UI[props.kind.key]);
@@ -221,180 +212,56 @@ function setTargetHp(value: number): void {
   filters.hp = value;
 }
 
-const selectedKey = ref<string | null>(null);
-const dialogOpen = ref(false);
-const editTarget = ref<InstanceEditTarget | null>(null);
-const fillTarget = ref<ContainerFillTarget | null>(null);
-const artifactTarget = ref<{ name: string; level: number } | null>(null);
+const store = useItemModalStore();
 
-const artifactOpen = computed({
-  get: () => artifactTarget.value !== null,
-  set: (value: boolean) => {
-    if (!value) artifactTarget.value = null;
-  },
-});
-const artifactCard = computed(() =>
-  artifactTarget.value ? (fetchedCards.value.get(`art:${artifactTarget.value.name}`) ?? null) : null,
-);
-
-const editOpen = computed({
-  get: () => editTarget.value !== null,
-  set: (value: boolean) => {
-    if (!value) editTarget.value = null;
-  },
-});
-const fillOpen = computed({
-  get: () => fillTarget.value !== null,
-  set: (value: boolean) => {
-    if (!value) fillTarget.value = null;
-  },
-});
-
-/** Artifacts that can be dropped into any container; the editor filters the installed ones. */
-const artifactCandidates = computed(() =>
-  allInventoryItems(payload.value?.inventory).filter((item) => item.kind === 'artifact'),
-);
-const modificationCandidates = computed(() =>
-  allInventoryItems(payload.value?.inventory).filter((item) => item.kind === 'modification'),
-);
-
-/** The selected row is recomputed from the payload, so a modal write refreshes it in place. */
-const selected = computed<TRow | null>(() => rows.value.find((row) => row.key === selectedKey.value) ?? null);
-
-const CARD_PREFIX: Record<string, string> = {
-  weapon: 'w',
-  armor: 'a',
-  artifact: 'art',
-  container: 'c',
-  modification: 'mod',
-};
-const fetchedCards = ref(new Map<string, Record<string, unknown> | null>());
-const pendingCards = new Set<string>();
-const request = useRequestFetch();
-
-/** Owned rows carry their card; a catalog row fetches it once, keyed by `<prefix>:<name>`. */
-function localCard(row: TRow): Record<string, unknown> | null {
-  const own = row as unknown as { card?: Record<string, unknown> | null; item?: { card?: Record<string, unknown> | null } };
-  return own.card ?? own.item?.card ?? null;
-}
-
-async function loadCard(key: string): Promise<void> {
-  if (fetchedCards.value.has(key) || pendingCards.has(key)) return;
-  pendingCards.add(key);
-  try {
-    const response = await request<{ data?: Record<string, unknown> }>(`/api/v1/details/${encodeURIComponent(key)}`);
-    fetchedCards.value.set(key, response?.data ?? null);
-  } catch {
-    fetchedCards.value.set(key, null);
-  } finally {
-    pendingCards.delete(key);
-  }
-}
-
-const selectedCard = computed(() => {
-  const row = selected.value;
-  if (!row) return null;
-  const own = localCard(row);
-  if (own) return own;
-  return fetchedCards.value.get(`${CARD_PREFIX[props.kind.key] ?? ''}:${row.name}`) ?? null;
-});
-
+/** A table row hands the global modal its target: a live instance, or a catalog name. */
 function openRow(row: TRow): void {
-  selectedKey.value = row.key;
-  dialogOpen.value = true;
-  if (!localCard(row)) {
-    const prefix = CARD_PREFIX[props.kind.key] ?? '';
-    void loadCard(`${prefix}:${row.name}`);
+  const current = row as unknown as {
+    instanceId?: number | null;
+    icon?: string | null;
+    type?: string | null;
+  };
+  if (current.instanceId != null) {
+    store.openInstance(current.instanceId, props.kind.key);
+    return;
   }
+  store.openCatalog({
+    mode: 'catalog',
+    kind: props.kind.key,
+    name: row.name,
+    icon: current.icon ?? null,
+    rank: row.rank,
+    category: current.type ?? null,
+  });
 }
 
-/** A card in the assistant links here; open the row once its payload arrived, then clear the query. */
+/** A card in the assistant links here; open the target once its payload arrived, then clear the query. */
 watch(
   [rows, () => route.query],
   () => {
     const link = deepLink.value;
     if (!link) return;
-    // The row must be visible for `selected` to resolve: an owned id needs the owned tab.
+    // The tab is a page detail; the modal itself resolves the item from the whole profile.
     if (props.kind.modes) filters.mode = link.itemId != null ? 'owned' : 'catalog';
     const row = findRowForDeepLink(rows.value, link);
-    if (!row) return;
-    openRow(row);
+    if (row) openRow(row);
+    else if (link.itemId != null) store.openInstance(link.itemId, props.kind.key);
+    else if (link.name) {
+      store.openCatalog({
+        mode: 'catalog',
+        kind: props.kind.key,
+        name: link.name,
+        icon: null,
+        rank: null,
+        category: null,
+      });
+    }
     void router.replace({
       query: withoutInventoryDeepLink(route.query as Record<string, unknown>) as LocationQueryRaw,
     });
   },
   { immediate: true, flush: 'post' },
 );
-
-const selectedItem = computed<InventoryItemRead | null>(
-  () => (selected.value as unknown as { item?: InventoryItemRead | null } | null)?.item ?? null,
-);
-
-async function updateSelected(patch: Record<string, unknown>): Promise<void> {
-  const item = selectedItem.value;
-  if (item) await inventory.updateItem(item.id, patch);
-}
-
-async function removeSelected(qty: number): Promise<void> {
-  const item = selectedItem.value;
-  if (!item) return;
-  const result = await inventory.removeItem(item.id, qty);
-  if (result && qty >= item.qty) {
-    dialogOpen.value = false;
-    selectedKey.value = null;
-  }
-}
-
-async function installModification(slot: ModificationSlot, modificationItemId: number | null): Promise<void> {
-  const weapon = selectedItem.value;
-  if (weapon?.kind !== 'weapon') return;
-  const result = await inventory.setWeaponModification(weapon.id, slot, modificationItemId);
-  if (!result && modificationItemId != null && inventory.lastError.value?.code === 'INCOMPATIBLE_MODIFICATION') {
-    pendingUnverified.value = { weaponId: weapon.id, slot, modificationItemId };
-  }
-}
-
-const pendingUnverified = ref<{ weaponId: number; slot: ModificationSlot; modificationItemId: number } | null>(null);
-
-async function confirmUnverified(): Promise<void> {
-  const pending = pendingUnverified.value;
-  pendingUnverified.value = null;
-  if (pending) await inventory.setWeaponModification(pending.weaponId, pending.slot, pending.modificationItemId, true);
-}
-
-async function applyFill(slots: (number | null)[]): Promise<void> {
-  const container = selectedItem.value;
-  if (container?.kind !== 'container') return;
-  await inventory.setContainerFill(container.id, slots);
-}
-
-function requestEdit(): void {
-  const row = selected.value;
-  if (!row) return;
-  const target = props.kind.editTarget(row);
-  if (!target) return;
-  dialogOpen.value = false;
-  editTarget.value = target;
-}
-
-function requestFill(): void {
-  const row = selected.value;
-  if (!row || !props.kind.fillTarget) return;
-  const target = props.kind.fillTarget(row);
-  if (!target) return;
-  dialogOpen.value = false;
-  fillTarget.value = target;
-}
-
-/**
- * The artifact card opened from a container must live at the screen level: closing the
- * container modal unmounts its body, and a nested modal would go with it.
- */
-function openArtifact(name: string, level: number): void {
-  dialogOpen.value = false;
-  artifactTarget.value = { name, level };
-  void loadCard(`art:${name}`);
-}
 </script>
 
 <template>
@@ -539,66 +406,6 @@ function openArtifact(name: string, level: number): void {
     </ProfilePane>
 
 
-    <ItemDetailsModal
-      v-model:open="dialogOpen"
-      :kind="props.kind.key"
-      :name="selected?.name ?? ''"
-      :item="selectedItem"
-      :card="selectedCard"
-      :row="(selected as unknown as Record<string, unknown> | null)"
-      :attachments="modificationCandidates"
-      :artifacts="artifactCandidates"
-      :busy="inventory.busy.value"
-      @update="updateSelected"
-      @remove="removeSelected"
-      @install="installModification"
-      @fill="applyFill"
-      @edit="requestEdit"
-      @fill-row="requestFill"
-      @artifact="openArtifact"
-    />
-
-    <UModal
-      :open="Boolean(pendingUnverified)"
-      :title="t('inventory.unverifiedTitle')"
-      :ui="{ content: MODAL_WIDTH.narrow }"
-      @update:open="(value) => !value && (pendingUnverified = null)"
-    >
-      <template #body>
-        <p class="text-[12.5px]">{{ t('inventory.unverifiedDesc') }}</p>
-      </template>
-      <template #footer>
-        <div class="flex w-full justify-end gap-2">
-          <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="pendingUnverified = null" />
-          <UButton :loading="inventory.busy.value" :label="t('inventory.unverifiedConfirm')" @click="confirmUnverified" />
-        </div>
-      </template>
-    </UModal>
-
-    <UModal
-      v-model:open="artifactOpen"
-      :title="t('items.artifactCardTitle')"
-      :description="artifactTarget?.name"
-      :ui="{ content: MODAL_WIDTH.reader }"
-      scrollable
-    >
-      <template #body>
-        <ItemCard
-          v-if="artifactTarget"
-          :name="artifactTarget.name"
-          kind="artifact"
-          :data="{ name: artifactTarget.name, lvl: artifactTarget.level }"
-          :card="artifactCard"
-          :level="artifactTarget.level"
-        />
-      </template>
-      <template #footer>
-        <KeyHint :keys="['Esc']" :label="t('common.close')" />
-      </template>
-    </UModal>
-
-    <EditOwnedModal v-model:open="editOpen" :target="editTarget" />
-    <ContainerFillEditor v-model:open="fillOpen" :target="fillTarget" :candidates="artifactCandidates" />
     <component :is="ui.actions" v-if="ui.actions" v-model:add-open="addOpen" :kind="kind.key" />
   </section>
 </template>
