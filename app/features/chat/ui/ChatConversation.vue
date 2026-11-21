@@ -32,6 +32,11 @@ const previewFile = ref<ChatAttachment | null>(null);
 const dragging = ref(false);
 let dragDepth = 0;
 
+/** Three real first questions; they send the localized text as a normal message. */
+const SUGGESTIONS = ['chat.suggestions.inventory', 'chat.suggestions.prices', 'chat.suggestions.loadout'] as const;
+const MESSAGE_LIMIT = 8_000;
+const draftTooLong = computed(() => draft.value.length > MESSAGE_LIMIT);
+
 const ACCEPT = [
   'image/png',
   'image/jpeg',
@@ -166,7 +171,7 @@ async function copyMessage(text: string): Promise<void> {
 
 async function send(): Promise<void> {
   const text = draft.value.trim();
-  if ((!text && !files.value.length) || sending.value) return;
+  if ((!text && !files.value.length) || sending.value || draftTooLong.value) return;
   const outgoing = files.value;
   draft.value = '';
   files.value = [];
@@ -203,8 +208,22 @@ defineExpose({ focus });
     </div>
 
     <div class="min-h-0 flex-1 overflow-y-auto p-3">
-      <div v-if="!messages.length" class="flex h-full items-center justify-center px-6 text-center">
-        <p class="max-w-[34ch] text-[12.5px] text-[var(--sz-text-dim)]">{{ t('chat.empty') }}</p>
+      <div v-if="!messages.length" class="flex h-full items-center justify-center p-4">
+        <div class="w-full max-w-[46ch] border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] p-3">
+          <p class="text-[12.5px] text-[var(--sz-text-muted)]">{{ t('chat.empty') }}</p>
+          <div class="mt-2 flex flex-wrap gap-1.5">
+            <button
+              v-for="suggestion in SUGGESTIONS"
+              :key="suggestion"
+              type="button"
+              class="border border-[var(--sz-border)] px-2 py-1 text-left text-[12px] text-[var(--sz-text)] transition-colors hover:border-[var(--sz-border-strong)] hover:bg-[var(--sz-surface-header)]"
+              :disabled="sending"
+              @click="chat.send(t(suggestion))"
+            >
+              {{ t(suggestion) }}
+            </button>
+          </div>
+        </div>
       </div>
       <UChatMessages v-else :messages="uiMessages as never" :auto-scroll="true">
         <template #content="{ message }">
@@ -221,10 +240,13 @@ defineExpose({ focus });
       </p>
     </div>
 
-    <div v-if="pending" class="border-t border-[var(--sz-border)] bg-[var(--sz-surface-alt)] p-2.5">
+    <div
+      v-if="pending"
+      class="border-t-2 border-t-[var(--sz-warning)] border-b border-b-[var(--sz-border)] bg-[var(--sz-surface-alt)] p-2.5"
+    >
       <div class="flex items-baseline justify-between gap-2">
-        <p class="sz-caps text-[var(--sz-text-muted)]">{{ t('chat.pendingTitle') }}</p>
-        <span class="truncate text-[11px] text-[var(--sz-text-dim)]">{{ pending.toolName }}</span>
+        <p class="sz-caps text-[var(--sz-warning-text)]">{{ t('chat.pendingTitle') }}</p>
+        <span class="truncate font-mono text-[11px] text-[var(--sz-text-dim)]">{{ pending.toolName }}</span>
       </div>
       <p class="mt-1 text-[12.5px]">{{ pending.human }}</p>
       <div class="mt-2 flex justify-end gap-2">
@@ -278,6 +300,14 @@ defineExpose({ focus });
         </div>
       </template>
       <p v-if="fileError" class="mb-1.5 text-[11.5px] text-[var(--sz-warning-text)]" aria-live="polite">{{ fileError }}</p>
+      <p
+        v-if="draft.length > MESSAGE_LIMIT * 0.9"
+        class="mb-1 text-right text-[11px] tabular-nums"
+        :class="draftTooLong ? 'text-[var(--sz-danger-text)]' : 'text-[var(--sz-text-dim)]'"
+        aria-live="polite"
+      >
+        {{ t('chat.charCount', { used: draft.length, max: MESSAGE_LIMIT }) }}
+      </p>
       <UChatPrompt
         v-model="draft"
         :placeholder="t('chat.placeholder')"
@@ -298,7 +328,7 @@ defineExpose({ focus });
           />
           <UChatPromptSubmit
             class="ms-auto max-sm:size-11"
-            :disabled="(!draft.trim() && !files.length) || sending"
+            :disabled="(!draft.trim() && !files.length) || sending || draftTooLong"
             :loading="sending"
             :aria-label="t('chat.send')"
           />

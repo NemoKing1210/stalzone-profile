@@ -11,11 +11,12 @@ import { ConfirmActionModal, ProfilePane } from '~/shared/ui';
 import { useChatStore } from '~/stores/chat';
 import { chatModelItems } from '../model/modelChoice';
 import { chatProviderState, type ChatProviderState } from '../model/providerStatus';
+import { filterThreads } from '../model/threadList';
 import ChatConversation from './ChatConversation.vue';
+import ChatThreadList from './ChatThreadList.vue';
 import { useThreadDelete } from './useThreadDelete';
 
 const { t } = useI18n();
-const { formatDate } = useFormat();
 const { write } = useWrite();
 const request = useRequestFetch();
 
@@ -31,6 +32,16 @@ const {
   ask: askDelete,
   confirm: confirmDelete,
 } = useThreadDelete();
+
+/** Search and the day buckets are view state; the store keeps the canonical order. */
+const threadQuery = ref('');
+const visibleThreads = computed(() => filterThreads(threads.value, threadQuery.value));
+const mobileThreadsOpen = ref(false);
+
+function openThread(id: number): void {
+  mobileThreadsOpen.value = false;
+  void chat.openThread(id);
+}
 
 /** The same audited `chat_settings.model` Settings -> Assistant writes; no per-thread model. */
 const chatSettings = ref<ChatSettingsRead | null>(null);
@@ -229,6 +240,15 @@ onMounted(() => {
             />
           </span>
           <UButton
+            icon="i-lucide-panel-left"
+            :label="t('chat.threads')"
+            color="neutral"
+            variant="ghost"
+            class="lg:hidden"
+            :aria-label="t('chat.threads')"
+            @click="mobileThreadsOpen = true"
+          />
+          <UButton
             icon="i-lucide-plus"
             :label="t('chat.newThread')"
             color="neutral"
@@ -242,42 +262,35 @@ onMounted(() => {
       </div>
     </header>
 
-    <div class="grid gap-3 lg:grid-cols-[240px_minmax(0,1fr)]">
-      <ProfilePane :title="t('chat.threads')" dense>
-        <p v-if="!threads.length" class="text-[12px] text-[var(--sz-text-dim)]">{{ t('chat.noThreads') }}</p>
-        <ul v-else class="space-y-0.5">
-          <li v-for="thread in threads" :key="thread.id" class="flex items-stretch">
-            <button
-              type="button"
-              class="min-w-0 flex-1 border-l-2 px-2 py-1.5 text-left text-[12px] transition-colors"
-              :class="
-                thread.id === activeThreadId
-                  ? 'border-[var(--sz-accent)] bg-[var(--sz-surface-alt)] text-[var(--sz-text)]'
-                  : 'border-transparent text-[var(--sz-text-muted)] hover:bg-[var(--sz-surface-alt)] hover:text-[var(--sz-text)]'
-              "
-              @click="chat.openThread(thread.id)"
-            >
-              <span class="block truncate">{{ thread.title }}</span>
-              <span class="mt-0.5 block text-[10px] text-[var(--sz-text-dim)]">{{ formatDate(thread.updatedAt) }}</span>
-            </button>
-            <button
-              type="button"
-              class="flex w-7 shrink-0 items-center justify-center border-l-2 border-transparent text-[var(--sz-text-dim)] transition-colors hover:bg-[var(--sz-surface-alt)] hover:text-[var(--sz-warning-text)] disabled:opacity-40"
-              :disabled="sending"
-              :aria-label="t('chat.deleteThreadName', { title: thread.title })"
-              :title="t('chat.deleteThread')"
-              @click="askDelete(thread)"
-            >
-              <UIcon name="i-lucide-trash-2" class="size-3.5" aria-hidden="true" />
-            </button>
-          </li>
-        </ul>
+    <div class="grid gap-3 lg:grid-cols-[260px_minmax(0,1fr)]">
+      <ProfilePane :title="t('chat.threads')" dense class="hidden lg:block">
+        <ChatThreadList
+          v-model:query="threadQuery"
+          :threads="visibleThreads"
+          :active-thread-id="activeThreadId"
+          :disabled="sending"
+          @open="openThread"
+          @delete="askDelete"
+        />
       </ProfilePane>
 
       <ProfilePane :title="activeThread?.title ?? t('chat.newTitle')" dense flush>
-        <ChatConversation class="h-[calc(100vh-18rem)] min-h-[380px]" />
+        <ChatConversation class="h-[calc(100dvh-17rem)] min-h-[380px] lg:h-[calc(100dvh-18rem)]" />
       </ProfilePane>
     </div>
+
+    <USlideover v-model:open="mobileThreadsOpen" side="left" :title="t('chat.threads')">
+      <template #body>
+        <ChatThreadList
+          v-model:query="threadQuery"
+          :threads="visibleThreads"
+          :active-thread-id="activeThreadId"
+          :disabled="sending"
+          @open="openThread"
+          @delete="askDelete"
+        />
+      </template>
+    </USlideover>
 
     <ConfirmActionModal
       v-model:open="deleteOpen"
