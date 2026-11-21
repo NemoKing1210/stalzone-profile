@@ -76,6 +76,12 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- The `/chat` header shows the configured provider's live availability: the provider label
+  plus a tone dot and `Online`, `Unavailable`, `Not configured` or `Unknown`, with the model
+  count or the provider's own message in the tooltip. It reads the same
+  `POST /api/v1/chat/models` probe that fills the picker, re-runs every 60 seconds while the
+  page is visible, and has a manual refresh button; a missing key names the environment
+  variable to set, and a failed settings read stays `Unknown`.
 - One chat thread can be deleted from the `/chat` list or the side panel after a confirmation:
   its messages, pending write and attachment blobs are removed, the active conversation resets
   to a fresh thread, and the audited `chat.thread.delete` event keeps only the id and counts
