@@ -40,3 +40,9 @@ export function isCompatible(db: Db, modificationItemId: number, weaponItemId: n
       .get(modificationItemId, weaponItemId) !== undefined
   );
 }
+
+export function listCompatForWeapon(db: Db, weaponItemId: number): CompatRow[] {
+  return db
+    .prepare(`SELECT * FROM modification_compat WHERE weapon_item_id = ? ORDER BY modification_item_id`)
+    .all(weaponItemId) as CompatRow[];
+}

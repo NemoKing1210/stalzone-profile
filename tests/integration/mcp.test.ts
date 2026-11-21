@@ -26,6 +26,7 @@ import {
   localClient,
   writeLimiter,
 } from '@profile/mcp';
+import * as seed from '@profile/core/testing';
 import { seedCatalog } from '../fixtures/seed';
 import { seedInventory, type SeedInventory } from '../fixtures/inventory';
 
@@ -496,5 +497,41 @@ describe('MCP logging', () => {
     expect((dry.structuredContent as any).dryRun).toBe(true);
     const applied = await callTool('clear_logs', { scope: 'all', dry_run: false, confirm: true });
     expect((applied.structuredContent as any).dryRun).toBe(false);
+  });
+});
+
+describe('MCP item detail', () => {
+  it('returns only the requested stat levels and the metrics block', async () => {
+    const result = await callTool('get_item', { name: 'АК-12', levels: [15] });
+    const item = result.structuredContent as {
+      item: { stats: { level: number }[]; metrics: { dps: number | null } };
+    };
+    expect(item.item.stats.every((stat) => stat.level === 15)).toBe(true);
+    expect(item.item.metrics.dps).toBe(550);
+  });
+
+  it('reports missing compatibility instead of inventing a fit list', async () => {
+    const result = await callTool('get_item', { name: 'АК-12', with_modifications: true });
+    const item = result.structuredContent as {
+      item: { modifications?: { verified: boolean; items: unknown[]; reason?: string } };
+    };
+    expect(item.item.modifications?.verified).toBe(false);
+    expect(item.item.modifications?.items).toEqual([]);
+    expect(item.item.modifications?.reason).toBe('NO_COMPAT_DATA');
+  });
+
+  it('lists a verified modification after a compatibility edge', async () => {
+    seed.replaceExboCompat(db, [
+      { modificationItemId: seeded.itemIds.scope!, weaponItemId: seeded.itemIds.rifle! },
+    ]);
+    const result = await callTool('get_item', {
+      id: seeded.itemIds.rifle,
+      with_modifications: true,
+    });
+    const item = result.structuredContent as {
+      item: { modifications?: { verified: boolean; items: { name: string }[] } };
+    };
+    expect(item.item.modifications?.verified).toBe(true);
+    expect(item.item.modifications?.items.map((entry) => entry.name)).toContain('Прицел');
   });
 });
