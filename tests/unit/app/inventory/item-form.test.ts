@@ -58,6 +58,23 @@ describe('form to payload', () => {
     expect(itemCreatePayload('ammo', { name: '5.45' }, { level: 0, qty: 999, rarityPct: null, skin: null }).qty).toBe(99);
   });
 
+  it('sends the exact catalog id and no fields an attachment cannot take', () => {
+    const body = itemCreatePayload('attachment', { id: 42, name: 'Прицел' }, {
+      level: 9,
+      qty: 4,
+      rarityPct: 99,
+      skin: 'Свой',
+    });
+    expect(body).toEqual({ name: 'Прицел', kind: 'attachment', catalogItemId: 42, dryRun: false });
+    expect(itemCreatePayload('ammo', { id: 7, name: '5.45' }, { level: 0, qty: 3, rarityPct: null, skin: null })).toEqual({
+      name: '5.45',
+      kind: 'ammo',
+      catalogItemId: 7,
+      dryRun: false,
+      qty: 3,
+    });
+  });
+
   it('builds one artifact rarity field and no quality', () => {
     const body = itemCreatePayload('artifact', { name: 'Нервяк' }, {
       level: 0,

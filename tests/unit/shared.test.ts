@@ -4,6 +4,7 @@ import {
   CharacterPatchSchema,
   CleanupRequestSchema,
   ContainerFillWriteSchema,
+  AddInventoryItemInputSchema,
   InventoryItemCreateSchema,
   InventoryItemPatchSchema,
   LoginSchema,
@@ -126,6 +127,16 @@ describe('inventory write schemas', () => {
   it('rejects an out-of-range level and an empty name', () => {
     expect(InventoryItemCreateSchema.safeParse({ name: 'АК-12', level: 16 }).success).toBe(false);
     expect(InventoryItemCreateSchema.safeParse({ name: '' }).success).toBe(false);
+  });
+
+  it('carries the exact catalog id into the API and MCP create inputs', () => {
+    expect(InventoryItemCreateSchema.parse({ name: 'Прицел', kind: 'attachment', catalogItemId: 42 })).toMatchObject({
+      catalogItemId: 42,
+    });
+    expect(InventoryItemCreateSchema.safeParse({ name: 'Прицел', catalogItemId: 0 }).success).toBe(false);
+    expect(AddInventoryItemInputSchema.parse({ name: 'Прицел', kind: 'attachment', catalog_item_id: 42 })).toMatchObject({
+      catalog_item_id: 42,
+    });
   });
 
   it('accepts every inventory kind and rejects a catalog-only motif', () => {

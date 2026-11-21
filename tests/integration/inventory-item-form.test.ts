@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { closeDb, ensureDefaultSources, migrate, openDb, type Db } from '@profile/core';
+import { closeDb, ensureDefaultSources, migrate, openDb, rollbackEvent, type Db } from '@profile/core';
 import { InventoryItemCreateSchema, InventoryItemPatchSchema } from '@profile/shared/contracts';
 import {
   createInventoryItem,
@@ -125,5 +125,87 @@ describe('per-kind item form contract', () => {
     const instance = read.storages.flatMap((storage) => storage.items)[0];
     expect(instance).not.toHaveProperty('note');
     expect(instance).not.toHaveProperty('role');
+  });
+});
+
+
+describe('exact catalog item create', () => {
+  function kindItem(kind: string, name: string, extra: Record<string, unknown> = {}): number {
+    return item(kind, name, extra);
+  }
+
+  it('creates every ownable kind from the exact catalog id', () => {
+    const cases: { kind: string; name: string; category: string; qty?: number }[] = [
+      { kind: 'attachment', name: 'Прицел', category: 'attachment/scope' },
+      { kind: 'ammo', name: 'Патрон 7.62', category: 'bullet/762', qty: 30 },
+      { kind: 'other', name: 'Аптечка', category: 'consumable/med' },
+      { kind: 'weapon', name: 'АК-12т', category: 'weapon/assault_rifle' },
+      { kind: 'armor', name: 'Броня', category: 'armor/combat' },
+      { kind: 'container', name: 'Рюкзак', category: 'container/backpack' },
+      { kind: 'artifact', name: 'Артефакт 2', category: 'artefact/gravity' },
+    ];
+    for (const entry of cases) {
+      const catalogId = kindItem(entry.kind, entry.name, { category: entry.category });
+      const result = createInventoryItem(
+        db,
+        InventoryItemCreateSchema.parse({
+          name: entry.name,
+          kind: entry.kind,
+          catalogItemId: catalogId,
+          qty: entry.qty ?? 1,
+          dryRun: false,
+        }),
+      );
+      const created = result.diff.after as { id: number; kind: string; itemId: number; qty: number };
+      expect(getInventoryItem(db, created.id)).toMatchObject({
+        kind: entry.kind,
+        item_id: catalogId,
+        qty: entry.qty ?? 1,
+      });
+    }
+  });
+
+  it('refuses a missing id, a stale id and an id of another kind', () => {
+    const rifle = kindItem('weapon', 'АК-12', { category: 'weapon/assault_rifle' });
+    expect(() => create({ name: 'АК-12', kind: 'weapon', catalogItemId: 999999 })).toThrowError(
+      expect.objectContaining({ code: 'UNKNOWN_ITEM' }),
+    );
+    expect(() => create({ name: 'АК-12', kind: 'armor', catalogItemId: rifle })).toThrowError(
+      expect.objectContaining({ code: 'UNKNOWN_ITEM' }),
+    );
+    expect(() =>
+      InventoryItemCreateSchema.parse({ name: 'x', kind: 'motif', dryRun: false }),
+    ).toThrow();
+  });
+
+  it('keeps quantity 1 for attachments and stacks ammo into the intake', () => {
+    const scope = kindItem('attachment', 'Прицел', { category: 'attachment/scope' });
+    expect(() => create({ name: 'Прицел', kind: 'attachment', catalogItemId: scope, qty: 2 })).toThrowError(
+      expect.objectContaining({ code: 'VALIDATION' }),
+    );
+
+    const ammo = kindItem('ammo', 'Патрон 7.62', { category: 'bullet/762' });
+    const first = createInventoryItem(
+      db,
+      InventoryItemCreateSchema.parse({ name: 'Патрон 7.62', kind: 'ammo', catalogItemId: ammo, qty: 10, dryRun: false }),
+    );
+    const firstId = (first.diff.after as { id: number }).id;
+    const second = createInventoryItem(
+      db,
+      InventoryItemCreateSchema.parse({ name: 'Патрон 7.62', kind: 'ammo', catalogItemId: ammo, qty: 5, dryRun: false }),
+    );
+    expect((second.diff.after as { id: number }).id).toBe(firstId);
+    expect(getInventoryItem(db, firstId)?.qty).toBe(15);
+  });
+
+  it('rolls back an instance created by catalog id', () => {
+    const id = kindItem('attachment', 'Прицел', { category: 'attachment/scope' });
+    const result = createInventoryItem(
+      db,
+      InventoryItemCreateSchema.parse({ name: 'Прицел', kind: 'attachment', catalogItemId: id, dryRun: false }),
+    );
+    const instance = (result.diff.after as { id: number }).id;
+    rollbackEvent(db, result.eventId!, false);
+    expect(getInventoryItem(db, instance)).toBeNull();
   });
 });
