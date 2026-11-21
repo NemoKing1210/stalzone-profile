@@ -11,11 +11,10 @@ import { storeToRefs } from 'pinia';
 import { useChatStore } from '~/stores/chat';
 import { addChatFiles, formatFileSize, type ChatFileIssue } from '../model/files';
 import { threadImages } from '../model/gallery';
-import { cleanAssistantText } from '../model/text';
+import { chatRows, type ChatRow } from '../model/rows';
 import ChatAttachmentGallery from './ChatAttachmentGallery.vue';
-import ChatAttachmentGrid from './ChatAttachmentGrid.vue';
 import ChatFilePreview from './ChatFilePreview.vue';
-import ChatToolResult from './ChatToolResult.vue';
+import ChatRowView from './ChatRowView.vue';
 
 const chat = useChatStore();
 const { messages, pending, sending, loadError } = storeToRefs(chat);
@@ -53,26 +52,24 @@ const ACCEPT = [
   '.sql',
 ].join(',');
 
-interface UiMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  parts: { type: 'text'; text: string }[];
-  metadata: { toolName?: string; payload?: unknown; tool?: boolean; attachments: ChatAttachment[] };
-}
-
-const uiMessages = computed<UiMessage[]>(() =>
-  messages.value.map((message) => ({
-    id: String(message.id),
-    role: message.role === 'user' ? 'user' : 'assistant',
-    parts: [{ type: 'text', text: message.role === 'tool' ? '' : cleanAssistantText(message.content) }],
-    metadata: {
-      tool: message.role === 'tool',
-      toolName: message.toolName ?? undefined,
-      payload: message.payload,
-      attachments: message.attachments,
-    },
+const rows = computed(() => chatRows(messages.value));
+const rowsById = computed(() => new Map(rows.value.map((row) => [row.id, row])));
+const uiMessages = computed(() =>
+  rows.value.map((row) => ({
+    id: row.id,
+    role: row.kind === 'user' ? 'user' : 'assistant',
+    parts: [],
+    metadata: { rowId: row.id },
   })),
 );
+
+/** UChatMessages passes its own message back; the row id is the only thing we need from it. */
+function rowOf(message: unknown): ChatRow | null {
+  if (!message || typeof message !== 'object' || !('metadata' in message)) return null;
+  const metadata = message.metadata;
+  if (!metadata || typeof metadata !== 'object' || !('rowId' in metadata)) return null;
+  return typeof metadata.rowId === 'string' ? (rowsById.value.get(metadata.rowId) ?? null) : null;
+}
 
 const images = computed(() => threadImages(messages.value));
 const totalBytes = computed(() => files.value.reduce((sum, file) => sum + chatBase64Bytes(file.data), 0));
@@ -211,30 +208,12 @@ defineExpose({ focus });
       </div>
       <UChatMessages v-else :messages="uiMessages as never" :auto-scroll="true">
         <template #content="{ message }">
-          <ChatToolResult
-            v-if="(message as unknown as UiMessage).metadata.tool"
-            :tool-name="(message as unknown as UiMessage).metadata.toolName ?? 'tool'"
-            :payload="(message as unknown as UiMessage).metadata.payload"
+          <ChatRowView
+            :row="rowOf(message)"
+            @copy="copyMessage"
+            @open-image="openImage"
+            @open-file="openFile"
           />
-          <div v-else class="group">
-            <ChatAttachmentGrid
-              :attachments="(message as unknown as UiMessage).metadata.attachments"
-              @open-image="openImage"
-              @open-file="openFile"
-            />
-            <div v-if="(message as unknown as UiMessage).parts[0]?.text" class="flex items-start gap-1">
-              <span class="min-w-0 whitespace-pre-wrap">{{ (message as unknown as UiMessage).parts[0]?.text }}</span>
-              <UButton
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                icon="i-lucide-copy"
-                class="mt-0.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-                :aria-label="t('chat.copyMessage')"
-                @click="copyMessage((message as unknown as UiMessage).parts[0]?.text ?? '')"
-              />
-            </div>
-          </div>
         </template>
       </UChatMessages>
       <p v-if="loadError" class="mt-3 border border-[var(--sz-warning)] px-2.5 py-2 text-[12px] text-[var(--sz-warning-text)]">

@@ -1,0 +1,62 @@
+<script setup lang="ts">
+import type { ChatAttachment } from '@profile/shared/contracts';
+import { computed } from 'vue';
+
+import type { ChatRow } from '../model/rows';
+import ChatAttachmentGrid from './ChatAttachmentGrid.vue';
+import ChatMarkdown from './ChatMarkdown.vue';
+
+type MessageRow = Extract<ChatRow, { kind: 'user' | 'assistant' }>;
+
+const props = defineProps<{ row: MessageRow }>();
+const emit = defineEmits<{
+  copy: [text: string];
+  openImage: [file: ChatAttachment];
+  openFile: [file: ChatAttachment];
+}>();
+
+const { t, locale } = useI18n();
+
+const time = computed(() => {
+  const date = new Date(props.row.createdAt);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat(locale.value, { hour: '2-digit', minute: '2-digit' }).format(date);
+});
+</script>
+
+<template>
+  <article v-if="row.kind === 'user'" class="flex justify-end">
+    <div class="max-w-[88%] border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] px-2.5 py-2">
+      <ChatAttachmentGrid
+        :attachments="row.attachments"
+        @open-image="emit('openImage', $event)"
+        @open-file="emit('openFile', $event)"
+      />
+      <p v-if="row.text" class="whitespace-pre-wrap break-words text-[13px]">{{ row.text }}</p>
+      <p v-if="time" class="mt-1 text-right text-[10px] tabular-nums text-[var(--sz-text-dim)]">
+        <time :datetime="row.createdAt">{{ time }}</time>
+      </p>
+    </div>
+  </article>
+
+  <article v-else class="group">
+    <div class="mb-1 flex items-baseline gap-2">
+      <span class="sz-caps text-[10px] text-[var(--sz-text-muted)]">{{ t('chat.roleAssistant') }}</span>
+      <span v-if="time" class="text-[10px] tabular-nums text-[var(--sz-text-dim)]">
+        <time :datetime="row.createdAt">{{ time }}</time>
+      </span>
+    </div>
+    <ChatMarkdown :text="row.text" />
+    <div class="mt-1 flex">
+      <UButton
+        color="neutral"
+        variant="ghost"
+        size="xs"
+        icon="i-lucide-copy"
+        class="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+        :aria-label="t('chat.copyMessage')"
+        @click="emit('copy', row.text)"
+      />
+    </div>
+  </article>
+</template>
