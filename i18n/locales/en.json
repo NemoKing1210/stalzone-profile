@@ -615,7 +615,7 @@
     "action": "Open settings"
   },
   "owned": {
-    "addTitle": "Add to the profile",
+    "addTitle": "Add to the inventory",
     "addDescription": "Pick a catalog item and its parameters.",
     "kindLabel": "Item kind",
     "kind": {
