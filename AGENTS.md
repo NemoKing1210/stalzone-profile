@@ -299,6 +299,13 @@ the suites that will prove it. Small fixes, docs and spikes do not need a plan.
 hard invariant or deleting data needs an explicit owner decision. Record it in the change
 (commit message, migration comment or `docs/`), not as an unstated assumption.
 
+**Commit every finished task.** A task is finished when its Tier 2 checks are green and its
+docs, `CHANGELOG.md` and `TODO.md` entries have moved; at that point make the commit — do not
+leave finished work uncommitted, and do not batch several finished tasks into one commit.
+One task is one Conventional Commit (`feat(scope): …`, `fix: …`, `docs: …`) containing only
+that task's files: with other uncommitted work in the tree, stage the task's lines, not
+everything in the file.
+
 **New route.** Request/response schema in `packages/shared/src/contracts/**`; the route in
 `server/api/v1/**` only calls `requireSession`/`requireOrigin`, `zod.parse`, the module's
 public read/write service and `apiError` on failure. Business logic belongs in core.
@@ -472,9 +479,11 @@ Rules:
 3. New migrations, fields, routes, tools, scripts and sources are described in `docs/` and
    in the `/guide` page; `tests/unit/app/guide/guide.test.ts` is green.
 4. Secrets and personal data did not enter the diff.
-5. The commit follows Conventional Commits (`feat(scope): …`, `fix: …`, `docs: …`), one
-   logical step per commit. Merge/push/deploy only with the repository owner's explicit
-   consent.
+5. The finished task is committed in the same change, once Tier 2 is green and the docs,
+   changelog and `TODO.md` moved: one Conventional Commit (`feat(scope): …`, `fix: …`,
+   `docs: …`) per task, carrying only that task's files — no finished task is left
+   uncommitted, and another task's in-flight edits are not swept in. Merge/push/deploy only
+   with the repository owner's explicit consent.
 6. A schema, API/MCP or displayed-number change has its plan and owner approval, and the
    matching `docs/` and `/guide` entries are updated.
 7. `TODO.md` reflects reality: the finished task is ticked, moved to `Done` and has its
