@@ -426,6 +426,119 @@ export const ChatAttachmentSchema = z.object({
 });
 export type ChatAttachment = z.infer<typeof ChatAttachmentSchema>;
 
+/**
+ * Items the assistant may pin or reference. Only kinds with a page the interface can open
+ * are allowed, so every rendered chip has a destination.
+ */
+export const ChatItemKindSchema = z.enum(['weapon', 'armor', 'container', 'artifact', 'modification']);
+export type ChatItemKind = z.infer<typeof ChatItemKindSchema>;
+
+export const CHAT_PIN_LIMIT = 8;
+export const CHAT_REF_LIMIT = 20;
+
+/** One item the owner selects: a catalog row, or an owned instance of it. */
+export const ChatPinTargetSchema = z.object({
+  kind: ChatItemKindSchema,
+  itemId: z.number().int().positive(),
+  instanceId: z.number().int().positive().optional(),
+});
+export type ChatPinTarget = z.infer<typeof ChatPinTargetSchema>;
+
+/** `@kind:slug`, `#instanceId` for an owned instance, `~itemId` on a catalog name collision. */
+const CHAT_ITEM_TOKEN = /^@[a-z]+:[\p{L}\p{N}-]+(?:[#~]\d+)?$/u;
+
+export const ChatSendRefSchema = ChatPinTargetSchema.extend({
+  token: z.string().min(2).max(120).regex(CHAT_ITEM_TOKEN),
+});
+export type ChatSendRef = z.infer<typeof ChatSendRefSchema>;
+
+/** A resolved reference stored with a message; the label is a snapshot, never re-invented. */
+export const ChatItemRefSchema = z.object({
+  token: z.string().min(2).max(120).regex(CHAT_ITEM_TOKEN),
+  kind: ChatItemKindSchema,
+  itemId: z.number().int().positive(),
+  instanceId: z.number().int().positive().nullable(),
+  name: z.string().min(1).max(200),
+  rank: z.string().nullable(),
+  icon: z.string().nullable(),
+  level: z.number().int().min(0).max(15).nullable(),
+  quality: z.string().nullable(),
+  virtual: z.boolean(),
+});
+export type ChatItemRef = z.infer<typeof ChatItemRefSchema>;
+
+export const ChatPinSchema = ChatItemRefSchema.extend({
+  sortOrder: z.number().int().nonnegative(),
+  createdAt: z.string(),
+});
+export type ChatPin = z.infer<typeof ChatPinSchema>;
+
+export const ChatPinsReadSchema = z.object({
+  pins: z.array(ChatPinSchema),
+  limit: z.number().int().positive(),
+});
+export type ChatPinsRead = z.infer<typeof ChatPinsReadSchema>;
+
+/** The schema ceiling keeps the body bounded; the service enforces `CHAT_PIN_LIMIT`. */
+export const ChatPinsUpdateSchema = z.object({
+  pins: z.array(ChatPinTargetSchema).max(CHAT_REF_LIMIT),
+});
+export type ChatPinsUpdate = z.infer<typeof ChatPinsUpdateSchema>;
+
+/** Lowercase, punctuation to a single hyphen; Cyrillic and digits survive unchanged. */
+export function normalizeChatItemName(name: string): string {
+  return name
+    .normalize('NFC')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+const TOKEN_SLUG_MAX = 80;
+
+export function chatItemToken(
+  input: { kind: ChatItemKind; name: string; itemId: number; instanceId?: number | null },
+  used?: ReadonlySet<string>,
+): string {
+  const slug = normalizeChatItemName(input.name).slice(0, TOKEN_SLUG_MAX) || `item-${input.itemId}`;
+  const base = `@${input.kind}:${slug}`;
+  if (input.instanceId != null) return `${base}#${input.instanceId}`;
+  return used?.has(base) ? `${base}~${input.itemId}` : base;
+}
+
+export interface ChatItemTokenMatch {
+  start: number;
+  end: number;
+  token: string;
+  kind: string;
+  slug: string;
+  instanceId: number | null;
+  /** Catalog id carried by a `~N` collision suffix; a bare token leaves it null. */
+  itemId: number | null;
+}
+
+const CHAT_ITEM_TOKEN_ANY = /@([a-z]+):([\p{L}\p{N}-]+)(?:([#~])(\d+))?/gu;
+
+/** Token occurrences for the renderer and hand-typed resolution; an email is not a mention. */
+export function parseChatItemTokens(text: string): ChatItemTokenMatch[] {
+  const matches: ChatItemTokenMatch[] = [];
+  for (const match of text.matchAll(CHAT_ITEM_TOKEN_ANY)) {
+    const start = match.index ?? 0;
+    if (start > 0 && /[\p{L}\p{N}_]/u.test(text[start - 1]!)) continue;
+    const [token = '', kind = '', slug = '', marker, digits] = match;
+    matches.push({
+      start,
+      end: start + token.length,
+      token,
+      kind,
+      slug,
+      instanceId: marker === '#' ? Number(digits) : null,
+      itemId: marker === '~' ? Number(digits) : null,
+    });
+  }
+  return matches;
+}
+
 export const ChatThreadSchema = z.object({
   id: z.number().int(),
   title: z.string().min(1).max(200),
