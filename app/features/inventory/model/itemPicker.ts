@@ -23,7 +23,7 @@ export interface HighlightSegment {
 export function isOwnableCatalogItem(item: { kind: string; category?: string | null; cosmetic?: boolean }): boolean {
   if (item.cosmetic) return false;
   if (item.category === 'styles' || item.category?.includes('_style')) return false;
-  return ['weapon', 'armor', 'container', 'artifact', 'attachment', 'ammo', 'other'].includes(item.kind);
+  return ['weapon', 'armor', 'container', 'artifact', 'modification', 'ammo', 'other'].includes(item.kind);
 }
 
 /** The game category path as a readable label; unknown paths keep their last segment. */

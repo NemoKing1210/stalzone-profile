@@ -52,7 +52,7 @@ import {
   readLoggingSettings,
   setContainerFill,
   setItemLayout,
-  setWeaponModule,
+  setWeaponModification,
   updateInventoryItem,
   updateLoggingSettings as writeLoggingSettings,
   updateStorage,
@@ -100,8 +100,8 @@ export interface ContainerFillInput {
   dryRun: boolean;
 }
 
-export interface WeaponModuleInput {
-  attachmentItemId: number | null;
+export interface WeaponModificationInput {
+  modificationItemId: number | null;
   allowUnverified?: boolean;
   dryRun: boolean;
 }
@@ -116,7 +116,7 @@ export interface ItemLayoutInput {
 
 export interface InventoryListQuery {
   kind?: string;
-  location?: 'grid' | 'equipment' | 'container' | 'weapon_module' | 'loose';
+  location?: 'grid' | 'equipment' | 'container' | 'weapon_modification' | 'loose';
   storageId?: number;
   virtual?: boolean;
 }
@@ -150,10 +150,10 @@ export interface ProfileClient {
   deleteStorage(storageId: number, input: DeleteStorageInput): Promise<WriteResult>;
   autoArrangeStorage(storageId: number, dryRun: boolean): Promise<WriteResult>;
   setContainerArtifacts(input: ContainerFillInput): Promise<WriteResult>;
-  setWeaponModule(
+  setWeaponModification(
     weaponItemId: number,
     slot: string,
-    input: WeaponModuleInput,
+    input: WeaponModificationInput,
   ): Promise<WriteResult>;
   setItemLayout(input: ItemLayoutInput): Promise<WriteResult>;
   syncSource(source: string, force: boolean): Promise<Json>;
@@ -263,7 +263,7 @@ export function localClient(db: Db, syncOptions: LocalClientOptions = {}): Profi
       const visit = (item: InventoryItemRead): void => {
         all.push(item);
         for (const child of item.artifacts ?? []) visit(child);
-        for (const child of item.modules ?? []) visit(child);
+        for (const child of item.modifications ?? []) visit(child);
       };
       for (const storage of inventory.storages) storage.items.forEach(visit);
       for (const item of Object.values(inventory.equipment)) if (item) visit(item);
@@ -391,9 +391,9 @@ export function localClient(db: Db, syncOptions: LocalClientOptions = {}): Profi
       }
     },
 
-    async setWeaponModule(weaponItemId, slot, input) {
+    async setWeaponModification(weaponItemId, slot, input) {
       try {
-        return setWeaponModule(db, weaponItemId, slot, input.attachmentItemId, {
+        return setWeaponModification(db, weaponItemId, slot, input.modificationItemId, {
           allowUnverified: input.allowUnverified,
           dryRun: input.dryRun,
         });
@@ -618,13 +618,13 @@ export function httpClient(baseUrl: string, token: string): ProfileClient {
         writeArgs({ container_item_id: input.containerItemId, slots: input.slots, dry_run: input.dryRun }),
       )) as unknown as WriteResult;
     },
-    async setWeaponModule(weaponItemId, slot, input) {
+    async setWeaponModification(weaponItemId, slot, input) {
       return (await call(
-        'set_weapon_module',
+        'set_weapon_modification',
         writeArgs({
           weapon_item_id: weaponItemId,
           slot,
-          attachment_item_id: input.attachmentItemId,
+          modification_item_id: input.modificationItemId,
           allow_unverified: input.allowUnverified ?? false,
           dry_run: input.dryRun,
         }),

@@ -8,6 +8,7 @@ import type {
   RangeValue,
   StorageRead,
 } from '@profile/shared/contracts';
+import { MODIFICATION_SLOTS } from '@profile/shared/modifications';
 import type { Db } from '../../../platform/db/index.js';
 import { computeLoadout, statValueBaseFrom, type ItemStatRow, type LoadoutStats as ComputedLoadout } from '../../catalog/index.js';
 import { getCharacter } from '../../identity/index.js';
@@ -16,10 +17,8 @@ import * as repo from '../repo/index.js';
 import { isEquipmentSlot } from '../write/placement.js';
 import { gatherLoadout, loadInventorySnapshot, type InventorySnapshot } from './loadout.js';
 
-const MODULE_SLOTS = ['scope', 'muzzle', 'grip', 'magazine', 'stock', 'tactical', 'other'] as const;
-
-function isModuleSlot(value: string): value is (typeof MODULE_SLOTS)[number] {
-  return (MODULE_SLOTS as readonly string[]).includes(value);
+function isModificationSlot(value: string): value is (typeof MODIFICATION_SLOTS)[number] {
+  return (MODIFICATION_SLOTS as readonly string[]).includes(value);
 }
 
 function loose(): PlacementRead {
@@ -49,14 +48,14 @@ export function placementRead(placement: repo.PlacementRow | null): PlacementRea
       slotIndex: placement.container_slot,
     };
   }
-  if (placement.location === 'weapon_module') {
-    if (placement.weapon_item_id == null || !placement.module_slot || !isModuleSlot(placement.module_slot)) {
+  if (placement.location === 'weapon_modification') {
+    if (placement.weapon_item_id == null || !placement.modification_slot || !isModificationSlot(placement.modification_slot)) {
       return loose();
     }
     return {
-      location: 'weapon_module',
+      location: 'weapon_modification',
       weaponItemId: placement.weapon_item_id,
-      slot: placement.module_slot,
+      slot: placement.modification_slot,
       verified: placement.verified === 1,
     };
   }
@@ -140,7 +139,7 @@ function buildNodes(db: Db, characterId: number, snapshot?: InventorySnapshot): 
           ? containerDataRead(row, containerOverrides.get(row.id) ?? null, itemStats.get(row.item_id) ?? [])
           : null,
       artifacts: row.kind === 'container' ? [] : undefined,
-      modules: row.kind === 'weapon' ? [] : undefined,
+      modifications: row.kind === 'weapon' ? [] : undefined,
     };
     nodes.set(row.id, node);
   }
@@ -150,8 +149,8 @@ function buildNodes(db: Db, characterId: number, snapshot?: InventorySnapshot): 
     if (!placement) continue;
     if (placement.location === 'container' && placement.container_item_id != null) {
       nodes.get(placement.container_item_id)?.artifacts?.push(nodes.get(row.id)!);
-    } else if (placement.location === 'weapon_module' && placement.weapon_item_id != null) {
-      nodes.get(placement.weapon_item_id)?.modules?.push(nodes.get(row.id)!);
+    } else if (placement.location === 'weapon_modification' && placement.weapon_item_id != null) {
+      nodes.get(placement.weapon_item_id)?.modifications?.push(nodes.get(row.id)!);
     }
   }
 
@@ -161,9 +160,9 @@ function buildNodes(db: Db, characterId: number, snapshot?: InventorySnapshot): 
       const slotB = placements.get(b.id)?.container_slot ?? 0;
       return slotA - slotB;
     });
-    node.modules?.sort(
-      (a, b) => MODULE_SLOTS.indexOf(a.placement.location === 'weapon_module' ? a.placement.slot : 'other') -
-        MODULE_SLOTS.indexOf(b.placement.location === 'weapon_module' ? b.placement.slot : 'other'),
+    node.modifications?.sort(
+      (a, b) => MODIFICATION_SLOTS.indexOf(a.placement.location === 'weapon_modification' ? a.placement.slot : 'other') -
+        MODIFICATION_SLOTS.indexOf(b.placement.location === 'weapon_modification' ? b.placement.slot : 'other'),
     );
   }
 

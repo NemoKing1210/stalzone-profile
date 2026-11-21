@@ -1,7 +1,7 @@
 import type { InventoryItemRead } from '@profile/shared/contracts';
 
 /** The kinds the item panel can render; unknown catalog kinds fall back to `other`. */
-export type DetailKind = 'weapon' | 'armor' | 'artifact' | 'container' | 'attachment' | 'ammo' | 'other';
+export type DetailKind = 'weapon' | 'armor' | 'artifact' | 'container' | 'modification' | 'ammo' | 'other';
 
 export interface DetailRow {
   key: string;
@@ -48,7 +48,7 @@ const FIELDS: Record<DetailKind, readonly FieldDefinition[]> = {
     { key: 'bonus', labelKey: 'items.fields.bonus' },
     { key: 'weight', labelKey: 'items.fields.weight' },
   ],
-  attachment: [
+  modification: [
     { key: 'type', labelKey: 'items.fields.type' },
     { key: 'slot', labelKey: 'items.fields.slot' },
     { key: 'weight', labelKey: 'items.fields.weight' },

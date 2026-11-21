@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ModificationSlotSchema } from './primitives.js';
 
 export const DamagePointSchema = z.object({
   d0: z.number().nullable(),
@@ -134,6 +135,18 @@ const deviceCatalogRow = z.object({
 
 export const DeviceCatalogRowSchema = deviceCatalogRow;
 export type DeviceCatalogRow = z.infer<typeof DeviceCatalogRowSchema>;
+
+const modificationCatalogRow = z.object({
+  name: z.string(),
+  rank: z.string(),
+  category: z.string().nullable(),
+  slot: ModificationSlotSchema,
+  icon: z.string().nullable(),
+  weight: z.number().nullable(),
+});
+
+export const ModificationCatalogRowSchema = modificationCatalogRow;
+export type ModificationCatalogRow = z.infer<typeof ModificationCatalogRowSchema>;
 
 export const CatalogItemSchema = z.union([weaponCatalogRow, armorCatalogRow]);
 export type CatalogItem = z.infer<typeof CatalogItemSchema>;

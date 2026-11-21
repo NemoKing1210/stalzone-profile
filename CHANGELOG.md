@@ -7,6 +7,27 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ## [Unreleased]
 
+### Changed
+
+- Weapon modules are **modifications** everywhere: the interface (`/modifications`, nav,
+  filters, slot labels, item cards, guide), the contracts (`ModificationSlot`,
+  `modificationItemId`, `weapon_modification`), the API
+  (`PUT /api/v1/inventory/weapons/:id/modifications/:slot`, `409 INCOMPATIBLE_MODIFICATION`),
+  MCP (`set_weapon_modification`, `modification_item_id`), the item kind and stored values,
+  `modification_compat`, and the journal action `inventory.item.modification`. Migration
+  `0025` rewrites the existing rows and the `event_log` snapshots in place, so the working
+  database keeps its data and older events still roll back. Chat attachments and code
+  modules keep their names.
+
+### Added
+
+- `/modifications` is a first-class inventory page like Weapons and Armor: Owned and
+  Catalog tabs, search, rank and slot filters, grouping and sorting by slot, grid/list
+  views, the item modal with delete and the weapon modification panel. The payload grows a
+  `catalog.modifications` list built from every modification row, and the catalog carries
+  the slot derived from the EXBO category through the shared
+  `@profile/shared/modifications` mapping.
+
 ### Fixed
 
 - The assistant chat's blocks read as one spacing system now: a user message is a single pane

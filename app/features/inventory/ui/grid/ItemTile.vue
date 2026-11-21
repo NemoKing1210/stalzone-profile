@@ -24,8 +24,8 @@ const size = computed(() => effectiveSize(props.item.size));
 const name = computed(() => props.item.displayName ?? props.item.name);
 const nameColor = computed(() => rankTextColor(props.item.rank));
 const artifacts = computed(() => props.item.artifacts?.length ?? 0);
-const modules = computed(() => props.item.modules?.length ?? 0);
-const attached = computed(() => artifacts.value || modules.value);
+const modifications = computed(() => props.item.modifications?.length ?? 0);
+const attached = computed(() => artifacts.value || modifications.value);
 
 const card = computed(() => props.item.card ?? null);
 const type = computed(() => {

@@ -9,7 +9,7 @@ import {
   PlacementTargetSchema,
   StorageCreateSchema,
   SyncSourceSchema,
-  WeaponModuleWriteSchema,
+  WeaponModificationWriteSchema,
 } from '@profile/shared/contracts';
 
 describe('write contracts', () => {
@@ -40,10 +40,14 @@ describe('write contracts', () => {
   it('rejects a rarity outside 0..175', () => {
     expect(() => InventoryItemCreateSchema.parse({ name: 'X', kind: 'artifact', rarityPct: 176 })).toThrow();
   });
-  it('accepts a module install, removal and an unverified opt-in', () => {
-    expect(WeaponModuleWriteSchema.parse({ attachmentItemId: 3 }).allowUnverified).toBe(false);
-    expect(WeaponModuleWriteSchema.parse({ attachmentItemId: null, dryRun: true }).attachmentItemId).toBeNull();
-    expect(WeaponModuleWriteSchema.parse({ attachmentItemId: 3, allowUnverified: true }).allowUnverified).toBe(true);
+  it('accepts a modification install, removal and an unverified opt-in', () => {
+    expect(WeaponModificationWriteSchema.parse({ modificationItemId: 3 }).allowUnverified).toBe(false);
+    expect(
+      WeaponModificationWriteSchema.parse({ modificationItemId: null, dryRun: true }).modificationItemId,
+    ).toBeNull();
+    expect(
+      WeaponModificationWriteSchema.parse({ modificationItemId: 3, allowUnverified: true }).allowUnverified,
+    ).toBe(true);
   });
   it('keeps overflow out of the public create contracts', () => {
     expect(StorageCreateSchema.safeParse({ name: 'X', width: 40, height: 80, kind: 'overflow' }).success).toBe(false);

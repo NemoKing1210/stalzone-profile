@@ -34,7 +34,7 @@ function row(patch: Partial<WeaponRow> = {}): WeaponRow {
     storageKind: null,
     parentName: null,
     equipmentSlot: null,
-    moduleSlot: null,
+    modificationSlot: null,
     slotIndex: null,
     p0: null,
     p15: null,

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CatalogItemSchema, DeviceCatalogRowSchema, ItemCardSchema } from './catalog.js';
+import { CatalogItemSchema, DeviceCatalogRowSchema, ItemCardSchema, ModificationCatalogRowSchema } from './catalog.js';
 import { ContainerReadSchema, InventoryReadSchema } from './inventory.js';
 import { SourceStatusSchema } from './api.js';
 import { FactionSchema } from './primitives.js';
@@ -73,6 +73,7 @@ export const PayloadSchema = z.object({
     weapons: z.array(CatalogItemSchema),
     armor: z.array(CatalogItemSchema),
     devices: z.array(DeviceCatalogRowSchema),
+    modifications: z.array(ModificationCatalogRowSchema),
     meta: CatalogMetaSchema,
   }),
   inventory: InventoryReadSchema,

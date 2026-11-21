@@ -162,6 +162,7 @@ describe('buildPayload contract', () => {
         weapons: [],
         armor: [],
         devices: [],
+        modifications: [],
         meta: { updated: null, source: '', items: 0 },
       });
     } finally {

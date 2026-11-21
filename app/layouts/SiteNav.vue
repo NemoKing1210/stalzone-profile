@@ -45,6 +45,13 @@ const sections = computed<NavEntry[]>(() => [
   { key: 'chat', label: t('nav.chat'), icon: 'i-lucide-message-circle', to: '/chat' },
   { key: 'inventory', label: t('nav.inventory'), icon: 'i-lucide-package', to: '/inventory', count: counts.value.inventory },
   { key: 'weapons', label: t('nav.weapons'), icon: 'i-lucide-crosshair', to: '/weapons', count: counts.value.weapons },
+  {
+    key: 'modifications',
+    label: t('nav.modifications'),
+    icon: 'i-lucide-wrench',
+    to: '/modifications',
+    count: counts.value.modifications,
+  },
   { key: 'devices', label: t('nav.devices'), icon: 'i-lucide-radar', to: '/devices', count: counts.value.devices },
   { key: 'armor', label: t('nav.armor'), icon: 'i-lucide-shield', to: '/armor', count: counts.value.armor },
   {

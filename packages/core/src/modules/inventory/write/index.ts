@@ -25,9 +25,8 @@ export {
   effectiveContainerSlots,
   isEquipmentSlot,
   itemSize,
-  moduleSlotFor,
   moveInventoryItem,
-  setWeaponModule,
+  setWeaponModification,
 } from './placement.js';
 export type { EquipmentSlot } from './placement.js';
 export { setContainerFill } from './container.js';

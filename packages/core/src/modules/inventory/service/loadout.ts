@@ -123,7 +123,7 @@ export function gatherLoadout(
         ['stash', 'overflow'].includes(storages.get(placement.storage_id)?.kind ?? '');
     } else if (placement?.location === 'container' && placement.container_item_id != null) {
       result = inStash(placement.container_item_id, visiting);
-    } else if (placement?.location === 'weapon_module' && placement.weapon_item_id != null) {
+    } else if (placement?.location === 'weapon_modification' && placement.weapon_item_id != null) {
       result = inStash(placement.weapon_item_id, visiting);
     }
     stashMemo.set(itemId, result);
@@ -139,7 +139,7 @@ export function gatherLoadout(
     if (placement.location === 'container' && placement.container_item_id != null) {
       return inStorage(placement.container_item_id, storageId, visiting);
     }
-    if (placement.location === 'weapon_module' && placement.weapon_item_id != null) {
+    if (placement.location === 'weapon_modification' && placement.weapon_item_id != null) {
       return inStorage(placement.weapon_item_id, storageId, visiting);
     }
     return false;

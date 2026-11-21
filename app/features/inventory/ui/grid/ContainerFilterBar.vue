@@ -13,7 +13,7 @@ const emit = defineEmits<{ update: [filter: ContainerFilter] }>();
 
 const { t } = useI18n();
 
-const KINDS = ['weapon', 'armor', 'container', 'artifact', 'attachment', 'ammo', 'other'] as const;
+const KINDS = ['weapon', 'armor', 'container', 'artifact', 'modification', 'ammo', 'other'] as const;
 
 const kindItems = computed(() => [
   { label: t('inventory.filter.allKinds'), value: 'all' },

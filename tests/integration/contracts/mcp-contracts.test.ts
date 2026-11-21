@@ -14,7 +14,7 @@ import {
   RemoveInventoryItemInputSchema,
   SetContainerArtifactsInputSchema,
   SetItemLayoutInputSchema,
-  SetWeaponModuleInputSchema,
+  SetWeaponModificationInputSchema,
   UpdateInventoryItemInputSchema,
   UpdateStorageInputSchema,
 } from '@profile/shared/contracts';
@@ -101,12 +101,12 @@ describe('MCP inventory input contracts', () => {
     });
     expect(container.target).toMatchObject({ location: 'container', container_item_id: 4, slot: 0 });
 
-    const module = MoveInventoryItemInputSchema.parse({
+    const modification = MoveInventoryItemInputSchema.parse({
       item_id: 2,
-      target: { location: 'weapon_module', weapon_item_id: 5, slot: 'scope' },
+      target: { location: 'weapon_modification', weapon_item_id: 5, slot: 'scope' },
     });
-    expect(module.target).toMatchObject({
-      location: 'weapon_module',
+    expect(modification.target).toMatchObject({
+      location: 'weapon_modification',
       weapon_item_id: 5,
       slot: 'scope',
       allow_unverified: false,
@@ -135,12 +135,16 @@ describe('MCP inventory input contracts', () => {
     expect(AutoArrangeStorageInputSchema.parse({ storage_id: 2 }).dry_run).toBe(true);
   });
 
-  it('parses the container fill, weapon module and layout writes', () => {
+  it('parses the container fill, weapon modification and layout writes', () => {
     const fill = SetContainerArtifactsInputSchema.parse({ container_item_id: 4, slots: [7, null] });
     expect(fill.slots).toEqual([7, null]);
 
-    const module = SetWeaponModuleInputSchema.parse({ weapon_item_id: 5, slot: 'muzzle' });
-    expect(module).toMatchObject({ attachment_item_id: null, allow_unverified: false, dry_run: true });
+    const modification = SetWeaponModificationInputSchema.parse({ weapon_item_id: 5, slot: 'muzzle' });
+    expect(modification).toMatchObject({
+      modification_item_id: null,
+      allow_unverified: false,
+      dry_run: true,
+    });
 
     const layout = SetItemLayoutInputSchema.parse({ item_id: 6, width: 4, height: 2 });
     expect(layout).toMatchObject({ item_id: 6, width: 4, height: 2, weight: null, dry_run: true });

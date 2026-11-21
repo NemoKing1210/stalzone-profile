@@ -1,6 +1,7 @@
 <script setup lang="ts">
 
-import type { InventoryItemRead, ModuleSlot } from '@profile/shared/contracts';
+import type { InventoryItemRead, ModificationSlot } from '@profile/shared/contracts';
+import { modificationSlotFor } from '@profile/shared/modifications';
 
 
 import { ItemIconFallback, VirtualBadge } from '~/entities/item';
@@ -9,30 +10,30 @@ import { useGridDragContext } from './drag-context';
 const props = withDefaults(
   defineProps<{
     weapon: InventoryItemRead;
-    /** Owned attachments anywhere in the inventory; the panel filters by slot. */
-    attachments?: InventoryItemRead[];
+    /** Owned modifications anywhere in the inventory; the panel filters by slot. */
+    modifications?: InventoryItemRead[];
     busy?: boolean;
   }>(),
-  { attachments: () => [], busy: false },
+  { modifications: () => [], busy: false },
 );
 
 const drag = useGridDragContext();
 
-/** The module slot the drag is hovering on this weapon, read without the page. */
+/** The modification slot the drag is hovering on this weapon, read without the page. */
 const activeSlot = computed(() => {
   const target = drag?.target.value;
-  return target?.location === 'weapon_module' && target.weaponItemId === props.weapon.id ? target.slot : null;
+  return target?.location === 'weapon_modification' && target.weaponItemId === props.weapon.id ? target.slot : null;
 });
 
 const emit = defineEmits<{
-  install: [slot: ModuleSlot, attachmentItemId: number | null];
+  install: [slot: ModificationSlot, modificationItemId: number | null];
   close: [];
 }>();
 
 const { t } = useI18n();
 const { g2, num } = useFormat();
 
-const SLOTS: { slot: ModuleSlot; icon: string }[] = [
+const SLOTS: { slot: ModificationSlot; icon: string }[] = [
   { slot: 'scope', icon: 'i-lucide-crosshair' },
   { slot: 'muzzle', icon: 'i-lucide-wind' },
   { slot: 'grip', icon: 'i-lucide-grip' },
@@ -42,7 +43,7 @@ const SLOTS: { slot: ModuleSlot; icon: string }[] = [
   { slot: 'other', icon: 'i-lucide-paperclip' },
 ];
 
-const selectedSlot = ref<ModuleSlot>('scope');
+const selectedSlot = ref<ModificationSlot>('scope');
 
 const card = computed(() => props.weapon.card ?? null);
 
@@ -69,27 +70,29 @@ const baseRows = computed(() =>
   BASE_STATS.map((stat) => ({ label: t(stat.label), value: baseValue(stat.key, stat.digits) })),
 );
 
-function installed(slot: ModuleSlot): InventoryItemRead | null {
-  return (props.weapon.modules ?? []).find(
-    (module) => module.placement.location === 'weapon_module' && module.placement.slot === slot,
+function installed(slot: ModificationSlot): InventoryItemRead | null {
+  return (props.weapon.modifications ?? []).find(
+    (modification) =>
+      modification.placement.location === 'weapon_modification' && modification.placement.slot === slot,
   ) ?? null;
 }
 
-function candidates(slot: ModuleSlot): InventoryItemRead[] {
+function candidates(slot: ModificationSlot): InventoryItemRead[] {
   const current = installed(slot);
-  return props.attachments.filter(
-    (attachment) => attachment.id !== current?.id && (attachment.slot ?? '').toLowerCase() === slot,
+  return props.modifications.filter(
+    (modification) =>
+      modification.id !== current?.id && modificationSlotFor(modification.category) === slot,
   );
 }
 
 const slotCandidates = computed(() => candidates(selectedSlot.value));
 
-function badge(slot: ModuleSlot): number {
+function badge(slot: ModificationSlot): number {
   return installed(slot) ? 1 : 0;
 }
 
 function isVerified(item: InventoryItemRead): boolean {
-  return item.placement.location === 'weapon_module' && item.placement.verified;
+  return item.placement.location === 'weapon_modification' && item.placement.verified;
 }
 </script>
 
@@ -117,7 +120,7 @@ function isVerified(item: InventoryItemRead): boolean {
     </section>
 
     <section class="space-y-1">
-      <h3 class="sz-caps text-[10.5px] text-[var(--sz-text-muted)]">{{ t('inventory.moduleSlots') }}</h3>
+      <h3 class="sz-caps text-[10.5px] text-[var(--sz-text-muted)]">{{ t('inventory.modificationSlots') }}</h3>
       <div class="grid grid-cols-4 gap-1">
         <button
           v-for="entry in SLOTS"
@@ -128,13 +131,13 @@ function isVerified(item: InventoryItemRead): boolean {
             selectedSlot === entry.slot ? 'border-[var(--sz-accent)]' : 'border-[var(--sz-border)]',
             activeSlot === entry.slot ? 'shadow-[inset_0_0_0_2px_var(--sz-accent)]' : '',
           ]"
-          :data-drop="`module:${props.weapon.id}:${entry.slot}`"
-          :aria-label="t(`inventory.module.${entry.slot}`)"
+          :data-drop="`modification:${props.weapon.id}:${entry.slot}`"
+          :aria-label="t(`inventory.modification.${entry.slot}`)"
           @click="selectedSlot = entry.slot"
         >
           <UIcon :name="entry.icon" class="size-4 text-[var(--sz-text-dim)]" />
           <span class="sz-caps text-[9px] leading-tight text-[var(--sz-text-muted)]">
-            {{ t(`inventory.module.${entry.slot}`) }}
+            {{ t(`inventory.modification.${entry.slot}`) }}
           </span>
           <span
             v-if="badge(entry.slot)"
@@ -146,7 +149,7 @@ function isVerified(item: InventoryItemRead): boolean {
 
     <section class="space-y-1">
       <h3 class="sz-caps text-[10.5px] text-[var(--sz-text-muted)]">
-        {{ t(`inventory.module.${selectedSlot}`) }}
+        {{ t(`inventory.modification.${selectedSlot}`) }}
       </h3>
 
       <div
@@ -176,7 +179,7 @@ function isVerified(item: InventoryItemRead): boolean {
           color="neutral"
           variant="ghost"
           icon="i-lucide-x"
-          :aria-label="t('inventory.removeModule')"
+          :aria-label="t('inventory.removeModification')"
           :disabled="props.busy"
           @click="emit('install', selectedSlot, null)"
         />
@@ -187,27 +190,27 @@ function isVerified(item: InventoryItemRead): boolean {
 
       <div v-if="slotCandidates.length" class="flex flex-wrap gap-1">
         <button
-          v-for="attachment in slotCandidates"
-          :key="attachment.id"
+          v-for="modification in slotCandidates"
+          :key="modification.id"
           type="button"
           class="flex items-center gap-1 border border-[var(--sz-border)] bg-ink-800 px-1.5 py-0.5 text-[11px] hover:bg-ink-700 disabled:opacity-50"
-          :title="attachment.name"
+          :title="modification.name"
           :disabled="props.busy"
-          @click="emit('install', selectedSlot, attachment.id)"
+          @click="emit('install', selectedSlot, modification.id)"
         >
           <img
-            v-if="attachment.icon"
-            :src="attachment.icon"
-            :alt="attachment.name"
+            v-if="modification.icon"
+            :src="modification.icon"
+            :alt="modification.name"
             class="h-4 w-4 object-contain"
             loading="lazy"
           >
           <ItemIconFallback v-else :size="12" />
-          {{ attachment.name }}
-          <VirtualBadge v-if="attachment.virtual" />
+          {{ modification.name }}
+          <VirtualBadge v-if="modification.virtual" />
         </button>
       </div>
-      <p v-else class="text-[12px] text-[var(--sz-text-dim)]">{{ t('inventory.noAttachments') }}</p>
+      <p v-else class="text-[12px] text-[var(--sz-text-dim)]">{{ t('inventory.noModifications') }}</p>
       <p class="text-[10.5px] text-[var(--sz-text-dim)]">{{ t('inventory.compatHint') }}</p>
     </section>
   </div>

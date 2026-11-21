@@ -153,6 +153,20 @@ export const GUIDE_SITE: GuideSitePage[] = [
     ],
   },
   {
+    id: 'modifications',
+    route: '/modifications',
+    icon: 'i-lucide-wrench',
+    kind: 'main',
+    titleKey: 'guide.site.modifications.title',
+    summaryKey: 'guide.site.modifications.summary',
+    capabilityKeys: [
+      'guide.site.modifications.caps.owned',
+      'guide.site.modifications.caps.catalog',
+      'guide.site.modifications.caps.slots',
+      'guide.site.modifications.caps.manage',
+    ],
+  },
+  {
     id: 'devices',
     route: '/devices',
     icon: 'i-lucide-radar',
@@ -384,9 +398,9 @@ export const GUIDE_API: GuideApiEndpoint[] = [
   },
   {
     method: 'PUT',
-    path: '/api/v1/inventory/weapons/:id/modules/:slot',
+    path: '/api/v1/inventory/weapons/:id/modifications/:slot',
     group: 'write',
-    descriptionKey: 'guide.api.writes.weaponModule',
+    descriptionKey: 'guide.api.writes.weaponModification',
   },
   {
     method: 'PATCH',
@@ -459,7 +473,11 @@ export const GUIDE_MCP: GuideMcpTool[] = [
   { name: 'update_storage', access: 'write', descriptionKey: 'guide.mcp.tools.update_storage' },
   { name: 'delete_storage', access: 'write', descriptionKey: 'guide.mcp.tools.delete_storage' },
   { name: 'set_container_artifacts', access: 'write', descriptionKey: 'guide.mcp.tools.set_container_artifacts' },
-  { name: 'set_weapon_module', access: 'write', descriptionKey: 'guide.mcp.tools.set_weapon_module' },
+  {
+    name: 'set_weapon_modification',
+    access: 'write',
+    descriptionKey: 'guide.mcp.tools.set_weapon_modification',
+  },
   { name: 'set_item_layout', access: 'write', descriptionKey: 'guide.mcp.tools.set_item_layout' },
   { name: 'auto_arrange_storage', access: 'write', descriptionKey: 'guide.mcp.tools.auto_arrange_storage' },
   { name: 'sync_source', access: 'write', descriptionKey: 'guide.mcp.tools.sync_source' },

@@ -17,7 +17,7 @@ const NEW_ROUTES = [
   'inventory/storages/[id].delete.ts',
   'inventory/storages/[id]/auto-arrange.post.ts',
   'inventory/containers/[id]/fill.put.ts',
-  'inventory/weapons/[id]/modules/[slot].put.ts',
+  'inventory/weapons/[id]/modifications/[slot].put.ts',
   'items/[id]/layout.patch.ts',
 ];
 

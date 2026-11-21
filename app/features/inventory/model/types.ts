@@ -75,7 +75,7 @@ export interface InventoryColumnContext {
  * `ui/kinds/registry.ts`.
  */
 export interface InventoryKind<TRow extends { key: string; name: string; rank: string | null }> {
-  key: 'weapon' | 'armor' | 'artifact' | 'container' | 'device';
+  key: 'weapon' | 'armor' | 'artifact' | 'container' | 'device' | 'modification';
   /** localStorage key for the persisted filters; keeps the pre-feature keys. */
   storageKey: string;
   /** True for screens with owned/catalog tabs. */
@@ -89,6 +89,12 @@ export interface InventoryKind<TRow extends { key: string; name: string; rank: s
   sortOptions: InventorySortOption[];
   defaultSort: { key: string; dir: 'asc' | 'desc' };
   groupKey?: (row: TRow) => string | null | undefined;
+  /** i18n key per group value; the screen translates group options and headings through it. */
+  groupLabel?: (value: string) => string;
+  /** i18n key for the toolbar's "all values" option; defaults to `filters.allTypes`. */
+  allGroupLabel?: string;
+  /** i18n key for an empty group value; defaults to `filters.noType`. */
+  groupFallback?: string;
   filterKeys: (keyof TRow & string)[];
   labels: InventoryLabels;
   editTarget: (row: TRow) => InstanceEditTarget | null;

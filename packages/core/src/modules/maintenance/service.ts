@@ -39,7 +39,7 @@ import {
   restoreMoveTx,
   restoreStorageTx,
   restoreTidyTx,
-  restoreWeaponModuleTx,
+  restoreWeaponModificationTx,
   updateInventoryTx,
   updateStorageTx,
 } from '../inventory/index.js';
@@ -351,8 +351,8 @@ function restoreSnapshot(
       restoreMoveTx(db, target, produced, characterOrThrow(db).id);
       return;
     }
-    case 'inventory.item.module': {
-      restoreWeaponModuleTx(db, target, characterOrThrow(db).id);
+    case 'inventory.item.modification': {
+      restoreWeaponModificationTx(db, target, characterOrThrow(db).id);
       return;
     }
     case 'inventory.storage.create': {

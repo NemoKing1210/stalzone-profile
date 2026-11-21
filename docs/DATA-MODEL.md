@@ -14,7 +14,7 @@ only through new migrations in `db/migrations/`.
 | `source` | source status and freshness (`exbo_base`, `wiki`, `motifs`, `scpmodel`, `icons`, `profile`, `local`) |
 | `sync_schedule` | exactly one row: auto-sync master switch and intervals for `catalog`, `prices`, `profile` (`0` = off, otherwise `15..10080` minutes) |
 | `stat_definition` | stat ids with category, value type and labels |
-| `item` | normalized catalog: one row per external item, `kind` in weapon/armor/container/artifact/attachment/ammo/motif/other |
+| `item` | normalized catalog: one row per external item, `kind` in weapon/armor/container/artifact/modification/ammo/motif/other |
 | `item_stat` | numeric/text stats by `stat_id` and refinement level 0…15, with optional ranges |
 | `item_effect` | ordered effect labels of artifacts and other items |
 | `icon` | one icon per item: `path` is `/icons/<sha1>.<ext>` (`png` downloaded from EXBO, `webp` from an admin import), files in `ICONS_DIR`; `item` has no icon column |
@@ -27,10 +27,10 @@ only through new migrations in `db/migrations/`.
 | `character` | identity: nick, region, faction, alliance, clan, money |
 | `character_stat` | raw counters per character and stat, with origin `api` or `manual` |
 | `storage` | the character's own grids: exactly one 8×20 `inventory`, exactly one 8×80 `overflow` (the intake stash, which grows with its contents) and any number of 8×200 `stash` rows, each with a unique normalized name per kind; a stash size is fixed after creation |
-| `inventory_item` | one row per gear instance (weapon, armor, container, artifact, attachment, ammo, other) with level, quality, rarity, skin, display name, the catalog's slot and `is_virtual` (not owned in game but a full instance for layout, weight and loadout previews); `qty > 1` only for `ammo`/`other`. No free-text note or role columns |
-| `item_placement` | where an instance is: `grid` (storage, x, y), `equipment` (slot), `container` (container instance, slot) or `weapon_module` (weapon instance, module slot); one row per instance. `loose` survives only as a legacy/transient value: it is never a write target, `0008` converts stored rows, and the read model reports any unplaced instance as `loose` |
+| `inventory_item` | one row per gear instance (weapon, armor, container, artifact, modification, ammo, other) with level, quality, rarity, skin, display name, the catalog's slot and `is_virtual` (not owned in game but a full instance for layout, weight and loadout previews); `qty > 1` only for `ammo`/`other`. No free-text note or role columns |
+| `item_placement` | where an instance is: `grid` (storage, x, y), `equipment` (slot), `container` (container instance, slot) or `weapon_modification` (weapon instance, `modification_slot`); one row per instance. `loose` survives only as a legacy/transient value: it is never a write target, `0008` converts stored rows, and the read model reports any unplaced instance as `loose` |
 | `container_data` | per-container override of type, shield, bonus, protection, slots, efficiency |
-| `attachment_compat` | EXBO/manual attachment ↔ weapon compatibility pairs |
+| `modification_compat` | EXBO/manual modification ↔ weapon compatibility pairs |
 | `item_layout` | optional catalog-wide grid override: width, height, weight for an `item` |
 | `event_log` | write journal: `before`/`after` rollback snapshots plus `request_id`, `origin` and a derived `summary` for reading an entry without guessing |
 
@@ -93,7 +93,12 @@ read as real and a rollback restores the exact flag. `0021_chat_attachments.sql`
 adds `sha256`, which doubles as the attachment route's strong ETag; `0023_chat_attachment_ids.sql`
 rebuilds the table with `AUTOINCREMENT` so a deleted attachment id is never reused.
 `0024_chat_message_meta.sql` adds `chat_message.reasoning` and `chat_message.meta`; both stay
-`NULL` when the provider reported nothing.
+`NULL` when the provider reported nothing. `0025_rename_modules_to_modifications.sql` renames
+the gear concept in the schema and stored values: kinds `attachment` → `modification`,
+placement `weapon_module`/`module_slot` → `weapon_modification`/`modification_slot`, the
+`attachment_compat` table → `modification_compat`, and the `inventory.item.module` journal
+action → `inventory.item.modification`; it also rewrites the JSON keys in `before`/`after`
+so older events keep rolling back, and updates the untouched seeded inventory prompt.
 
 ## Source authority
 
@@ -132,10 +137,10 @@ owns itself.
 - `inventory_item` holds one row per thing; only `ammo` and `other` may carry `qty > 1`.
   `is_virtual = 1` marks an instance that is not owned in game: it keeps its cells, weight,
   storage contribution and loadout stats, and the badge is the only ownership signal.
-  A weapon, armor, container, artifact or attachment is never collapsed into another row,
-  because each carries its own modules, fill, level, quality or placement. A create may name
-  the exact catalog row by `catalogItemId`; the row must have the requested `kind`, so an
-  attachment, a consumable or a stack can never resolve to a same-named row of another kind.
+  A weapon, armor, container, artifact or modification is never collapsed into another row,
+  because each carries its own modifications, fill, level, quality or placement. A create may name
+  the exact catalog row by `catalogItemId`; the row must have the requested `kind`, so a
+  modification, a consumable or a stack can never resolve to a same-named row of another kind.
 - `storage` has exactly one `inventory` row and exactly one `overflow` row per character
   (partial unique indices) and unique `(character_id, kind, name_norm)` names for stashes.
   The inventory is 8×20; every stash is 8×200 and the intake is 8×80, growing with its
@@ -146,12 +151,12 @@ owns itself.
   a catalog layout change is refused while an instance sits in it (`409 LAYOUT_CONFLICT`).
   Its read height is `max(height, lowest occupied row)` so it grows without a write; its
   rows carry no carried weight.
-- Deleting a stash, removing an instance that has children, and a container fill or module
+- Deleting a stash, removing an instance that has children, and a container fill or modification
   replacement that displaces an item all pack the orphaned instances into intake with the
   same first-fit used by auto-arrange. Auto-arrange is the reverse: it packs intake items
   into a regular stash.
 - `item_placement`: exactly one row per instance. Partial unique indices make two instances
-  unable to share a grid cell origin, an equipment slot, a container slot or a weapon module
+  unable to share a grid cell origin, an equipment slot, a container slot or a weapon modification
   slot; a trigger rejects a placement whose `character_id` differs from its instance's.
   A `grid` item also needs a free rectangle of its resolved size, checked by the write
   service, not by a database constraint.

@@ -1,5 +1,5 @@
-import type { EquipmentSlot, InventoryItemRead, ModuleSlot, StorageRead } from '@profile/shared/contracts';
-import { acceptsEquipment, EquipmentSlotSchema, ModuleSlotSchema } from '@profile/shared/contracts';
+import type { EquipmentSlot, InventoryItemRead, ModificationSlot, StorageRead } from '@profile/shared/contracts';
+import { acceptsEquipment, EquipmentSlotSchema, ModificationSlotSchema } from '@profile/shared/contracts';
 
 import {
   cellPixels,
@@ -202,10 +202,10 @@ export function useGridDrag(options: GridDragOptions) {
     target.value = { location: 'container', containerItemId, slot };
   }
 
-  function overModule(weaponItemId: number, slot: ModuleSlot): void {
+  function overModification(weaponItemId: number, slot: ModificationSlot): void {
     if (!picked.value) return;
     ghost.value = null;
-    target.value = { location: 'weapon_module', weaponItemId, slot, allowUnverified: false };
+    target.value = { location: 'weapon_modification', weaponItemId, slot, allowUnverified: false };
   }
 
   function clearTarget(): void {
@@ -280,11 +280,11 @@ export function useGridDrag(options: GridDragOptions) {
       const slot = Number(second);
       if (Number.isInteger(slot) && slot >= 0) return { location: 'container', containerItemId: id, slot };
     }
-    if (kind === 'module' && id != null && second && ModuleSlotSchema.safeParse(second).success) {
+    if (kind === 'modification' && id != null && second && ModificationSlotSchema.safeParse(second).success) {
       return {
-        location: 'weapon_module',
+        location: 'weapon_modification',
         weaponItemId: id,
-        slot: second as ModuleSlot,
+        slot: second as ModificationSlot,
         allowUnverified: false,
       };
     }
@@ -357,7 +357,7 @@ export function useGridDrag(options: GridDragOptions) {
       overContainer(next.containerItemId, next.slot);
       return;
     }
-    overModule(next.weaponItemId, next.slot);
+    overModification(next.weaponItemId, next.slot);
   }
 
   /** The preview follows the pointer at the footprint's size; the ghost shows the snap. */
@@ -536,7 +536,7 @@ export function useGridDrag(options: GridDragOptions) {
     overGrid,
     overEquipment,
     overContainer,
-    overModule,
+    overModification,
     clearTarget,
     moveBy,
     drop,

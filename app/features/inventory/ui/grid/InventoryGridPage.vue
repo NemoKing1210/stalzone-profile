@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InventoryItemRead, ModuleSlot, StorageRead } from '@profile/shared/contracts';
+import type { InventoryItemRead, ModificationSlot, StorageRead } from '@profile/shared/contracts';
 
 import { ProfilePane } from '~/shared/ui';
 import type { DropTarget } from '../../model/drag';
@@ -145,7 +145,7 @@ const removal = ref<InventoryItemRead | null>(null);
 
 function flatten(item: InventoryItemRead, into: Map<number, InventoryItemRead>): void {
   into.set(item.id, item);
-  for (const child of [...(item.artifacts ?? []), ...(item.modules ?? [])]) flatten(child, into);
+  for (const child of [...(item.artifacts ?? []), ...(item.modifications ?? [])]) flatten(child, into);
 }
 
 const itemMap = computed(() => {
@@ -163,7 +163,7 @@ const selectedCard = computed(() =>
 );
 
 const artifactCandidates = computed(() => allItems.value.filter((item) => item.kind === 'artifact'));
-const attachmentCandidates = computed(() => allItems.value.filter((item) => item.kind === 'attachment'));
+const modificationCandidates = computed(() => allItems.value.filter((item) => item.kind === 'modification'));
 
 watch(selectedItem, (item) => {
   if (!item) detailsOpen.value = false;
@@ -210,25 +210,30 @@ const stashPaneTitle = computed(() =>
   inventory.selectedStorage.value ? storageLabel(inventory.selectedStorage.value, t) : t('inventory.stash'),
 );
 
-const pendingUnverified = ref<{ weaponId: number; slot: ModuleSlot; attachmentItemId: number } | null>(null);
+const pendingUnverified = ref<{ weaponId: number; slot: ModificationSlot; modificationItemId: number } | null>(null);
 
-async function installModule(slot: ModuleSlot, attachmentItemId: number | null): Promise<void> {
+async function installModification(
+  slot: ModificationSlot,
+  modificationItemId: number | null,
+): Promise<void> {
   const weapon = selectedItem.value;
   if (weapon?.kind !== 'weapon') return;
-  const result = await inventory.setWeaponModule(weapon.id, slot, attachmentItemId);
+  const result = await inventory.setWeaponModification(weapon.id, slot, modificationItemId);
   if (
     !result &&
-    attachmentItemId != null &&
-    inventory.lastError.value?.code === 'INCOMPATIBLE_ATTACHMENT'
+    modificationItemId != null &&
+    inventory.lastError.value?.code === 'INCOMPATIBLE_MODIFICATION'
   ) {
-    pendingUnverified.value = { weaponId: weapon.id, slot, attachmentItemId };
+    pendingUnverified.value = { weaponId: weapon.id, slot, modificationItemId };
   }
 }
 
 async function confirmUnverified(): Promise<void> {
   const pending = pendingUnverified.value;
   pendingUnverified.value = null;
-  if (pending) await inventory.setWeaponModule(pending.weaponId, pending.slot, pending.attachmentItemId, true);
+  if (pending) {
+    await inventory.setWeaponModification(pending.weaponId, pending.slot, pending.modificationItemId, true);
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -515,12 +520,12 @@ const containerNames = computed<Record<number, string>>(() => {
       :name="selectedItem?.displayName ?? selectedItem?.name ?? ''"
       :item="selectedItem"
       :card="selectedCard"
-      :attachments="attachmentCandidates"
+      :attachments="modificationCandidates"
       :artifacts="artifactCandidates"
       :busy="inventory.busy.value"
       @update="updateSelected"
       @remove="removeSelected"
-      @install="installModule"
+      @install="installModification"
       @fill="applyFill"
     />
 

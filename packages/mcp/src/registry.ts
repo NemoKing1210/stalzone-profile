@@ -16,7 +16,7 @@ import {
   RemoveInventoryItemInputSchema,
   SetContainerArtifactsInputSchema,
   SetItemLayoutInputSchema,
-  SetWeaponModuleInputSchema,
+  SetWeaponModificationInputSchema,
   UpdateInventoryItemInputSchema,
   UpdateStorageInputSchema,
   type AddInventoryItemInput,
@@ -144,7 +144,7 @@ const RollbackInputSchema = z.object({
 
 const ListInventoryItemsInputSchema = z.object({
   kind: ItemKindSchema.optional(),
-  location: z.enum(['grid', 'equipment', 'container', 'weapon_module', 'loose']).optional(),
+  location: z.enum(['grid', 'equipment', 'container', 'weapon_modification', 'loose']).optional(),
   storage_id: z.number().int().positive().optional(),
   virtual: z.boolean().optional(),
 });
@@ -175,7 +175,7 @@ const TOOL_SCHEMAS = {
   update_storage: UpdateStorageInputSchema,
   delete_storage: DeleteStorageInputSchema,
   set_container_artifacts: SetContainerArtifactsInputSchema,
-  set_weapon_module: SetWeaponModuleInputSchema,
+  set_weapon_modification: SetWeaponModificationInputSchema,
   set_item_layout: SetItemLayoutInputSchema,
   auto_arrange_storage: AutoArrangeStorageInputSchema,
   sync_source: SyncSourceInputSchema,
@@ -233,7 +233,7 @@ const TOOL_DOCS: Record<string, string> = {
     update_storage: 'Rename, resize or reorder a stash (dry_run by default)',
     delete_storage: 'Delete a stash; its items move to the intake stash (dry_run by default)',
     set_container_artifacts: 'Replace a container fill by instance ids (dry_run by default)',
-    set_weapon_module: 'Install or remove a weapon module (dry_run by default)',
+    set_weapon_modification: 'Install or remove a weapon modification (dry_run by default)',
     set_item_layout: 'Change a catalog item grid size or weight (dry_run by default)',
     auto_arrange_storage: 'Pack intake items into a stash by first fit (dry_run by default)',
     sync_source: 'Run a source sync (exbo_base, wiki, motifs, scpmodel, icons, profile); requires confirm',
@@ -256,7 +256,7 @@ export const WRITE_TOOL_NAMES = [
   'update_storage',
   'delete_storage',
   'set_container_artifacts',
-  'set_weapon_module',
+  'set_weapon_modification',
   'set_item_layout',
   'auto_arrange_storage',
   'sync_source',
@@ -338,9 +338,9 @@ function placementTarget(target: McpPlacementTarget): PlacementTarget {
       return { location: 'equipment', slot: target.slot };
     case 'container':
       return { location: 'container', containerItemId: target.container_item_id, slot: target.slot };
-    case 'weapon_module':
+    case 'weapon_modification':
       return {
-        location: 'weapon_module',
+        location: 'weapon_modification',
         weaponItemId: target.weapon_item_id,
         slot: target.slot,
         allowUnverified: target.allow_unverified,
@@ -762,17 +762,17 @@ export function createProfileServer(
   registerWriteTool(
     server,
     limiter,
-    'set_weapon_module',
-    TOOL_SCHEMAS.set_weapon_module,
+    'set_weapon_modification',
+    TOOL_SCHEMAS.set_weapon_modification,
     async (raw, dryRun) => {
       const args = raw as unknown as {
         weapon_item_id: number;
         slot: string;
-        attachment_item_id: number | null;
+        modification_item_id: number | null;
         allow_unverified: boolean;
       };
-      return client.setWeaponModule(args.weapon_item_id, args.slot, {
-        attachmentItemId: args.attachment_item_id,
+      return client.setWeaponModification(args.weapon_item_id, args.slot, {
+        modificationItemId: args.modification_item_id,
         allowUnverified: args.allow_unverified,
         dryRun,
       });

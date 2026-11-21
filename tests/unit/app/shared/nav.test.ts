@@ -56,6 +56,7 @@ describe('navigation count badges', () => {
       armor: null,
       containers: null,
       artifacts: null,
+      modifications: null,
       inventory: null,
       devices: null,
     });
@@ -67,6 +68,7 @@ describe('navigation count badges', () => {
       armor: 0,
       containers: 0,
       artifacts: 0,
+      modifications: 0,
       inventory: 0,
       devices: 0,
     });
@@ -78,10 +80,25 @@ describe('navigation count badges', () => {
       armor: 2,
       containers: 3,
       artifacts: 4,
+      modifications: 0,
       inventory: 0,
       devices: 0,
     });
     expect(navCounts(payload({ weapons: 0, armor: 0, containers: 0, artifacts: 0 }, {}, 17)).devices).toBe(17);
+  });
+
+  it('counts installed modifications inside a weapon once', () => {
+    const base = payload({ weapons: 0, armor: 0, containers: 0, artifacts: 0 }, { storage: [10] });
+    const weapon = base.inventory.storages[0]!.items[0] as unknown as {
+      kind: string;
+      modifications?: { id: number; kind: string }[];
+    };
+    weapon.kind = 'weapon';
+    weapon.modifications = [
+      { id: 41, kind: 'modification' },
+      { id: 42, kind: 'modification' },
+    ];
+    expect(navCounts(base).modifications).toBe(2);
   });
 
   it('counts every inventory instance once across grids, equipment and loose', () => {

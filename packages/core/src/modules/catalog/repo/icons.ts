@@ -44,6 +44,7 @@ const KIND_PREFIXES: Record<string, string> = {
   armor: 'a',
   artifact: 'art',
   container: 'c',
+  modification: 'mod',
 };
 
 /** Legacy `<prefix>:<name>` icon keys still consumed by the payload and the UI. */

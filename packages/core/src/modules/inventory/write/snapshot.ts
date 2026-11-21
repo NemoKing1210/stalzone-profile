@@ -12,7 +12,7 @@ export function placementSnapshot(row: repo.PlacementRow): Record<string, unknow
     containerItemId: row.container_item_id,
     slotIndex: row.container_slot,
     weaponItemId: row.weapon_item_id,
-    moduleSlot: row.module_slot,
+    modificationSlot: row.modification_slot,
     verified: row.verified === 1,
   };
 }

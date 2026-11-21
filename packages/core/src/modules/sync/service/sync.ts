@@ -327,14 +327,14 @@ function syncExbo(db: Db, options: SyncOptions): Promise<SyncResult> {
 
         // "Suitable for" keys resolve only against weapons; unknown keys are dropped,
         // and a fresh EXBO edge set replaces the previous one while manual edges survive.
-        const edges: { attachmentItemId: number; weaponItemId: number }[] = [];
+        const edges: { modificationItemId: number; weaponItemId: number }[] = [];
         for (const record of snapshot.items) {
           if (record.compatibleKeys.length === 0) continue;
-          const attachmentItemId = itemIds.get(record.id);
-          if (attachmentItemId == null) continue;
+          const modificationItemId = itemIds.get(record.id);
+          if (modificationItemId == null) continue;
           for (const key of record.compatibleKeys) {
             const weapon = repo.findItemByNameKey(db, key, realm, 'weapon');
-            if (weapon) edges.push({ attachmentItemId, weaponItemId: weapon.id });
+            if (weapon) edges.push({ modificationItemId, weaponItemId: weapon.id });
           }
         }
         inventoryRepo.replaceExboCompat(db, edges);

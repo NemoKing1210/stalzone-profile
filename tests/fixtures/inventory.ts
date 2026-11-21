@@ -54,7 +54,7 @@ export function seedInventory(db: Db): SeedInventory {
     backpack: item('container:backpack', 'Рюкзак', 'container', 'containers', 'rare', 1.2),
     artifact1: item('artifact:speed', 'Нервяк', 'artifact', 'artefact', 'rare', 0.1),
     artifact2: item('artifact:carry', 'Пузырь', 'artifact', 'artefact', 'rare', 0.1),
-    scope: item('attachment:scope', 'Прицел', 'attachment', 'attachment/scope', 'unordinary', 0.4),
+    scope: item('attachment:scope', 'Прицел', 'modification', 'attachment/scope', 'unordinary', 0.4),
     ammo: item('ammo:545', 'Патроны 5.45', 'ammo', 'bullet', null, 0.01),
   };
 
@@ -96,7 +96,7 @@ export function seedInventory(db: Db): SeedInventory {
       characterId,
       itemId: itemIds[key]!,
       kind,
-      level: kind === 'attachment' ? 0 : 15,
+      level: kind === 'modification' ? 0 : 15,
       ...extra,
     });
     return id;
@@ -109,7 +109,7 @@ export function seedInventory(db: Db): SeedInventory {
     backpack: instance('backpack', 'container'),
     artifact1: instance('artifact1', 'artifact', { quality: 'Редкий 120%', rarityPct: 120, rarityTier: 'special' }),
     artifact2: instance('artifact2', 'artifact', { quality: 'Редкий 100%', rarityPct: 100 }),
-    scope: instance('scope', 'attachment'),
+    scope: instance('scope', 'modification'),
     ammo: instance('ammo', 'ammo', { qty: 30 }),
   };
 

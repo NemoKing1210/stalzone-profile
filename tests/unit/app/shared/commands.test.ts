@@ -19,7 +19,7 @@ import {
 
 const context: PaletteContext = {
   t: (key) => key,
-  counts: { weapons: 3, armor: 2, containers: 1, artifacts: 4, inventory: 10, devices: 17 },
+  counts: { weapons: 3, armor: 2, containers: 1, artifacts: 4, modifications: 5, inventory: 10, devices: 17 },
   stashes: [
     { id: 2, name: 'Stash', count: 5 },
     { id: 7, name: 'Ammo', count: 0 },

@@ -82,7 +82,7 @@ export {
   moveInventoryItem,
   setContainerFill,
   setItemLayout,
-  setWeaponModule,
+  setWeaponModification,
   tidyStorage,
   updateInventoryItem,
   updateStorage,

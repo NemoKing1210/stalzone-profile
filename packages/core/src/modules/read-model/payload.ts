@@ -6,6 +6,7 @@ import {
   buildCatalogFrom,
   buildDeviceCatalogFrom,
   buildItemCardFrom,
+  buildModificationCatalogFrom,
   countItems,
   displayDmg,
   displayDps,
@@ -348,7 +349,13 @@ function buildPayloadUncached(db: Db, characterId?: number): Payload {
       armor: [],
       containers: [],
       artifacts: [],
-      catalog: { weapons: [], armor: [], devices: [], meta: { updated: null, source: '', items: 0 } },
+      catalog: {
+        weapons: [],
+        armor: [],
+        devices: [],
+        modifications: [],
+        meta: { updated: null, source: '', items: 0 },
+      },
       inventory: inventoryRead(db, characterId),
       icons: {},
       freshness: freshness(sources, latestPrice, null),
@@ -369,6 +376,7 @@ function buildPayloadUncached(db: Db, characterId?: number): Payload {
   const devices = all.filter((item) => isDeviceCategory(item.category));
   const weaponItems = all.filter((item) => item.kind === 'weapon' && !isDeviceCategory(item.category));
   const armorItems = all.filter((item) => item.kind === 'armor');
+  const modificationItems = all.filter((item) => item.kind === 'modification');
   const ownedItems = all.filter((item) => ownedIds.has(item.id));
   // Catalog cards display base, +15 and falloff values; armor needs only its 0..15 curve.
   const iconMap = iconsByItemIds(db, [...itemsById.keys()]);
@@ -391,10 +399,12 @@ function buildPayloadUncached(db: Db, characterId?: number): Payload {
   );
   const armorCtx = loadCatalogContext(db, armorItems, undefined, ['bullet_dmg_factor'], false, iconMap);
   const deviceCtx = loadCatalogContext(db, devices, [0], [], false, iconMap);
+  const modificationCtx = loadCatalogContext(db, modificationItems, [0], [], false, iconMap);
   const ownedCtx = loadCatalogContext(db, ownedItems, undefined, undefined, true, iconMap);
   const catalogWeapons = buildCatalogFrom(weaponCtx, 'weapon');
   const catalogArmor = buildCatalogFrom(armorCtx, 'armor');
   const catalogDevices = buildDeviceCatalogFrom(deviceCtx);
+  const catalogModifications = buildModificationCatalogFrom(modificationCtx);
   const stats = listCharacterStats(db, character.id);
   const meta = catalogMeta(sourceById, countItems(db));
   const inventory = inventoryReadFrom(db, character.id, snapshot);
@@ -404,7 +414,7 @@ function buildPayloadUncached(db: Db, characterId?: number): Payload {
       ...item,
       card: row ? buildItemCardFrom(ownedCtx, row) : null,
       ...(item.artifacts ? { artifacts: item.artifacts.map(withCards) } : {}),
-      ...(item.modules ? { modules: item.modules.map(withCards) } : {}),
+      ...(item.modifications ? { modifications: item.modifications.map(withCards) } : {}),
     };
   };
   for (const storage of inventory.storages) {
@@ -431,6 +441,7 @@ function buildPayloadUncached(db: Db, characterId?: number): Payload {
       weapons: catalogWeapons,
       armor: catalogArmor,
       devices: catalogDevices,
+      modifications: catalogModifications,
       meta,
     },
     inventory,

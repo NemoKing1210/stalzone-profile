@@ -10,7 +10,7 @@ const backpack = { kind: 'container', category: 'containers/backpacks' };
 const artifactBag = { kind: 'container', category: 'containers' };
 const unknownBag = { kind: 'container', category: 'boxes/crate' };
 const artifact = { kind: 'artifact', category: 'artefact/gravity' };
-const attachment = { kind: 'attachment', category: 'attachment/scope' };
+const attachment = { kind: 'modification', category: 'attachment/scope' };
 const ammo = { kind: 'ammo', category: 'ammo/rifle' };
 const consumable = { kind: 'other', category: 'consumables/medkit' };
 

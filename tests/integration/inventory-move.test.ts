@@ -36,7 +36,7 @@ import {
   replaceExboCompat,
   setContainerFill,
   setItemLayout,
-  setWeaponModule,
+  setWeaponModification,
   updateInventoryItem,
   upsertContainerData,
 } from '@profile/core/modules/inventory';
@@ -115,8 +115,8 @@ beforeEach(() => {
   item('container', 'Рюкзак', 'containers/backpacks', 1.2, 'backpack');
   item('container', 'Контейнер', 'containers', 0.8, 'artbag');
   item('artifact', 'Нервяк', 'artefact/gravity', 0.1, 'artifact');
-  scopeId = item('attachment', 'Прицел', 'attachment/scope', 0.4, 'scope');
-  item('attachment', 'Глушитель', 'attachment/muzzle', 0.5, 'muffler');
+  scopeId = item('modification', 'Прицел', 'attachment/scope', 0.4, 'scope');
+  item('modification', 'Глушитель', 'attachment/muzzle', 0.5, 'muffler');
 });
 
 afterEach(() => {
@@ -221,21 +221,21 @@ describe('inventory placement writes', () => {
 
   it('rolls a weapon module swap back to both original placements', () => {
     const rifle = make('weapon', 'АК-12');
-    const scope = make('attachment', 'Прицел');
-    const replacement = make('attachment', 'Прицел');
-    replaceExboCompat(db, [{ attachmentItemId: scopeId, weaponItemId: weaponId }]);
-    setWeaponModule(db, rifle, 'scope', scope, { dryRun: false });
+    const scope = make('modification', 'Прицел');
+    const replacement = make('modification', 'Прицел');
+    replaceExboCompat(db, [{ modificationItemId: scopeId, weaponItemId: weaponId }]);
+    setWeaponModification(db, rifle, 'scope', scope, { dryRun: false });
     moveInventoryItem(db, replacement, grid(inventoryId, 0, 0), { dryRun: false });
 
-    const installed = setWeaponModule(db, rifle, 'scope', replacement, { dryRun: false });
+    const installed = setWeaponModification(db, rifle, 'scope', replacement, { dryRun: false });
     expect(getPlacement(db, scope)).toMatchObject({ location: 'grid', storage_id: overflowId });
 
     rollbackEvent(db, installed.eventId!, false);
 
     expect(getPlacement(db, scope)).toMatchObject({
-      location: 'weapon_module',
+      location: 'weapon_modification',
       weapon_item_id: rifle,
-      module_slot: 'scope',
+      modification_slot: 'scope',
     });
     expect(getPlacement(db, replacement)).toMatchObject({
       location: 'grid',
@@ -268,7 +268,7 @@ describe('inventory placement writes', () => {
       { kind: 'container', name: 'Слот-рюкзак', category: 'containers/backpacks' },
       { kind: 'container', name: 'Слот-контейнер', category: 'containers' },
       { kind: 'artifact', name: 'Слот-артефакт', category: 'artefact/gravity' },
-      { kind: 'attachment', name: 'Слот-прицел', category: 'attachment/scope' },
+      { kind: 'modification', name: 'Слот-прицел', category: 'attachment/scope' },
       { kind: 'ammo', name: 'Слот-патроны', category: 'ammo/rifle' },
       { kind: 'other', name: 'Слот-аптечка', category: 'consumables/medkit' },
     ] as const;
@@ -308,7 +308,7 @@ describe('inventory placement writes', () => {
   it('installs an artifact into a container slot and validates kind and capacity', () => {
     const bag = makeContainer('Контейнер', 2);
     const artifact = make('artifact', 'Нервяк');
-    const scope = make('attachment', 'Прицел');
+    const scope = make('modification', 'Прицел');
     const other = make('artifact', 'Нервяк');
 
     moveInventoryItem(
@@ -351,7 +351,7 @@ describe('inventory placement writes', () => {
     expect(getPlacement(db, c)).toMatchObject({ location: 'grid', storage_id: overflowId });
     expect(getEvent(db, result.eventId!)?.action).toBe('inventory.container.fill');
 
-    const scope = make('attachment', 'Прицел');
+    const scope = make('modification', 'Прицел');
     expectWriteError(() => setContainerFill(db, bag, [scope], { dryRun: false }), 'NOT_AN_ARTIFACT');
     expectWriteError(() => setContainerFill(db, bag, [a, b, c, a], { dryRun: false }), 'CONTAINER_FULL');
   });
@@ -372,53 +372,53 @@ describe('inventory placement writes', () => {
   it('installs a compatible module, rejects incompatible pairs and allows an explicit unverified install', () => {
     const rifle = make('weapon', 'АК-12');
     const otherRifle = make('weapon', 'АК-74');
-    const scope = make('attachment', 'Прицел');
-    const muffler = make('attachment', 'Глушитель');
-    replaceExboCompat(db, [{ attachmentItemId: scopeId, weaponItemId: weaponId }]);
+    const scope = make('modification', 'Прицел');
+    const muffler = make('modification', 'Глушитель');
+    replaceExboCompat(db, [{ modificationItemId: scopeId, weaponItemId: weaponId }]);
 
-    const installed = setWeaponModule(db, rifle, 'scope', scope, { dryRun: false });
+    const installed = setWeaponModification(db, rifle, 'scope', scope, { dryRun: false });
     expect(installed.eventId).toBeDefined();
     expect(getPlacement(db, scope)).toMatchObject({
-      location: 'weapon_module',
+      location: 'weapon_modification',
       weapon_item_id: rifle,
-      module_slot: 'scope',
+      modification_slot: 'scope',
       verified: 1,
     });
 
     expectWriteError(
       () =>
-        setWeaponModule(db, otherRifle, 'scope', scope, {
+        setWeaponModification(db, otherRifle, 'scope', scope, {
           allowUnverified: true,
           dryRun: false,
         }),
-      'INCOMPATIBLE_ATTACHMENT',
+      'INCOMPATIBLE_MODIFICATION',
     );
 
     expectWriteError(
-      () => setWeaponModule(db, rifle, 'muzzle', muffler, { dryRun: false }),
-      'INCOMPATIBLE_ATTACHMENT',
+      () => setWeaponModification(db, rifle, 'muzzle', muffler, { dryRun: false }),
+      'INCOMPATIBLE_MODIFICATION',
     );
-    setWeaponModule(db, rifle, 'muzzle', muffler, { allowUnverified: true, dryRun: false });
+    setWeaponModification(db, rifle, 'muzzle', muffler, { allowUnverified: true, dryRun: false });
     expect(getPlacement(db, muffler)).toMatchObject({
-      location: 'weapon_module',
-      module_slot: 'muzzle',
+      location: 'weapon_modification',
+      modification_slot: 'muzzle',
       verified: 0,
     });
 
     expectWriteError(
-      () => setWeaponModule(db, rifle, 'grip', muffler, { allowUnverified: true, dryRun: false }),
+      () => setWeaponModification(db, rifle, 'grip', muffler, { allowUnverified: true, dryRun: false }),
       'INVALID_PLACEMENT',
     );
 
-    setWeaponModule(db, rifle, 'scope', null, { dryRun: false });
+    setWeaponModification(db, rifle, 'scope', null, { dryRun: false });
     expect(getPlacement(db, scope)).toMatchObject({ location: 'grid', storage_id: overflowId });
   });
 
   it('returns weapon modules to intake when the weapon is deleted', () => {
     const rifle = make('weapon', 'АК-12');
-    const scope = make('attachment', 'Прицел');
-    replaceExboCompat(db, [{ attachmentItemId: scopeId, weaponItemId: weaponId }]);
-    setWeaponModule(db, rifle, 'scope', scope, { dryRun: false });
+    const scope = make('modification', 'Прицел');
+    replaceExboCompat(db, [{ modificationItemId: scopeId, weaponItemId: weaponId }]);
+    setWeaponModification(db, rifle, 'scope', scope, { dryRun: false });
 
     deleteInventoryItem(db, rifle, { dryRun: false });
     expect(getInventoryItem(db, rifle)).toBeNull();

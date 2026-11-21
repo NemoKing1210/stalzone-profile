@@ -24,7 +24,7 @@ const EMPTY_LOCATION: Omit<InstanceLocationRow, 'location'> = {
   storageKind: null,
   parentName: null,
   equipmentSlot: null,
-  moduleSlot: null,
+  modificationSlot: null,
   slotIndex: null,
 };
 

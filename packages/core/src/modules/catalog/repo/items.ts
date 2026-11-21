@@ -79,7 +79,7 @@ export function kindFromCategory(category: string | null | undefined, nameKey?: 
   if (cat.startsWith('artefact/')) return 'artifact';
   if (cat === 'containers' || cat.startsWith('containers/') || cat === 'backpacks' || cat.startsWith('backpacks/'))
     return 'container';
-  if (cat === 'attachment' || cat.startsWith('attachment/')) return 'attachment';
+  if (cat === 'attachment' || cat.startsWith('attachment/')) return 'modification';
   if (cat === 'bullet' || cat.includes('/bullet')) return 'ammo';
   return 'other';
 }
@@ -345,6 +345,7 @@ export function listPayloadItems(db: Db, ownedIds: readonly number[]): ItemRow[]
       `SELECT * FROM item
         WHERE realm = 'ru'
           AND (kind IN ('weapon', 'armor')
+            OR kind = 'modification'
             OR category = 'device'
             OR category LIKE 'device/%'
             OR category LIKE '%/device'

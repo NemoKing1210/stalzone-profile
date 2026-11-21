@@ -125,7 +125,7 @@ function restorePlacementSnapshot(
     containerItemId: snapshot.containerItemId as number | null,
     containerSlot: snapshot.slotIndex as number | null,
     weaponItemId: snapshot.weaponItemId as number | null,
-    moduleSlot: snapshot.moduleSlot as string | null,
+    modificationSlot: snapshot.modificationSlot as string | null,
     verified: snapshot.verified !== false,
   });
 }
@@ -334,52 +334,52 @@ export function updateStorageTx(db: Db, snapshot: Record<string, unknown>): void
   });
 }
 
-interface ModuleSnapshot {
+interface ModificationSnapshot {
   weaponItemId: number;
   slot: string;
-  attachmentItemId: number | null;
-  attachment: { placement: Record<string, unknown> } | null;
+  modificationItemId: number | null;
+  modification: { placement: Record<string, unknown> } | null;
   incomingPlacement: Record<string, unknown> | null;
 }
 
-/** Puts a weapon module slot back into the state recorded in a module event. */
-export function restoreWeaponModuleTx(
+/** Puts a weapon modification slot back into the state recorded in a modification event. */
+export function restoreWeaponModificationTx(
   db: Db,
   before: Record<string, unknown>,
   characterId: number,
 ): void {
-  const module = before as unknown as ModuleSnapshot;
+  const modification = before as unknown as ModificationSnapshot;
   const current = repo
     .listPlacements(db, characterId)
     .find(
       (placement) =>
-        placement.location === 'weapon_module' &&
-        placement.weapon_item_id === module.weaponItemId &&
-        placement.module_slot === module.slot,
+        placement.location === 'weapon_modification' &&
+        placement.weapon_item_id === modification.weaponItemId &&
+        placement.modification_slot === modification.slot,
     );
 
-  if (module.incomingPlacement) {
+  if (modification.incomingPlacement) {
     const installed = current?.item_id ?? null;
     if (installed != null) {
-      restorePlacementSnapshot(db, installed, module.incomingPlacement, characterId);
+      restorePlacementSnapshot(db, installed, modification.incomingPlacement, characterId);
     }
-  } else if (current && current.item_id !== module.attachmentItemId) {
+  } else if (current && current.item_id !== modification.modificationItemId) {
     const displaced = repo.getInventoryItem(db, current.item_id);
     if (displaced) sendToIntake(db, characterId, displaced.id, itemSize(db, displaced));
   }
 
-  if (module.attachmentItemId != null) {
-    if (module.attachment) {
-      restorePlacementSnapshot(db, module.attachmentItemId, module.attachment.placement, characterId);
+  if (modification.modificationItemId != null) {
+    if (modification.modification) {
+      restorePlacementSnapshot(db, modification.modificationItemId, modification.modification.placement, characterId);
     } else {
-      const attachment = repo.getInventoryItem(db, module.attachmentItemId);
-      if (!attachment) throw new WriteError(404, 'ITEM_NOT_FOUND', 'The attachment no longer exists');
+      const row = repo.getInventoryItem(db, modification.modificationItemId);
+      if (!row) throw new WriteError(404, 'ITEM_NOT_FOUND', 'The modification no longer exists');
       repo.upsertPlacement(db, {
-        itemId: module.attachmentItemId,
+        itemId: modification.modificationItemId,
         characterId,
-        location: 'weapon_module',
-        weaponItemId: module.weaponItemId,
-        moduleSlot: module.slot,
+        location: 'weapon_modification',
+        weaponItemId: modification.weaponItemId,
+        modificationSlot: modification.slot,
         verified: true,
       });
     }

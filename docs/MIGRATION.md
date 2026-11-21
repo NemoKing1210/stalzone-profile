@@ -18,7 +18,7 @@ An existing typed database migrates automatically: `npm run db:migrate` applies
 `0005_inventory_schema.sql` and `0006_inventory_data.sql`.
 
 - `0005` adds `storage`, `inventory_item`, `item_placement`, `container_data`,
-  `attachment_compat` and `item_layout` additively.
+  `attachment_compat` (renamed to `modification_compat` by `0025`) and `item_layout` additively.
 - `0006` copies every `owned_item` row into one instance per copy (`qty` expands for
   gear, stackables stay single rows), turns `character.stash` into a `stash` storage,
   copies `owned_container` into `container_data` and turns every `container_slot` into a
@@ -32,6 +32,18 @@ The migration is covered by `tests/integration/migration.test.ts`, which runs `0
 on a temporary database and checks the storages, expanded instances, container fill and
 dropped columns. Applying it to a copy of the working database (never the live file) is a
 read-only sanity check; `db:reset` is not needed and deletes the profile.
+
+## From modules to modifications (0025)
+
+`0025_rename_modules_to_modifications.sql` renames the weapon gear concept in the schema
+and in stored values: item and instance kinds `attachment` → `modification`, the placement
+`weapon_module`/`module_slot` → `weapon_modification`/`modification_slot`, the
+`attachment_compat` table → `modification_compat`, and the journal action
+`inventory.item.module` → `inventory.item.modification`. It is additive and forward-only:
+the working database keeps every row and no reset is needed. The migration also rewrites
+the exact JSON tokens in `event_log.before`/`after` so earlier events still roll back, and
+updates the seeded inventory prompt only while it is untouched. Rolling the code back
+after this migration needs a reverse migration.
 
 ## Reset procedure
 

@@ -98,7 +98,7 @@ const ACTION_KEYS: Record<string, string> = {
   'inventory.item.update': 'itemUpdate',
   'inventory.item.delete': 'itemDelete',
   'inventory.item.move': 'itemMove',
-  'inventory.item.module': 'itemModule',
+  'inventory.item.modification': 'itemModification',
   'inventory.storage.create': 'storageCreate',
   'inventory.storage.update': 'storageUpdate',
   'inventory.storage.delete': 'storageDelete',

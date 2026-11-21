@@ -19,7 +19,7 @@ import {
   moveInventoryItem,
   setContainerFill,
   setItemLayout,
-  setWeaponModule,
+  setWeaponModification,
   updateStorage,
   upsertContainerData,
   upsertPlacement,
@@ -154,13 +154,13 @@ describe('removals go to intake', () => {
     catalog('box', 'Ящик', 'container', 'containers');
     catalog('rifle2', 'Карабин', 'weapon', 'weapon/assault_rifle', 4);
     catalog('art', 'Артефакт', 'artifact', 'artefact', 0.1);
-    catalog('scope2', 'Прицел', 'attachment', 'attachment/scope', 0.4);
+    catalog('scope2', 'Прицел', 'modification', 'attachment/scope', 0.4);
 
     const stashId = stash();
     const containerId = add('Ящик', 'container');
     const rifleId = add('Карабин', 'weapon');
     const artifactId = add('Артефакт', 'artifact');
-    const attachmentId = add('Прицел', 'attachment');
+    const attachmentId = add('Прицел', 'modification');
     upsertPlacement(db, { itemId: containerId, characterId, location: 'grid', storageId: stashId, x: 0, y: 0 });
     upsertPlacement(db, { itemId: rifleId, characterId, location: 'grid', storageId: stashId, x: 5, y: 0 });
     upsertContainerData(db, containerId, { slots: 2, eff: 100 });
@@ -171,7 +171,7 @@ describe('removals go to intake', () => {
       containerItemId: containerId,
       containerSlot: 0,
     });
-    setWeaponModule(db, rifleId, 'scope', attachmentId, { allowUnverified: true, dryRun: false });
+    setWeaponModification(db, rifleId, 'scope', attachmentId, { allowUnverified: true, dryRun: false });
 
     const result = deleteStorage(db, stashId, { dryRun: false });
     expect(result.diff.after).toEqual({
@@ -188,7 +188,7 @@ describe('removals go to intake', () => {
       container_item_id: containerId,
     });
     expect(getPlacement(db, attachmentId)).toMatchObject({
-      location: 'weapon_module',
+      location: 'weapon_modification',
       weapon_item_id: rifleId,
     });
 
@@ -229,12 +229,12 @@ describe('removals go to intake', () => {
 
   it('moves a removed weapon module to intake', () => {
     catalog('rifle', 'Винтовка', 'weapon', 'weapon/assault_rifle', 4);
-    catalog('scope', 'Прицел', 'attachment', 'attachment/scope', 0.4);
+    catalog('scope', 'Прицел', 'modification', 'attachment/scope', 0.4);
     const rifleId = add('Винтовка', 'weapon');
-    const attachmentId = add('Прицел', 'attachment');
-    setWeaponModule(db, rifleId, 'scope', attachmentId, { allowUnverified: true, dryRun: false });
+    const attachmentId = add('Прицел', 'modification');
+    setWeaponModification(db, rifleId, 'scope', attachmentId, { allowUnverified: true, dryRun: false });
 
-    setWeaponModule(db, rifleId, 'scope', null, { dryRun: false });
+    setWeaponModification(db, rifleId, 'scope', null, { dryRun: false });
     expect(getPlacement(db, attachmentId)).toMatchObject({ location: 'grid', storage_id: overflowId });
   });
 

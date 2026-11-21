@@ -29,7 +29,6 @@ describe('baseline schema', () => {
       .filter((name) => !name.startsWith('sqlite_'));
     expect(tables).toEqual([
       '_migration',
-      'attachment_compat',
       'character',
       'character_stat',
       'chat_attachment',
@@ -50,6 +49,7 @@ describe('baseline schema', () => {
       'log_entry',
       'log_level',
       'log_setting',
+      'modification_compat',
       'price_quote',
       'source',
       'stat_definition',
@@ -91,7 +91,7 @@ describe('baseline schema', () => {
       'inventory_item',
       'item_placement',
       'container_data',
-      'attachment_compat',
+      'modification_compat',
       'item_layout',
     ]) {
       expect(tableExists(db, name)).toBe(true);

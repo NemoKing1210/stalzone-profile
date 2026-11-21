@@ -7,6 +7,8 @@ import ContainerActions from './ContainerActions.vue';
 import ContainerCard from './ContainerCard.vue';
 import DeviceCard from './DeviceCard.vue';
 import LocationCell from './LocationCell.vue';
+import ModificationCard from './ModificationCard.vue';
+import ModificationSlotCell from './ModificationSlotCell.vue';
 import RankCell from './RankCell.vue';
 import WeaponCard from './WeaponCard.vue';
 import WeaponTargetSettings from './WeaponTargetSettings.vue';
@@ -25,7 +27,10 @@ export interface InventoryUi {
 }
 
 /** Binds a kind's pure config to its components; the screen never branches on the kind key. */
-export const INVENTORY_UI: Record<'weapon' | 'armor' | 'artifact' | 'container' | 'device', InventoryUi> = {
+export const INVENTORY_UI: Record<
+  'weapon' | 'armor' | 'artifact' | 'container' | 'device' | 'modification',
+  InventoryUi
+> = {
   weapon: {
     card: WeaponCard,
     actions: AddOwnedAction,
@@ -51,5 +56,10 @@ export const INVENTORY_UI: Record<'weapon' | 'armor' | 'artifact' | 'container' 
   device: {
     card: DeviceCard,
     cells: { rank: RankCell },
+  },
+  modification: {
+    card: ModificationCard,
+    actions: AddOwnedAction,
+    cells: { rank: RankCell, slot: ModificationSlotCell, location: LocationCell },
   },
 };

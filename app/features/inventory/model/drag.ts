@@ -55,7 +55,7 @@ export function isSameTarget(placement: PlacementRead, target: DropTarget): bool
   if (placement.location === 'container' && target.location === 'container') {
     return placement.containerItemId === target.containerItemId && placement.slotIndex === target.slot;
   }
-  if (placement.location === 'weapon_module' && target.location === 'weapon_module') {
+  if (placement.location === 'weapon_modification' && target.location === 'weapon_modification') {
     return placement.weaponItemId === target.weaponItemId && placement.slot === target.slot;
   }
   return false;

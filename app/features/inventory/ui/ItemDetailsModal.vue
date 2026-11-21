@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DamagePoint, InventoryItemRead, ModuleSlot } from '@profile/shared/contracts';
+import type { DamagePoint, InventoryItemRead, ModificationSlot } from '@profile/shared/contracts';
 
 import { ItemIconFallback, RankBadge, RarityName, VirtualBadge } from '~/entities/item';
 import { MODAL_WIDTH } from '~/shared/lib/modalWidth';
@@ -23,7 +23,7 @@ const props = withDefaults(
     card?: Record<string, unknown> | null;
     /** The owned/catalog row the screen opened, used when there is no instance. */
     row?: Record<string, unknown> | null;
-    attachments?: InventoryItemRead[];
+    modifications?: InventoryItemRead[];
     artifacts?: InventoryItemRead[];
     busy?: boolean;
   }>(),
@@ -31,7 +31,7 @@ const props = withDefaults(
     item: null,
     card: null,
     row: null,
-    attachments: () => [],
+    modifications: () => [],
     artifacts: () => [],
     busy: false,
   },
@@ -41,7 +41,7 @@ const emit = defineEmits<{
   'update:open': [value: boolean];
   update: [patch: Record<string, unknown>];
   remove: [qty: number];
-  install: [slot: ModuleSlot, attachmentItemId: number | null];
+  install: [slot: ModificationSlot, modificationItemId: number | null];
   fill: [slots: (number | null)[]];
   edit: [];
   fillRow: [];
@@ -90,7 +90,11 @@ const rows = computed(() =>
 );
 
 function format(key: string, value: string | number): string {
-  if (typeof value !== 'number') return value;
+  if (typeof value !== 'number') {
+    return key === 'slot' && props.kind === 'modification'
+      ? t(`inventory.modification.${value}`)
+      : value;
+  }
   if (key === 'weight') return t('inventory.weightValue', { value: g2(value) });
   if (key === 'rarityPct') return `${g2(value)}%`;
   if (key === 'eff') return `${g1(value)}%`;
@@ -211,9 +215,9 @@ function confirmRemove(qty: number): void {
         <div v-if="props.item && props.item.kind === 'weapon'" class="[&_header]:hidden">
           <WeaponPanel
             :weapon="props.item"
-            :attachments="props.attachments"
+            :modifications="props.modifications"
             :busy="props.busy"
-            @install="(slot, attachmentItemId) => emit('install', slot, attachmentItemId)"
+            @install="(slot, modificationItemId) => emit('install', slot, modificationItemId)"
           />
         </div>
 

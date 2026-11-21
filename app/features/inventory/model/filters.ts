@@ -50,9 +50,15 @@ export function inventorySections<TRow>(
   group: string,
   groupKey: ((row: TRow) => string | null | undefined) | undefined,
   fallbackLabel: string,
+  labelOf?: (value: string) => string,
 ): InventorySection<TRow>[] {
   if (group === 'type' && groupKey) {
-    return groupRows(rows, groupKey, fallbackLabel);
+    const sections = groupRows(rows, groupKey, fallbackLabel);
+    return labelOf
+      ? sections.map((section) =>
+          section.label && section.label !== fallbackLabel ? { ...section, label: labelOf(section.label) } : section,
+        )
+      : sections;
   }
   return [{ key: '__all', label: null, rows }];
 }

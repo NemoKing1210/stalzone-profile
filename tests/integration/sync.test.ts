@@ -4,7 +4,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildPayload, closeDb, ensureDefaultSources, migrate, openDb, type Db, runSync } from '@profile/core';
 import * as repo from '@profile/core';
-import { listCompatForAttachment } from '@profile/core/modules/inventory';
+import { listCompatForModification } from '@profile/core/modules/inventory';
 import * as seed from '@profile/core/testing';
 import { exboAdapter, motifsAdapter, parseExboItem, wikiAdapter } from '@profile/sources';
 
@@ -273,12 +273,12 @@ describe('EXBO attachment compatibility', () => {
     await runSync(db, 'exbo_base', { fetchImpl, cacheDir: path.join(dir, 'cache') });
 
     const weapon = repo.findItemByKindName(db, 'weapon', 'Гаусс-винтовка')!;
-    const attachment = repo.findItemByKindName(db, 'attachment', 'Прицел Гаусс')!;
-    const other = repo.findItemByKindName(db, 'attachment', 'Другой прицел')!;
+    const attachment = repo.findItemByKindName(db, 'modification', 'Прицел Гаусс')!;
+    const other = repo.findItemByKindName(db, 'modification', 'Другой прицел')!;
 
     expect(weapon.name_key).toBe('item.wpn.gauss.name');
-    expect(listCompatForAttachment(db, attachment.id).map((edge) => edge.weapon_item_id)).toEqual([weapon.id]);
-    expect(listCompatForAttachment(db, other.id)).toEqual([]);
+    expect(listCompatForModification(db, attachment.id).map((edge) => edge.weapon_item_id)).toEqual([weapon.id]);
+    expect(listCompatForModification(db, other.id)).toEqual([]);
   });
 });
 

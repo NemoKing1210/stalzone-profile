@@ -6,6 +6,7 @@ export interface NavCounts {
   armor: number | null;
   containers: number | null;
   artifacts: number | null;
+  modifications: number | null;
   inventory: number | null;
   devices: number | null;
 }
@@ -29,19 +30,48 @@ export function inventoryCount(inventory: InventoryRead | null | undefined): num
 }
 
 /**
+ * Owned modifications, including the ones installed inside a weapon. A set keeps an
+ * instance counted once if two lists overlap; a stack is one row and therefore one item.
+ */
+export function modificationCount(inventory: InventoryRead | null | undefined): number | null {
+  if (!inventory) return null;
+  const seen = new Set<number>();
+  let count = 0;
+  const visit = (item: InventoryRead['loose'][number] | null | undefined): void => {
+    if (!item || seen.has(item.id)) return;
+    seen.add(item.id);
+    if (item.kind === 'modification') count += 1;
+    for (const child of [...(item.artifacts ?? []), ...(item.modifications ?? [])]) visit(child);
+  };
+  for (const storage of inventory.storages ?? []) for (const item of storage.items ?? []) visit(item);
+  for (const item of Object.values(inventory.equipment ?? {})) visit(item);
+  for (const item of inventory.loose ?? []) visit(item);
+  return count;
+}
+
+/**
  * Owned counts for the menu badges, from the same payload lists the pages render.
  * `null` means the payload is not available yet, so the badge shows nothing rather
  * than a misleading zero.
  */
 export function navCounts(payload: ProfilePayload | null | undefined): NavCounts {
   if (!payload) {
-    return { weapons: null, armor: null, containers: null, artifacts: null, inventory: null, devices: null };
+    return {
+      weapons: null,
+      armor: null,
+      containers: null,
+      artifacts: null,
+      modifications: null,
+      inventory: null,
+      devices: null,
+    };
   }
   return {
     weapons: payload.weapons.length,
     armor: payload.armor.length,
     containers: payload.containers.length,
     artifacts: payload.artifacts.length,
+    modifications: modificationCount(payload.inventory),
     inventory: inventoryCount(payload.inventory),
     devices: payload.catalog?.devices?.length ?? 0,
   };

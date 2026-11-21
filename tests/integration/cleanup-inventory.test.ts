@@ -23,7 +23,7 @@ import {
   resetAll,
   rollbackEvent,
   setContainerFill,
-  setWeaponModule,
+  setWeaponModification,
   updateInventoryItem,
   updateStorage,
   type Db,
@@ -185,7 +185,7 @@ describe('new inventory rollbacks', () => {
     );
     expect(smg).toMatchObject({ location: 'grid', storage_id: seeded.storageIds.overflow });
 
-    const installed = setWeaponModule(db, seeded.instanceIds.rifle!, 'scope', seeded.instanceIds.scope!, {
+    const installed = setWeaponModification(db, seeded.instanceIds.rifle!, 'scope', seeded.instanceIds.scope!, {
       dryRun: false,
       allowUnverified: true,
     });

@@ -11,7 +11,7 @@ import { useProfileData } from '~/stores/profile-data';
 import { ProfilePane, KeyHint } from '~/shared/ui';
 import { MODAL_WIDTH } from '~/shared/lib/modalWidth';
 
-import type { InventoryItemRead, ModuleSlot } from '@profile/shared/contracts';
+import type { InventoryItemRead, ModificationSlot } from '@profile/shared/contracts';
 import type { ContainerFillTarget, InstanceEditTarget } from '~/shared/types/profile';
 import {
   filterInventoryRows,
@@ -73,8 +73,14 @@ const modes = computed(() =>
       ]
     : undefined,
 );
+const groupValueLabel = (value: string): string =>
+  props.kind.groupLabel ? t(props.kind.groupLabel(value)) : value;
 const typeItems = computed(() =>
-  typeOptions([...ownedRows.value, ...catalogRows.value], props.kind.groupKey, t('filters.allTypes')),
+  typeOptions(
+    [...ownedRows.value, ...catalogRows.value],
+    props.kind.groupKey,
+    t(props.kind.allGroupLabel ?? 'filters.allTypes'),
+  ).map((option) => (option.value === 'all' ? option : { ...option, label: groupValueLabel(option.value) })),
 );
 const groupItems = computed(() => [
   { label: t('filters.groupNone'), value: 'none' },
@@ -102,7 +108,13 @@ const filteredRows = computed(() =>
 );
 const sortedRows = computed(() => sortInventoryRows(filteredRows.value, sortKey.value, filters.dir));
 const sections = computed(() =>
-  inventorySections(sortedRows.value, filters.group, props.kind.groupKey, t('filters.noType')),
+  inventorySections(
+    sortedRows.value,
+    filters.group,
+    props.kind.groupKey,
+    t(props.kind.groupFallback ?? 'filters.noType'),
+    groupValueLabel,
+  ),
 );
 
 /** List mode renders one bounded window of the sorted rows; grid mode is untouched. */
@@ -233,14 +245,20 @@ const fillOpen = computed({
 const artifactCandidates = computed(() =>
   allInventoryItems(payload.value?.inventory).filter((item) => item.kind === 'artifact'),
 );
-const attachmentCandidates = computed(() =>
-  allInventoryItems(payload.value?.inventory).filter((item) => item.kind === 'attachment'),
+const modificationCandidates = computed(() =>
+  allInventoryItems(payload.value?.inventory).filter((item) => item.kind === 'modification'),
 );
 
 /** The selected row is recomputed from the payload, so a modal write refreshes it in place. */
 const selected = computed<TRow | null>(() => rows.value.find((row) => row.key === selectedKey.value) ?? null);
 
-const CARD_PREFIX: Record<string, string> = { weapon: 'w', armor: 'a', artifact: 'art', container: 'c' };
+const CARD_PREFIX: Record<string, string> = {
+  weapon: 'w',
+  armor: 'a',
+  artifact: 'art',
+  container: 'c',
+  modification: 'mod',
+};
 const fetchedCards = ref(new Map<string, Record<string, unknown> | null>());
 const pendingCards = new Set<string>();
 const request = useRequestFetch();
@@ -300,21 +318,21 @@ async function removeSelected(qty: number): Promise<void> {
   }
 }
 
-async function installModule(slot: ModuleSlot, attachmentItemId: number | null): Promise<void> {
+async function installModification(slot: ModificationSlot, modificationItemId: number | null): Promise<void> {
   const weapon = selectedItem.value;
   if (weapon?.kind !== 'weapon') return;
-  const result = await inventory.setWeaponModule(weapon.id, slot, attachmentItemId);
-  if (!result && attachmentItemId != null && inventory.lastError.value?.code === 'INCOMPATIBLE_ATTACHMENT') {
-    pendingUnverified.value = { weaponId: weapon.id, slot, attachmentItemId };
+  const result = await inventory.setWeaponModification(weapon.id, slot, modificationItemId);
+  if (!result && modificationItemId != null && inventory.lastError.value?.code === 'INCOMPATIBLE_MODIFICATION') {
+    pendingUnverified.value = { weaponId: weapon.id, slot, modificationItemId };
   }
 }
 
-const pendingUnverified = ref<{ weaponId: number; slot: ModuleSlot; attachmentItemId: number } | null>(null);
+const pendingUnverified = ref<{ weaponId: number; slot: ModificationSlot; modificationItemId: number } | null>(null);
 
 async function confirmUnverified(): Promise<void> {
   const pending = pendingUnverified.value;
   pendingUnverified.value = null;
-  if (pending) await inventory.setWeaponModule(pending.weaponId, pending.slot, pending.attachmentItemId, true);
+  if (pending) await inventory.setWeaponModification(pending.weaponId, pending.slot, pending.modificationItemId, true);
 }
 
 async function applyFill(slots: (number | null)[]): Promise<void> {
@@ -501,12 +519,12 @@ function openArtifact(name: string, level: number): void {
       :item="selectedItem"
       :card="selectedCard"
       :row="(selected as unknown as Record<string, unknown> | null)"
-      :attachments="attachmentCandidates"
+      :attachments="modificationCandidates"
       :artifacts="artifactCandidates"
       :busy="inventory.busy.value"
       @update="updateSelected"
       @remove="removeSelected"
-      @install="installModule"
+      @install="installModification"
       @fill="applyFill"
       @edit="requestEdit"
       @fill-row="requestFill"

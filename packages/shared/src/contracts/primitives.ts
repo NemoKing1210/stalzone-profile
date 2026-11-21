@@ -11,7 +11,7 @@ export const ItemKindSchema = z.enum([
   'armor',
   'container',
   'artifact',
-  'attachment',
+  'modification',
   'ammo',
   'motif',
   'other',
@@ -27,7 +27,7 @@ export const InventoryKindSchema = z.enum([
   'armor',
   'container',
   'artifact',
-  'attachment',
+  'modification',
   'ammo',
   'other',
 ]);
@@ -54,7 +54,7 @@ export type StorageKind = z.infer<typeof StorageKindSchema>;
 export const WritableStorageKindSchema = z.enum(['inventory', 'stash']);
 export type WritableStorageKind = z.infer<typeof WritableStorageKindSchema>;
 
-export const PlacementLocationSchema = z.enum(['grid', 'equipment', 'container', 'weapon_module', 'loose']);
+export const PlacementLocationSchema = z.enum(['grid', 'equipment', 'container', 'weapon_modification', 'loose']);
 export type PlacementLocation = z.infer<typeof PlacementLocationSchema>;
 
 export const RarityTierSchema = z.enum([
@@ -68,8 +68,16 @@ export const RarityTierSchema = z.enum([
 ]);
 export type RarityTier = z.infer<typeof RarityTierSchema>;
 
-export const ModuleSlotSchema = z.enum(['scope', 'muzzle', 'grip', 'magazine', 'stock', 'tactical', 'other']);
-export type ModuleSlot = z.infer<typeof ModuleSlotSchema>;
+export const ModificationSlotSchema = z.enum([
+  'scope',
+  'muzzle',
+  'grip',
+  'magazine',
+  'stock',
+  'tactical',
+  'other',
+]);
+export type ModificationSlot = z.infer<typeof ModificationSlotSchema>;
 
 /**
  * The four northern factions of STALZONE. Stalkers and bandits are starting

@@ -312,22 +312,14 @@ describe('intake grid width migration', () => {
     });
     const first = seed.insertInventoryItem(db, { characterId, itemId, kind: 'other' });
     const second = seed.insertInventoryItem(db, { characterId, itemId, kind: 'other' });
-    seed.upsertPlacement(db, {
-      itemId: first,
-      characterId,
-      location: 'grid',
-      storageId,
-      x: 39,
-      y: 5,
-    });
-    seed.upsertPlacement(db, {
-      itemId: second,
-      characterId,
-      location: 'grid',
-      storageId,
-      x: 20,
-      y: 5,
-    });
+    const placeGrid = (id: number, x: number): void => {
+      db.prepare(
+        `INSERT INTO item_placement (item_id, character_id, location, storage_id, x, y, verified, updated_at)
+         VALUES (?, ?, 'grid', ?, ?, 5, 1, ?)`,
+      ).run(id, characterId, storageId, x, new Date().toISOString());
+    };
+    placeGrid(first, 39);
+    placeGrid(second, 20);
 
     copyMigrations(['0015_intake_grid_width.sql']);
     migrate(db, workDir);
@@ -386,10 +378,16 @@ describe('item rotation removal migration', () => {
     const rotated = seed.insertInventoryItem(db, { characterId, itemId, kind: 'other' });
     const intake = seed.insertInventoryItem(db, { characterId, itemId, kind: 'other' });
     const moved = seed.insertInventoryItem(db, { characterId, itemId, kind: 'other' });
-    seed.upsertPlacement(db, { itemId: home, characterId, location: 'grid', storageId: inventoryId, x: 0, y: 0 });
-    seed.upsertPlacement(db, { itemId: rotated, characterId, location: 'grid', storageId: inventoryId, x: 3, y: 3 });
-    seed.upsertPlacement(db, { itemId: intake, characterId, location: 'grid', storageId: intakeId, x: 0, y: 0 });
-    seed.upsertPlacement(db, { itemId: moved, characterId, location: 'grid', storageId: inventoryId, x: 5, y: 5 });
+    const placedAt = (id: number, storage: number, x: number, y: number): void => {
+      db.prepare(
+        `INSERT INTO item_placement (item_id, character_id, location, storage_id, x, y, verified, updated_at)
+         VALUES (?, ?, 'grid', ?, ?, ?, 1, ?)`,
+      ).run(id, characterId, storage, x, y, new Date().toISOString());
+    };
+    placedAt(home, inventoryId, 0, 0);
+    placedAt(rotated, inventoryId, 3, 3);
+    placedAt(intake, intakeId, 0, 0);
+    placedAt(moved, inventoryId, 5, 5);
     db.prepare(`UPDATE item_placement SET rotated = 1 WHERE item_id = ?`).run(rotated);
 
     copyMigrations(['0017_drop_item_rotation.sql']);
@@ -413,6 +411,10 @@ describe('item rotation removal migration', () => {
       `INSERT INTO event_log (id, at, actor, action, entity, entity_id, before, after)
        VALUES (900, ?, 'owner', 'inventory.item.move', 'inventory', ?, ?, '{}')`,
     ).run(NOW, String(moved), JSON.stringify(before));
+
+    // The rollback code runs the current schema, so the rename migration is applied first.
+    copyMigrations(['0025_rename_modules_to_modifications.sql']);
+    migrate(db, workDir);
 
     rollbackEvent(db, 900, false);
 
@@ -457,6 +459,92 @@ describe('virtual inventory migration', () => {
     expect(db.prepare(`SELECT is_virtual FROM inventory_item`).get()).toEqual({ is_virtual: 0 });
     db.prepare(`UPDATE inventory_item SET is_virtual = 1`).run();
     expect(db.prepare(`SELECT is_virtual FROM inventory_item`).get()).toEqual({ is_virtual: 1 });
+    expect(db.pragma('foreign_key_check')).toEqual([]);
+  });
+});
+
+describe('modification rename migration', () => {
+  it('renames kinds, placements, compatibility edges and journal tokens', () => {
+    const through24 = fs
+      .readdirSync(migrationsDir)
+      .filter((file) => file < '0025_rename_modules_to_modifications.sql')
+      .sort();
+    copyMigrations(through24);
+    migrate(db, workDir);
+    ensureDefaultSources(db);
+
+    const characterId = seed.upsertCharacter(db, { nick: 'Owner', region: 'ru' });
+    const weaponId = seed.upsertItem(db, {
+      sourceId: 'local',
+      externalId: 'migration:rename:weapon',
+      name: 'Винтовка',
+      kind: 'weapon',
+      category: 'weapon/assault_rifle',
+    });
+    const modificationId = seed.upsertItem(db, {
+      sourceId: 'local',
+      externalId: 'migration:rename:scope',
+      name: 'Прицел',
+      kind: 'attachment',
+      category: 'attachment/scope',
+    });
+    const rifle = seed.insertInventoryItem(db, { characterId, itemId: weaponId, kind: 'weapon' });
+    const scope = seed.insertInventoryItem(db, { characterId, itemId: modificationId, kind: 'attachment' });
+
+    db.prepare(
+      `INSERT INTO item_placement
+         (item_id, character_id, location, weapon_item_id, module_slot, verified, updated_at)
+       VALUES (?, ?, 'weapon_module', ?, 'scope', 1, ?)`,
+    ).run(scope, characterId, rifle, NOW);
+    db.prepare(
+      `INSERT INTO attachment_compat (attachment_item_id, weapon_item_id, source, updated_at)
+       VALUES (?, ?, 'manual', ?)`,
+    ).run(modificationId, weaponId, NOW);
+
+    const snapshot = {
+      weaponItemId: rifle,
+      slot: 'scope',
+      attachmentItemId: scope,
+      attachment: {
+        kind: 'attachment',
+        placement: { location: 'weapon_module', weaponSlot: scope, moduleSlot: 'scope' },
+      },
+      incomingPlacement: null,
+    };
+    db.prepare(
+      `INSERT INTO event_log (id, at, actor, action, entity, entity_id, before, after)
+       VALUES (900, ?, 'owner', 'inventory.item.module', 'inventory', ?, '{}', ?)`,
+    ).run(NOW, String(rifle), JSON.stringify(snapshot));
+
+    copyMigrations(['0025_rename_modules_to_modifications.sql']);
+    migrate(db, workDir);
+
+    expect(db.prepare(`SELECT kind FROM item WHERE id = ?`).get(modificationId)).toEqual({ kind: 'modification' });
+    expect(db.prepare(`SELECT kind FROM inventory_item WHERE id = ?`).get(scope)).toEqual({ kind: 'modification' });
+    expect(db.prepare(`SELECT location, modification_slot FROM item_placement WHERE item_id = ?`).get(scope)).toEqual({
+      location: 'weapon_modification',
+      modification_slot: 'scope',
+    });
+    expect(
+      db.prepare(`SELECT modification_item_id, weapon_item_id FROM modification_compat`).get(),
+    ).toEqual({ modification_item_id: modificationId, weapon_item_id: weaponId });
+    expect(tableExists('attachment_compat')).toBe(false);
+
+    const event = db.prepare(`SELECT action, after FROM event_log WHERE id = 900`).get() as {
+      action: string;
+      after: string;
+    };
+    expect(event.action).toBe('inventory.item.modification');
+    expect(event.after).toContain('"modificationItemId"');
+    expect(event.after).toContain('"modificationSlot":"scope"');
+    expect(event.after).toContain('"location":"weapon_modification"');
+    expect(event.after).toContain('"kind":"modification"');
+    expect(event.after).not.toContain('"attachment');
+
+    const prompt = db.prepare(`SELECT body FROM chat_prompt WHERE kind = 'skill' AND name = 'inventory'`).get() as {
+      body: string;
+    };
+    expect(prompt.body).toContain('modifications never merge');
     expect(db.pragma('foreign_key_check')).toEqual([]);
   });
 });

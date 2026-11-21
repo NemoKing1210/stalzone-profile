@@ -135,17 +135,19 @@ describe('inventory write schemas', () => {
   });
 
   it('carries the exact catalog id into the API and MCP create inputs', () => {
-    expect(InventoryItemCreateSchema.parse({ name: 'Прицел', kind: 'attachment', catalogItemId: 42 })).toMatchObject({
+    expect(InventoryItemCreateSchema.parse({ name: 'Прицел', kind: 'modification', catalogItemId: 42 })).toMatchObject({
       catalogItemId: 42,
     });
     expect(InventoryItemCreateSchema.safeParse({ name: 'Прицел', catalogItemId: 0 }).success).toBe(false);
-    expect(AddInventoryItemInputSchema.parse({ name: 'Прицел', kind: 'attachment', catalog_item_id: 42 })).toMatchObject({
+    expect(
+      AddInventoryItemInputSchema.parse({ name: 'Прицел', kind: 'modification', catalog_item_id: 42 }),
+    ).toMatchObject({
       catalog_item_id: 42,
     });
   });
 
   it('accepts every inventory kind and rejects a catalog-only motif', () => {
-    for (const kind of ['weapon', 'armor', 'container', 'artifact', 'attachment', 'ammo', 'other']) {
+    for (const kind of ['weapon', 'armor', 'container', 'artifact', 'modification', 'ammo', 'other']) {
       expect(InventoryItemCreateSchema.safeParse({ name: 'АК-12', kind }).success, kind).toBe(true);
     }
     expect(InventoryItemCreateSchema.safeParse({ name: 'АК-12', kind: 'motif' }).success).toBe(false);

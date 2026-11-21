@@ -2,7 +2,7 @@ import { z } from 'zod';
 import {
   EquipmentSlotSchema,
   InventoryKindSchema,
-  ModuleSlotSchema,
+  ModificationSlotSchema,
   RarityTierSchema,
   StorageKindSchema,
 } from './primitives.js';
@@ -62,9 +62,9 @@ export const PlacementReadSchema = z.discriminatedUnion('location', [
     slotIndex: z.number().int().nonnegative(),
   }),
   z.object({
-    location: z.literal('weapon_module'),
+    location: z.literal('weapon_modification'),
     weaponItemId: z.number().int(),
-    slot: ModuleSlotSchema,
+    slot: ModificationSlotSchema,
     verified: z.boolean(),
   }),
   z.object({
@@ -121,7 +121,7 @@ export interface InventoryItemRead {
   placement: PlacementRead;
   container: ContainerDataRead | null;
   artifacts?: InventoryItemRead[];
-  modules?: InventoryItemRead[];
+  modifications?: InventoryItemRead[];
   /** The full card for an owned instance; the grid tile reads type and caliber here. */
   card?: Record<string, unknown> | null;
 }
@@ -149,7 +149,7 @@ export const InventoryItemReadSchema: z.ZodType<InventoryItemRead> = z.lazy(() =
     placement: PlacementReadSchema,
     container: ContainerDataReadSchema.nullable(),
     artifacts: z.array(InventoryItemReadSchema).optional(),
-    modules: z.array(InventoryItemReadSchema).optional(),
+    modifications: z.array(InventoryItemReadSchema).optional(),
     card: z.record(z.string(), z.unknown()).nullable().optional(),
   }),
 );

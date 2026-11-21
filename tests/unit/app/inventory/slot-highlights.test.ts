@@ -49,7 +49,7 @@ describe('dragged equipment highlights', () => {
       'quick3',
       'quick4',
     ]);
-    expect(highlightedSlots(item({ kind: 'attachment', category: 'attachment/scope' }))).toEqual([]);
+    expect(highlightedSlots(item({ kind: 'modification', category: 'attachment/scope' }))).toEqual([]);
     expect(highlightedSlots(null)).toEqual([]);
   });
 });

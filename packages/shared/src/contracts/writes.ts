@@ -4,7 +4,7 @@ import {
   FactionSchema,
   InventoryKindSchema,
   ItemKindSchema,
-  ModuleSlotSchema,
+  ModificationSlotSchema,
   RarityTierSchema,
   SetupRegionSchema,
   SyncSourceSchema,
@@ -132,9 +132,9 @@ export const PlacementTargetSchema = z.discriminatedUnion('location', [
     slot: z.number().int().nonnegative(),
   }),
   z.object({
-    location: z.literal('weapon_module'),
+    location: z.literal('weapon_modification'),
     weaponItemId: z.number().int().positive(),
-    slot: ModuleSlotSchema,
+    slot: ModificationSlotSchema,
     allowUnverified: z.boolean().default(false),
   }),
 ]);
@@ -234,12 +234,12 @@ export const ItemLayoutWriteSchema = WriteOptionsSchema.extend({
 });
 export type ItemLayoutWrite = z.infer<typeof ItemLayoutWriteSchema>;
 
-/** `attachmentItemId: null` removes the module from the slot. */
-export const WeaponModuleWriteSchema = WriteOptionsSchema.extend({
-  attachmentItemId: z.number().int().positive().nullable(),
+/** `modificationItemId: null` removes the modification from the slot. */
+export const WeaponModificationWriteSchema = WriteOptionsSchema.extend({
+  modificationItemId: z.number().int().positive().nullable(),
   allowUnverified: z.boolean().default(false),
 });
-export type WeaponModuleWrite = z.infer<typeof WeaponModuleWriteSchema>;
+export type WeaponModificationWrite = z.infer<typeof WeaponModificationWriteSchema>;
 
 /* ------------------------------------------------------------------ */
 /* MCP tool schemas (snake_case, dry_run defaults to true)            */
@@ -283,9 +283,9 @@ export const McpPlacementTargetSchema = z.discriminatedUnion('location', [
     slot: z.number().int().nonnegative(),
   }),
   z.object({
-    location: z.literal('weapon_module'),
+    location: z.literal('weapon_modification'),
     weapon_item_id: z.number().int().positive(),
-    slot: ModuleSlotSchema,
+    slot: ModificationSlotSchema,
     allow_unverified: z.boolean().default(false),
   }),
 ]);
@@ -371,13 +371,13 @@ export const SetContainerArtifactsInputSchema = McpWriteOptionsSchema.extend({
 });
 export type SetContainerArtifactsInput = z.infer<typeof SetContainerArtifactsInputSchema>;
 
-export const SetWeaponModuleInputSchema = McpWriteOptionsSchema.extend({
+export const SetWeaponModificationInputSchema = McpWriteOptionsSchema.extend({
   weapon_item_id: z.number().int().positive(),
-  slot: ModuleSlotSchema,
-  attachment_item_id: z.number().int().positive().nullable().default(null),
+  slot: ModificationSlotSchema,
+  modification_item_id: z.number().int().positive().nullable().default(null),
   allow_unverified: z.boolean().default(false),
 });
-export type SetWeaponModuleInput = z.infer<typeof SetWeaponModuleInputSchema>;
+export type SetWeaponModificationInput = z.infer<typeof SetWeaponModificationInputSchema>;
 
 export const SetItemLayoutInputSchema = McpWriteOptionsSchema.extend({
   item_id: z.number().int().positive(),

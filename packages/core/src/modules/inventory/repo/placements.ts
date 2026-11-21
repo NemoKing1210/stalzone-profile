@@ -1,6 +1,6 @@
 import type { Db } from '../../../platform/db/index.js';
 
-export type PlacementLocation = 'grid' | 'equipment' | 'container' | 'weapon_module' | 'loose';
+export type PlacementLocation = 'grid' | 'equipment' | 'container' | 'weapon_modification' | 'loose';
 
 export interface PlacementRow {
   item_id: number;
@@ -13,7 +13,7 @@ export interface PlacementRow {
   container_item_id: number | null;
   container_slot: number | null;
   weapon_item_id: number | null;
-  module_slot: string | null;
+  modification_slot: string | null;
   verified: number;
   updated_at: string;
 }
@@ -29,7 +29,7 @@ export interface PlacementInput {
   containerItemId?: number | null;
   containerSlot?: number | null;
   weaponItemId?: number | null;
-  moduleSlot?: string | null;
+  modificationSlot?: string | null;
   verified?: boolean;
 }
 
@@ -37,10 +37,10 @@ export function upsertPlacement(db: Db, input: PlacementInput): void {
   db.prepare(
     `INSERT INTO item_placement
       (item_id, character_id, location, storage_id, x, y, equipment_slot,
-       container_item_id, container_slot, weapon_item_id, module_slot, verified, updated_at)
+       container_item_id, container_slot, weapon_item_id, modification_slot, verified, updated_at)
      VALUES
       (@item_id, @character_id, @location, @storage_id, @x, @y, @equipment_slot,
-       @container_item_id, @container_slot, @weapon_item_id, @module_slot, @verified, @updated_at)
+       @container_item_id, @container_slot, @weapon_item_id, @modification_slot, @verified, @updated_at)
      ON CONFLICT(item_id) DO UPDATE SET
        character_id = excluded.character_id,
        location = excluded.location,
@@ -51,7 +51,7 @@ export function upsertPlacement(db: Db, input: PlacementInput): void {
        container_item_id = excluded.container_item_id,
        container_slot = excluded.container_slot,
        weapon_item_id = excluded.weapon_item_id,
-       module_slot = excluded.module_slot,
+       modification_slot = excluded.modification_slot,
        verified = excluded.verified,
        updated_at = excluded.updated_at`,
   ).run({
@@ -65,7 +65,7 @@ export function upsertPlacement(db: Db, input: PlacementInput): void {
     container_item_id: input.containerItemId ?? null,
     container_slot: input.containerSlot ?? null,
     weapon_item_id: input.weaponItemId ?? null,
-    module_slot: input.moduleSlot ?? null,
+    modification_slot: input.modificationSlot ?? null,
     verified: input.verified === false ? 0 : 1,
     updated_at: new Date().toISOString(),
   });
@@ -98,10 +98,10 @@ export function restorePlacementRow(db: Db, row: PlacementRow): void {
   db.prepare(
     `INSERT INTO item_placement
       (item_id, character_id, location, storage_id, x, y, equipment_slot,
-       container_item_id, container_slot, weapon_item_id, module_slot, verified, updated_at)
+       container_item_id, container_slot, weapon_item_id, modification_slot, verified, updated_at)
      VALUES
       (@item_id, @character_id, @location, @storage_id, @x, @y, @equipment_slot,
-       @container_item_id, @container_slot, @weapon_item_id, @module_slot, @verified, @updated_at)
+       @container_item_id, @container_slot, @weapon_item_id, @modification_slot, @verified, @updated_at)
      ON CONFLICT(item_id) DO UPDATE SET
        character_id = excluded.character_id,
        location = excluded.location,
@@ -112,7 +112,7 @@ export function restorePlacementRow(db: Db, row: PlacementRow): void {
        container_item_id = excluded.container_item_id,
        container_slot = excluded.container_slot,
        weapon_item_id = excluded.weapon_item_id,
-       module_slot = excluded.module_slot,
+       modification_slot = excluded.modification_slot,
        verified = excluded.verified,
        updated_at = excluded.updated_at`,
   ).run(row);

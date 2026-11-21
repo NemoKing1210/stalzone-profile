@@ -106,7 +106,7 @@ function* walk(items: readonly InventoryItemRead[]): Generator<InventoryItemRead
   for (const item of items) {
     yield item;
     yield* walk(item.artifacts ?? []);
-    yield* walk(item.modules ?? []);
+    yield* walk(item.modifications ?? []);
   }
 }
 

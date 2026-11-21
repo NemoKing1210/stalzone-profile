@@ -8,9 +8,8 @@ export interface ItemFormFields {
   skin: boolean;
 }
 
-/**
- * The game's own matrix: weapons and armor level and take skins, artifacts carry the one
- * rarity roll, stacks carry a quantity, containers and attachments carry neither. The DB
+/** The game's own matrix: weapons and armor level and take skins, artifacts carry the one
+ * rarity roll, stacks carry a quantity, containers and modifications carry neither. The DB
  * still forces qty=1 and level 0 outside their kinds; hiding the input keeps the form honest.
  */
 export function itemFormFields(kind: string): ItemFormFields {

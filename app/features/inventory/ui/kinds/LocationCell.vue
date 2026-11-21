@@ -10,7 +10,7 @@ const props = defineProps<{
     storageKind: StorageKind | null;
     parentName: string | null;
     equipmentSlot: string | null;
-    moduleSlot: string | null;
+    modificationSlot: string | null;
     slotIndex: number | null;
   };
 }>();
@@ -29,7 +29,7 @@ const EQUIPMENT_SLOTS = new Set([
   'quick3',
   'quick4',
 ]);
-const MODULE_SLOTS = new Set(['scope', 'muzzle', 'grip', 'magazine', 'stock', 'tactical', 'other']);
+const MODIFICATION_SLOTS = new Set(['scope', 'muzzle', 'grip', 'magazine', 'stock', 'tactical', 'other']);
 
 const label = computed(() => {
   const row = props.row;
@@ -47,10 +47,12 @@ const label = computed(() => {
     const slot = row.slotIndex == null ? '' : ` · ${row.slotIndex + 1}`;
     return `${row.parentName ?? t('inventory.inContainer')}${slot}`;
   }
-  if (row.location === 'weapon_module') {
+  if (row.location === 'weapon_modification') {
     const slot =
-      row.moduleSlot && MODULE_SLOTS.has(row.moduleSlot) ? ` · ${t(`inventory.module.${row.moduleSlot}`)}` : '';
-    return `${row.parentName ?? t('inventory.weaponModules')}${slot}`;
+      row.modificationSlot && MODIFICATION_SLOTS.has(row.modificationSlot)
+        ? ` · ${t(`inventory.modification.${row.modificationSlot}`)}`
+        : '';
+    return `${row.parentName ?? t('inventory.weaponModifications')}${slot}`;
   }
   if (row.location === 'loose') return t('inventory.loose');
   return '—';

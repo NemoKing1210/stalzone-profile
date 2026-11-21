@@ -58,7 +58,7 @@ describe('detailRows', () => {
       'weight',
     ]);
     expect(keys('container', { card: { slots: 5, eff: 90 } })).toEqual(['slots', 'eff']);
-    expect(keys('attachment', { item: item({ kind: 'attachment', slot: 'scope', weight: 0.3 }) })).toEqual([
+    expect(keys('modification', { item: item({ kind: 'modification', slot: 'scope', weight: 0.3 }) })).toEqual([
       'slot',
       'weight',
     ]);

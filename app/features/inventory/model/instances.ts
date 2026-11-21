@@ -8,7 +8,7 @@ export interface InstanceLocationRow {
   storageKind: StorageKind | null;
   parentName: string | null;
   equipmentSlot: string | null;
-  moduleSlot: string | null;
+  modificationSlot: string | null;
   slotIndex: number | null;
 }
 
@@ -31,7 +31,7 @@ export interface InventoryIndex {
 
 /**
  * Every instance in the profile: equipped items, loose items, grid items, and the
- * artifacts and modules nested inside them. One id appears once.
+ * artifacts and modifications nested inside them. One id appears once.
  */
 export function allInventoryItems(inventory: InventoryRead | null | undefined): InventoryItemRead[] {
   if (!inventory) return [];
@@ -39,7 +39,7 @@ export function allInventoryItems(inventory: InventoryRead | null | undefined): 
   const visit = (item: InventoryItemRead): void => {
     if (seen.has(item.id)) return;
     seen.set(item.id, item);
-    for (const child of [...(item.artifacts ?? []), ...(item.modules ?? [])]) visit(child);
+    for (const child of [...(item.artifacts ?? []), ...(item.modifications ?? [])]) visit(child);
   };
 
   for (const item of Object.values(inventory.equipment ?? {})) if (item) visit(item);
@@ -75,7 +75,7 @@ export function locationOf(item: InventoryItemRead, index: InventoryIndex): Inst
       storageKind: storage?.kind ?? null,
       parentName: null,
       equipmentSlot: null,
-      moduleSlot: null,
+      modificationSlot: null,
       slotIndex: null,
     };
   }
@@ -87,7 +87,7 @@ export function locationOf(item: InventoryItemRead, index: InventoryIndex): Inst
       storageKind: null,
       parentName: null,
       equipmentSlot: placement.slot,
-      moduleSlot: null,
+      modificationSlot: null,
       slotIndex: null,
     };
   }
@@ -99,19 +99,19 @@ export function locationOf(item: InventoryItemRead, index: InventoryIndex): Inst
       storageKind: null,
       parentName: index.containers.get(placement.containerItemId)?.name ?? null,
       equipmentSlot: null,
-      moduleSlot: null,
+      modificationSlot: null,
       slotIndex: placement.slotIndex,
     };
   }
-  if (placement.location === 'weapon_module') {
+  if (placement.location === 'weapon_modification') {
     return {
-      location: 'weapon_module',
+      location: 'weapon_modification',
       storageId: null,
       storageName: null,
       storageKind: null,
       parentName: index.weapons.get(placement.weaponItemId)?.name ?? null,
       equipmentSlot: null,
-      moduleSlot: placement.slot,
+      modificationSlot: placement.slot,
       slotIndex: null,
     };
   }
@@ -122,7 +122,7 @@ export function locationOf(item: InventoryItemRead, index: InventoryIndex): Inst
     storageKind: null,
     parentName: null,
     equipmentSlot: null,
-    moduleSlot: null,
+    modificationSlot: null,
     slotIndex: null,
   };
 }

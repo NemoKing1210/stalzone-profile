@@ -104,7 +104,7 @@ function moveTo(entry: MenuDestination): void {
 
         <ContextMenuItem v-if="item?.kind === 'weapon'" :class="itemClass" @select="run({ kind: 'weapon' })">
           <UIcon name="i-lucide-paperclip" class="size-3.5 shrink-0 text-[var(--sz-text-muted)]" aria-hidden="true" />
-          <span class="flex-1">{{ t('inventory.weaponModules') }}</span>
+          <span class="flex-1">{{ t('inventory.weaponModifications') }}</span>
         </ContextMenuItem>
 
         <ContextMenuSeparator class="my-1 h-px bg-[var(--sz-border)]" />

@@ -53,7 +53,7 @@ orchestrate several domains are `maintenance` (journal-based rollback), `read-mo
 |---|---|
 | `catalog` | items, stats, effects, prices, icons, the DPS/TTK and artifact formulas |
 | `identity` | character and its stats, including the `stat_definition` reference surface |
-| `inventory` | storages, gear instances, placements, container data, weapon modules, the computed loadout |
+| `inventory` | storages, gear instances, placements, container data, weapon modifications, the computed loadout |
 | `sync` | source adapters binding, freshness rows, profile statistics |
 | `setup` | the first-run state |
 | `maintenance` | scoped profile resets and rollback through `event_log` |

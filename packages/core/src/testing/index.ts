@@ -33,7 +33,7 @@ export {
   getStorage,
   insertInventoryItem,
   insertStorage,
-  listCompatForAttachment,
+  listCompatForModification,
   listInventoryItems,
   listPlacements,
   listStoragePlacements,

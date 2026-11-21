@@ -136,7 +136,7 @@ describe('exact catalog item create', () => {
 
   it('creates every ownable kind from the exact catalog id', () => {
     const cases: { kind: string; name: string; category: string; qty?: number }[] = [
-      { kind: 'attachment', name: 'Прицел', category: 'attachment/scope' },
+      { kind: 'modification', name: 'Прицел', category: 'attachment/scope' },
       { kind: 'ammo', name: 'Патрон 7.62', category: 'bullet/762', qty: 30 },
       { kind: 'other', name: 'Аптечка', category: 'consumable/med' },
       { kind: 'weapon', name: 'АК-12т', category: 'weapon/assault_rifle' },
@@ -178,9 +178,9 @@ describe('exact catalog item create', () => {
     ).toThrow();
   });
 
-  it('keeps quantity 1 for attachments and stacks ammo into the intake', () => {
-    const scope = kindItem('attachment', 'Прицел', { category: 'attachment/scope' });
-    expect(() => create({ name: 'Прицел', kind: 'attachment', catalogItemId: scope, qty: 2 })).toThrowError(
+  it('keeps quantity 1 for modifications and stacks ammo into the intake', () => {
+    const scope = kindItem('modification', 'Прицел', { category: 'attachment/scope' });
+    expect(() => create({ name: 'Прицел', kind: 'modification', catalogItemId: scope, qty: 2 })).toThrowError(
       expect.objectContaining({ code: 'VALIDATION' }),
     );
 
@@ -199,10 +199,10 @@ describe('exact catalog item create', () => {
   });
 
   it('rolls back an instance created by catalog id', () => {
-    const id = kindItem('attachment', 'Прицел', { category: 'attachment/scope' });
+    const id = kindItem('modification', 'Прицел', { category: 'attachment/scope' });
     const result = createInventoryItem(
       db,
-      InventoryItemCreateSchema.parse({ name: 'Прицел', kind: 'attachment', catalogItemId: id, dryRun: false }),
+      InventoryItemCreateSchema.parse({ name: 'Прицел', kind: 'modification', catalogItemId: id, dryRun: false }),
     );
     const instance = (result.diff.after as { id: number }).id;
     rollbackEvent(db, result.eventId!, false);

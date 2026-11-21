@@ -107,7 +107,7 @@ The `profile://schema` resource provides tool descriptions and the write rules.
 | `set_container_artifacts` | `container_item_id`, `slots[]` (instance ids or `null`), `dry_run?` |
 | `update_logging` | `enabled`, `min_level`, `retention_days`, `max_rows`, `capture_client`, `client_console`, `mirror_stdout`, `levels`, `dry_run?` |
 | `clear_logs` | `scope` (`all` or `filtered`), `filter?`, `dry_run?` |
-| `set_weapon_module` | `weapon_item_id`, `slot`, `attachment_item_id?` (`null` removes), `allow_unverified?`, `dry_run?` |
+| `set_weapon_modification` | `weapon_item_id`, `slot`, `modification_item_id?` (`null` removes), `allow_unverified?`, `dry_run?` |
 | `set_item_layout` | `item_id` (catalog), `width`, `height`, `weight?`, `dry_run?` |
 | `sync_source` | `source`: `exbo \| exbo_base \| wiki \| motifs \| scpmodel \| icons \| profile`, `force?`, `confirm`. Resolves `ICONS_DIR` and the STALZONE credentials the same way the CLI does. The realm is not a tool argument: like the CLI and the admin route, a sync binds the default `ru` realm |
 | `rollback_event` | `event_id`, `dry_run?` |
@@ -115,13 +115,13 @@ The `profile://schema` resource provides tool descriptions and the write rules.
 
 `target` is a discriminated union on `location`: `grid` (`storage_id`, `x`, `y`),
 `equipment` (`slot`), `container` (`container_item_id`, `slot`) or
-`weapon_module` (`weapon_item_id`, `slot`, `allow_unverified?`). There is no `loose` target.
+`weapon_modification` (`weapon_item_id`, `slot`, `allow_unverified?`). There is no `loose` target.
 
 A virtual instance is not owned in game but remains a full instance: reads, the payload and
 loadout previews include it, and `virtual: true`/`false` filters `list_inventory_items`.
 
 The intake stash (`kind: 'overflow'`) is structural. `add_inventory_item` puts new
-instances there; `set_container_artifacts`, `set_weapon_module` and `remove_inventory_item`
+instances there; `set_container_artifacts`, `set_weapon_modification` and `remove_inventory_item`
 return displaced children there; `delete_storage` packs a deleted stash into it;
 `auto_arrange_storage` is the only move in the other direction, packing intake items into a
 regular stash. A `grid` target inside intake answers `422 INVALID_PLACEMENT`, as does a

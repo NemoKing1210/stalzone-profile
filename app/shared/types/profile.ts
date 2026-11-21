@@ -28,7 +28,7 @@ export interface InstanceEditTarget {
   /** Catalog item id, the key of the layout override endpoint. */
   itemId: number;
   name: string;
-  kind: OwnedKind;
+  kind: OwnedKind | 'modification';
   level: number;
   qty: number;
   quality: string | null;
@@ -196,6 +196,7 @@ export interface ProfilePayload {
     weapons: CatalogEntry[];
     armor: CatalogEntry[];
     devices: CatalogEntry[];
+    modifications: CatalogEntry[];
     meta: Record<string, unknown>;
   };
   /** The instance inventory: storages, equipment, loose tray and computed loadout. */

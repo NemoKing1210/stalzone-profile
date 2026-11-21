@@ -1,5 +1,6 @@
 import { CAT_RU, RANK_ORDER, rankKey, round } from '@profile/shared';
 import { completeDamagePoint } from '@profile/shared/calc';
+import { modificationSlotFor } from '@profile/shared/modifications';
 import {
   armorAtLevel,
   displayDmg,
@@ -306,11 +307,12 @@ export function buildItemCard(db: Db, item: ItemRow): ItemCard {
 }
 
 export function cardKey(kind: string, name: string): string {
-  const prefix = kind === 'weapon' ? 'w' : kind === 'armor' ? 'a' : kind === 'artifact' ? 'art' : 'c';
+  const prefix =
+    kind === 'weapon' ? 'w' : kind === 'armor' ? 'a' : kind === 'artifact' ? 'art' : kind === 'modification' ? 'mod' : 'c';
   return `${prefix}:${name}`;
 }
 
-const DETAIL_KINDS_ORDER = ['weapon', 'armor', 'artifact', 'container'] as const;
+const DETAIL_KINDS_ORDER = ['weapon', 'armor', 'artifact', 'container', 'modification'] as const;
 
 export interface CardIndex {
   /** One card per item id, so catalogs reuse the work `details` already did. */
@@ -340,7 +342,13 @@ export function buildDetails(db: Db): Record<string, ItemCard> {
   return buildDetailsFrom(loadCatalogContext(db, repo.listItems(db)));
 }
 
-const DETAIL_KINDS: Record<string, string> = { w: 'weapon', a: 'armor', art: 'artifact', c: 'container' };
+const DETAIL_KINDS: Record<string, string> = {
+  w: 'weapon',
+  a: 'armor',
+  art: 'artifact',
+  c: 'container',
+  mod: 'modification',
+};
 
 export interface DetailEntry {
   item: ItemRow;
@@ -388,6 +396,27 @@ export function buildDeviceCatalogFrom(ctx: CatalogContext, cards?: Map<number, 
         rank: card.rank ?? 'default',
         type: card.type ?? null,
         category: item.category ?? 'device/device',
+        icon: card.icon,
+        weight: item.weight,
+      };
+    })
+    .sort((a, b) => String(a.category).localeCompare(String(b.category), 'ru') || a.name.localeCompare(b.name, 'ru'));
+}
+
+/** Rows for `/modifications`: the full catalog with each item's slot. */
+export function buildModificationCatalogFrom(
+  ctx: CatalogContext,
+  cards?: Map<number, ItemCard>,
+): Record<string, unknown>[] {
+  const items = [...ctx.items.values()].filter((item) => item.kind === 'modification');
+  return items
+    .map((item) => {
+      const card = cards?.get(item.id) ?? buildItemCardFrom(ctx, item);
+      return {
+        name: item.name,
+        rank: card.rank ?? 'default',
+        category: item.category ?? null,
+        slot: modificationSlotFor(item.category),
         icon: card.icon,
         weight: item.weight,
       };

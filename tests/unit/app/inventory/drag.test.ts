@@ -62,8 +62,8 @@ describe('isSameTarget', () => {
     ).toBe(true);
     expect(
       isSameTarget(
-        { location: 'weapon_module', weaponItemId: 3, slot: 'scope', verified: true },
-        { location: 'weapon_module', weaponItemId: 3, slot: 'scope', allowUnverified: false },
+        { location: 'weapon_modification', weaponItemId: 3, slot: 'scope', verified: true },
+        { location: 'weapon_modification', weaponItemId: 3, slot: 'scope', allowUnverified: false },
       ),
     ).toBe(true);
   });

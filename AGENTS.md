@@ -227,7 +227,7 @@ of them. The owner sets the priorities; the rules below define what counts as re
 | `packages/core/src/modules`  | bounded contexts: catalog, identity, inventory, logging, maintenance,    |
 |                              | read-model, setup, sync — each with its own `index.ts` public API        |
 | `packages/core/src/platform/logging` | writer, levels, redaction, fingerprints, settings cache, boot lines |
-| `packages/core/src/modules/inventory` | storages, gear instances, placements, container data, weapon modules, loadout |
+| `packages/core/src/modules/inventory` | storages, gear instances, placements, container data, weapon modifications, loadout |
 | `packages/core/src/modules/catalog/calc` | DPS/TTK and artifact formulas — the only source of numbers  |
 | `packages/sources`           | pure source adapters: fetch + parse, **no DB writes**                    |
 | `packages/mcp`               | tool registry, local client, stdio and HTTP                              |
@@ -277,10 +277,10 @@ is engineering default, not law.
    deployment. After the first deployment, schema changes only add new `NNNN_*.sql`
    migrations; never edit an applied one.
 6. **Gear is stored as instances; `qty` is for stackables.** Weapons, armor, containers,
-   artifacts and attachments are individual rows even when they look identical, because each
-   carries its own modules, fill, level, quality or placement. Stackable consumables and ammo
+   artifacts and modifications are individual rows even when they look identical, because each
+   carries its own modifications, fill, level, quality or placement. Stackable consumables and ammo
    may collapse into `qty`; the payload expands them for display only. (Owner decision,
-   2026-11-17: the old collapse-everything rule blocked per-instance modules and placement.)
+   2026-11-17: the old collapse-everything rule blocked per-instance modifications and placement.)
 7. **Authorization is never weakened.** Public paths are only `/login`, `/api/auth/login`,
    `/api/v1/healthz`, `/mcp`, `/_*`, `/icons/*`, `/favicon.ico`. Mutations require their own
    `Origin` or a bearer token. Secrets live only in env.
@@ -353,8 +353,8 @@ state lives in `app/features/inventory/ui/grid/useGridDrag.ts`. Keep geometry an
 resolution pure in `app/features/inventory/model` so they stay unit-tested; do not add
 manual `pointermove`/`pointerup` listeners for a new interaction.
 
-**Client code** imports `@profile/shared/contracts`, `/ranks`, `/format`, `/calc` and
-`/inventory-order` through subpaths,
+**Client code** imports `@profile/shared/contracts`, `/ranks`, `/format`, `/calc`,
+`/inventory-order` and `/modifications` through subpaths,
 never the `@profile/shared` barrel: the barrel pulls `node:crypto` into the browser bundle.
 The app imports no `@profile/core`; ESLint enforces both rules together with the
 `shared → entities → features → pages` direction.

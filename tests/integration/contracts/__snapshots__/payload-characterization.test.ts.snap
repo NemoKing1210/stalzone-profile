@@ -146,6 +146,7 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
       "source": "",
       "updated": null,
     },
+    "modifications": [],
     "weapons": [
       {
         "caliber": "5.45x39",
@@ -374,7 +375,7 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
         "itemId": 3,
         "kind": "armor",
         "level": 10,
-        "modules": undefined,
+        "modifications": undefined,
         "name": "Куница",
         "placement": {
           "location": "loose",
@@ -413,7 +414,7 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
         "itemId": 5,
         "kind": "artifact",
         "level": 15,
-        "modules": undefined,
+        "modifications": undefined,
         "name": "Нервяк",
         "placement": {
           "location": "loose",
@@ -454,7 +455,7 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
             "itemId": 5,
             "kind": "artifact",
             "level": 15,
-            "modules": undefined,
+            "modifications": undefined,
             "name": "Нервяк",
             "placement": {
               "containerItemId": 3,
@@ -507,7 +508,7 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
         "itemId": 4,
         "kind": "container",
         "level": 0,
-        "modules": undefined,
+        "modifications": undefined,
         "name": "Рюкзак",
         "placement": {
           "location": "loose",
@@ -579,7 +580,7 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
         "itemId": 1,
         "kind": "weapon",
         "level": 15,
-        "modules": [],
+        "modifications": [],
         "name": "АК-12",
         "placement": {
           "location": "loose",

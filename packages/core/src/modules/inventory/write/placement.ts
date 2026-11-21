@@ -1,5 +1,6 @@
 import { acceptsEquipment } from '@profile/shared/contracts';
 import type { PlacementTarget } from '@profile/shared/contracts';
+import { modificationSlotFor } from '@profile/shared/modifications';
 import type { Db } from '../../../platform/db/index.js';
 import { logEvent, withTransaction, WriteError, type WriteResult } from '../../../platform/journal/index.js';
 import { statValueBase } from '../../catalog/index.js';
@@ -55,17 +56,6 @@ export function effectiveContainerSlots(db: Db, row: MovableItem): number | null
   return statValueBase(db, row.item_id, 'container.slots', row.level);
 }
 
-export function moduleSlotFor(category: string | null): string | null {
-  const value = (category ?? '').toLowerCase();
-  if (value.includes('scope') || value.includes('sight')) return 'scope';
-  if (value.includes('muzzle') || value.includes('barrel') || value.includes('silenc')) return 'muzzle';
-  if (value.includes('grip') || value.includes('underbarrel')) return 'grip';
-  if (value.includes('magazine')) return 'magazine';
-  if (value.includes('stock')) return 'stock';
-  if (value.includes('tactical') || value.includes('laser') || value.includes('flashlight')) return 'tactical';
-  return 'other';
-}
-
 function loadItem(db: Db, itemId: number): repo.InventoryItemJoined {
   const row = repo.getInventoryItem(db, itemId);
   if (!row) throw new WriteError(404, 'ITEM_NOT_FOUND', 'Inventory item not found');
@@ -82,7 +72,7 @@ export function placementInputSnapshot(next: repo.PlacementInput): Record<string
     containerItemId: next.containerItemId ?? null,
     slotIndex: next.containerSlot ?? null,
     weaponItemId: next.weaponItemId ?? null,
-    moduleSlot: next.moduleSlot ?? null,
+    modificationSlot: next.modificationSlot ?? null,
     verified: next.verified !== false,
   };
 }
@@ -127,9 +117,9 @@ function toPlacement(
   return {
     itemId: row.id,
     characterId: row.character_id,
-    location: 'weapon_module',
+    location: 'weapon_modification',
     weaponItemId: target.weaponItemId,
-    moduleSlot: target.slot,
+    modificationSlot: target.slot,
     verified,
   };
 }
@@ -145,7 +135,7 @@ function samePlacement(current: repo.PlacementRow | null, next: repo.PlacementIn
     current.container_item_id === (next.containerItemId ?? null) &&
     current.container_slot === (next.containerSlot ?? null) &&
     current.weapon_item_id === (next.weaponItemId ?? null) &&
-    current.module_slot === (next.moduleSlot ?? null) &&
+    current.modification_slot === (next.modificationSlot ?? null) &&
     current.verified === (next.verified === false ? 0 : 1)
   );
 }
@@ -154,37 +144,39 @@ function targetDescription(target: PlacementTarget): string {
   if (target.location === 'grid') return `storage #${target.storageId} at ${target.x},${target.y}`;
   if (target.location === 'equipment') return `slot ${target.slot}`;
   if (target.location === 'container') return `container slot ${target.slot}`;
-  return `module ${target.slot}`;
+  return `modification ${target.slot}`;
 }
 
-function validateModuleInstall(
+function validateModificationInstall(
   db: Db,
-  attachment: MovableItem,
+  modification: MovableItem,
   weapon: MovableItem,
   slot: string,
   allowUnverified: boolean,
 ): boolean {
-  if (attachment.kind !== 'attachment') {
-    throw new WriteError(422, 'INVALID_PLACEMENT', 'Only an attachment can be installed as a module');
+  if (modification.kind !== 'modification') {
+    throw new WriteError(422, 'INVALID_PLACEMENT', 'Only a modification can be installed into a weapon slot');
   }
-  if (weapon.kind !== 'weapon') throw new WriteError(422, 'NOT_A_WEAPON', 'Modules attach to a weapon only');
-  const derived = moduleSlotFor(attachment.category);
+  if (weapon.kind !== 'weapon') {
+    throw new WriteError(422, 'NOT_A_WEAPON', 'Modifications attach to a weapon only');
+  }
+  const derived = modificationSlotFor(modification.category);
   if (derived !== slot) {
-    throw new WriteError(422, 'INVALID_PLACEMENT', `This attachment belongs to the ${derived ?? 'other'} slot`);
+    throw new WriteError(422, 'INVALID_PLACEMENT', `This modification belongs to the ${derived} slot`);
   }
-  const edges = repo.listCompatForAttachment(db, attachment.item_id);
+  const edges = repo.listCompatForModification(db, modification.item_id);
   if (edges.length > 0) {
-    if (!repo.isCompatible(db, attachment.item_id, weapon.item_id)) {
-      throw new WriteError(409, 'INCOMPATIBLE_ATTACHMENT', 'This attachment does not fit this weapon', {
-        attachmentItemId: attachment.item_id,
+    if (!repo.isCompatible(db, modification.item_id, weapon.item_id)) {
+      throw new WriteError(409, 'INCOMPATIBLE_MODIFICATION', 'This modification does not fit this weapon', {
+        modificationItemId: modification.item_id,
         weaponItemId: weapon.item_id,
       });
     }
     return true;
   }
   if (!allowUnverified) {
-    throw new WriteError(409, 'INCOMPATIBLE_ATTACHMENT', 'Compatibility is unknown; install it explicitly as unverified', {
-      attachmentItemId: attachment.item_id,
+    throw new WriteError(409, 'INCOMPATIBLE_MODIFICATION', 'Compatibility is unknown; install it explicitly as unverified', {
+      modificationItemId: modification.item_id,
       weaponItemId: weapon.item_id,
       reason: 'unverified',
     });
@@ -270,22 +262,22 @@ function resolveSwapPlacement(
       containerSlot: slot,
     };
   }
-  if (old.location === 'weapon_module') {
+  if (old.location === 'weapon_modification') {
     const weaponId = old.weapon_item_id;
-    if (weaponId == null || old.module_slot == null) {
-      throw new WriteError(422, 'INVALID_PLACEMENT', 'The old module slot is missing');
+    if (weaponId == null || old.modification_slot == null) {
+      throw new WriteError(422, 'INVALID_PLACEMENT', 'The old modification slot is missing');
     }
     const weapon = repo.getInventoryItem(db, weaponId);
     if (!weapon || weapon.character_id !== occupant.character_id) {
       throw new WriteError(422, 'INVALID_PLACEMENT', 'The old weapon is not available');
     }
-    const verified = validateModuleInstall(db, occupant, weapon, old.module_slot, true);
+    const verified = validateModificationInstall(db, occupant, weapon, old.modification_slot, true);
     return {
       itemId: occupant.id,
       characterId: occupant.character_id,
-      location: 'weapon_module',
+      location: 'weapon_modification',
       weaponItemId: weaponId,
-      moduleSlot: old.module_slot,
+      modificationSlot: old.modification_slot,
       verified,
     };
   }
@@ -411,23 +403,23 @@ export function resolveTargetPlacement(
         },
       };
     }
-  } else if (target.location === 'weapon_module') {
+  } else if (target.location === 'weapon_modification') {
     const weapon = repo.getInventoryItem(db, target.weaponItemId);
     if (!weapon || weapon.character_id !== item.character_id) {
       throw new WriteError(404, 'ITEM_NOT_FOUND', 'Weapon not found');
     }
-    verified = validateModuleInstall(db, item, weapon, target.slot, opts.allowUnverified === true);
+    verified = validateModificationInstall(db, item, weapon, target.slot, opts.allowUnverified === true);
     const occupantRow = repo
       .listPlacements(db, item.character_id)
       .find(
         (placement) =>
-          placement.location === 'weapon_module' &&
+          placement.location === 'weapon_modification' &&
           placement.weapon_item_id === target.weaponItemId &&
-          placement.module_slot === target.slot &&
+          placement.modification_slot === target.slot &&
           placement.item_id !== itemId,
       );
     if (occupantRow) {
-      if (!swapAllowed) throw new WriteError(409, 'SLOT_OCCUPIED', 'The module slot is occupied');
+      if (!swapAllowed) throw new WriteError(409, 'SLOT_OCCUPIED', 'The modification slot is occupied');
       const row = loadItem(db, occupantRow.item_id);
       occupant = { row, final: resolveSwapPlacement(db, row, current, [itemId, row.id]) };
     }
@@ -490,45 +482,47 @@ export function moveInventoryItem(
   return { dryRun: false, diff: { before, after, human }, eventId };
 }
 
-export function setWeaponModule(
+export function setWeaponModification(
   db: Db,
   weaponItemId: number,
   slot: string,
-  attachmentItemId: number | null,
+  modificationItemId: number | null,
   opts: { allowUnverified?: boolean; dryRun: boolean },
 ): WriteResult {
   const weapon = loadItem(db, weaponItemId);
-  if (weapon.kind !== 'weapon') throw new WriteError(422, 'NOT_A_WEAPON', 'Modules attach to a weapon only');
+  if (weapon.kind !== 'weapon') {
+    throw new WriteError(422, 'NOT_A_WEAPON', 'Modifications attach to a weapon only');
+  }
 
   const current = repo
     .listPlacements(db, weapon.character_id)
     .find(
       (placement) =>
-        placement.location === 'weapon_module' &&
+        placement.location === 'weapon_modification' &&
         placement.weapon_item_id === weaponItemId &&
-        placement.module_slot === slot,
+        placement.modification_slot === slot,
     );
   const before = {
     weaponItemId,
     slot,
-    attachmentItemId: current?.item_id ?? null,
-    attachment: current ? inventoryItemSnapshot(db, current.item_id) : null,
-    /** Where the incoming attachment was before the install, for an exact rollback. */
+    modificationItemId: current?.item_id ?? null,
+    modification: current ? inventoryItemSnapshot(db, current.item_id) : null,
+    /** Where the incoming modification was before the install, for an exact rollback. */
     incomingPlacement: null as Record<string, unknown> | null,
   };
 
-  if (attachmentItemId === null) {
+  if (modificationItemId === null) {
     if (!current) {
-      const after = { weaponItemId, slot, attachmentItemId: null, attachment: null };
-      return { dryRun: opts.dryRun, diff: { before, after, human: `No module in ${slot}` } };
+      const after = { weaponItemId, slot, modificationItemId: null, modification: null };
+      return { dryRun: opts.dryRun, diff: { before, after, human: `No modification in ${slot}` } };
     }
     if (!opts.dryRun) ensureOverflowStorage(db, weapon.character_id);
     const removed = repo.getInventoryItem(db, current.item_id)!;
     const spot = nextOverflowPlacement(db, weapon.character_id, itemSize(db, removed));
     const after = {
       ...before,
-      attachmentItemId: null,
-      attachment: {
+      modificationItemId: null,
+      modification: {
         ...inventoryItemSnapshot(db, current.item_id),
         placement: {
           location: 'grid',
@@ -552,7 +546,7 @@ export function setWeaponModule(
       });
       eventId = logEvent(db, {
         actor: 'owner',
-        action: 'inventory.item.module',
+        action: 'inventory.item.modification',
         entity: 'inventory',
         entityId: weaponItemId,
         before,
@@ -562,33 +556,33 @@ export function setWeaponModule(
     return { dryRun: false, diff: { before, after, human }, eventId };
   }
 
-  const attachment = loadItem(db, attachmentItemId);
-  if (attachment.character_id !== weapon.character_id) {
-    throw new WriteError(404, 'ITEM_NOT_FOUND', 'Attachment not found');
+  const modification = loadItem(db, modificationItemId);
+  if (modification.character_id !== weapon.character_id) {
+    throw new WriteError(404, 'ITEM_NOT_FOUND', 'Modification not found');
   }
-  if (current?.item_id === attachmentItemId) {
+  if (current?.item_id === modificationItemId) {
     const after = { ...before };
     return { dryRun: opts.dryRun, diff: { before, after, human: 'No changes' } };
   }
-  const verified = validateModuleInstall(db, attachment, weapon, slot, opts.allowUnverified === true);
-  const priorPlacement = repo.getPlacement(db, attachmentItemId);
+  const verified = validateModificationInstall(db, modification, weapon, slot, opts.allowUnverified === true);
+  const priorPlacement = repo.getPlacement(db, modificationItemId);
   before.incomingPlacement = priorPlacement ? placementSnapshot(priorPlacement) : null;
   const after = {
     weaponItemId,
     slot,
-    attachmentItemId,
+    modificationItemId,
     verified,
-    attachment: {
-      ...inventoryItemSnapshot(db, attachmentItemId),
+    modification: {
+      ...inventoryItemSnapshot(db, modificationItemId),
       placement: {
-        location: 'weapon_module',
+        location: 'weapon_modification',
         weaponItemId,
-        moduleSlot: slot,
+        modificationSlot: slot,
         verified,
       },
     },
   };
-  const human = `Installed "${attachment.display_name ?? attachment.item_name}" into ${slot}`;
+  const human = `Installed "${modification.display_name ?? modification.item_name}" into ${slot}`;
   if (opts.dryRun) return { dryRun: true, diff: { before, after, human } };
 
   if (current && !opts.dryRun) ensureOverflowStorage(db, weapon.character_id);
@@ -612,16 +606,16 @@ export function setWeaponModule(
       });
     }
     repo.upsertPlacement(db, {
-      itemId: attachmentItemId,
+      itemId: modificationItemId,
       characterId: weapon.character_id,
-      location: 'weapon_module',
+      location: 'weapon_modification',
       weaponItemId,
-      moduleSlot: slot,
+      modificationSlot: slot,
       verified,
     });
     eventId = logEvent(db, {
       actor: 'owner',
-      action: 'inventory.item.module',
+      action: 'inventory.item.modification',
       entity: 'inventory',
       entityId: weaponItemId,
       before,

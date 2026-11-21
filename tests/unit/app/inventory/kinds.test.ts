@@ -4,6 +4,7 @@ import type { InventoryItemRead, InventoryRead, RangeValue } from '@profile/shar
 import { armorKind } from '~/features/inventory/model/kinds/armor';
 import { artifactsKind } from '~/features/inventory/model/kinds/artifacts';
 import { containersKind } from '~/features/inventory/model/kinds/containers';
+import { modificationsKind } from '~/features/inventory/model/kinds/modifications';
 import { weaponsKind } from '~/features/inventory/model/kinds/weapons';
 import { allInventoryItems } from '~/features/inventory/model/instances';
 
@@ -181,5 +182,75 @@ describe('instance rows', () => {
       expect(first!.icon!({ icon: '/icons/a.webp' } as never)).toBe('/icons/a.webp');
       expect(first!.icon!({ icon: null } as never)).toBeNull();
     }
+  });
+
+  it('collects installed and stored modifications with the slot and the weapon', () => {
+    const installed = item({
+      id: 41,
+      name: 'Прицел',
+      kind: 'modification',
+      category: 'attachment/scope',
+      placement: { location: 'weapon_modification', weaponItemId: 11, slot: 'scope', verified: true },
+    });
+    const stored = item({
+      id: 42,
+      name: 'Глушитель',
+      kind: 'modification',
+      category: 'attachment/muzzle',
+      placement: { location: 'loose' },
+    });
+    const modInventory = {
+      ...inventory,
+      storages: [{ ...inventory.storages[0]!, items: [{ ...rifleA, modifications: [installed] }] }],
+      loose: [stored],
+    } as unknown as InventoryRead;
+
+    const rows = modificationsKind.toRows({ inventory: modInventory } as never);
+    expect(rows).toHaveLength(2);
+    const installedRow = rows.find((row) => row.name === 'Прицел');
+    const storedRow = rows.find((row) => row.name === 'Глушитель');
+    expect(installedRow).toMatchObject({
+      name: 'Прицел',
+      instanceId: 41,
+      location: 'weapon_modification',
+      parentName: 'AK-12',
+      modificationSlot: 'scope',
+      slot: 'scope',
+    });
+    expect(storedRow).toMatchObject({
+      name: 'Глушитель',
+      instanceId: 42,
+      location: 'loose',
+      modificationSlot: null,
+      slot: 'muzzle',
+    });
+  });
+
+  it('lists the catalog modifications with their slot and no instance', () => {
+    const rows = modificationsKind.toRows(
+      {
+        inventory,
+        catalog: {
+          modifications: [
+            { name: 'Прицел', rank: 'rare', category: 'attachment/scope', slot: 'scope', icon: null, weight: 0.4 },
+          ],
+        },
+      } as never,
+      'catalog',
+    );
+    expect(rows[0]).toMatchObject({
+      name: 'Прицел',
+      instanceId: null,
+      location: null,
+      slot: 'scope',
+      weight: 0.4,
+    });
+    expect(modificationsKind.columns({ mode: 'catalog', catalog: true }).map((column) => column.key)).toEqual([
+      'icon',
+      'name',
+      'rank',
+      'slot',
+      'weight',
+    ]);
   });
 });

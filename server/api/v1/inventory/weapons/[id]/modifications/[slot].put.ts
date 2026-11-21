@@ -1,5 +1,5 @@
-import { WeaponModuleWriteSchema } from '@profile/shared';
-import { setWeaponModule } from '@profile/core';
+import { WeaponModificationWriteSchema } from '@profile/shared';
+import { setWeaponModification } from '@profile/core';
 import { useDb } from '../../../../../../utils/db';
 import { apiError, validationError } from '../../../../../../utils/errors';
 import { requireOrigin } from '../../../../../../utils/auth';
@@ -18,11 +18,11 @@ export default defineEventHandler(async (event) => {
 
   const read = await readJsonBodyResult(event);
   if (read.error) return read.error;
-  const parsed = WeaponModuleWriteSchema.safeParse(read.body);
+  const parsed = WeaponModificationWriteSchema.safeParse(read.body);
   if (!parsed.success) return validationError(event, parsed.error);
 
   const db = useDb();
   return handleWrite(event, () =>
-    setWeaponModule(db, id, slot, parsed.data.attachmentItemId, parsed.data),
+    setWeaponModification(db, id, slot, parsed.data.modificationItemId, parsed.data),
   );
 });

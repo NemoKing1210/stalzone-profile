@@ -19,9 +19,9 @@ describe('per-kind item form matrix', () => {
     expect(itemFormFields('other')).toEqual({ level: false, qty: true, rarity: false, skin: false });
   });
 
-  it('hides every text field for containers and attachments', () => {
+  it('hides every text field for containers and modifications', () => {
     expect(itemFormFields('container')).toEqual({ level: false, qty: false, rarity: false, skin: false });
-    expect(itemFormFields('attachment')).toEqual({ level: false, qty: false, rarity: false, skin: false });
+    expect(itemFormFields('modification')).toEqual({ level: false, qty: false, rarity: false, skin: false });
   });
 });
 
@@ -63,15 +63,15 @@ describe('form to payload', () => {
     ).toBe(99);
   });
 
-  it('sends the exact catalog id and no fields an attachment cannot take', () => {
+  it('sends the exact catalog id and no fields a modification cannot take', () => {
     const body = itemCreatePayload(
-      'attachment',
+      'modification',
       { id: 42, name: 'Прицел' },
       { level: 9, qty: 4, rarityPct: 99, skin: 'Свой', virtual: true },
     );
     expect(body).toEqual({
       name: 'Прицел',
-      kind: 'attachment',
+      kind: 'modification',
       catalogItemId: 42,
       dryRun: false,
       virtual: true,

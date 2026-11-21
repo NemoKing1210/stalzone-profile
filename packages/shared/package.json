@@ -11,6 +11,7 @@
     "./format": "./src/format.ts",
     "./calc": "./src/calc/index.ts",
     "./inventory-order": "./src/inventory-order.ts",
+    "./modifications": "./src/modifications.ts",
     "./contracts": "./src/contracts/index.ts"
   }
 }

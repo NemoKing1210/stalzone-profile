@@ -15,7 +15,7 @@ import {
   getStorage,
   insertInventoryItem,
   insertStorage,
-  listCompatForAttachment,
+  listCompatForModification,
   listInventoryItems,
   listStorages,
   replaceExboCompat,
@@ -51,7 +51,7 @@ beforeEach(() => {
   weaponId = item('weapon', 'Rifle', 'weapon/assault_rifle');
   artifactId = item('artifact', 'Artifact');
   containerId = item('container', 'Backpack', 'backpacks');
-  attachmentId = item('attachment', 'Scope', 'attachment/scope');
+  attachmentId = item('modification', 'Scope', 'attachment/scope');
 });
 
 afterEach(() => {
@@ -104,7 +104,7 @@ describe('inventory repository', () => {
     const bag = insertInventoryItem(db, { characterId, itemId: containerId, kind: 'container' });
     const rifle = insertInventoryItem(db, { characterId, itemId: weaponId, kind: 'weapon' });
     const artifact = insertInventoryItem(db, { characterId, itemId: artifactId, kind: 'artifact' });
-    const scope = insertInventoryItem(db, { characterId, itemId: attachmentId, kind: 'attachment' });
+    const scope = insertInventoryItem(db, { characterId, itemId: attachmentId, kind: 'modification' });
 
     upsertPlacement(db, { itemId: rifle, characterId, location: 'grid', storageId, x: 1, y: 2 });
     expect(getPlacement(db, rifle)).toMatchObject({ location: 'grid', storage_id: storageId, x: 1, y: 2 });
@@ -124,12 +124,16 @@ describe('inventory repository', () => {
     upsertPlacement(db, {
       itemId: scope,
       characterId,
-      location: 'weapon_module',
+      location: 'weapon_modification',
       weaponItemId: rifle,
-      moduleSlot: 'scope',
+      modificationSlot: 'scope',
       verified: false,
     });
-    expect(getPlacement(db, scope)).toMatchObject({ weapon_item_id: rifle, module_slot: 'scope', verified: 0 });
+    expect(getPlacement(db, scope)).toMatchObject({
+      weapon_item_id: rifle,
+      modification_slot: 'scope',
+      verified: 0,
+    });
 
     upsertPlacement(db, { itemId: bag, characterId, location: 'loose' });
     expect(getPlacement(db, bag)).toMatchObject({ location: 'loose' });
@@ -171,21 +175,21 @@ describe('inventory repository', () => {
 
   it('replaces only EXBO compatibility and keeps manual edges', () => {
     const weaponTwo = item('weapon', 'Rifle Two', 'weapon/assault_rifle');
-    const attachmentTwo = item('attachment', 'Scope Two', 'attachment/scope');
+    const attachmentTwo = item('modification', 'Scope Two', 'attachment/scope');
     db.prepare(
-      `INSERT INTO attachment_compat (attachment_item_id, weapon_item_id, source, updated_at)
+      `INSERT INTO modification_compat (modification_item_id, weapon_item_id, source, updated_at)
        VALUES (?, ?, 'manual', 'now')`,
     ).run(attachmentTwo, weaponTwo);
 
-    replaceExboCompat(db, [{ attachmentItemId: attachmentId, weaponItemId: weaponId }]);
-    expect(listCompatForAttachment(db, attachmentId)).toMatchObject([
-      { attachment_item_id: attachmentId, weapon_item_id: weaponId, source: 'exbo' },
+    replaceExboCompat(db, [{ modificationItemId: attachmentId, weaponItemId: weaponId }]);
+    expect(listCompatForModification(db, attachmentId)).toMatchObject([
+      { modification_item_id: attachmentId, weapon_item_id: weaponId, source: 'exbo' },
     ]);
-    expect(listCompatForAttachment(db, attachmentTwo)).toMatchObject([{ source: 'manual' }]);
+    expect(listCompatForModification(db, attachmentTwo)).toMatchObject([{ source: 'manual' }]);
 
     replaceExboCompat(db, []);
-    expect(listCompatForAttachment(db, attachmentId)).toEqual([]);
-    expect(listCompatForAttachment(db, attachmentTwo)).toMatchObject([{ source: 'manual' }]);
+    expect(listCompatForModification(db, attachmentId)).toEqual([]);
+    expect(listCompatForModification(db, attachmentTwo)).toMatchObject([{ source: 'manual' }]);
   });
 
   it('cascades grid placements when a storage is deleted but keeps the items', () => {

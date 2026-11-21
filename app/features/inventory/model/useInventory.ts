@@ -66,7 +66,7 @@ export function useInventory() {
     const { itemId, target } = entry;
     const result = await write(`/api/v1/inventory/items/${itemId}/move`, {
       method: 'POST',
-      // Dropping onto an occupied equipment, container or module slot means swapping;
+      // Dropping onto an occupied equipment, container or modification slot means swapping;
       // the server decides whether the displaced item has a safe place to go.
       body: { target, swap: options.swap ?? target.location !== 'grid', ...options },
       silent: true,
@@ -132,15 +132,15 @@ export function useInventory() {
     return write(`/api/v1/inventory/containers/${containerId}/fill`, { method: 'PUT', body: { slots } });
   }
 
-  function setWeaponModule(
+  function setWeaponModification(
     weaponId: number,
     slot: string,
-    attachmentItemId: number | null,
+    modificationItemId: number | null,
     allowUnverified = false,
   ) {
-    return write(`/api/v1/inventory/weapons/${weaponId}/modules/${slot}`, {
+    return write(`/api/v1/inventory/weapons/${weaponId}/modifications/${slot}`, {
       method: 'PUT',
-      body: { attachmentItemId, allowUnverified },
+      body: { modificationItemId, allowUnverified },
     });
   }
 
@@ -176,7 +176,7 @@ export function useInventory() {
     deleteStorage,
     tidy,
     setContainerFill,
-    setWeaponModule,
+    setWeaponModification,
     addItem,
     updateItem,
     removeItem,

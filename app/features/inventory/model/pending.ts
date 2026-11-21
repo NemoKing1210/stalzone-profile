@@ -22,7 +22,7 @@ function* walk(items: readonly InventoryItemRead[]): Generator<InventoryItemRead
   for (const item of items) {
     yield item;
     yield* walk(item.artifacts ?? []);
-    yield* walk(item.modules ?? []);
+    yield* walk(item.modifications ?? []);
   }
 }
 
@@ -41,7 +41,7 @@ export function findInventoryItem(inventory: InventoryRead, id: number): Invento
 }
 
 function takeChild(parent: InventoryItemRead, id: number): InventoryItemRead | null {
-  for (const key of ['artifacts', 'modules'] as const) {
+  for (const key of ['artifacts', 'modifications'] as const) {
     const list = parent[key];
     if (!list) continue;
     const found = takeFrom(list, id);
@@ -88,7 +88,7 @@ function placementOf(target: PlacementTarget): PlacementRead {
   if (target.location === 'container') {
     return { location: 'container', containerItemId: target.containerItemId, slotIndex: target.slot };
   }
-  return { location: 'weapon_module', weaponItemId: target.weaponItemId, slot: target.slot, verified: true };
+  return { location: 'weapon_modification', weaponItemId: target.weaponItemId, slot: target.slot, verified: true };
 }
 
 function containerSlot(item: InventoryItemRead): number {
@@ -118,7 +118,7 @@ function put(inventory: InventoryRead, item: InventoryItemRead, placement: Place
     artifacts.push(item);
     artifacts.sort((a, b) => containerSlot(a) - containerSlot(b));
   } else {
-    (owner.modules ??= []).push(item);
+    (owner.modifications ??= []).push(item);
   }
   return true;
 }
@@ -181,7 +181,7 @@ function placementMatchesTarget(placement: PlacementRead, target: PendingMove['t
     );
   }
   return (
-    placement.location === 'weapon_module' &&
+    placement.location === 'weapon_modification' &&
     placement.weaponItemId === target.weaponItemId &&
     placement.slot === target.slot
   );

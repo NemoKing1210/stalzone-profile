@@ -44,7 +44,7 @@ const EXPECTED_WRITE_TOOLS = [
   'update_storage',
   'delete_storage',
   'set_container_artifacts',
-  'set_weapon_module',
+  'set_weapon_modification',
   'set_item_layout',
   'auto_arrange_storage',
   'sync_source',
