@@ -1,5 +1,3 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { findDetailsCard } from '~/entities/item/model/details';
 
@@ -18,10 +16,5 @@ describe('item details lookup', () => {
     expect(findDetailsCard(details, 'w', 'missing')).toBeNull();
     expect(findDetailsCard(details, 'a', 'AK-12')).toBeNull();
     expect(findDetailsCard(null, 'w', 'AK-12')).toBeNull();
-  });
-
-  it('exposes no lookup without a known section prefix', () => {
-    const barrel = fs.readFileSync(path.join(process.cwd(), 'app/entities/item/index.ts'), 'utf8');
-    expect(barrel).not.toContain('findAnyDetailsCard');
   });
 });

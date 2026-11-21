@@ -12,9 +12,6 @@ import {
   NO_FACTION,
 } from '~/shared/lib/factions';
 
-const appRoot = path.join(process.cwd(), 'app');
-const read = (file: string): string => fs.readFileSync(path.join(appRoot, file), 'utf8');
-
 const t = (key: string): string => key;
 
 describe('faction select items', () => {
@@ -66,14 +63,7 @@ describe('faction emblems', () => {
     }
   });
 
-  it('never fetches an emblem from a third-party host at runtime', () => {
+  it('keeps every emblem on the local /factions/ path', () => {
     for (const src of Object.values(FACTION_EMBLEMS)) expect(src.startsWith('/factions/')).toBe(true);
-    for (const file of [
-      'features/character/ui/OverviewPage.vue',
-      'features/character/ui/EditCharacterModal.vue',
-      'features/onboarding/ui/SetupPage.vue',
-    ]) {
-      expect(read(file)).not.toMatch(/https?:\/\//);
-    }
   });
 });

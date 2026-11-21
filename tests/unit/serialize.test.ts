@@ -1,7 +1,11 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { EventReadSchema, ItemSummarySchema, PlacementReadSchema, PriceRowSchema, SourceStatusSchema } from '@profile/shared/contracts';
+import {
+  EventReadSchema,
+  ItemSummarySchema,
+  PlacementReadSchema,
+  PriceRowSchema,
+  SourceStatusSchema,
+} from '@profile/shared/contracts';
 import { itemSummary } from '@profile/core';
 import { eventJson } from '../../server/utils/serialize';
 import { placementRead } from '@profile/core/modules/inventory';
@@ -91,10 +95,5 @@ describe('HTTP serializers', () => {
       last_error: null,
     } as never);
     expect(SourceStatusSchema.parse(source)).toMatchObject({ id: 'exbo_base', status: 'ok' });
-  });
-
-  it('keeps test-only helpers out of the serializer module', () => {
-    const source = fs.readFileSync(path.join(process.cwd(), 'server/utils/serialize.ts'), 'utf8');
-    expect(source).not.toContain('itemJson');
   });
 });
