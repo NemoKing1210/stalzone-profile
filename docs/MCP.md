@@ -79,7 +79,7 @@ The `profile://schema` resource provides tool descriptions and the write rules.
 | `get_character` | — | `{ character, meta }`, derived fields included |
 | `find_items` | `q?`, `kind?`, `rank?`, `slot?`, `limit?`, `offset?`, `level?`, `hp?`, `sort?`, `direction?`, `filters?`, `include?` | a ranked list with kind metrics; `summary` skips stats, `full` adds the card and typed stats |
 | `describe_catalog` | `kind?` | metric/stat dictionary, kind counts and catalog freshness |
-| `get_item` | `id` or `name` + `kind?` | item summary, `stats`, `effects`, `icon`, derived `card` |
+| `get_item` | `id` or `name` + `kind?`, `levels?`, `with_modifications?` | summary, `metrics`, stats filtered to `levels` (default 0 and 15), effects, icon, card; `with_modifications` adds verified compatibility or `NO_COMPAT_DATA` |
 | `compare_items` | `a`, `b`, `level` | DPS/TTK and stats of two items |
 | `get_inventory` | — | `InventoryRead`: storages (including the intake stash), equipment and the computed loadout |
 | `list_storages` | — | storages with grid items, weight and effective height (intake reports its expanded height) |

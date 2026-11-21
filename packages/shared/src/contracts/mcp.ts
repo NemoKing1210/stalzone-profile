@@ -26,10 +26,33 @@ export const McpPriceRowSchema = z.object({
 });
 export type McpPriceRow = z.infer<typeof McpPriceRowSchema>;
 
+export const McpModifierSchema = z.object({
+  key: z.string(),
+  label: z.string().nullable(),
+  value: z.number().nullable(),
+  pct: z.boolean(),
+});
+
+export const McpCompatibleModificationSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  slot: z.string().nullable(),
+  weight: z.number().nullable(),
+  modifiers: z.array(McpModifierSchema),
+});
+
 export const McpItemSchema = ItemSummarySchema.extend({
   stats: z.array(ItemStatSchema),
   effects: z.array(ItemEffectSchema),
   card: ItemCardSchema,
+  metrics: z.record(z.string(), z.union([z.number(), z.string(), z.null()])).optional(),
+  modifications: z
+    .object({
+      verified: z.boolean(),
+      items: z.array(McpCompatibleModificationSchema),
+      reason: z.string().optional(),
+    })
+    .optional(),
 });
 export type McpItem = z.infer<typeof McpItemSchema>;
 

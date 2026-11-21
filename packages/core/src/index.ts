@@ -95,6 +95,8 @@ export {
   updateStorage,
 } from './modules/inventory/write/index.js';
 export { getItemLayout } from './modules/inventory/repo/layout.js';
+export type { CompatRow } from './modules/inventory/repo/compat.js';
+export { listCompatForModification, listCompatForWeapon } from './modules/inventory/repo/compat.js';
 
 /* --------------------------------- sync -------------------------------- */
 

@@ -61,6 +61,8 @@ const GetItemInputSchema = z
     id: z.number().int().positive().optional(),
     name: z.string().min(1).optional(),
     kind: ItemKindSchema.optional(),
+    levels: z.array(z.number().int().min(0).max(15)).min(1).max(17).optional(),
+    with_modifications: z.boolean().default(false),
   })
   .refine((value) => value.id != null || value.name != null, {
     message: 'Provide id or name',
@@ -477,7 +479,13 @@ export function createProfileServer(
     { description: TOOL_DOCS.get_item, inputSchema: TOOL_SCHEMAS.get_item },
     async (args) => {
       try {
-        const item = await client.getItem(args);
+        const item = await client.getItem({
+          id: args.id,
+          name: args.name,
+          kind: args.kind,
+          levels: args.levels,
+          withModifications: args.with_modifications,
+        });
         if (!item) return fail('ITEM_NOT_FOUND', 'Item not found');
         return ok({ item });
       } catch (error) {

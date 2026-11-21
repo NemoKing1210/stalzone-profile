@@ -1,3 +1,4 @@
+import { modificationSlotFor } from '@profile/shared/modifications';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import type {
@@ -27,6 +28,8 @@ import {
   buildPayload,
   compareWeapons,
   describeCatalog,
+  listCompatForWeapon,
+  metricRow,
   queryCatalog,
   createInventoryItem,
   createStorage,
@@ -130,7 +133,13 @@ export interface ProfileClient {
   getCharacter(): Promise<Json>;
   findItems(query: CatalogQueryInput): Promise<CatalogQueryResult>;
   describeCatalog(kind?: string): Promise<CatalogDescription>;
-  getItem(query: { id?: number; name?: string; kind?: string }): Promise<Json | null>;
+  getItem(query: {
+    id?: number;
+    name?: string;
+    kind?: string;
+    levels?: number[];
+    withModifications?: boolean;
+  }): Promise<Json | null>;
   compareItems(a: string, b: string, level: number): Promise<Json[]>;
   getInventory(): Promise<InventoryRead>;
   listStorages(): Promise<StorageRead[]>;
@@ -234,11 +243,44 @@ export function localClient(db: Db, syncOptions: LocalClientOptions = {}): Profi
           null;
       }
       if (!item) return null;
+      const rows = itemStats(db, item.id);
+      const levels = query.levels?.length ? [...new Set(query.levels)].sort((a, b) => a - b) : [0, 15];
+      const metricLevel = levels[levels.length - 1] ?? 15;
+      const edges = item.kind === 'weapon' && query.withModifications ? listCompatForWeapon(db, item.id) : [];
+      const modifications = query.withModifications
+        ? edges.length
+          ? {
+              verified: true,
+              items: edges.flatMap((edge) => {
+                const modification = getItemById(db, edge.modification_item_id);
+                if (!modification) return [];
+                return [
+                  {
+                    id: modification.id,
+                    name: modification.name,
+                    slot: modificationSlotFor(modification.category),
+                    weight: modification.weight,
+                    modifiers: itemStats(db, modification.id)
+                      .filter((stat) => stat.stat_id.startsWith('weapon.stat_factor.') && stat.value_num != null)
+                      .map((stat) => ({
+                        key: stat.stat_id,
+                        label: stat.label,
+                        value: stat.value_num,
+                        pct: stat.pct === 1,
+                      })),
+                  },
+                ];
+              }),
+            }
+          : { verified: false, items: [], reason: 'NO_COMPAT_DATA' }
+        : undefined;
       return {
         ...itemSummary(item, getIcon(db, item.id)?.path ?? null),
-        stats: itemStats(db, item.id),
+        stats: rows.filter((stat) => levels.includes(stat.level)),
         effects: listItemEffects(db, item.id),
         card: buildItemCard(db, item),
+        metrics: metricRow({ item, rows, level: metricLevel, hp: 600 }),
+        ...(modifications ? { modifications } : {}),
       };
     },
 
@@ -545,7 +587,11 @@ export function httpClient(baseUrl: string, token: string): ProfileClient {
       return (await call('describe_catalog', kind ? { kind } : {})) as unknown as CatalogDescription;
     },
     async getItem(query) {
-      return ((await call('get_item', query)).item ?? null) as Json | null;
+      const { levels, withModifications, ...rest } = query;
+      const args: Record<string, unknown> = { ...rest };
+      if (levels) args.levels = levels;
+      if (withModifications) args.with_modifications = true;
+      return ((await call('get_item', args)).item ?? null) as Json | null;
     },
     async compareItems(a, b, level) {
       return (await call('compare_items', { a, b, level })).items as Json[];
