@@ -65,3 +65,22 @@ export function assistantBlocks(mode: AssistantMode): AssistantBlock[] {
   if (mode === 'basic') return [{ key: 'connection', open: true }];
   return ASSISTANT_BLOCK_KEYS.map((key) => ({ key, open: key === 'connection' }));
 }
+
+/** An absolute http(s) URL; a custom endpoint must pass this before the form can save. */
+export function isHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The base URL the form should persist: null (the provider default) unless the owner asked
+ * for a custom endpoint and typed one.
+ */
+export function baseUrlFor(custom: boolean, value: string): string | null {
+  const trimmed = value.trim();
+  return custom && trimmed !== '' ? trimmed : null;
+}

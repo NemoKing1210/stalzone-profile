@@ -102,7 +102,9 @@ text is English.
 | POST | `/api/v1/admin/cleanup` | `{ scope?: inventory \| manualStats \| character \| journal \| all, dryRun? }` |
 | DELETE | `/api/v1/logs` | `PurgeLogsSchema`: `{ scope: all \| filtered, filter?, dryRun? }`; the preview reports the affected count, the write records `log.clear` |
 | PATCH | `/api/v1/admin/logging` | `LoggingSettingsUpdateSchema`: `enabled`, `minLevel`, `retentionDays` (1..365), `maxRows` (1000..2 000 000), `captureClient`, `clientConsole`, `mirrorStdout`, `levels` (`inherit` or a level), `dryRun` |
-| POST | `/api/v1/chat/models` | `ChatModelsRequestSchema`: optional `provider`, `baseUrl`, `apiKeyEnv`, `timeoutMs`; returns `{ ok, status, message, models: [{ id, label }] }`. Reads the model list of the named provider with a key resolved only from the named env variable; writes no DB row, no event and never returns the key |
+| GET | `/api/v1/chat/settings` | `ChatSettingsRead`: stored settings plus `apiKeyEnvResolved`, `apiKeyConfigured` and `enabled`. `baseUrl: null` means the provider's documented default endpoint from `CHAT_PROVIDER_META` |
+| PATCH | `/api/v1/chat/settings` | `ChatSettingsUpdateSchema`: partial settings plus `dryRun`; the audited `chat.settings.update` event stores `baseUrl: null` as "use the provider default" and a non-null value as a custom endpoint |
+| POST | `/api/v1/chat/models` | `ChatModelsRequestSchema`: optional `provider`, `baseUrl`, `apiKeyEnv`, `timeoutMs`; returns `{ ok, status, message, models: [{ id, label }] }`. `baseUrl` omitted or `null` uses the provider default; OpenCode's catalog is read from its documented `/inference/v1/models`. Reads the model list with a key resolved only from the named env variable; writes no DB row, no event and never returns the key |
 
 `CharacterPatchSchema` accepts identity fields (`nick`, `region`, `faction` — one of the
 four faction slugs or `null`, `alliance`, `clanName`, `clanRank`, `money`, `maxMoney`)

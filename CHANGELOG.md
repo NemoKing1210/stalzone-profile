@@ -36,6 +36,13 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
+- Settings → Assistant treats the base URL as optional for every built-in provider: the
+  documented endpoint comes from the shared `CHAT_PROVIDER_META` catalog, a Custom endpoint
+  switch reveals the input only for a proxy or self-hosted gateway, and switching provider
+  clears a stale URL and an untouched default model. OpenCode (`https://opencode.ai/inference/openai/v1`,
+  catalog at `/inference/v1/models`) and Command Code (`https://api.commandcode.ai/provider/v1`)
+  now ship defaults instead of demanding a URL; the key status follows the selected provider
+  and links to its API documentation.
 - The weapon card's damage-falloff chart fills the modal width with a wide plot instead of a
   full-height one: two responsive geometries keep the axis text legible from phone to desktop,
   the legend sits beside the heading, the plot keeps only horizontal guides, axis ticks stop

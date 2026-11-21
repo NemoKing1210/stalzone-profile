@@ -17,6 +17,83 @@ export const CHAT_PROVIDERS = [
 export const ChatProviderSchema = z.enum(CHAT_PROVIDERS);
 export type ChatProvider = z.infer<typeof ChatProviderSchema>;
 
+/** Public facts about one provider: endpoint, model, key variable and docs. No secret. */
+export interface ChatProviderMeta {
+  label: string;
+  /** The documented public endpoint; null only when the provider has no fixed URL. */
+  defaultBaseUrl: string | null;
+  /** Model pre-filled when the owner switches to this provider. */
+  defaultModel: string;
+  /** The env variable consulted when the stored override is empty. */
+  keyEnv: string;
+  docsUrl: string;
+}
+
+/**
+ * Provider endpoints verified against the vendors' documentation. The server resolves a
+ * stored `baseUrl: null` to `defaultBaseUrl`; the settings UI shows the same value as the
+ * effective endpoint, so a plain provider choice needs no URL typed by hand.
+ */
+export const CHAT_PROVIDER_META: Record<ChatProvider, ChatProviderMeta> = {
+  openai: {
+    label: 'OpenAI',
+    defaultBaseUrl: 'https://api.openai.com/v1',
+    defaultModel: 'gpt-4.1-mini',
+    keyEnv: 'NUXT_AI_OPENAI_API_KEY',
+    docsUrl: 'https://platform.openai.com/docs/api-reference',
+  },
+  anthropic: {
+    label: 'Anthropic',
+    defaultBaseUrl: 'https://api.anthropic.com/v1',
+    defaultModel: 'claude-sonnet-4-6',
+    keyEnv: 'NUXT_AI_ANTHROPIC_API_KEY',
+    docsUrl: 'https://platform.claude.com/docs/en/api/overview',
+  },
+  google: {
+    label: 'Google',
+    defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+    defaultModel: 'gemini-2.5-flash',
+    keyEnv: 'NUXT_AI_GOOGLE_API_KEY',
+    docsUrl: 'https://ai.google.dev/gemini-api/docs',
+  },
+  mistral: {
+    label: 'Mistral',
+    defaultBaseUrl: 'https://api.mistral.ai/v1',
+    defaultModel: 'mistral-large-latest',
+    keyEnv: 'NUXT_AI_MISTRAL_API_KEY',
+    docsUrl: 'https://docs.mistral.ai/api/',
+  },
+  openrouter: {
+    label: 'OpenRouter',
+    defaultBaseUrl: 'https://openrouter.ai/api/v1',
+    defaultModel: 'openai/gpt-4.1-mini',
+    keyEnv: 'NUXT_AI_OPENROUTER_API_KEY',
+    docsUrl: 'https://openrouter.ai/docs/api-reference/overview',
+  },
+  ollama: {
+    label: 'Ollama (local)',
+    defaultBaseUrl: 'http://localhost:11434/v1',
+    defaultModel: 'llama3.2',
+    keyEnv: 'NUXT_AI_OLLAMA_API_KEY',
+    docsUrl: 'https://docs.ollama.com/api/openai-compatibility',
+  },
+  opencode: {
+    label: 'OpenCode',
+    // Console's OpenAI-compatible base; the pay-as-you-go and Go plans differ, see docs.
+    defaultBaseUrl: 'https://opencode.ai/inference/openai/v1',
+    defaultModel: 'deepseek-v4.1-flash',
+    keyEnv: 'NUXT_AI_OPENCODE_API_KEY',
+    docsUrl: 'https://opencode.ai/docs/console/harnesses',
+  },
+  'command-code': {
+    label: 'Command Code',
+    defaultBaseUrl: 'https://api.commandcode.ai/provider/v1',
+    defaultModel: 'deepseek/deepseek-v4-flash',
+    keyEnv: 'NUXT_AI_COMMAND_CODE_API_KEY',
+    docsUrl: 'https://commandcode.ai/docs/provider',
+  },
+};
+
 export const ChatReasoningEffortSchema = z.enum(['low', 'medium', 'high']).nullable();
 
 export const ChatSettingsSchema = z.object({

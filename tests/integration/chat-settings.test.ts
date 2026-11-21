@@ -28,6 +28,8 @@ afterEach(() => {
   closeDb(path.join(dir, 'test.db'));
   fs.rmSync(dir, { recursive: true, force: true });
   delete process.env.NUXT_AI_OPENAI_API_KEY;
+  delete process.env.NUXT_AI_OPENCODE_API_KEY;
+  delete process.env.NUXT_AI_COMMAND_CODE_API_KEY;
   delete process.env.PROFILE_TEST_CHAT_KEY;
 });
 
@@ -149,6 +151,28 @@ describe('assistant settings', () => {
     expect(seen[0]?.url).toBe('https://api.openai.com/v1/models');
     expect(seen[0]?.headers.authorization).toBe('Bearer provider-key');
     expect(listEvents(db)).toHaveLength(0);
+  });
+
+  it('uses the documented OpenCode and Command Code endpoints, and a custom URL overrides them', async () => {
+    process.env.NUXT_AI_OPENCODE_API_KEY = 'oc-key';
+    process.env.NUXT_AI_COMMAND_CODE_API_KEY = 'cmd-key';
+    const seen: string[] = [];
+    const fetchImpl = (async (url: string) => {
+      seen.push(String(url));
+      return new Response(JSON.stringify({ data: [{ id: 'model' }] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) as typeof fetch;
+
+    await listChatModels(db, { provider: 'opencode' }, { fetchImpl });
+    expect(seen[0]).toBe('https://opencode.ai/inference/v1/models');
+
+    await listChatModels(db, { provider: 'command-code' }, { fetchImpl });
+    expect(seen[1]).toBe('https://api.commandcode.ai/provider/v1/models');
+
+    await listChatModels(db, { provider: 'opencode', baseUrl: 'https://gateway.internal/v1/' }, { fetchImpl });
+    expect(seen[2]).toBe('https://gateway.internal/v1/models');
   });
 
   it('uses an unsaved apiKeyEnv override and the Anthropic headers', async () => {

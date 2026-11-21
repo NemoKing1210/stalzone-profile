@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CHAT_PROVIDERS,
+  CHAT_PROVIDER_META,
   CharacterCreateSchema,
   CharacterPatchSchema,
   CleanupRequestSchema,
@@ -235,5 +237,25 @@ describe('login', () => {
   it('validates non-empty passwords', () => {
     expect(LoginSchema.safeParse({ password: 'secret' }).success).toBe(true);
     expect(LoginSchema.safeParse({ password: '' }).success).toBe(false);
+  });
+});
+
+describe('assistant provider catalog', () => {
+  it('gives every provider a public endpoint, a default model and its own key variable', () => {
+    for (const provider of CHAT_PROVIDERS) {
+      const meta = CHAT_PROVIDER_META[provider];
+      expect(meta.label, provider).toBeTruthy();
+      expect(meta.defaultBaseUrl, provider).toMatch(/^https?:\/\//);
+      expect(meta.defaultModel, provider).toBeTruthy();
+      expect(meta.keyEnv, provider).toMatch(/^NUXT_AI_[A-Z0-9_]+$/);
+      expect(meta.docsUrl, provider).toMatch(/^https:\/\//);
+    }
+  });
+
+  it('keeps key variables and default endpoints distinct', () => {
+    const keyEnvs = CHAT_PROVIDERS.map((provider) => CHAT_PROVIDER_META[provider].keyEnv);
+    const endpoints = CHAT_PROVIDERS.map((provider) => CHAT_PROVIDER_META[provider].defaultBaseUrl);
+    expect(new Set(keyEnvs).size).toBe(keyEnvs.length);
+    expect(new Set(endpoints).size).toBe(endpoints.length);
   });
 });

@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   ASSISTANT_MODE_KEY,
   assistantBlocks,
+  baseUrlFor,
+  isHttpUrl,
   parseAssistantMode,
   readAssistantMode,
   writeAssistantMode,
@@ -60,5 +62,21 @@ describe('assistant mode', () => {
       { key: 'dataScope', open: false },
       { key: 'prompts', open: false },
     ]);
+  });
+});
+
+describe('assistant endpoint', () => {
+  it('accepts absolute http(s) URLs only', () => {
+    expect(isHttpUrl('https://api.openai.com/v1')).toBe(true);
+    expect(isHttpUrl('http://localhost:11434/v1')).toBe(true);
+    expect(isHttpUrl('api.openai.com/v1')).toBe(false);
+    expect(isHttpUrl('ftp://example.com')).toBe(false);
+    expect(isHttpUrl('')).toBe(false);
+  });
+
+  it('stores null for the provider default and the trimmed URL for a custom endpoint', () => {
+    expect(baseUrlFor(false, 'https://gateway.internal/v1')).toBeNull();
+    expect(baseUrlFor(true, '  https://gateway.internal/v1  ')).toBe('https://gateway.internal/v1');
+    expect(baseUrlFor(true, '   ')).toBeNull();
   });
 });
