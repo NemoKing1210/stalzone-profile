@@ -28,6 +28,7 @@
     "catalog": "Catalog",
     "viewGrid": "Grid",
     "viewList": "List",
+    "viewChart": "Chart",
     "refresh": "Refresh",
     "dryRun": "Dry run: show changes without writing",
     "dryRunTitle": "Dry run",
@@ -245,7 +246,24 @@
     "summary": "{shown} of {total} · owned weapons show the current level and +15; catalog rows show the level-15 figures",
     "emptyCatalog": "The weapon catalog is empty. Load the EXBO base.",
     "emptyOwned": "No weapons in the profile yet. Add them through the API or MCP.",
-    "editAria": "Edit {name}"
+    "editAria": "Edit {name}",
+    "targetHp": "Target HP",
+    "targetHpHint": "Effective dummy health for every TTK on this page",
+    "chart": {
+      "title": "Damage falloff by distance",
+      "description": "Damage by distance for the selected weapons: full damage to the first distance, a straight line to the second, then the reduced value to the maximum range.",
+      "shown": "{shown} of {total} on the chart",
+      "level": "Level",
+      "weapon": "Weapon",
+      "showAll": "Show all",
+      "hideAll": "Hide all",
+      "empty": "No weapon in this list has damage-falloff data.",
+      "noData": "{count} without falloff data",
+      "atDistance": "Damage and TTK at {distance} m",
+      "hoverHint": "damage · TTK",
+      "point": "{name}: {damage} damage at {distance} m",
+      "srSeries": "{name}: {from} damage at 0 m, {to} at {distance} m"
+    }
   },
   "devices": {
     "pageTitle": "Devices",
@@ -1268,13 +1286,15 @@
       },
       "weapons": {
         "title": "Weapons",
-        "summary": "Catalog and owned weapons with damage, DPS and TTK at +15, plus each owned copy's level and location.",
+        "summary": "Catalog and owned weapons with damage, DPS and TTK at +15, plus each owned copy's level and location; a chart view compares damage falloff.",
         "caps": {
           "catalog": "Owned gear and the full catalog side by side; switch modes without leaving the page.",
           "dps": "DPS and TTK columns are the +15 catalog values from the one calculator; an owned copy's own level is a separate column.",
-          "filters": "Search, type and rank filters, sorting, grouping and a grid/list toggle; the last view is restored per browser.",
+          "filters": "Search, type and rank filters, sorting, grouping and grid/list/chart views; the last view is restored per browser.",
           "manage": "Add a copy from the catalog, edit level, quality or note, remove a copy; the item card opens from the row.",
-          "falloff": "Weapon modals chart damage by distance for the base and +15 levels, with axis ticks and a text list of every plotted point."
+          "falloff": "Weapon modals chart damage by distance for the base and +15 levels, with axis ticks and a text list of every plotted point.",
+          "chart": "Chart view draws one damage-by-distance curve per weapon in the current list, colors each row, switches base/+15 and toggles series in the legend; hovering reads damage and TTK at that distance.",
+          "target": "Target HP sets the dummy's effective health for every TTK on the page; 600 is the default and reproduces the server numbers."
         }
       },
       "devices": {

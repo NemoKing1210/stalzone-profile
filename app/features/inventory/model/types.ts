@@ -25,6 +25,8 @@ export interface InventoryFilterState {
   group: string;
   sort: string;
   dir: string;
+  /** Target health the weapon TTK is computed from; present only on the weapons page. */
+  hp?: number;
 }
 
 export interface InventorySortOption {
@@ -92,4 +94,6 @@ export interface InventoryKind<TRow extends { key: string; name: string; rank: s
   editTarget: (row: TRow) => InstanceEditTarget | null;
   /** Present only when the kind can edit a container fill. */
   fillTarget?: (row: TRow) => ContainerFillTarget | null;
+  /** Recomputes kind numbers for a page-level setting (the weapons target HP). */
+  withTarget?: (rows: TRow[], hp: number) => TRow[];
 }

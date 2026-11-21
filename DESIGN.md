@@ -218,6 +218,11 @@ The UI layer owns the text variants; `packages/shared` is not changed.
 | master | `#C2564F` | `#E08B84` | exact colour fails as text on the pane |
 | legend | `#E0A63C` | `#E0A63C` | passes as text |
 
+Chart series. Ten fixed tokens (`--sz-series-1`…`--sz-series-10`) per theme: the dark set is
+the Okabe–Ito color-vision-deficiency palette adapted for a dark pane, the light set is the
+same hue slots darkened. Every series clears 3:1 against all four surfaces in both themes,
+and the legend writes the weapon name next to the color, so color is never the only carrier.
+
 Token names: `--sz-rank-default`, `--sz-rank-default-text`, and the same pair for `newbie`,
 `stalker`, `veteran`, `master`, `legend`. `RarityName` reads the `-text` token; `RankBadge`
 reads the base token.
@@ -741,7 +746,17 @@ A three-pane instrument. The page title is the nick; faction, clan and realm sit
   solid (`0`) and dashed (`+15`) in `--sz-text`/`--sz-text-muted`, x in metres, y in damage,
   faint ticks and a legend. It plots no point the card does not carry, names its axes and
   every plotted point in text, and shows a localized no-data line when the card has none.
-- No change to calculations, sorting keys or filters.
+- A third view, **Chart**, plots one damage-by-distance curve per weapon in the filtered
+  list on shared axes: inline SVG, a color from the ten `--sz-series-*` tokens per row,
+  a base/+15 switch, a toggleable legend with DPS and TTK, and a hover guide that reads
+  damage and TTK at that distance. The first ten rows by the current sort are visible; the
+  legend can show all or none, and weapons without a complete falloff point are counted as
+  "no data" instead of being drawn. The plot component is shared with the modal chart.
+- The weapons filter strip carries a **Target HP** field (default 600). It recomputes
+  TTK and TTK +15 in the table, cards, modal and chart through the shared formula; at 600
+  the numbers equal the server payload exactly.
+- No change to DPS, damage or sorting keys; TTK follows the Target HP field and still uses
+  the one shared formula.
 
 ### 8.3 Containers (`/containers`)
 

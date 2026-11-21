@@ -103,7 +103,10 @@ describe('buildPayload contract', () => {
       dmg15: 55,
       dps15: 550,
       ttk15: 1,
+      p0: { d0: 40, dB: 20, distA: 100, distB: 250, distMax: 400 },
+      p15: { d0: 55, dB: 27.5, distA: 100, distB: 250, distMax: 400 },
     });
+    expect(payload.catalog.weapons.find((w) => w.name === 'KS-1')).toMatchObject({ p0: null, p15: null });
     expect(payload).not.toHaveProperty('details');
   });
 

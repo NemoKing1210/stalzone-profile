@@ -370,7 +370,7 @@ function buildPayloadUncached(db: Db, characterId?: number): Payload {
   const weaponItems = all.filter((item) => item.kind === 'weapon' && !isDeviceCategory(item.category));
   const armorItems = all.filter((item) => item.kind === 'armor');
   const ownedItems = all.filter((item) => ownedIds.has(item.id));
-  // Catalog cards only display base and +15 values; armor needs only its 0..15 curve.
+  // Catalog cards display base, +15 and falloff values; armor needs only its 0..15 curve.
   const iconMap = iconsByItemIds(db, [...itemsById.keys()]);
   const weaponCtx = loadCatalogContext(
     db,
@@ -378,6 +378,10 @@ function buildPayloadUncached(db: Db, characterId?: number): Payload {
     [0, 15],
     [
       'damage.start',
+      'damage.end',
+      'damage.decrease_start',
+      'damage.decrease_end',
+      'damage.max_distance',
       'weapon.tooltip.weapon.info.rate_of_fire',
       'weapon.tooltip.weapon.info.clip_size',
       'kv:weapon.tooltip.weapon.info.ammo_type',

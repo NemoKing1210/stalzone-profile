@@ -99,6 +99,17 @@
   --sz-rank-veteran: #b78bd6;
   --sz-rank-master: #d9736b;
   --sz-rank-legend: #e0a63c;
+  /* Chart series: ten hues that stay distinct on every dark pane and keep >=3:1 as thin lines. */
+  --sz-series-1: #e69f00;
+  --sz-series-2: #56b4e9;
+  --sz-series-3: #009e73;
+  --sz-series-4: #f0e442;
+  --sz-series-5: #2f8fd0;
+  --sz-series-6: #d55e00;
+  --sz-series-7: #cc79a7;
+  --sz-series-8: #a78bfa;
+  --sz-series-9: #2ec4b6;
+  --sz-series-10: #c0b8a8;
 
   /* Accent presets. The values live in this token block; the data-accent blocks below only
      remap them, so no colour literal exists outside the tokens (DESIGN §7.2). */
@@ -229,6 +240,17 @@
   --sz-rank-veteran: #654079;
   --sz-rank-master: #8d2f29;
   --sz-rank-legend: #7a530c;
+  /* Chart series on paper: the same ten hue slots, darkened to clear 3:1 as thin lines. */
+  --sz-series-1: #a35f00;
+  --sz-series-2: #1170a8;
+  --sz-series-3: #007a56;
+  --sz-series-4: #8a7a00;
+  --sz-series-5: #005a9c;
+  --sz-series-6: #b34000;
+  --sz-series-7: #a84d7d;
+  --sz-series-8: #6b4cc0;
+  --sz-series-9: #0d7f75;
+  --sz-series-10: #6f6a60;
 
   /* A few shell utilities still paint raw neutral steps (`bg-ink-950` header/footer,
      `bg-ink-800` cards, `hover:bg-ink-700`); invert only those three steps so a light

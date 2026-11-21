@@ -1,51 +1,14 @@
-import { round } from '@profile/shared';
-
-export const DUMMY_HP = 600;
+/**
+ * The DPS/TTK math lives in `@profile/shared/calc` so the browser and the server run the
+ * same functions; this module re-exports it as the server's one formula and keeps the
+ * card-level stat helpers that only the catalog needs.
+ */
+export { DUMMY_HP, dps, displayDmg, displayDps, displayTtk, ttk } from '@profile/shared/calc';
 
 export interface WeaponStatLike {
   key: string;
   level: number;
   value_num: number | null;
-}
-
-/** DPS = damage × rounds per minute / 60, one decimal. */
-export function dps(damage: number | null | undefined, rof: number | null | undefined): number | null {
-  if (!damage || !rof) return null;
-  return round((damage * rof) / 60, 1);
-}
-
-/** Damage as the profile shows it: one decimal. */
-export function displayDmg(damage: number | null | undefined): number | null {
-  if (damage == null || !Number.isFinite(damage)) return null;
-  return round(damage, 1);
-}
-
-/** DPS from the displayed damage, rounded to a whole number (legacy parity). */
-export function displayDps(damage: number | null | undefined, rof: number | null | undefined): number | null {
-  const shown = displayDmg(damage);
-  if (shown == null || !rof || !Number.isFinite(rof)) return null;
-  return Math.round((shown * rof) / 60);
-}
-
-/** TTK on the 600 HP dummy from the displayed damage. */
-export function displayTtk(
-  damage: number | null | undefined,
-  rof: number | null | undefined,
-  hp = DUMMY_HP,
-): number | null {
-  return ttk(displayDmg(damage), rof, hp);
-}
-
-/** TTK on a 600 HP dummy: ceil(600/damage) shots, (n−1) × 60/rpm seconds. */
-export function ttk(
-  damage: number | null | undefined,
-  rof: number | null | undefined,
-  hp = DUMMY_HP,
-): number | null {
-  if (!damage || !rof) return null;
-  const shots = Math.ceil(hp / damage);
-  if (shots <= 1) return 0;
-  return round(((shots - 1) * 60) / rof, 2);
 }
 
 /** Head multiplier from the weapon card text, defaulting to ×1.4. */

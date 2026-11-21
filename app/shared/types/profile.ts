@@ -1,5 +1,6 @@
 /** These are the API contract's shapes, not a second copy. */
 import type {
+  DamagePoint,
   EventRead,
   Faction,
   Freshness,
@@ -176,6 +177,9 @@ export interface CatalogEntry {
   rof?: number | null;
   dps15?: number | null;
   ttk15?: number | null;
+  /** Damage falloff curves for the chart view; null when the card has no complete point. */
+  p0?: DamagePoint | null;
+  p15?: DamagePoint | null;
   armor15?: number | null;
   category?: string;
   [key: string]: unknown;

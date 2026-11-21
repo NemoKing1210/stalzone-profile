@@ -15,6 +15,7 @@ interface InventoryFilterState {
   group: string;
   sort: string;
   dir: string;
+  hp?: number;
 }
 
 const props = defineProps<{
@@ -26,6 +27,7 @@ const props = defineProps<{
   typeLabel: string;
   sortItems: ToolbarOption[];
   groupItems?: ToolbarOption[];
+  chartView?: boolean;
 }>();
 
 const emit = defineEmits<{ update: [patch: Partial<InventoryFilterState>] }>();
@@ -82,6 +84,16 @@ function reset(): void {
         :aria-label="t('common.viewList')"
         :aria-pressed="filters.view === 'list'"
         @click="update({ view: 'list' })"
+      />
+      <UButton
+        v-if="chartView"
+        icon="i-lucide-chart-spline"
+        size="xs"
+        :color="filters.view === 'chart' ? 'primary' : 'neutral'"
+        :variant="filters.view === 'chart' ? 'solid' : 'ghost'"
+        :aria-label="t('common.viewChart')"
+        :aria-pressed="filters.view === 'chart'"
+        @click="update({ view: 'chart' })"
       />
     </div>
 

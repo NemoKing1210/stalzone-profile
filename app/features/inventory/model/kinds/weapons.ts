@@ -1,3 +1,6 @@
+import type { DamagePoint } from '@profile/shared/contracts';
+import { DUMMY_HP, completeDamagePoint, displayTtk } from '@profile/shared/calc';
+
 import { ALL_RANKS } from '~/entities/item/model/rankOptions';
 
 import { buildInventoryIndex, locationOf, type InstanceLocationRow, type InstanceRow } from '../instances';
@@ -24,6 +27,18 @@ export interface WeaponRow extends InstanceRow, InstanceLocationRow {
   caliber: string | null;
   weight: number | null;
   icon: string | null;
+  /** Damage falloff at the base and +15 levels, read from the card the row carries. */
+  p0: DamagePoint | null;
+  p15: DamagePoint | null;
+}
+
+/** Swap the server's 600 HP TTK for the page's target health; the formula stays shared. */
+export function withTargetHp(rows: WeaponRow[], hp: number): WeaponRow[] {
+  return rows.map((row) => ({
+    ...row,
+    ttk: displayTtk(row.dmg, row.rof, hp),
+    ttk15: displayTtk(row.dmg15, row.rof, hp),
+  }));
 }
 
 const EMPTY_LOCATION: Omit<InstanceLocationRow, 'location'> = {
@@ -49,7 +64,9 @@ export const weaponsKind: InventoryKind<WeaponRow> = {
     group: 'none',
     sort: 'dps',
     dir: 'desc',
+    hp: DUMMY_HP,
   },
+  withTarget: withTargetHp,
   gridTestId: 'weapon-grid',
   gridClass: 'grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4',
   emptyIcon: 'i-lucide-crosshair',
@@ -84,6 +101,8 @@ export const weaponsKind: InventoryKind<WeaponRow> = {
         caliber: entry.caliber ?? null,
         weight: entry.weight ?? null,
         icon: entry.icon ?? null,
+        p0: entry.p0 ?? null,
+        p15: entry.p15 ?? null,
       }));
     }
 
@@ -97,6 +116,7 @@ export const weaponsKind: InventoryKind<WeaponRow> = {
       .filter((item) => item.kind === 'weapon')
       .map((item) => {
         const row = computed.get(item.id);
+        const card = item.card as { p0?: DamagePoint | null; p15?: DamagePoint | null } | null | undefined;
         return {
           key: `instance-${item.id}`,
           instanceId: item.id,
@@ -124,6 +144,8 @@ export const weaponsKind: InventoryKind<WeaponRow> = {
           caliber: row?.caliber ?? null,
           weight: item.weight,
           icon: item.icon,
+          p0: completeDamagePoint(card?.p0),
+          p15: completeDamagePoint(card?.p15),
         };
       });
   },

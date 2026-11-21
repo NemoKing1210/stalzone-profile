@@ -109,6 +109,9 @@ const weaponCatalogRow = z.object({
   rof: z.number().nullable(),
   dps15: z.number().nullable(),
   ttk15: z.number().nullable(),
+  /** Damage falloff at the base and +15 levels; the weapons chart plots these curves. */
+  p0: DamagePointSchema.nullable(),
+  p15: DamagePointSchema.nullable(),
 });
 
 const armorCatalogRow = z.object({

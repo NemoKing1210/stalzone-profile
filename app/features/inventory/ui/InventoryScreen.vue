@@ -51,12 +51,18 @@ const filters = useFilters(props.kind.storageKey, {
   group: props.kind.defaults.group,
   sort: props.kind.defaults.sort,
   dir: props.kind.defaults.dir,
+  ...(props.kind.defaults.hp != null ? { hp: props.kind.defaults.hp } : {}),
 });
 const sorting = usePersistentSorting(filters);
 
 const ownedRows = computed(() => props.kind.toRows(payload.value ?? null, 'owned'));
 const catalogRows = computed(() => props.kind.toRows(payload.value ?? null, 'catalog'));
-const rows = computed(() => (filters.mode === 'catalog' ? catalogRows.value : ownedRows.value));
+/** The target HP is a page setting: apply it before filtering so sort and bars agree. */
+const rows = computed(() => {
+  const base = filters.mode === 'catalog' ? catalogRows.value : ownedRows.value;
+  const hp = filters.hp;
+  return props.kind.withTarget && hp != null ? props.kind.withTarget(base, hp) : base;
+});
 
 const rankItems = computed(() => rankOptions(t));
 const modes = computed(() =>
@@ -189,6 +195,11 @@ const route = useRoute();
 onMounted(() => {
   if (route.query.add === '1' && ui.value.actions) addOpen.value = true;
 });
+/** The target HP lives with the other filters, so the choice survives a reload. */
+function setTargetHp(value: number): void {
+  filters.hp = value;
+}
+
 const selectedKey = ref<string | null>(null);
 const dialogOpen = ref(false);
 const editTarget = ref<InstanceEditTarget | null>(null);
@@ -383,7 +394,13 @@ function openArtifact(name: string, level: number): void {
         </span>
       </template>
 
-      <div class="border-b border-[var(--sz-border)] p-2">
+      <div class="space-y-2 border-b border-[var(--sz-border)] p-2">
+        <component
+          :is="ui.settings"
+          v-if="ui.settings"
+          :hp="filters.hp ?? 600"
+          @update:hp="setTargetHp"
+        />
         <InventoryToolbar
           :filters="filters"
           :modes="modes"
@@ -393,12 +410,19 @@ function openArtifact(name: string, level: number): void {
           :type-label="t(kind.labels.typeLabel)"
           :sort-items="sortItems"
           :group-items="groupItems"
+          :chart-view="Boolean(ui.chart)"
           @update="(patch) => Object.assign(filters, patch)"
         />
       </div>
 
       <div class="p-2">
-        <template v-if="filters.view === 'grid'">
+        <component
+          :is="ui.chart"
+          v-if="filters.view === 'chart' && ui.chart"
+          :rows="sortedRows"
+          :hp="filters.hp ?? 600"
+        />
+        <template v-else-if="filters.view === 'grid'">
           <div v-if="sortedRows.length" :data-testid="kind.gridTestId">
             <section v-for="section in sections" :key="section.key" :class="section.label ? 'space-y-2' : ''">
               <h2 v-if="section.label" class="sz-caps text-[11px] text-[var(--sz-text-muted)] [overflow-wrap:break-word]">

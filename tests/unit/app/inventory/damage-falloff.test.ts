@@ -1,7 +1,7 @@
 import type { DamagePoint } from '@profile/shared/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { damageFalloff } from '~/features/inventory/model/damageFalloff';
+import { damageAtDistance, damageFalloff, falloffPoints } from '~/features/inventory/model/damageFalloff';
 
 function point(overrides: Partial<DamagePoint> = {}): DamagePoint {
   return { d0: 40, dB: 20, distA: 10, distB: 30, distMax: 50, ...overrides };
@@ -63,5 +63,41 @@ describe('damageFalloff', () => {
     expect(damageFalloff(null)).toBeNull();
     expect(damageFalloff({})).toBeNull();
     expect(damageFalloff({ p0: null, p15: null })).toBeNull();
+  });
+});
+
+describe('falloffPoints', () => {
+  it('returns the same flat–linear–flat path as the card', () => {
+    expect(falloffPoints(point())).toEqual([
+      { distance: 0, damage: 40 },
+      { distance: 10, damage: 40 },
+      { distance: 30, damage: 20 },
+      { distance: 50, damage: 20 },
+    ]);
+    expect(falloffPoints(null)).toBeNull();
+  });
+});
+
+describe('damageAtDistance', () => {
+  const points = [
+    { distance: 0, damage: 40 },
+    { distance: 10, damage: 40 },
+    { distance: 30, damage: 20 },
+    { distance: 50, damage: 20 },
+  ];
+
+  it('reads the flat, linear and reduced segments', () => {
+    expect(damageAtDistance(points, 5)).toBe(40);
+    expect(damageAtDistance(points, 10)).toBe(40);
+    expect(damageAtDistance(points, 20)).toBe(30);
+    expect(damageAtDistance(points, 30)).toBe(20);
+    expect(damageAtDistance(points, 50)).toBe(20);
+  });
+
+  it('clamps outside the curve instead of extrapolating', () => {
+    expect(damageAtDistance(points, -5)).toBe(40);
+    expect(damageAtDistance(points, 500)).toBe(20);
+    expect(damageAtDistance([], 10)).toBeNull();
+    expect(damageAtDistance(points, Number.NaN)).toBeNull();
   });
 });

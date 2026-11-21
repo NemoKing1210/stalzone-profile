@@ -172,6 +172,21 @@ describe('theme contrast', () => {
     }
   });
 
+  it('keeps every chart series at 3:1 on every surface in both themes', () => {
+    const series = Object.keys(THEME_TOKENS.dark).filter((token) => token.startsWith('--sz-series-'));
+    expect(series).toHaveLength(10);
+    for (const theme of THEMES) {
+      for (const token of series) {
+        for (const surface of surfaces) {
+          expect(
+            contrast(THEME_TOKENS[theme][token]!, THEME_TOKENS[theme][surface]!),
+            `${theme} ${token} on ${surface}`,
+          ).toBeGreaterThanOrEqual(3);
+        }
+      }
+    }
+  });
+
   it('keeps accent text and accent fills readable in both themes', () => {
     for (const theme of THEMES) {
       const tokens_ = THEME_TOKENS[theme];

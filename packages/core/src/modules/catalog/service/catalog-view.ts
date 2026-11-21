@@ -1,4 +1,5 @@
 import { CAT_RU, RANK_ORDER, rankKey, round } from '@profile/shared';
+import { completeDamagePoint } from '@profile/shared/calc';
 import {
   armorAtLevel,
   displayDmg,
@@ -421,6 +422,9 @@ export function buildCatalogFrom(
               rof: card.rof ?? null,
               dps15: displayDps(damage15, card.rof ?? null),
               ttk15: displayTtk(damage15, card.rof ?? null),
+              // The weapons page plots these curves; the detail card carries the same points.
+              p0: completeDamagePoint(card.p0),
+              p15: completeDamagePoint(card.p15),
             };
           })()
         : {

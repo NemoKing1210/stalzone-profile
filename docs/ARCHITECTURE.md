@@ -82,8 +82,8 @@ HTTP: it imports no `@profile/core`, and `@profile/shared` only through `/contra
    clock-derived freshness), so repeated page loads do not rebuild 40k stats rows.
 4. The flat `weapons`/`armor`/`containers`/`artifacts` lists are a table view built from the
    same instances; each row adds `instanceId`, `storageId` and `placement` to the old card.
-5. DPS/TTK numbers come from one formula
-   (`packages/core/src/modules/catalog/calc/weapons.ts`) using raw damage and rate of fire;
+5. DPS/TTK numbers come from one formula (`packages/shared/src/calc/weapons.ts`, re-exported
+   by `packages/core/src/modules/catalog/calc/weapons.ts`) using raw damage and rate of fire;
    no stored display value is substituted.
 6. Container values follow the precedence `container_data` > item stats > `null`; missing
    data is `null`, never zero or an estimate.

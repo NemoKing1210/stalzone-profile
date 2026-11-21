@@ -1,16 +1,41 @@
 <script setup lang="ts">
-import type { PropType } from 'vue';
-
 import type { FalloffPlot } from '../model/damageFalloff';
 
-const props = defineProps({
-  plot: { type: Object as PropType<FalloffPlot>, required: true },
-});
+const props = withDefaults(
+  defineProps<{
+    plot: FalloffPlot;
+    /** The series to keep bright while the rest fade, or null for a flat legend. */
+    activeKey?: string | null;
+    /** A vertical guide at this viewBox x, or null when the pointer is away. */
+    guideX?: number | null;
+    /** Emit `hover` with the viewBox x under the pointer; off for static charts. */
+    interactive?: boolean;
+  }>(),
+  { activeKey: null, guideX: null, interactive: false },
+);
+
+const emit = defineEmits<{ hover: [x: number | null] }>();
 
 const view = computed(() => props.plot.view);
 const plotWidth = computed(() => view.value.width - view.value.left - view.value.right);
 const plotHeight = computed(() => view.value.height - view.value.top - view.value.bottom);
 const labelY = computed(() => view.value.top + plotHeight.value + view.value.font + 2);
+const dimmed = (key: string): boolean => props.activeKey != null && props.activeKey !== key;
+
+/**
+ * The SVG is drawn with `width: 100%` and an aspect-ratio-preserving viewBox, so its CSS
+ * box maps linearly onto the viewBox; no letterboxing is added.
+ */
+function onPointerMove(event: PointerEvent): void {
+  if (!props.interactive) return;
+  const rect = (event.currentTarget as SVGSVGElement).getBoundingClientRect();
+  if (!rect.width) return;
+  emit('hover', ((event.clientX - rect.left) / rect.width) * view.value.width);
+}
+
+function onPointerLeave(): void {
+  if (props.interactive) emit('hover', null);
+}
 </script>
 
 <template>
@@ -19,9 +44,11 @@ const labelY = computed(() => view.value.top + plotHeight.value + view.value.fon
     :viewBox="`0 0 ${view.width} ${view.height}`"
     role="img"
     preserveAspectRatio="xMidYMid meet"
+    @pointermove="onPointerMove"
+    @pointerleave="onPointerLeave"
   >
-    <title>{{ $t('items.falloff.title') }}</title>
-    <desc>{{ $t('items.falloff.description') }}</desc>
+    <title>{{ plot.title }}</title>
+    <desc>{{ plot.description }}</desc>
 
     <g stroke="var(--sz-border)" stroke-width="0.5" shape-rendering="crispEdges">
       <line
@@ -47,7 +74,7 @@ const labelY = computed(() => view.value.top + plotHeight.value + view.value.fon
         :key="`tx-${tick.x}`"
         :x="tick.x"
         :y="labelY"
-        text-anchor="middle"
+        :text-anchor="tick.x <= view.left + 0.01 ? 'start' : tick.x >= view.left + plotWidth - 0.01 ? 'end' : 'middle'"
       >
         {{ tick.label }}
       </text>
@@ -66,7 +93,7 @@ const labelY = computed(() => view.value.top + plotHeight.value + view.value.fon
         text-anchor="end"
         fill="var(--sz-text-dim)"
       >
-        {{ $t('items.falloff.axisDistance') }}
+        {{ plot.xTitle }}
       </text>
       <text
         :x="Math.max(8, view.font)"
@@ -75,24 +102,39 @@ const labelY = computed(() => view.value.top + plotHeight.value + view.value.fon
         fill="var(--sz-text-dim)"
         :transform="`rotate(-90 ${Math.max(8, view.font)} ${view.top + plotHeight / 2})`"
       >
-        {{ $t('items.falloff.axisDamage') }}
+        {{ plot.yTitle }}
       </text>
     </g>
+
+    <line
+      v-if="guideX != null"
+      :x1="guideX"
+      :y1="view.top"
+      :x2="guideX"
+      :y2="view.top + plotHeight"
+      stroke="var(--sz-border-strong)"
+      stroke-width="1"
+      stroke-dasharray="2 3"
+      vector-effect="non-scaling-stroke"
+    />
 
     <g fill="none" stroke-linejoin="round" stroke-linecap="round">
       <path
         v-for="line in plot.lines"
-        :key="`line-${line.level}`"
+        :key="`line-${line.key}`"
         :d="line.d"
         :stroke="line.color"
         stroke-width="1.25"
         :stroke-dasharray="line.dashed ? '4 3' : undefined"
+        :opacity="dimmed(line.key) ? 0.18 : 1"
         vector-effect="non-scaling-stroke"
-      />
+      >
+        <title>{{ line.label }}</title>
+      </path>
     </g>
 
-    <g>
-      <template v-for="line in plot.lines" :key="`points-${line.level}`">
+    <g v-if="view.marker > 0">
+      <template v-for="line in plot.lines" :key="`points-${line.key}`">
         <circle
           v-for="point in line.points"
           :key="point.key"
@@ -102,6 +144,7 @@ const labelY = computed(() => view.value.top + plotHeight.value + view.value.fon
           :fill="line.dashed ? 'var(--sz-surface-alt)' : line.color"
           :stroke="line.color"
           stroke-width="1"
+          :opacity="dimmed(line.key) ? 0.18 : 1"
           vector-effect="non-scaling-stroke"
         >
           <title>{{ point.label }}</title>

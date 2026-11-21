@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DamagePoint } from '@profile/shared/contracts';
 
-import type { FalloffData, FalloffPlot, FalloffView } from '../model/damageFalloff';
+import type { FalloffData, FalloffPlot, FalloffPlotLine, FalloffView } from '../model/damageFalloff';
 import { damageFalloff } from '../model/damageFalloff';
 import DamageFalloffPlot from './DamageFalloffPlot.vue';
 
@@ -34,10 +34,10 @@ function buildPlot(data: FalloffData, view: FalloffView): FalloffPlot {
   const px = (distance: number): number => view.left + (distance / maxX) * plotWidth;
   const py = (damage: number): number => view.top + plotHeight - (damage / maxY) * plotHeight;
 
-  const lines = data.series.map((series) => {
+  const lines: FalloffPlotLine[] = data.series.map((series) => {
     const label = series.level === 0 ? t('items.falloff.base') : t('items.falloff.plus15');
     return {
-      level: series.level,
+      key: `level-${series.level}`,
       label,
       color: series.level === 0 ? 'var(--sz-text)' : 'var(--sz-text-muted)',
       dashed: series.level !== 0,
@@ -61,20 +61,15 @@ function buildPlot(data: FalloffData, view: FalloffView): FalloffPlot {
   const yValues = [0, maxY / 2, maxY];
   return {
     view,
+    title: t('items.falloff.title'),
+    description: t('items.falloff.description'),
     // Dashed +15 sits under the base curve so the two only cross where the data says so.
-    lines: [...lines].sort((a, b) => Number(a.level !== 0) - Number(b.level !== 0)),
-    legend: lines,
+    lines: [...lines].sort((a, b) => Number(a.dashed) - Number(b.dashed)),
     xTicks: xValues.map((value) => ({ x: px(value), label: tickLabel(value) })),
     yTicks: yValues.map((value) => ({ y: py(value), label: tickLabel(value) })),
     yGrid: yValues.map((value) => py(value)),
-    points: lines.flatMap((line) =>
-      line.points.map((point) => ({
-        key: point.key,
-        label: line.label,
-        distance: point.distance,
-        damage: point.damage,
-      })),
-    ),
+    xTitle: t('items.falloff.axisDistance'),
+    yTitle: t('items.falloff.axisDamage'),
   };
 }
 
@@ -86,8 +81,8 @@ const plots = computed(() => {
     { key: 'wide', visibility: 'hidden md:block', chart: buildPlot(data, WIDE) },
   ];
 });
-const legend = computed(() => plots.value[0]?.chart.legend ?? []);
-const points = computed(() => plots.value[0]?.chart.points ?? []);
+const legend = computed(() => plots.value[0]?.chart.lines ?? []);
+const points = computed(() => legend.value.flatMap((line) => line.points));
 </script>
 
 <template>
@@ -95,7 +90,7 @@ const points = computed(() => plots.value[0]?.chart.points ?? []);
     <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
       <h3 class="sz-caps text-[10.5px] text-[var(--sz-text-muted)]">{{ t('items.falloff.title') }}</h3>
       <ul v-if="legend.length" class="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[10px] text-[var(--sz-text-muted)]">
-        <li v-for="line in legend" :key="`legend-${line.level}`" class="inline-flex items-center gap-1">
+        <li v-for="line in legend" :key="`legend-${line.key}`" class="inline-flex items-center gap-1">
           <svg width="14" height="4" aria-hidden="true">
             <line
               x1="0"
@@ -121,15 +116,7 @@ const points = computed(() => plots.value[0]?.chart.points ?? []);
       />
 
       <ul class="sr-only">
-        <li v-for="point in points" :key="point.key">
-          {{
-            t('items.falloff.point', {
-              level: point.label,
-              damage: dec(point.damage),
-              distance: dec(point.distance),
-            })
-          }}
-        </li>
+        <li v-for="point in points" :key="point.key">{{ point.label }}</li>
       </ul>
     </div>
 

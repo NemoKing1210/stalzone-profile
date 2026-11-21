@@ -47,7 +47,7 @@ need user-facing text should do the same or show the message as-is.
 |---|---|---|
 | GET | `/api/v1/healthz` | `{ ok: true, db: "ok" }`, public |
 | GET | `/api/v1/setup` | `{ needsSetup, catalogItems, defaultRegion, profileApiConfigured, sources }` |
-| GET | `/api/v1/payload` | the whole profile: character, gear, catalog, derived cards, icons, freshness and the new `inventory` section. `catalog.meta.items` counts every catalog row (weapons, armor, motifs, artifacts, containers), not only weapons and armor; `catalog.devices` carries the device-category rows that are excluded from `catalog.weapons`/`catalog.armor` |
+| GET | `/api/v1/payload` | the whole profile: character, gear, catalog, derived cards, icons, freshness and the new `inventory` section. `catalog.meta.items` counts every catalog row (weapons, armor, motifs, artifacts, containers), not only weapons and armor; `catalog.devices` carries the device-category rows that are excluded from `catalog.weapons`/`catalog.armor`; a weapon catalog row also carries `p0`/`p15` falloff points (`null` when the card has no complete point) so the chart view needs no extra request |
 | GET | `/api/v1/meta` | `{ meta, catalogMeta, freshness }` — described by `MetaRead` in `@profile/shared/contracts` and pinned by `tests/integration/contracts/payload-contract.test.ts` |
 | GET | `/api/v1/character` | character with derived fields (`kd`, `accuracy`, `headshot`, `hours`, `arrived`) |
 | GET | `/api/v1/items?q=&kind=&rank=&slot=&limit=` | item search; `q` splits into words that must each match a Russian/English name or the category path (`12 ак`, `assault rifle`), ordered exact → prefix → substring; `rank` accepts the normalized key (`master`) or the stored label (`RANK_MASTER`) |

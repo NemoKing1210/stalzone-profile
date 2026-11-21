@@ -82,7 +82,7 @@ npm run check
 
 `npm run golden` no longer reads a personal profile: it migrates a temporary database,
 seeds the public fixture from `tests/fixtures/`, and recomputes every number with the
-single formula in `packages/core/src/modules/catalog/calc/weapons.ts`.
+single formula in `packages/shared/src/calc/weapons.ts` (re-exported by the core calc module).
 
 ## Rollback
 

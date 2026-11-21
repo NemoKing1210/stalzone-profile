@@ -261,7 +261,9 @@ is engineering default, not law.
 3. **No invented numbers.** No lot means `null` → "no lot"; no stat means `null` → "no data".
    Zero, a missing value and an estimate never substitute for each other.
 4. **All DPS/TTK come from one formula** in
-   `packages/core/src/modules/catalog/calc/weapons.ts`. Do not substitute stored legacy
+   `packages/shared/src/calc/weapons.ts`, re-exported by
+   `packages/core/src/modules/catalog/calc/weapons.ts` so the server and the page run the
+   same functions. Do not substitute stored legacy
    values and do not duplicate the formula. When changing numbers, run `npm run golden` and
    explain any difference. Changing displayed numbers is a separate owner decision, not a
    side effect of refactoring.
@@ -338,7 +340,7 @@ state lives in `app/features/inventory/ui/grid/useGridDrag.ts`. Keep geometry an
 resolution pure in `app/features/inventory/model` so they stay unit-tested; do not add
 manual `pointermove`/`pointerup` listeners for a new interaction.
 
-**Client code** imports `@profile/shared/contracts`, `/ranks`, `/format` and
+**Client code** imports `@profile/shared/contracts`, `/ranks`, `/format`, `/calc` and
 `/inventory-order` through subpaths,
 never the `@profile/shared` barrel: the barrel pulls `node:crypto` into the browser bundle.
 The app imports no `@profile/core`; ESLint enforces both rules together with the

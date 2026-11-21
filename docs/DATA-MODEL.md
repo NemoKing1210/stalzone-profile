@@ -247,15 +247,19 @@ time (`details[key]`, weapon/armor/artifact/container cards).
 
 ## Display formulas
 
-One formula for the whole project (`packages/core/src/modules/catalog/calc/weapons.ts`):
+One formula for the whole project (`packages/shared/src/calc/weapons.ts`, re-exported by
+`packages/core/src/modules/catalog/calc/weapons.ts`):
 
 ```
 displayedDmg = round(rawDamage, 1)
 dps          = Math.round(displayedDmg * rof / 60)
-ttk          = round((ceil(600 / displayedDmg) - 1) * 60 / rof, 2)
+ttk          = round((ceil(HP / displayedDmg) - 1) * 60 / rof, 2)
 ```
 
 - `rawDamage` is damage at the required refinement level; `rof` is rounds per minute.
+- `HP` is the target's effective health. It defaults to the 600 HP dummy everywhere on the
+  server; the weapons page lets the owner change it, and every displayed TTK is computed
+  from that one number.
 - Damage is rounded first; DPS and TTK are then computed from it.
 - No stored display value is substituted. `npm run golden` recomputes a public synthetic
   fixture and must print `mismatches: 0` and `legacyDeltas: []`.

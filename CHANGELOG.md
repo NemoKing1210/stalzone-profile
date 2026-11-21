@@ -56,6 +56,15 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
   its messages, pending write and attachment blobs are removed, the active conversation resets
   to a fresh thread, and the audited `chat.thread.delete` event keeps only the id and counts
   (never the title, message text or bytes). The deletion is not rollbackable.
+- Weapons has a chart view: one damage-by-distance curve per weapon in the filtered list,
+  a color per row from ten `--sz-series-*` tokens, a base/+15 switch, a toggleable legend
+  with DPS and TTK, and a hover guide that reads damage and TTK at that distance. The plot
+  component is now shared with the weapon modal. The weapons filter strip gains a Target HP
+  field (default 600) that recomputes every TTK on the page through the one formula, which
+  moved to `@profile/shared/calc` and is re-exported by
+  `packages/core/src/modules/catalog/calc/weapons.ts`; at 600 the numbers equal the server
+  payload exactly. Catalog weapon rows carry `p0`/`p15` falloff points, so the chart needs no
+  extra request.
 - Chat files have real viewers: an image thumbnail opens a full-screen carousel with a
   counter, thumbnails, arrow/keyboard navigation, zoom, download and "open original"; a text
   file opens a readable preview with copy and download; every message gains a copy action.
@@ -89,6 +98,10 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
+- The pure weapon math (`DUMMY_HP`, `dps`, `displayDmg`, `displayDps`, `ttk`,
+  `displayTtk`, and the complete-point guard) lives in `packages/shared/src/calc/weapons.ts`
+  and is re-exported by the core calc module, so the server and the weapons page run the same
+  formula. `npm run golden` stays unchanged.
 - Settings → Assistant accepts the API token itself, not only the name of an environment
   variable. The token is stored in `chat_settings.api_key` (migration `0019`), wins over the
   `NUXT_AI_*` fallback, is write-only through the REST API, never enters `event_log`, and a

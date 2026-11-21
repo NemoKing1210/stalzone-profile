@@ -9,6 +9,7 @@
     ".": "./src/index.ts",
     "./ranks": "./src/ranks.ts",
     "./format": "./src/format.ts",
+    "./calc": "./src/calc/index.ts",
     "./inventory-order": "./src/inventory-order.ts",
     "./contracts": "./src/contracts/index.ts"
   }
