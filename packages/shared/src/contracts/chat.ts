@@ -12,6 +12,7 @@ export const CHAT_PROVIDERS = [
   'openrouter',
   'ollama',
   'opencode',
+  'opencode-go',
   'command-code',
 ] as const;
 export const ChatProviderSchema = z.enum(CHAT_PROVIDERS);
@@ -78,12 +79,20 @@ export const CHAT_PROVIDER_META: Record<ChatProvider, ChatProviderMeta> = {
     docsUrl: 'https://docs.ollama.com/api/openai-compatibility',
   },
   opencode: {
-    label: 'OpenCode',
-    // Console's OpenAI-compatible base; the pay-as-you-go and Go plans differ, see docs.
+    label: 'OpenCode Zen',
+    // Console pay-as-you-go; the Go plan has its own base below.
     defaultBaseUrl: 'https://opencode.ai/inference/openai/v1',
     defaultModel: 'deepseek-v4.1-flash',
     keyEnv: 'NUXT_AI_OPENCODE_API_KEY',
     docsUrl: 'https://opencode.ai/docs/console/harnesses',
+  },
+  'opencode-go': {
+    label: 'OpenCode Go',
+    // The same Console key, served from the Go subscription base.
+    defaultBaseUrl: 'https://opencode.ai/inference/go/openai/v1',
+    defaultModel: 'deepseek-v4.1-flash',
+    keyEnv: 'NUXT_AI_OPENCODE_API_KEY',
+    docsUrl: 'https://opencode.ai/docs/console/go',
   },
   'command-code': {
     label: 'Command Code',

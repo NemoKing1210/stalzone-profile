@@ -244,7 +244,7 @@ describe('login', () => {
 });
 
 describe('assistant provider catalog', () => {
-  it('gives every provider a public endpoint, a default model and its own key variable', () => {
+  it('gives every provider a public endpoint, a default model and a key variable', () => {
     for (const provider of CHAT_PROVIDERS) {
       const meta = CHAT_PROVIDER_META[provider];
       expect(meta.label, provider).toBeTruthy();
@@ -255,11 +255,13 @@ describe('assistant provider catalog', () => {
     }
   });
 
-  it('keeps key variables and default endpoints distinct', () => {
-    const keyEnvs = CHAT_PROVIDERS.map((provider) => CHAT_PROVIDER_META[provider].keyEnv);
+  it('keeps default endpoints distinct and lets the two OpenCode plans share their key', () => {
     const endpoints = CHAT_PROVIDERS.map((provider) => CHAT_PROVIDER_META[provider].defaultBaseUrl);
-    expect(new Set(keyEnvs).size).toBe(keyEnvs.length);
     expect(new Set(endpoints).size).toBe(endpoints.length);
+    expect(CHAT_PROVIDER_META.opencode.keyEnv).toBe(CHAT_PROVIDER_META['opencode-go'].keyEnv);
+    expect(CHAT_PROVIDER_META['opencode-go'].defaultBaseUrl).toBe(
+      'https://opencode.ai/inference/go/openai/v1',
+    );
   });
 
   it('accepts a variable name and rejects a pasted key in apiKeyEnv', () => {

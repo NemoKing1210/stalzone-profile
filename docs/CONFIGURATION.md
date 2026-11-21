@@ -35,7 +35,7 @@ in the shell win over the file. Docker deployments do not read `.env` directly:
 | `NUXT_AI_GOOGLE_API_KEY`      | —                              | Assistant key for Google                                                           |
 | `NUXT_AI_MISTRAL_API_KEY`     | —                              | Assistant key for Mistral                                                          |
 | `NUXT_AI_OPENROUTER_API_KEY`  | —                              | Assistant key for OpenRouter                                                       |
-| `NUXT_AI_OPENCODE_API_KEY`    | —                              | Assistant key for OpenCode                                                         |
+| `NUXT_AI_OPENCODE_API_KEY`    | —                              | Assistant key for OpenCode Zen and Go (one Console key for both plans)              |
 | `NUXT_AI_COMMAND_CODE_API_KEY`| —                              | Assistant key for Command Code                                                     |
 | `LOG_BOOT_LEVEL`              | `warn`                         | Pre-database boot lines: `debug`, `info`, `warn`, `error` or `off`                 |
 | `LOG_BOOT_STDOUT`             | `1`                            | `0` silences boot lines on stdout/stderr                                           |

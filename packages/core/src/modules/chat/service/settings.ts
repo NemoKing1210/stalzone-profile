@@ -22,6 +22,7 @@ const AUTH: Record<ChatProvider, ProviderConfig['auth']> = {
   openrouter: 'bearer',
   ollama: 'none',
   opencode: 'bearer',
+  'opencode-go': 'bearer',
   'command-code': 'bearer',
 };
 
@@ -92,7 +93,9 @@ function configuredBaseUrl(settings: ChatSettings): string {
  * `<base>/models`.
  */
 function modelsUrl(provider: ChatProvider, base: string): string {
-  if (provider === 'opencode') return `${base.replace(/\/openai\/v1$/, '/v1').replace(/\/+$/, '')}/models`;
+  if (provider === 'opencode' || provider === 'opencode-go') {
+    return `${base.replace(/\/openai\/v1$/, '/v1').replace(/\/+$/, '')}/models`;
+  }
   return `${base}/models`;
 }
 

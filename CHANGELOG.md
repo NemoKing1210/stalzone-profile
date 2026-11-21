@@ -65,6 +65,11 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
   shown in the UI. Owner decision recorded in the assistant design and
   `docs/CONFIGURATION.md`: the token lives in plain text inside the SQLite file and its
   backups.
+- OpenCode is split into **OpenCode Zen** (pay-as-you-go, the existing
+  `https://opencode.ai/inference/openai/v1`) and **OpenCode Go**
+  (`https://opencode.ai/inference/go/openai/v1`). Both use the same Console key, so switching
+  between the two plans keeps the stored token; migration `0020` rebuilds `chat_settings` to
+  admit the new provider and leaves an existing `opencode` row on Zen.
 - Settings → Assistant treats the base URL as optional for every built-in provider: the
   documented endpoint comes from the shared `CHAT_PROVIDER_META` catalog, a Custom endpoint
   switch reveals the input only for a proxy or self-hosted gateway, and switching provider

@@ -722,7 +722,8 @@
         "mistral": "Mistral",
         "openrouter": "OpenRouter",
         "ollama": "Ollama (local)",
-        "opencode": "OpenCode",
+        "opencode": "OpenCode Zen",
+        "opencode-go": "OpenCode Go",
         "command-code": "Command Code"
       }
     },

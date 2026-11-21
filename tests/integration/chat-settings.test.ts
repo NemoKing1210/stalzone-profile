@@ -73,6 +73,12 @@ describe('assistant settings', () => {
     expect(getChatSettingsRow(db).provider).toBe('openai');
   });
 
+  it('stores the OpenCode Go provider', () => {
+    updateChatSettings(db, ChatSettingsUpdateSchema.parse({ provider: 'opencode-go' }));
+    expect(getChatSettingsRow(db).provider).toBe('opencode-go');
+    expect(chatSettingsRead(db).provider).toBe('opencode-go');
+  });
+
   it('does not write on a dry run', () => {
     const before = getChatSettingsRow(db).updated_at;
     const result = updateChatSettings(
@@ -217,7 +223,7 @@ describe('assistant settings', () => {
     expect(listEvents(db)).toHaveLength(0);
   });
 
-  it('uses the documented OpenCode and Command Code endpoints, and a custom URL overrides them', async () => {
+  it('uses the documented OpenCode Zen, OpenCode Go and Command Code endpoints, and a custom URL overrides them', async () => {
     process.env.NUXT_AI_OPENCODE_API_KEY = 'oc-key';
     process.env.NUXT_AI_COMMAND_CODE_API_KEY = 'cmd-key';
     const seen: string[] = [];
@@ -232,11 +238,14 @@ describe('assistant settings', () => {
     await listChatModels(db, { provider: 'opencode' }, { fetchImpl });
     expect(seen[0]).toBe('https://opencode.ai/inference/v1/models');
 
+    await listChatModels(db, { provider: 'opencode-go' }, { fetchImpl });
+    expect(seen[1]).toBe('https://opencode.ai/inference/go/v1/models');
+
     await listChatModels(db, { provider: 'command-code' }, { fetchImpl });
-    expect(seen[1]).toBe('https://api.commandcode.ai/provider/v1/models');
+    expect(seen[2]).toBe('https://api.commandcode.ai/provider/v1/models');
 
     await listChatModels(db, { provider: 'opencode', baseUrl: 'https://gateway.internal/v1/' }, { fetchImpl });
-    expect(seen[2]).toBe('https://gateway.internal/v1/models');
+    expect(seen[3]).toBe('https://gateway.internal/v1/models');
   });
 
   it('uses an unsaved apiKeyEnv override and the Anthropic headers', async () => {

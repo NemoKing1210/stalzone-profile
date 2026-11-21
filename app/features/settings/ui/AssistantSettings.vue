@@ -122,10 +122,17 @@ const endpointHint = computed(() => {
   };
 });
 
-/** The fallback variable for the selected provider; a stored token wins over it. */
-const keyEnvName = computed(() =>
-  settings.value?.provider === form.provider ? settings.value.apiKeyEnvResolved : providerMeta.value.keyEnv,
+/** OpenCode Zen and Go share one Console key, so a token carries across that switch. */
+const keyFamilyMatches = computed(
+  () =>
+    settings.value != null &&
+    CHAT_PROVIDER_META[settings.value.provider].keyEnv === providerMeta.value.keyEnv,
 );
+/** The variable actually consulted for the selected provider. */
+const keyEnvName = computed(() =>
+  keyFamilyMatches.value && settings.value ? settings.value.apiKeyEnvResolved : providerMeta.value.keyEnv,
+);
+const storedTokenApplies = computed(() => keyFamilyMatches.value && settings.value?.apiKeySource === 'stored');
 const keyStatus = computed(() => {
   if (form.provider === 'ollama') {
     return { className: 'text-[var(--sz-text-dim)]', text: t('settings.assistant.keyOptional', { env: keyEnvName.value }) };
@@ -136,14 +143,13 @@ const keyStatus = computed(() => {
   if (clearApiKey.value) {
     return { className: 'text-[var(--sz-warning-text)]', text: t('settings.assistant.apiKeyClearing', { env: keyEnvName.value }) };
   }
-  const stored = settings.value?.provider === form.provider ? settings.value : null;
-  if (stored?.apiKeySource === 'stored') {
+  if (storedTokenApplies.value) {
     return { className: 'text-[var(--sz-success-text)]', text: t('settings.assistant.apiKeyStored') };
   }
-  if (stored?.apiKeySource === 'env') {
+  if (keyFamilyMatches.value && settings.value?.apiKeySource === 'env') {
     return {
       className: 'text-[var(--sz-success-text)]',
-      text: t('settings.assistant.apiKeyEnvUsing', { env: stored.apiKeyEnvResolved }),
+      text: t('settings.assistant.apiKeyEnvUsing', { env: settings.value.apiKeyEnvResolved }),
     };
   }
   return {
@@ -163,7 +169,9 @@ function setProvider(next: ChatProvider): void {
   customBaseUrl.value = CHAT_PROVIDER_META[next].defaultBaseUrl == null;
   form.baseUrl = '';
   form.apiKey = '';
-  clearApiKey.value = settings.value?.apiKeySource === 'stored' && next !== settings.value.provider;
+  const stored = settings.value;
+  const sameFamily = stored ? CHAT_PROVIDER_META[stored.provider].keyEnv === CHAT_PROVIDER_META[next].keyEnv : false;
+  clearApiKey.value = stored?.apiKeySource === 'stored' && !sameFamily;
   if (form.model.trim() === '' || form.model.trim() === previousDefault) {
     form.model = CHAT_PROVIDER_META[next].defaultModel;
   }
@@ -505,7 +513,7 @@ async function togglePrompt(prompt: ChatPrompt): Promise<void> {
                     <div class="mt-1 flex flex-wrap items-center gap-2">
                       <p class="text-[11px]" :class="keyStatus.className">{{ keyStatus.text }}</p>
                       <USwitch
-                        v-if="settings?.apiKeySource === 'stored' && settings.provider === form.provider"
+                        v-if="storedTokenApplies"
                         v-model="clearApiKey"
                         :label="t('settings.assistant.apiKeyClear')"
                         size="sm"
