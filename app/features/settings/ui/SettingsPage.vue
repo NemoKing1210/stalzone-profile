@@ -2,6 +2,7 @@
 import { ProfilePane } from '~/shared/ui';
 import { DEFAULT_ACCENT } from '~/shared/lib/accents';
 import { TAB_STRIP_UI } from '~/shared/lib/tabStrip';
+import { SLIDER_MOTION_UI } from '~/shared/lib/motion';
 import {
   normalizePaletteShortcut,
   persistPaletteShortcut,
@@ -159,6 +160,7 @@ const tabItems = computed(() => [
       :ui="TAB_STRIP_UI"
     >
       <template #content="{ item }">
+        <div :key="item.value" class="sz-panel-enter">
         <div v-if="item.value === 'appearance'">
           <ProfilePane :title="t('settings.appearanceTitle')">
             <p class="text-[12.5px] leading-relaxed text-[var(--sz-text-muted)]">
@@ -411,6 +413,7 @@ const tabItems = computed(() => [
 
         <div v-else-if="item.value === 'logging'">
           <LoggingSettingsPanel />
+        </div>
         </div>
       </template>
     </UTabs>

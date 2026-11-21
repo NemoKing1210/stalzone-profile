@@ -353,7 +353,7 @@ const containerNames = computed<Record<number, string>>(() => {
                 :key="tab.storage.id"
                 type="button"
                 role="tab"
-                class="inline-flex min-h-7 shrink-0 items-center gap-1.5 border px-2 text-[11.5px] leading-none transition-colors"
+                class="inline-flex min-h-7 shrink-0 items-center gap-1.5 border px-2 text-[11.5px] leading-none transition-colors duration-150 ease-[cubic-bezier(.2,.8,.2,1)]"
                 :class="
                   tab.active
                     ? 'border-[var(--sz-accent)] bg-[var(--sz-accent)] text-[var(--sz-on-accent)]'

@@ -6,6 +6,10 @@ import {
   readStoredTheme,
   type ThemeId,
 } from '../lib/theme';
+import { runViewTransition } from '../lib/motion';
+
+/** One view transition at a time: a rapid second toggle applies instantly instead of queueing. */
+let themeTransitioning = false;
 
 /**
  * The theme shared by the page and the persisted choice. The server always renders the
@@ -33,8 +37,24 @@ export function useTheme() {
 
   function setTheme(value: unknown): void {
     const next = normalizeTheme(value);
-    apply(next);
-    if (!import.meta.client) return;
+    if (!import.meta.client) {
+      apply(next);
+      return;
+    }
+    if (!themeTransitioning) {
+      const started = runViewTransition(() => apply(next), {
+        document: document as unknown as { startViewTransition?: (callback: () => void) => unknown },
+        matchMedia: (query) => window.matchMedia(query),
+      });
+      if (started) {
+        themeTransitioning = true;
+        window.setTimeout(() => {
+          themeTransitioning = false;
+        }, 220);
+      }
+    } else {
+      apply(next);
+    }
     try {
       persistTheme(window.localStorage, next);
     } catch {

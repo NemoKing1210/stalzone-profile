@@ -166,6 +166,7 @@ function flowArrow(index: number, length: number): boolean {
       :ui="TAB_STRIP_UI"
     >
       <template #content="{ item }">
+        <div :key="item.value" class="sz-panel-enter">
         <ProfilePane
           v-if="item.value === 'site'"
           :title="t('guide.sections.site.title')"
@@ -518,6 +519,7 @@ function flowArrow(index: number, length: number): boolean {
         <p class="mt-1 text-[12px] leading-relaxed text-[var(--sz-text-muted)]">{{ t('guide.keep.text') }}</p>
       </div>
         </ProfilePane>
+        </div>
       </template>
     </UTabs>
   </section>

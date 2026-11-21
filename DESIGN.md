@@ -326,6 +326,11 @@ Rules:
   layout dimensions of tables.
 - `prefers-reduced-motion: reduce` disables transforms and shortens transitions to 0.01ms.
 - Selected state is instant enough (120ms) to feel like a game selection, not a web animation.
+- Theme change cross-fades the root for 200ms through the View Transition API when it exists,
+  and applies instantly without the API or under reduced motion.
+- A keyed tab panel replays a 160ms opacity + `translateY(2px)` enter; sliders scale their
+  thumb to 1.1 on press for 120ms without animating position; catalog cards lift 1px for
+  120ms on hover. No other control gains motion.
 
 ### 4.6 Z-index
 

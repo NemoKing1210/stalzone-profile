@@ -9,6 +9,7 @@ import {
   spectrumLevels,
 } from '../model/player';
 import { RADIO_TRACKS } from '../model/tracks';
+import { SLIDER_MOTION_UI } from '~/shared/lib/motion';
 
 type RadioStatus = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
 
@@ -387,6 +388,7 @@ onBeforeUnmount(() => {
             @click="toggleMute"
           />
           <USlider
+            :ui="SLIDER_MOTION_UI"
             class="w-24"
             :model-value="volumePercent"
             :aria-label="t('radio.volume')"

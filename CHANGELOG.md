@@ -67,6 +67,9 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- Theme changes cross-fade for 200 ms where the View Transition API exists (instant without
+  it or under reduced motion); settings/guide tab panels replay a 160 ms enter, sliders scale
+  their thumb on press and catalog cards lift 1 px on hover.
 - The inventory add form searches all ownable catalog kinds, shows the row's kind and
   category, fixes the kind from the picked row, and sends its exact `catalogItemId`, so
   attachments, ammo and consumables no longer collide with same-named rows of another kind.
