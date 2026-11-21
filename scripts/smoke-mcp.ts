@@ -10,6 +10,7 @@ import {
   localClient,
 } from '@profile/mcp';
 import { seedCatalog } from '../tests/fixtures/seed';
+import { seedInventory } from '../tests/fixtures/inventory';
 
 const external = process.env.SMOKE_DB_PATH;
 const dir = external ? null : fs.mkdtempSync(path.join(os.tmpdir(), 'profile-smoke-'));
@@ -17,7 +18,10 @@ const dbPath = external ?? path.join(dir!, 'smoke.db');
 
 const db = openDb(dbPath);
 migrate(db, path.join(process.cwd(), 'db', 'migrations'));
-if (!external) seedCatalog(db);
+if (!external) {
+  seedCatalog(db);
+  seedInventory(db);
+}
 
 const server = createProfileServer(localClient(db));
 const client = await connectInMemory(server);

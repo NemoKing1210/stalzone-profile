@@ -17,6 +17,7 @@ import {
   SetContainerArtifactsInputSchema,
   SetItemLayoutInputSchema,
   SetWeaponModificationInputSchema,
+  TidyOrderSchema,
   UpdateInventoryItemInputSchema,
   UpdateStorageInputSchema,
   type AddInventoryItemInput,
@@ -26,6 +27,7 @@ import {
   type McpPlacementTarget,
   type PlacementTarget,
   type StoragePatch,
+  type TidyStorage,
   type UpdateInventoryItemInput,
   type UpdateStorageInput,
 } from '@profile/shared/contracts';
@@ -144,6 +146,13 @@ const RollbackInputSchema = z.object({
   confirm: z.boolean().default(false),
 });
 
+const TidyStorageInputSchema = z.object({
+  storage_id: z.number().int().positive(),
+  order: TidyOrderSchema.default('kind'),
+  dry_run: z.boolean().default(true),
+  confirm: z.boolean().default(false),
+});
+
 const ListInventoryItemsInputSchema = z.object({
   kind: ItemKindSchema.optional(),
   location: z.enum(['grid', 'equipment', 'container', 'weapon_modification', 'loose']).optional(),
@@ -163,6 +172,8 @@ const TOOL_SCHEMAS = {
   get_item: GetItemInputSchema,
   compare_items: CompareItemsInputSchema,
   get_inventory: z.object({}),
+  get_inventory_item: z.object({ item_id: z.number().int().positive() }),
+  get_meta: z.object({}),
   list_storages: z.object({}),
   list_inventory_items: ListInventoryItemsInputSchema,
   list_containers: z.object({}),
@@ -181,6 +192,7 @@ const TOOL_SCHEMAS = {
   set_weapon_modification: SetWeaponModificationInputSchema,
   set_item_layout: SetItemLayoutInputSchema,
   auto_arrange_storage: AutoArrangeStorageInputSchema,
+  tidy_storage: TidyStorageInputSchema,
   sync_source: SyncSourceInputSchema,
   rebuild_site: z.object({}),
   rollback_event: RollbackInputSchema,
@@ -199,6 +211,8 @@ export const READ_TOOLS: { name: string; args: Record<string, unknown> }[] = [
   { name: 'get_item', args: { name: 'АК-12' } },
   { name: 'compare_items', args: { a: 'АК-12', b: 'KS-1', level: 15 } },
   { name: 'get_inventory', args: {} },
+  { name: 'get_inventory_item', args: { item_id: 1 } },
+  { name: 'get_meta', args: {} },
   { name: 'list_storages', args: {} },
   { name: 'list_inventory_items', args: {} },
   { name: 'list_containers', args: {} },
@@ -222,6 +236,8 @@ const TOOL_DOCS: Record<string, string> = {
     get_item: 'Item card: typed stats, effects, icon and the derived detail card',
     compare_items: 'Compare 2–10 catalog items by their kind metrics and name the best per metric',
     get_inventory: 'Storages, equipment, the intake stash and the computed loadout',
+    get_inventory_item: 'One inventory instance with its placement, children and card',
+    get_meta: 'Catalog counts and freshness, prices age and source status',
     list_storages: 'Storages with grid items, weight and effective height, including intake',
     list_inventory_items: 'Inventory instances filtered by kind, location or storage',
     list_containers: 'Containers with their current fill',
@@ -242,6 +258,7 @@ const TOOL_DOCS: Record<string, string> = {
     set_weapon_modification: 'Install or remove a weapon modification (dry_run by default)',
     set_item_layout: 'Change a catalog item grid size or weight (dry_run by default)',
     auto_arrange_storage: 'Pack intake items into a stash by first fit (dry_run by default)',
+    tidy_storage: 'Repack one carried grid or stash by kind, name, rank or footprint (dry_run by default)',
     sync_source: 'Run a source sync (exbo_base, wiki, motifs, scpmodel, icons, profile); requires confirm',
     rebuild_site: 'Site rebuild happens on deploy; MCP only reports the command',
     rollback_event: 'Roll back a journal event (dry_run by default)',
@@ -265,6 +282,7 @@ export const WRITE_TOOL_NAMES = [
   'set_weapon_modification',
   'set_item_layout',
   'auto_arrange_storage',
+  'tidy_storage',
   'sync_source',
   'rebuild_site',
   'rollback_event',
@@ -567,6 +585,32 @@ export function createProfileServer(
   );
 
   server.registerTool(
+    'get_inventory_item',
+    { description: TOOL_DOCS.get_inventory_item, inputSchema: TOOL_SCHEMAS.get_inventory_item },
+    async (args) => {
+      try {
+        const item = await client.getInventoryItem(args.item_id);
+        if (!item) return fail('INSTANCE_NOT_FOUND', 'Inventory instance not found');
+        return ok({ item });
+      } catch (error) {
+        return errorResult(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    'get_meta',
+    { description: TOOL_DOCS.get_meta, inputSchema: TOOL_SCHEMAS.get_meta },
+    async () => {
+      try {
+        return ok(await client.getMeta());
+      } catch (error) {
+        return errorResult(error);
+      }
+    },
+  );
+
+  server.registerTool(
     'plan_artifact_build',
     { description: TOOL_DOCS.plan_artifact_build, inputSchema: TOOL_SCHEMAS.plan_artifact_build },
     async (args) => {
@@ -769,6 +813,11 @@ export function createProfileServer(
       return client.autoArrangeStorage(args.storage_id, dryRun);
     },
   );
+
+  registerWriteTool(server, limiter, 'tidy_storage', TOOL_SCHEMAS.tidy_storage, async (raw, dryRun) => {
+    const args = raw as unknown as { storage_id: number; order: TidyStorage['order'] };
+    return client.tidyStorage(args.storage_id, { order: args.order, dryRun });
+  });
 
   registerWriteTool(
     server,

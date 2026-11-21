@@ -9,6 +9,7 @@ import type {
   InventoryItemPatch,
   InventoryItemRead,
   InventoryRead,
+  MetaRead,
   LoggingSettings,
   LoggingSettingsUpdate,
   LogQuery,
@@ -19,12 +20,14 @@ import type {
   StorageCreate,
   StoragePatch,
   StorageRead,
+  TidyStorage,
 } from '@profile/shared/contracts';
 import {
   WriteError,
   artifactSources,
   autoArrangeStorage,
   buildItemCard,
+  buildMetaSection,
   buildPayload,
   compareCatalogItems,
   describeCatalog,
@@ -39,6 +42,7 @@ import {
   findItemByKindName,
   getIcon,
   getItemById,
+  inventoryItemRead,
   inventoryRead,
   itemStats,
   itemSummary,
@@ -60,6 +64,7 @@ import {
   setContainerFill,
   setItemLayout,
   setWeaponModification,
+  tidyStorage,
   updateInventoryItem,
   updateLoggingSettings as writeLoggingSettings,
   updateStorage,
@@ -143,6 +148,8 @@ export interface ProfileClient {
   }): Promise<Json | null>;
   compareItems(items: string[], kind: string | undefined, level: number, hp: number): Promise<CompareResult>;
   getInventory(): Promise<InventoryRead>;
+  getInventoryItem(itemId: number): Promise<Json | null>;
+  getMeta(): Promise<MetaRead>;
   listStorages(): Promise<StorageRead[]>;
   listInventoryItems(query?: InventoryListQuery): Promise<InventoryItemRead[]>;
   listContainers(): Promise<Json[]>;
@@ -158,6 +165,7 @@ export interface ProfileClient {
   updateStorage(storageId: number, input: StoragePatch): Promise<WriteResult>;
   deleteStorage(storageId: number, input: DeleteStorageInput): Promise<WriteResult>;
   autoArrangeStorage(storageId: number, dryRun: boolean): Promise<WriteResult>;
+  tidyStorage(storageId: number, input: TidyStorage): Promise<WriteResult>;
   setContainerArtifacts(input: ContainerFillInput): Promise<WriteResult>;
   setWeaponModification(
     weaponItemId: number,
@@ -293,6 +301,23 @@ export function localClient(db: Db, syncOptions: LocalClientOptions = {}): Profi
       return inventoryRead(db);
     },
 
+    async getInventoryItem(itemId) {
+      const read = inventoryItemRead(db, itemId);
+      if (!read) return null;
+      const catalog = getItemById(db, read.itemId);
+      if (!catalog) return read as unknown as Json;
+      const rows = itemStats(db, catalog.id);
+      return {
+        ...read,
+        card: buildItemCard(db, catalog),
+        metrics: metricRow({ item: catalog, rows, level: read.level, hp: 600 }),
+      } as unknown as Json;
+    },
+
+    async getMeta() {
+      return buildMetaSection(db) as unknown as MetaRead;
+    },
+
     async listStorages() {
       return inventoryRead(db).storages;
     },
@@ -418,6 +443,14 @@ export function localClient(db: Db, syncOptions: LocalClientOptions = {}): Profi
     async autoArrangeStorage(storageId, dryRun) {
       try {
         return autoArrangeStorage(db, storageId, { dryRun });
+      } catch (error) {
+        return writeError(error);
+      }
+    },
+
+    async tidyStorage(storageId, input) {
+      try {
+        return tidyStorage(db, storageId, input);
       } catch (error) {
         return writeError(error);
       }
@@ -605,6 +638,12 @@ export function httpClient(baseUrl: string, token: string): ProfileClient {
     async getInventory() {
       return (await call('get_inventory')) as unknown as InventoryRead;
     },
+    async getInventoryItem(itemId) {
+      return ((await call('get_inventory_item', { item_id: itemId })).item ?? null) as Json | null;
+    },
+    async getMeta() {
+      return (await call('get_meta')) as unknown as MetaRead;
+    },
     async listStorages() {
       return (await call('list_storages')).storages as StorageRead[];
     },
@@ -662,6 +701,12 @@ export function httpClient(baseUrl: string, token: string): ProfileClient {
       return (await call(
         'auto_arrange_storage',
         writeArgs({ storage_id: storageId, dry_run: dryRun }),
+      )) as unknown as WriteResult;
+    },
+    async tidyStorage(storageId, input) {
+      return (await call(
+        'tidy_storage',
+        writeArgs({ storage_id: storageId, ...input }),
       )) as unknown as WriteResult;
     },
     async setContainerArtifacts(input) {

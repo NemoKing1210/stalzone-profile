@@ -8,7 +8,7 @@ import {
   InventoryReadSchema,
   StorageReadSchema,
 } from './inventory.js';
-import { ProfileExportSchema, PayloadCharacterSchema, PayloadMetaSchema } from './payload.js';
+import { MetaReadSchema, ProfileExportSchema, PayloadCharacterSchema, PayloadMetaSchema } from './payload.js';
 import { LoggingSettingsSchema, LogQueryResultSchema, LogStatsSchema } from './logging.js';
 
 /** The MCP price row omits the database ids that the HTTP route includes. */
@@ -76,6 +76,8 @@ export const READ_OUTPUT_SCHEMAS: Record<string, z.ZodTypeAny> = {
     best: z.record(z.string(), z.string().nullable()),
   }),
   get_inventory: InventoryReadSchema,
+  get_inventory_item: z.object({ item: InventoryItemReadSchema }),
+  get_meta: MetaReadSchema,
   list_storages: z.object({ storages: z.array(StorageReadSchema) }),
   list_inventory_items: z.object({ items: z.array(InventoryItemReadSchema) }),
   list_containers: z.object({ items: z.array(ContainerReadSchema) }),

@@ -444,6 +444,12 @@ export const GUIDE_MCP: GuideMcpTool[] = [
   { name: 'get_item', access: 'read', descriptionKey: 'guide.mcp.tools.get_item' },
   { name: 'compare_items', access: 'read', descriptionKey: 'guide.mcp.tools.compare_items' },
   { name: 'get_inventory', access: 'read', descriptionKey: 'guide.mcp.tools.get_inventory' },
+  {
+    name: 'get_inventory_item',
+    access: 'read',
+    descriptionKey: 'guide.mcp.tools.get_inventory_item',
+  },
+  { name: 'get_meta', access: 'read', descriptionKey: 'guide.mcp.tools.get_meta' },
   { name: 'list_storages', access: 'read', descriptionKey: 'guide.mcp.tools.list_storages' },
   {
     name: 'list_inventory_items',
@@ -481,6 +487,7 @@ export const GUIDE_MCP: GuideMcpTool[] = [
   },
   { name: 'set_item_layout', access: 'write', descriptionKey: 'guide.mcp.tools.set_item_layout' },
   { name: 'auto_arrange_storage', access: 'write', descriptionKey: 'guide.mcp.tools.auto_arrange_storage' },
+  { name: 'tidy_storage', access: 'write', descriptionKey: 'guide.mcp.tools.tidy_storage' },
   { name: 'sync_source', access: 'write', descriptionKey: 'guide.mcp.tools.sync_source' },
   { name: 'rebuild_site', access: 'write', descriptionKey: 'guide.mcp.tools.rebuild_site' },
   { name: 'rollback_event', access: 'write', descriptionKey: 'guide.mcp.tools.rollback_event' },
