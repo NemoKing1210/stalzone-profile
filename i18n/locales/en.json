@@ -1591,7 +1591,8 @@
       },
       "tools": {
         "get_character": "Character profile and its statistics.",
-        "find_items": "Search catalog items by name, kind, rank and slot.",
+        "find_items": "Search catalog items and rank them by a metric or stat id.",
+        "describe_catalog": "Metric and stat dictionary, kind counts and catalog freshness.",
         "get_item": "Item card: stats, effects, icon and the derived detail card.",
         "compare_items": "Compare two weapons by DPS and TTK at a refinement level.",
         "get_inventory": "Storages, equipment, the intake stash and the computed loadout.",

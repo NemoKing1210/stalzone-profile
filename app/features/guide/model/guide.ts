@@ -440,6 +440,7 @@ export const GUIDE_API: GuideApiEndpoint[] = [
 export const GUIDE_MCP: GuideMcpTool[] = [
   { name: 'get_character', access: 'read', descriptionKey: 'guide.mcp.tools.get_character' },
   { name: 'find_items', access: 'read', descriptionKey: 'guide.mcp.tools.find_items' },
+  { name: 'describe_catalog', access: 'read', descriptionKey: 'guide.mcp.tools.describe_catalog' },
   { name: 'get_item', access: 'read', descriptionKey: 'guide.mcp.tools.get_item' },
   { name: 'compare_items', access: 'read', descriptionKey: 'guide.mcp.tools.compare_items' },
   { name: 'get_inventory', access: 'read', descriptionKey: 'guide.mcp.tools.get_inventory' },

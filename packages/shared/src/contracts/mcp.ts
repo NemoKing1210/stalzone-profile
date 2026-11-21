@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { SourcesReadSchema } from './api.js';
 import { ItemCardSchema, ItemEffectSchema, ItemStatSchema, ItemSummarySchema } from './catalog.js';
+import { CatalogDescriptionSchema, CatalogQueryResultSchema } from './catalog-query.js';
 import {
   ContainerReadSchema,
   InventoryItemReadSchema,
@@ -44,7 +45,8 @@ export const READ_OUTPUT_SCHEMAS: Record<string, z.ZodTypeAny> = {
     character: PayloadCharacterSchema.nullable(),
     meta: PayloadMetaSchema,
   }),
-  find_items: z.object({ items: z.array(ItemSummarySchema) }),
+  find_items: CatalogQueryResultSchema,
+  describe_catalog: CatalogDescriptionSchema,
   get_item: z.object({ item: McpItemSchema }),
   compare_items: z.object({ items: z.array(z.object({ found: z.boolean() }).loose()) }),
   get_inventory: InventoryReadSchema,

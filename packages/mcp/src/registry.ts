@@ -157,6 +157,7 @@ const ListInventoryItemsInputSchema = z.object({
 const TOOL_SCHEMAS = {
   get_character: z.object({}),
   find_items: FindItemsQuerySchema,
+  describe_catalog: z.object({ kind: ItemKindSchema.optional() }),
   get_item: GetItemInputSchema,
   compare_items: CompareItemsInputSchema,
   get_inventory: z.object({}),
@@ -192,6 +193,7 @@ const TOOL_SCHEMAS = {
 export const READ_TOOLS: { name: string; args: Record<string, unknown> }[] = [
   { name: 'get_character', args: {} },
   { name: 'find_items', args: { q: 'АК', limit: 3 } },
+  { name: 'describe_catalog', args: {} },
   { name: 'get_item', args: { name: 'АК-12' } },
   { name: 'compare_items', args: { a: 'АК-12', b: 'KS-1', level: 15 } },
   { name: 'get_inventory', args: {} },
@@ -212,7 +214,9 @@ export { READ_OUTPUT_SCHEMAS } from '@profile/shared/contracts';
 
 const TOOL_DOCS: Record<string, string> = {
     get_character: 'Character profile and stats from the profile',
-    find_items: 'Search catalog items by name, kind, rank and slot',
+    find_items:
+      'Search catalog items by name, kind, rank and slot; sort/filter by a metric or stat id and choose summary/metrics/full',
+    describe_catalog: 'Metric and stat dictionary, kind counts and catalog freshness',
     get_item: 'Item card: typed stats, effects, icon and the derived detail card',
     compare_items: 'Compare two weapons by DPS and TTK at a refinement level',
     get_inventory: 'Storages, equipment, the intake stash and the computed loadout',
@@ -449,7 +453,19 @@ export function createProfileServer(
     { description: TOOL_DOCS.find_items, inputSchema: TOOL_SCHEMAS.find_items },
     async (args) => {
       try {
-        return ok({ items: await client.findItems(args) });
+        return ok(await client.findItems(args));
+      } catch (error) {
+        return errorResult(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    'describe_catalog',
+    { description: TOOL_DOCS.describe_catalog, inputSchema: TOOL_SCHEMAS.describe_catalog },
+    async (args) => {
+      try {
+        return ok(await client.describeCatalog(args.kind));
       } catch (error) {
         return errorResult(error);
       }

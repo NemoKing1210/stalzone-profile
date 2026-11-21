@@ -16,6 +16,8 @@ export * from './modules/catalog/calc/index.js';
 export * from './modules/catalog/service/catalog-view.js';
 export * from './modules/catalog/service/read.js';
 export * from './modules/catalog/service/resolve.js';
+export * from './modules/catalog/service/query.js';
+export * from './modules/catalog/metrics.js';
 export type { ItemEffectInput, ItemEffectRow } from './modules/catalog/repo/effects.js';
 export { allItemEffects, listItemEffects } from './modules/catalog/repo/effects.js';
 export type { IconInput, IconRow } from './modules/catalog/repo/icons.js';
@@ -44,8 +46,13 @@ export {
   latestPriceRows,
   latestPricesForNames,
 } from './modules/catalog/repo/prices.js';
-export type { StatDefinitionInput, StatDefinitionRow, StatValueType } from './modules/catalog/repo/stats.js';
-export { getStatDefinition, listStatDefinitions } from './modules/catalog/repo/stats.js';
+export type {
+  StatDefinitionInput,
+  StatDefinitionRow,
+  StatUsageRow,
+  StatValueType,
+} from './modules/catalog/repo/stats.js';
+export { getStatDefinition, listStatDefinitions, statUsage } from './modules/catalog/repo/stats.js';
 
 /* ------------------------------- identity ------------------------------ */
 

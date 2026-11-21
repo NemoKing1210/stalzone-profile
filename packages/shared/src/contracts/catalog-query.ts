@@ -68,11 +68,14 @@ export const CatalogQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).max(5000).default(0),
   level: z.number().int().min(0).max(15).default(15),
   hp: z.number().int().min(1).max(100000).default(600),
-  sort: CatalogSortSchema.optional(),
+  /** A metric key or a stored `stat_id`; `direction` applies to both. */
+  sort: z.string().min(1).max(160).optional(),
+  direction: z.enum(['asc', 'desc']).default('desc'),
   filters: z.array(CatalogFilterSchema).max(20).optional(),
   include: CatalogIncludeSchema.default('metrics'),
 });
 export type CatalogQuery = z.infer<typeof CatalogQuerySchema>;
+export type CatalogQueryInput = z.input<typeof CatalogQuerySchema>;
 
 export const CatalogRowSchema = ItemSummarySchema.omit({ stats: true }).extend({
   metrics: z.record(z.string(), z.union([z.number(), z.string(), z.null()])).optional(),

@@ -1,6 +1,9 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import type {
+  CatalogDescription,
+  CatalogQueryInput,
+  CatalogQueryResult,
   InventoryItemCreate,
   InventoryItemPatch,
   InventoryItemRead,
@@ -23,6 +26,8 @@ import {
   buildItemCard,
   buildPayload,
   compareWeapons,
+  describeCatalog,
+  queryCatalog,
   createInventoryItem,
   createStorage,
   deleteInventoryItem,
@@ -47,7 +52,6 @@ import {
   rollbackEvent as restoreEvent,
   runExclusive,
   runSync,
-  searchItemSummaries,
   searchItems,
   readLoggingSettings,
   setContainerFill,
@@ -124,13 +128,8 @@ export interface InventoryListQuery {
 /** Everything the MCP tools need from a profile, whether it lives in this process or behind HTTP. */
 export interface ProfileClient {
   getCharacter(): Promise<Json>;
-  findItems(query: {
-    q?: string | null;
-    kind?: string | null;
-    rank?: string | null;
-    slot?: string | null;
-    limit?: number;
-  }): Promise<Json[]>;
+  findItems(query: CatalogQueryInput): Promise<CatalogQueryResult>;
+  describeCatalog(kind?: string): Promise<CatalogDescription>;
   getItem(query: { id?: number; name?: string; kind?: string }): Promise<Json | null>;
   compareItems(a: string, b: string, level: number): Promise<Json[]>;
   getInventory(): Promise<InventoryRead>;
@@ -214,13 +213,11 @@ export function localClient(db: Db, syncOptions: LocalClientOptions = {}): Profi
     },
 
     async findItems(query) {
-      return searchItemSummaries(db, {
-        q: query.q ?? null,
-        kind: query.kind ?? null,
-        rank: query.rank ?? null,
-        slot: query.slot ?? null,
-        limit: query.limit ?? 20,
-      });
+      return queryCatalog(db, query);
+    },
+
+    async describeCatalog(kind) {
+      return describeCatalog(db, kind);
     },
 
     async getItem(query) {
@@ -542,7 +539,10 @@ export function httpClient(baseUrl: string, token: string): ProfileClient {
       return (await call('get_character')).character as Json;
     },
     async findItems(query) {
-      return (await call('find_items', query)).items as Json[];
+      return (await call('find_items', query as Record<string, unknown>)) as unknown as CatalogQueryResult;
+    },
+    async describeCatalog(kind) {
+      return (await call('describe_catalog', kind ? { kind } : {})) as unknown as CatalogDescription;
     },
     async getItem(query) {
       return ((await call('get_item', query)).item ?? null) as Json | null;

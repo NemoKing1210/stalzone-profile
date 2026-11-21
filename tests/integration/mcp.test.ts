@@ -56,6 +56,7 @@ const EXPECTED_WRITE_TOOLS = [
 const EXPECTED_READ_TOOLS = [
   'get_character',
   'find_items',
+  'describe_catalog',
   'get_item',
   'compare_items',
   'get_inventory',
@@ -146,6 +147,31 @@ describe('MCP registry', () => {
       expect(typeof row.dps).toBe('number');
       expect(typeof row.ttk).toBe('number');
     }
+  });
+
+  it('returns ranked weapons with metrics in one call', async () => {
+    const result = await callTool('find_items', {
+      kind: 'weapon',
+      sort: 'dps',
+      direction: 'desc',
+      limit: 2,
+    });
+    const body = result.structuredContent as {
+      items: { name: string; metrics: { dps: number | null } }[];
+      total: number;
+    };
+    expect(body.items).toHaveLength(2);
+    expect(body.total).toBeGreaterThanOrEqual(2);
+    expect(body.items[0].name).toBe('АК-12');
+    expect(body.items[0].metrics.dps).toBe(550);
+    expect(body.items[1].metrics.dps).toBeLessThan(550);
+  });
+
+  it('describes the metric vocabulary', async () => {
+    const result = await callTool('describe_catalog', {});
+    const body = result.structuredContent as { metrics: { key: string; direction: string }[] };
+    expect(body.metrics.find((metric) => metric.key === 'recoil')?.direction).toBe('lower');
+    expect(body.metrics.find((metric) => metric.key === 'dps')?.direction).toBe('higher');
   });
 });
 

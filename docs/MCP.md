@@ -1,7 +1,7 @@
 # MCP server
 
-One tool registry serves both stdio and HTTP — results never diverge. There are 31 tools:
-15 read and 16 write/maintenance.
+One tool registry serves both stdio and HTTP — results never diverge. There are 32 tools:
+16 read and 16 write/maintenance.
 
 ## Connecting
 
@@ -77,7 +77,8 @@ The `profile://schema` resource provides tool descriptions and the write rules.
 | Tool | Arguments | What it returns |
 |---|---|---|
 | `get_character` | — | `{ character, meta }`, derived fields included |
-| `find_items` | `q?`, `kind?`, `rank?`, `slot?`, `limit?` | a list of items |
+| `find_items` | `q?`, `kind?`, `rank?`, `slot?`, `limit?`, `offset?`, `level?`, `hp?`, `sort?`, `direction?`, `filters?`, `include?` | a ranked list with kind metrics; `summary` skips stats, `full` adds the card and typed stats |
+| `describe_catalog` | `kind?` | metric/stat dictionary, kind counts and catalog freshness |
 | `get_item` | `id` or `name` + `kind?` | item summary, `stats`, `effects`, `icon`, derived `card` |
 | `compare_items` | `a`, `b`, `level` | DPS/TTK and stats of two items |
 | `get_inventory` | — | `InventoryRead`: storages (including the intake stash), equipment and the computed loadout |
