@@ -20,20 +20,20 @@ const { t, locale } = useI18n();
 const time = computed(() => {
   const date = new Date(props.row.createdAt);
   if (Number.isNaN(date.getTime())) return '';
-  return new Intl.DateTimeFormat(locale.value, { hour: '2-digit', minute: '2-digit' }).format(date);
+  return new Intl.DateTimeFormat(locale.value, { hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
 });
 </script>
 
 <template>
-  <article v-if="row.kind === 'user'" class="flex justify-end">
-    <div class="max-w-[88%] border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] px-2.5 py-2">
+  <article v-if="row.kind === 'user'" class="flex w-full justify-end">
+    <div class="w-fit max-w-[88%] border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] px-2.5 py-2">
       <ChatAttachmentGrid
         :attachments="row.attachments"
         @open-image="emit('openImage', $event)"
         @open-file="emit('openFile', $event)"
       />
       <p v-if="row.text" class="whitespace-pre-wrap break-words text-[13px]">{{ row.text }}</p>
-      <p v-if="time" class="mt-1 text-right text-[10px] tabular-nums text-[var(--sz-text-dim)]">
+      <p v-if="time" class="mt-1 whitespace-nowrap text-right text-[10px] tabular-nums text-[var(--sz-text-dim)]">
         <time :datetime="row.createdAt">{{ time }}</time>
       </p>
     </div>
@@ -54,12 +54,13 @@ const time = computed(() => {
         variant="ghost"
         size="xs"
         icon="i-lucide-copy"
-        class="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+        class="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 max-sm:opacity-100"
         :aria-label="t('chat.copyMessage')"
         @click="emit('copy', row.text)"
       />
-      <p v-if="row.meta?.model || row.meta?.usage?.total" class="truncate text-[10px] text-[var(--sz-text-dim)]">
+      <p v-if="row.meta?.model || row.meta?.usage?.total" class="flex items-baseline gap-1.5 truncate text-[10px] text-[var(--sz-text-dim)]">
         <span v-if="row.meta?.model" class="font-mono">{{ row.meta.model }}</span>
+        <span v-if="row.meta?.usage?.total" aria-hidden="true">·</span>
         <span v-if="row.meta?.usage?.total">
           {{ t('chat.tokenUsage', { count: row.meta.usage.total }) }}
         </span>

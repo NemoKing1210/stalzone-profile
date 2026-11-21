@@ -33,3 +33,6 @@ export const SLIDER_MOTION_UI = {
 
 /** The keyed tab-panel wrapper class; the animation lives in `main.css`. */
 export const PANEL_ENTER_CLASS = 'sz-panel-enter';
+
+/** A chat message appended during a turn; the 160ms keyframe lives in `main.css`. */
+export const CHAT_MESSAGE_ENTER_CLASS = 'sz-msg-enter';

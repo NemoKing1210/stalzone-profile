@@ -9,6 +9,7 @@ import type {
 } from '@profile/shared/contracts';
 
 import { chatHttpStatus, turnOutcome, type TurnToast } from '~/shared/lib/chatTurnOutcome';
+import { emptyLiveTurn, parseSseChunk, reduceLiveTurn, type LiveTurn } from '~/shared/lib/chatStream';
 
 /**
  * The assistant conversation lives here, once per SPA: an in-flight turn survives route
@@ -29,6 +30,10 @@ export const useChatStore = defineStore('chat', () => {
     const status = chatHttpStatus(raw);
     if (status) return t('chat.providerHttpError', { status });
     if (raw.startsWith('AI_EMPTY')) return t('chat.emptyReply');
+    if (raw.startsWith('AI_NOT_CONFIGURED')) {
+      const env = raw.includes('set ') ? raw.slice(raw.indexOf('set ') + 4).trim() : '';
+      return env ? t('chat.notConfigured', { env }) : t('chat.failedDescription');
+    }
     return raw;
   }
 
@@ -38,6 +43,11 @@ export const useChatStore = defineStore('chat', () => {
   /** A confirmation belongs to its thread; switching away and back restores it. */
   const pendingByThread = ref<Record<number, ChatPendingWrite | null>>({});
   const sending = ref(false);
+  /** True only while the provider is delivering fragments; `sending` stays true through the save. */
+  const streaming = ref(false);
+  /** The answer being streamed; persisted rows are replaced by the canonical list on `done`. */
+  const live = ref<LiveTurn | null>(null);
+  const aborter = ref<AbortController | null>(null);
   const loadError = ref<string | null>(null);
   const threadsLoaded = ref(false);
 
@@ -125,35 +135,27 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  /** Stops the in-flight turn; the stream closes and the thread is reloaded from the database. */
+  function stop(): void {
+    aborter.value?.abort();
+  }
+
+  /**
+   * One streamed turn. The provider's fragments update `live`; the terminal frame replaces the
+   * transcript with the canonical rows. A turn the owner navigated away from still finishes in
+   * the store and reports through a toast, exactly like the non-streaming path did.
+   */
   async function turn(body: Record<string, unknown>): Promise<void> {
     if (sending.value) return;
     sending.value = true;
     const requestThreadId = activeThreadId.value;
     const navigationAtRequest = navigation;
     loadError.value = null;
-    try {
-      const result = await $fetch<ChatTurnResult>('/api/v1/chat/turn', {
-        method: 'POST',
-        body: { threadId: requestThreadId ?? undefined, ...body },
-      });
-      const outcome = turnOutcome(result, activeThreadId.value, route.path);
-      // A brand-new thread may adopt its id only when the owner did not start another one.
-      const adopt = outcome.apply && (requestThreadId != null || navigation === navigationAtRequest);
-      const errorText = result.error ? formatTurnError(result.error) : null;
-      setPending(result.thread.id, result.pending);
-      if (adopt) {
-        activeThreadId.value = result.thread.id;
-        messages.value = result.messages;
-        // The open conversation shows the provider failure inline; it was silent before.
-        loadError.value = errorText;
-      }
-      notify(outcome.toast, result, errorText);
-    } catch (error) {
-      const data =
-        error && typeof error === 'object' && 'data' in error
-          ? (error as { data?: { error?: { code?: string; message?: string } } }).data
-          : undefined;
-      const message = apiMessage(data?.error?.code, data?.error?.message || t('chat.failedDescription'));
+    const controller = new AbortController();
+    aborter.value = controller;
+    let adoptedThreadId: number | null = requestThreadId;
+
+    const showFailure = (message: string): void => {
       if (activeThreadId.value === requestThreadId) loadError.value = message;
       toast.add({
         title: t('chat.failed'),
@@ -161,7 +163,90 @@ export const useChatStore = defineStore('chat', () => {
         color: 'error',
         icon: 'i-lucide-triangle-alert',
       });
+    };
+
+    try {
+      const response = await fetch('/api/v1/chat/turn/stream', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ threadId: requestThreadId ?? undefined, ...body }),
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as {
+          error?: { code?: string; message?: string };
+        } | null;
+        showFailure(apiMessage(data?.error?.code, data?.error?.message || t('chat.failedDescription')));
+        return;
+      }
+      if (!response.body) throw new Error('AI_EMPTY: the stream had no body');
+
+      live.value = emptyLiveTurn();
+      streaming.value = true;
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let terminal: ChatTurnResult | null = null;
+      let streamError: string | null = null;
+
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parsed = parseSseChunk(buffer);
+        buffer = parsed.rest;
+        for (const event of parsed.events) {
+          if (event.type === 'done') {
+            terminal = {
+              thread: event.thread,
+              messages: event.messages,
+              pending: event.pending,
+              error: event.error,
+            };
+            continue;
+          }
+          if (event.type === 'error') {
+            streamError = event.message;
+            continue;
+          }
+          if (event.type === 'meta') {
+            adoptedThreadId = event.thread.id;
+            const adopt = requestThreadId != null || navigation === navigationAtRequest;
+            if (adopt && !messages.value.some((message) => message.id === event.message.id)) {
+              activeThreadId.value = event.thread.id;
+              messages.value = [...messages.value, event.message];
+            }
+          }
+          live.value = reduceLiveTurn(live.value ?? emptyLiveTurn(), event);
+        }
+      }
+
+      if (!terminal) throw new Error(streamError ?? 'AI_EMPTY: the stream ended without a reply');
+      streaming.value = false;
+      const outcome = turnOutcome(terminal, activeThreadId.value, route.path);
+      // A brand-new thread may adopt its id only when the owner did not start another one.
+      const adopt = outcome.apply && (requestThreadId != null || navigation === navigationAtRequest);
+      const errorText = terminal.error ? formatTurnError(terminal.error) : null;
+      setPending(terminal.thread.id, terminal.pending);
+      if (adopt) {
+        activeThreadId.value = terminal.thread.id;
+        messages.value = terminal.messages;
+        // The open conversation shows the provider failure inline; it was silent before.
+        loadError.value = errorText;
+      }
+      notify(outcome.toast, terminal, errorText);
+    } catch (error) {
+      if (controller.signal.aborted) {
+        // Stop or a closed tab: the database is the truth, no half-answer stays on screen.
+        if (adoptedThreadId != null) await openThread(adoptedThreadId).catch(() => undefined);
+        return;
+      }
+      const message = error instanceof Error ? formatTurnError(error.message) : t('chat.failedDescription');
+      showFailure(message);
     } finally {
+      streaming.value = false;
+      live.value = null;
+      aborter.value = null;
       // `sending` stays true through the thread-list refresh; thread switching stays allowed.
       await loadThreads().catch(() => undefined);
       sending.value = false;
@@ -227,6 +312,8 @@ export const useChatStore = defineStore('chat', () => {
     messages,
     pendingByThread,
     sending,
+    streaming,
+    live,
     loadError,
     activeThread,
     pending,
@@ -235,6 +322,7 @@ export const useChatStore = defineStore('chat', () => {
     openThread,
     newThread,
     send,
+    stop,
     deleteThread,
     confirmPending,
     declinePending,

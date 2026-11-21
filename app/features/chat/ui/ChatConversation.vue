@@ -9,15 +9,17 @@ import {
 import { storeToRefs } from 'pinia';
 
 import { useChatStore } from '~/stores/chat';
+import { CHAT_MESSAGE_ENTER_CLASS } from '~/shared/lib/motion';
 import { addChatFiles, formatFileSize, type ChatFileIssue } from '../model/files';
 import { threadImages } from '../model/gallery';
 import { chatRows, type ChatRow } from '../model/rows';
 import ChatAttachmentGallery from './ChatAttachmentGallery.vue';
 import ChatFilePreview from './ChatFilePreview.vue';
+import ChatLiveTurn from './ChatLiveTurn.vue';
 import ChatRowView from './ChatRowView.vue';
 
 const chat = useChatStore();
-const { messages, pending, sending, loadError } = storeToRefs(chat);
+const { messages, pending, sending, streaming, live, loadError } = storeToRefs(chat);
 const { t } = useI18n();
 const toast = useToast();
 const draft = ref('');
@@ -59,21 +61,53 @@ const ACCEPT = [
 
 const rows = computed(() => chatRows(messages.value));
 const rowsById = computed(() => new Map(rows.value.map((row) => [row.id, row])));
-const uiMessages = computed(() =>
-  rows.value.map((row) => ({
+/** A turn the owner navigated away from keeps running in the store, but not on this screen. */
+const liveHere = computed(() =>
+  live.value && (live.value.threadId == null || live.value.threadId === chat.activeThreadId) ? live.value : null,
+);
+const uiMessages = computed(() => {
+  const list = rows.value.map((row) => ({
     id: row.id,
     role: row.kind === 'user' ? 'user' : 'assistant',
-    parts: [],
-    metadata: { rowId: row.id },
-  })),
-);
+    parts: [{ type: 'text', text: '' }],
+    metadata: { rowId: row.id, live: false },
+    // A user bubble needs a definite width, otherwise Nuxt UI's shrink-to-fit flex item
+    // collapses to the widest character and the bubble becomes a vertical strip.
+    ...(row.kind === 'user'
+      ? { ui: { container: 'w-full max-w-[75%] ms-auto', body: 'w-full min-w-0', content: 'w-full' } }
+      : {}),
+  }));
+  if (liveHere.value)
+    list.push({ id: 'live', role: 'assistant', parts: [{ type: 'text', text: '' }], metadata: { rowId: '', live: true } });
+  return list;
+});
 
 /** UChatMessages passes its own message back; the row id is the only thing we need from it. */
 function rowOf(message: unknown): ChatRow | null {
+  if (isLive(message)) return null;
   if (!message || typeof message !== 'object' || !('metadata' in message)) return null;
   const metadata = message.metadata;
   if (!metadata || typeof metadata !== 'object' || !('rowId' in metadata)) return null;
   return typeof metadata.rowId === 'string' ? (rowsById.value.get(metadata.rowId) ?? null) : null;
+}
+
+function isLive(message: unknown): boolean {
+  if (!message || typeof message !== 'object' || !('metadata' in message)) return false;
+  const metadata = message.metadata;
+  return Boolean(metadata && typeof metadata === 'object' && 'live' in metadata && metadata.live === true);
+}
+
+/** Rows appended while a turn streams enter once; opening a stored thread stays still. */
+const entered = new Set<string>();
+function enterClass(key: string): string {
+  if (!streaming.value || !key || entered.has(key)) return '';
+  entered.add(key);
+  return CHAT_MESSAGE_ENTER_CLASS;
+}
+
+function rowKey(message: unknown): string {
+  if (isLive(message)) return 'live';
+  return rowOf(message)?.id ?? '';
 }
 
 const images = computed(() => threadImages(messages.value));
@@ -225,14 +259,18 @@ defineExpose({ focus });
           </div>
         </div>
       </div>
-      <UChatMessages v-else :messages="uiMessages as never" :auto-scroll="true">
+      <UChatMessages v-else :messages="uiMessages as never" :auto-scroll="true" :status="streaming ? 'streaming' : undefined">
         <template #content="{ message }">
-          <ChatRowView
-            :row="rowOf(message)"
-            @copy="copyMessage"
-            @open-image="openImage"
-            @open-file="openFile"
-          />
+          <div :class="enterClass(rowKey(message))">
+            <ChatLiveTurn v-if="isLive(message)" :live="liveHere" :streaming="streaming" />
+            <ChatRowView
+              v-else
+              :row="rowOf(message)"
+              @copy="copyMessage"
+              @open-image="openImage"
+              @open-file="openFile"
+            />
+          </div>
         </template>
       </UChatMessages>
       <p v-if="loadError" class="mt-3 border border-[var(--sz-warning)] px-2.5 py-2 text-[12px] text-[var(--sz-warning-text)]">
@@ -326,10 +364,21 @@ defineExpose({ focus });
             :disabled="sending || files.length >= CHAT_ATTACHMENT_LIMITS.files"
             @click="fileInput?.click()"
           />
-          <UChatPromptSubmit
+          <UButton
+            v-if="sending"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            icon="i-lucide-square"
             class="ms-auto max-sm:size-11"
-            :disabled="(!draft.trim() && !files.length) || sending || draftTooLong"
-            :loading="sending"
+            :aria-label="t('chat.stop')"
+            :title="t('chat.stop')"
+            @click="chat.stop"
+          />
+          <UChatPromptSubmit
+            v-else
+            class="ms-auto max-sm:size-11"
+            :disabled="(!draft.trim() && !files.length) || draftTooLong"
             :aria-label="t('chat.send')"
           />
         </template>

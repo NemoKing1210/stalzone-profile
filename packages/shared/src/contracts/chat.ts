@@ -518,3 +518,33 @@ export const ChatTurnResultSchema = z.object({
   error: z.string().nullable(),
 });
 export type ChatTurnResult = z.infer<typeof ChatTurnResultSchema>;
+
+/**
+ * One SSE frame of a streamed turn. `meta` opens the conversation (thread + the user message
+ * already stored), `delta` carries provider text or reasoning as it arrives, `tool` reports a
+ * call starting and finishing, `pending` raises the write confirmation, and `done` is the only
+ * terminal frame — it carries the canonical message list and any failure, so a client never
+ * has to reconcile two endings.
+ */
+export const ChatStreamEventSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('meta'), thread: ChatThreadSchema, message: ChatMessageSchema }),
+  z.object({ type: z.literal('delta'), kind: z.enum(['text', 'reasoning']), text: z.string() }),
+  z.object({
+    type: z.literal('tool'),
+    callId: z.string(),
+    name: z.string(),
+    phase: z.enum(['start', 'done', 'declined']),
+    payload: z.unknown().optional(),
+  }),
+  z.object({ type: z.literal('pending'), pending: ChatPendingWriteSchema }),
+  z.object({
+    type: z.literal('done'),
+    thread: ChatThreadSchema,
+    messages: z.array(ChatMessageSchema),
+    pending: ChatPendingWriteSchema.nullable(),
+    error: z.string().nullable(),
+  }),
+  /** A failure before a turn exists (missing thread, rejected attachment); no `done` follows. */
+  z.object({ type: z.literal('error'), message: z.string() }),
+]);
+export type ChatStreamEvent = z.infer<typeof ChatStreamEventSchema>;

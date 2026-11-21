@@ -275,7 +275,7 @@ onMounted(() => {
       </ProfilePane>
 
       <ProfilePane :title="activeThread?.title ?? t('chat.newTitle')" dense flush>
-        <ChatConversation class="h-[calc(100dvh-17rem)] min-h-[380px] lg:h-[calc(100dvh-18rem)]" />
+        <ChatConversation class="h-[calc(100dvh-21.5rem)] min-h-[320px] lg:h-[calc(100dvh-18rem)]" />
       </ProfilePane>
     </div>
 

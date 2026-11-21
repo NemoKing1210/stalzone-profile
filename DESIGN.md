@@ -136,7 +136,7 @@ instead of mixing Bebas with a fallback.
    64 px icon well of every item list row, whose border also takes the row's translucent rank
    colour (owner decisions 2026-11-21); a
    faint inset highlight on header bars and a blurred backdrop behind modals remain the in-pane
-   maximum. Nothing animates, so reduced motion needs no special case.
+   maximum. Motion is limited to §4.5; reduced motion disables every transform and animation.
 7. **Honest affordances.** No fake keyboard shortcuts. Keycaps appear only for shortcuts that
    really work; otherwise use web-native wording ("Open", "Edit").
 8. **Accessible by construction.** Contrast, focus, keyboard paths and touch targets are part
@@ -350,6 +350,11 @@ Rules:
 - A keyed tab panel replays a 160ms opacity + `translateY(2px)` enter; sliders scale their
   thumb to 1.1 on press for 120ms without animating position; catalog cards lift 1px for
   120ms on hover. No other control gains motion.
+- Assistant chat (owner decision 2026-11-21): a message appended during a turn fades in over
+  160ms with a 2px rise; reasoning and tool disclosures use Nuxt UI's 160ms Collapsible;
+  "Thinking…" shimmers only while a turn is active and becomes static text under reduced
+  motion; the scroll-to-bottom button fades over 120ms. Nothing loops after the turn ends and
+  no other chat control gains motion.
 
 ### 4.6 Z-index
 

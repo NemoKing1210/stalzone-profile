@@ -9,9 +9,7 @@ const view = computed(() => chatToolView(props.toolName, props.payload));
 </script>
 
 <template>
-  <div class="border border-[var(--sz-border)] bg-[var(--sz-surface)] p-2.5 text-[12.5px]">
-    <p class="sz-caps mb-1.5 text-[10.5px] text-[var(--sz-text-muted)]">{{ toolName }}</p>
-
+  <div class="text-[12.5px]">
     <div v-if="view.kind === 'items'" class="grid gap-1.5 sm:grid-cols-2">
       <div
         v-for="item in view.items"
@@ -26,7 +24,7 @@ const view = computed(() => chatToolView(props.toolName, props.payload));
     </div>
 
     <div v-else-if="view.kind === 'prices'" class="overflow-x-auto">
-      <table class="w-full min-w-[17rem] text-[12px]">
+      <table class="w-full min-w-[17rem] text-[12px] [&_td]:px-1.5 [&_th]:px-1.5">
         <thead class="text-[var(--sz-text-muted)]">
           <tr>
             <th class="text-left font-normal">{{ t('chat.columns.name') }}</th>
@@ -45,7 +43,7 @@ const view = computed(() => chatToolView(props.toolName, props.payload));
     </div>
 
     <div v-else-if="view.kind === 'inventory'" class="overflow-x-auto">
-      <table class="w-full min-w-[19rem] text-[12px]">
+      <table class="w-full min-w-[19rem] text-[12px] [&_td]:px-1.5 [&_th]:px-1.5">
         <thead class="text-[var(--sz-text-muted)]">
           <tr>
             <th class="text-left font-normal">{{ t('chat.columns.name') }}</th>

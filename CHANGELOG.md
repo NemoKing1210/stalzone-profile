@@ -94,6 +94,20 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- The assistant chat is redesigned around streamed answers. `POST /api/v1/chat/turn/stream`
+  answers with server-sent events (`meta`, `delta` for text and reasoning, `tool`, `pending`
+  and one terminal `done`), so the answer appears token by token and Stop aborts the provider
+  call without storing a partial reply; the non-streaming turn stays for MCP and headless
+  callers and both paths run one loop. Messages render safe markdown (raw HTML escaped,
+  external links hardened, tables and code blocks on the site's tokens), show a time and a
+  copy action, and keep the provider's own reasoning in a collapsed `UChatReasoning` block
+  plus `model · tokens` from `chat_message.meta` (migration `0024`). Consecutive tool calls
+  fold into one collapsible block instead of a wall of tables. The thread pane gains a title
+  search and Today/Yesterday/Earlier groups, becomes a slideover below `lg`, and the empty
+  conversation offers three real questions; the composer swaps Send for Stop during a turn
+  and shows the 8 000-character budget near the limit. A message appended during a turn
+  fades in once (DESIGN §4.5), and opening a stored thread does not animate.
+
 - The `/chat` header shows the configured provider's live availability: the provider label
   plus a tone dot and `Online`, `Unavailable`, `Not configured` or `Unknown`, with the model
   count or the provider's own message in the tooltip. It reads the same

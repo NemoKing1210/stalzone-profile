@@ -5,7 +5,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 export { createProfileServer, READ_TOOLS, READ_OUTPUT_SCHEMAS, writeLimiter } from './registry.js';
 export type { WriteLimiter } from './registry.js';
 export { localClient, httpClient } from './client.js';
-export { runChatTurn, chatThreads, chatThreadMessages } from './chat.js';
+export { runChatTurn, runChatTurnStream, chatThreads, chatThreadMessages } from './chat.js';
 export { WRITE_TOOL_NAMES, isWriteTool, toolDefinitions } from './registry.js';
 export { instrumentClient } from './logging.js';
 export type { ProfileClient, LocalClientOptions } from './client.js';

@@ -7,6 +7,7 @@ import {
   chatFileKind,
   type ChatSend,
   type ChatSettings,
+  type ChatStreamEvent,
   type ChatTurnResult,
 } from '@profile/shared/contracts';
 import {
@@ -58,6 +59,10 @@ export interface ChatTurnOptions {
   fetchImpl?: FetchLike;
   maxRounds?: number;
   client?: ProfileClient;
+  /** Aborting this closes the provider request; nothing of the in-flight answer is stored. */
+  signal?: AbortSignal;
+  /** When present the turn streams: provider deltas, tool phases and the final frame. */
+  onEvent?: (event: ChatStreamEvent) => void;
 }
 
 type OpenAiContentPart = { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } };
@@ -85,6 +90,10 @@ interface ProviderInput {
   maxTokens: number;
   reasoningEffort: 'low' | 'medium' | 'high' | null;
   timeoutMs: number;
+  /** Ask the provider for an SSE body and report each fragment as it arrives. */
+  stream: boolean;
+  onDelta?: (kind: 'text' | 'reasoning', text: string) => void;
+  signal?: AbortSignal;
 }
 
 /** One executed tool call, kept for the provider's continuation message. */
@@ -220,6 +229,11 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
   const settings = toChatSettings(getChatSettingsRow(db));
   const base = resolveBaseUrl(settings);
   const { key, env } = resolveApiKey(settings);
+  const emit = options.onEvent ?? (() => {});
+  const finish = (result: ChatTurnResult): ChatTurnResult => {
+    emit({ type: 'done', thread: result.thread, messages: result.messages, pending: result.pending, error: result.error });
+    return result;
+  };
   const requestId = currentEventContext()?.requestId ?? null;
   const turnLogger = getLogger(db, 'app', { source: 'server', requestId });
   const startedAt = Date.now();
@@ -251,14 +265,26 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
     content: input.message,
     attachments,
   });
+  const userMessage = listChatMessages(db, threadId).at(-1);
+  if (userMessage) emit({ type: 'meta', thread, message: userMessage });
 
   if (!base) {
     turnLogger.warn('chat not configured', { provider: settings.provider, missing: 'baseUrl' });
-    return { thread, messages: listChatMessages(db, threadId), pending: null, error: `AI_NOT_CONFIGURED: set a base URL` };
+    return finish({
+      thread,
+      messages: listChatMessages(db, threadId),
+      pending: null,
+      error: `AI_NOT_CONFIGURED: set a base URL`,
+    });
   }
   if (!key && settings.provider !== 'ollama') {
     turnLogger.warn('chat not configured', { provider: settings.provider, missing: 'apiKey' });
-    return { thread, messages: listChatMessages(db, threadId), pending: null, error: `AI_NOT_CONFIGURED: set ${env}` };
+    return finish({
+      thread,
+      messages: listChatMessages(db, threadId),
+      pending: null,
+      error: `AI_NOT_CONFIGURED: set ${env}`,
+    });
   }
 
   const client = options.client ?? localClient(db);
@@ -319,6 +345,9 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
         maxTokens: settings.maxTokens,
         reasoningEffort: settings.reasoningEffort,
         timeoutMs: settings.timeoutMs,
+        stream: Boolean(options.onEvent),
+        onDelta: (kind, text) => emit({ type: 'delta', kind, text }),
+        signal: options.signal,
       });
       const roundDurationMs = Date.now() - roundStartedAt;
       // A gateway may leak DeepSeek's native markup as text; recover the calls and hide it.
@@ -354,6 +383,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
       let stopped = false;
       for (const call of result.reply.calls) {
         if (isWriteTool(call.name)) {
+          emit({ type: 'tool', callId: call.id, name: call.name, phase: 'start' });
           if (pendingWrite && pendingWrite.name === call.name) {
             toolCalls += 1;
             const done = await callRegistry(sdk, call.name, { ...call.args, ...pendingWrite.args, dry_run: false, confirm: true });
@@ -365,6 +395,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
               toolCallId: call.id,
               payload: done,
             });
+            emit({ type: 'tool', callId: call.id, name: call.name, phase: 'done', payload: done });
             acted = true;
             stopped = true;
             continue;
@@ -388,6 +419,8 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
             toolCallId: call.id,
             payload: preview,
           });
+          emit({ type: 'pending', pending });
+          emit({ type: 'tool', callId: call.id, name: call.name, phase: 'done', payload: preview });
           stopped = true;
           continue;
         }
@@ -401,10 +434,12 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
             toolCallId: call.id,
             payload: { declined: true },
           });
+          emit({ type: 'tool', callId: call.id, name: call.name, phase: 'declined', payload: { declined: true } });
           runs.push({ id: call.id, name: call.name, content, payload: { declined: true } });
           acted = true;
           continue;
         }
+        emit({ type: 'tool', callId: call.id, name: call.name, phase: 'start' });
         const toolResult = await callRegistry(sdk, call.name, call.args);
         toolCalls += 1;
         const content = JSON.stringify(toolResult);
@@ -416,6 +451,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
           toolCallId: call.id,
           payload: toolResult,
         });
+        emit({ type: 'tool', callId: call.id, name: call.name, phase: 'done', payload: toolResult });
         runs.push({ id: call.id, name: call.name, content, payload: toolResult });
       }
       if (stopped) break;
@@ -445,7 +481,20 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
   if (error) turnLogger.warn('chat turn finished', summary, failure, durationMs);
   else turnLogger.info('chat turn finished', summary, undefined, durationMs);
 
-  return { thread: getChatThread(db, threadId) ?? thread, messages: listChatMessages(db, threadId), pending, error };
+  return finish({ thread: getChatThread(db, threadId) ?? thread, messages: listChatMessages(db, threadId), pending, error });
+}
+
+/**
+ * The same loop as `runChatTurn`, with the provider's fragments and tool phases delivered to
+ * `emit` as they happen. Resolves after the terminal `done` frame; the route closes the body.
+ */
+export async function runChatTurnStream(
+  db: Db,
+  input: ChatSend,
+  emit: (event: ChatStreamEvent) => void,
+  options: Omit<ChatTurnOptions, 'onEvent'> = {},
+): Promise<void> {
+  await runChatTurn(db, input, { ...options, onEvent: emit });
 }
 
 async function callRegistry(sdk: Client, name: string, args: Json): Promise<unknown> {
@@ -517,15 +566,32 @@ async function callProviderWithRetry(
   session: string,
   input: ProviderInput,
 ): Promise<ProviderResult> {
+  // A stream that already delivered text is not retried: the reader saw it once already.
+  let emitted = false;
+  const attemptInput: ProviderInput = input.onDelta
+    ? {
+        ...input,
+        onDelta: (kind, text) => {
+          emitted = true;
+          input.onDelta?.(kind, text);
+        },
+      }
+    : input;
   for (let attempt = 0; ; attempt++) {
     try {
-      return await callProvider(fetchImpl, settings.provider, base, key, settings.model, session, input);
+      return await callProvider(fetchImpl, settings.provider, base, key, settings.model, session, attemptInput);
     } catch (error) {
-      if (attempt >= settings.retries || !retryable(error)) throw error;
+      if (attempt >= settings.retries || emitted || !retryable(error)) throw error;
       // A short backoff keeps a 429/5xx from turning one turn into a burst.
       await delay(250 * (attempt + 1));
     }
   }
+}
+
+/** The request timeout and the caller's cancel signal both stop the provider call. */
+function requestSignal(input: ProviderInput): AbortSignal {
+  const timeout = AbortSignal.timeout(input.timeoutMs);
+  return input.signal ? AbortSignal.any([input.signal, timeout]) : timeout;
 }
 
 async function callProvider(
@@ -580,6 +646,216 @@ function providerUsage(raw: unknown): Record<string, number> | undefined {
   };
 }
 
+/**
+ * Reads one provider SSE body line by line. JSON arrives split across network chunks, never
+ * across lines, so a partial line is buffered until its newline. `data:` lines only — the
+ * event name is not needed by any of the three vendors.
+ */
+async function readSse(response: Response, onData: (data: string) => void): Promise<void> {
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error('AI_STREAM: empty response body');
+  const decoder = new TextDecoder();
+  let buffer = '';
+  const consume = (line: string): void => {
+    const trimmed = line.endsWith('\r') ? line.slice(0, -1) : line;
+    if (!trimmed.startsWith('data:')) return;
+    const data = trimmed.slice(5).trim();
+    if (data) onData(data);
+  };
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let newline = buffer.indexOf('\n');
+    while (newline >= 0) {
+      consume(buffer.slice(0, newline));
+      buffer = buffer.slice(newline + 1);
+      newline = buffer.indexOf('\n');
+    }
+  }
+  buffer += decoder.decode();
+  if (buffer.trim()) consume(buffer);
+}
+
+/** Anthropic reports input and output tokens in separate frames; both are merged here. */
+function mergeUsage(
+  left: Record<string, number> | undefined,
+  right: Record<string, number> | undefined,
+): Record<string, number> | undefined {
+  if (!left && !right) return undefined;
+  const merged: Record<string, number> = { ...left, ...right };
+  if (merged.total === undefined && merged.input !== undefined && merged.output !== undefined) {
+    merged.total = merged.input + merged.output;
+  }
+  return merged;
+}
+
+interface StreamedReply {
+  text: string;
+  reasoning: string;
+  calls: ToolCall[];
+}
+
+async function streamOpenAi(
+  response: Response,
+  baseMessages: OpenAiMessage[],
+  input: ProviderInput,
+): Promise<ProviderResult> {
+  let text = '';
+  let reasoning = '';
+  let usage: Record<string, number> | undefined;
+  const calls = new Map<number, { id: string; name: string; arguments: string }>();
+
+  await readSse(response, (data) => {
+    if (data === '[DONE]') return;
+    const chunk = safeJson(data) as {
+      choices?: {
+        delta?: {
+          content?: string | null;
+          reasoning_content?: string | null;
+          reasoning?: string | null;
+          tool_calls?: { index?: number; id?: string; function?: { name?: string; arguments?: string } }[];
+        };
+      }[];
+      usage?: unknown;
+    };
+    usage = providerUsage(chunk.usage) ?? usage;
+    const delta = chunk.choices?.[0]?.delta;
+    if (!delta) return;
+    const reasoningText =
+      typeof delta.reasoning_content === 'string'
+        ? delta.reasoning_content
+        : typeof delta.reasoning === 'string'
+          ? delta.reasoning
+          : '';
+    if (reasoningText) {
+      reasoning += reasoningText;
+      input.onDelta?.('reasoning', reasoningText);
+    }
+    if (typeof delta.content === 'string' && delta.content) {
+      text += delta.content;
+      input.onDelta?.('text', delta.content);
+    }
+    for (const fragment of delta.tool_calls ?? []) {
+      const index = typeof fragment.index === 'number' ? fragment.index : 0;
+      const current = calls.get(index) ?? { id: '', name: '', arguments: '' };
+      if (fragment.id) current.id = fragment.id;
+      if (fragment.function?.name) current.name += fragment.function.name;
+      if (fragment.function?.arguments) current.arguments += fragment.function.arguments;
+      calls.set(index, current);
+    }
+  });
+
+  const reply: StreamedReply = {
+    text,
+    reasoning,
+    calls: [...calls.values()]
+      .filter((call) => call.name)
+      .map((call) => ({ id: call.id || crypto.randomUUID(), name: call.name, args: safeJson(call.arguments) })),
+  };
+  return { reply, state: baseMessages, usage };
+}
+
+interface AnthropicStreamBlock {
+  type: string;
+  id?: string;
+  name?: string;
+  json: string;
+}
+
+async function streamAnthropic(
+  response: Response,
+  baseMessages: unknown[],
+  input: ProviderInput,
+): Promise<ProviderResult> {
+  let text = '';
+  let reasoning = '';
+  let usage: Record<string, number> | undefined;
+  const blocks = new Map<number, AnthropicStreamBlock>();
+
+  await readSse(response, (data) => {
+    const event = safeJson(data) as {
+      type?: string;
+      index?: number;
+      message?: { usage?: unknown };
+      content_block?: { type?: string; id?: string; name?: string };
+      delta?: { type?: string; text?: string; thinking?: string; partial_json?: string };
+      usage?: unknown;
+    };
+    if (event.type === 'message_start') usage = mergeUsage(usage, providerUsage(event.message?.usage));
+    if (event.type === 'content_block_start' && typeof event.index === 'number') {
+      blocks.set(event.index, {
+        type: event.content_block?.type ?? '',
+        id: event.content_block?.id,
+        name: event.content_block?.name,
+        json: '',
+      });
+    }
+    if (event.type === 'content_block_delta') {
+      const block = typeof event.index === 'number' ? blocks.get(event.index) : undefined;
+      const delta = event.delta;
+      if (delta?.type === 'text_delta' && typeof delta.text === 'string') {
+        text += delta.text;
+        input.onDelta?.('text', delta.text);
+      }
+      if (delta?.type === 'thinking_delta' && typeof delta.thinking === 'string') {
+        reasoning += delta.thinking;
+        input.onDelta?.('reasoning', delta.thinking);
+      }
+      if (delta?.type === 'input_json_delta' && typeof delta.partial_json === 'string' && block) {
+        block.json += delta.partial_json;
+      }
+    }
+    if (event.type === 'message_delta') usage = mergeUsage(usage, providerUsage(event.usage));
+  });
+
+  const reply: StreamedReply = {
+    text,
+    reasoning,
+    calls: [...blocks.values()]
+      .filter((block) => block.type === 'tool_use' && block.name)
+      .map((block) => ({ id: block.id || crypto.randomUUID(), name: block.name ?? '', args: safeJson(block.json) })),
+  };
+  return { reply, state: baseMessages, usage };
+}
+
+async function streamGoogle(
+  response: Response,
+  baseContents: unknown[],
+  input: ProviderInput,
+): Promise<ProviderResult> {
+  let text = '';
+  let reasoning = '';
+  let usage: Record<string, number> | undefined;
+  const calls: ToolCall[] = [];
+
+  await readSse(response, (data) => {
+    const chunk = safeJson(data) as {
+      candidates?: {
+        content?: { parts?: { text?: string; thought?: boolean; functionCall?: { name?: string; args?: Json } }[] };
+      }[];
+      usageMetadata?: unknown;
+    };
+    usage = providerUsage(chunk.usageMetadata) ?? usage;
+    for (const part of chunk.candidates?.[0]?.content?.parts ?? []) {
+      if (part.functionCall) {
+        calls.push({ id: crypto.randomUUID(), name: part.functionCall.name ?? '', args: part.functionCall.args ?? {} });
+        continue;
+      }
+      if (typeof part.text !== 'string' || !part.text) continue;
+      if (part.thought === true) {
+        reasoning += part.text;
+        input.onDelta?.('reasoning', part.text);
+      } else {
+        text += part.text;
+        input.onDelta?.('text', part.text);
+      }
+    }
+  });
+
+  return { reply: { text, reasoning, calls }, state: baseContents, usage };
+}
+
 async function callOpenAi(
   fetchImpl: FetchLike,
   provider: string,
@@ -630,10 +906,19 @@ async function callOpenAi(
           }
         : {}),
       ...effort,
+      ...(input.stream
+        ? {
+            stream: true,
+            ...(provider === 'openai' || provider === 'openrouter'
+              ? { stream_options: { include_usage: true } }
+              : {}),
+          }
+        : {}),
     }),
-    signal: AbortSignal.timeout(input.timeoutMs),
+    signal: requestSignal(input),
   });
   if (!response.ok) throw new Error(`AI_HTTP_${response.status}`);
+  if (input.stream) return streamOpenAi(response, messages, input);
   const body = (await response.json()) as {
     choices?: {
       message?: {
@@ -705,9 +990,10 @@ async function callAnthropic(
           }
         : {}),
     }),
-    signal: AbortSignal.timeout(input.timeoutMs),
+    signal: requestSignal(input),
   });
   if (!response.ok) throw new Error(`AI_HTTP_${response.status}`);
+  if (input.stream) return streamAnthropic(response, messages, input);
   const body = (await response.json()) as {
     content?: { type: string; text?: string; thinking?: string; id?: string; name?: string; input?: Json }[];
     usage?: unknown;
@@ -741,7 +1027,8 @@ async function callGoogle(
     ...input.images.map((image) => ({ inlineData: { mimeType: image.mimeType, data: image.data } })),
   ];
   const contents = Array.isArray(input.state) ? input.state : [{ role: 'user', parts: requestParts }];
-  const response = await fetchImpl(`${base}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key ?? '')}`, {
+  const action = input.stream ? 'streamGenerateContent?alt=sse&key=' : 'generateContent?key=';
+  const response = await fetchImpl(`${base}/models/${encodeURIComponent(model)}:${action}${encodeURIComponent(key ?? '')}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -750,9 +1037,10 @@ async function callGoogle(
       generationConfig: { temperature: input.temperature, maxOutputTokens: input.maxTokens },
       ...(input.definitions.length ? { tools: [{ functionDeclarations: input.definitions }] } : {}),
     }),
-    signal: AbortSignal.timeout(input.timeoutMs),
+    signal: requestSignal(input),
   });
   if (!response.ok) throw new Error(`AI_HTTP_${response.status}`);
+  if (input.stream) return streamGoogle(response, contents, input);
   const body = (await response.json()) as {
     candidates?: {
       content?: { parts?: { text?: string; thought?: boolean; functionCall?: { name?: string; args?: Json } }[] };

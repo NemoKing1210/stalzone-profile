@@ -642,12 +642,15 @@
     },
     "charCount": "{used} / {max} characters",
     "tokenUsage": "{count} tokens",
+    "thinking": "Thinking…",
+    "stop": "Stop generating",
     "placeholder": "Ask the assistant…",
     "send": "Send message",
     "failed": "Assistant request failed",
     "failedDescription": "Check Settings → Assistant and the provider connection.",
     "providerHttpError": "The provider rejected the request (HTTP {status}). Check Settings → Assistant and the provider connection.",
     "emptyReply": "The provider returned an empty reply. Send the message again or pick another model.",
+    "notConfigured": "The assistant is not configured. Set {env} in Settings → Assistant.",
     "pendingTitle": "Confirmation required",
     "confirm": "Confirm write",
     "decline": "Decline",
@@ -1296,7 +1299,9 @@
           "model": "The header switches the assistant model through the same audited setting Settings → Assistant uses; a provider without a list still accepts a typed id.",
           "background": "A turn keeps running after leaving the page; its reply, pending write or error arrives as a toast, and returning reuses the stored thread.",
           "panel": "A right-side panel on every page except /chat reuses the same conversation and composer; closing it never stops a turn.",
-          "files": "Images and text files attached to a message travel to the model with that turn; they live in the profile DB, are verified from their bytes, and are served only through the session. An image opens a carousel with thumbnails and zoom; a text file opens a readable preview with copy and download."
+          "files": "Images and text files attached to a message travel to the model with that turn; they live in the profile DB, are verified from their bytes, and are served only through the session. An image opens a carousel with thumbnails and zoom; a text file opens a readable preview with copy and download.",
+          "streaming": "Answers stream token by token; Stop aborts the provider call, and an incomplete answer is never saved. A turn that finishes while another page is open reports through a toast.",
+          "reasoning": "When the provider returns its reasoning, it sits in a collapsed block above the answer and can be expanded; it is stored with the message but never sent back to the model."
         }
       },
       "inventory": {
@@ -1543,6 +1548,7 @@
         "threadRead": "One thread with its ordered messages, including tool payloads.",
         "threadDelete": "Delete one thread and its messages and files; the audited event is not rollbackable.",
         "turn": "Run one assistant turn: reads execute, the first write returns its dry-run diff and waits for confirm.",
+        "turnStream": "Stream one assistant turn as server-sent events: the stored user message, provider text/reasoning deltas, tool phases, a pending write and one terminal done frame; aborting stores no partial answer.",
         "test": "Send one model-list request to the configured provider and report its status.",
         "models": "Reads the provider's model list for the settings picker; the key comes only from the named env variable and nothing is written.",
         "attachment": "Bytes of one assistant attachment behind the session; images keep their sniffed type, text is served as plain text, sha256 is the ETag, and download/sandbox headers are always set."
