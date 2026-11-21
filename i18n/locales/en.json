@@ -703,6 +703,11 @@
     "copyMessage": "Copy message",
     "roleAssistant": "Assistant",
     "queued": "{count} queued",
+    "answer": {
+      "title": "Results",
+      "count": "{count} items",
+      "showAll": "Show all ({count})"
+    },
     "chart": {
       "title": "Comparison",
       "metric": "Metric",

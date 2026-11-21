@@ -13,6 +13,7 @@ const card = (overrides: Partial<ChatItemView> = {}): ChatItemView => ({
   qty: null,
   virtual: false,
   location: null,
+  weight: null,
   ...overrides,
 });
 

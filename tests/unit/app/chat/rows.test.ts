@@ -1,7 +1,7 @@
 import type { ChatAttachment, ChatMessage } from '@profile/shared/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { chatRows, toolRunCounts } from '~/features/chat/model/rows';
+import { chatRows, toolRunCounts, type ChatRow } from '~/features/chat/model/rows';
 
 function message(overrides: Partial<ChatMessage> & Pick<ChatMessage, 'id' | 'role' | 'content'>): ChatMessage {
   return {
@@ -69,6 +69,25 @@ describe('chat rows', () => {
   it('keeps the failure mark on a user message', () => {
     const row = chatRows([message({ id: 1, role: 'user', content: 'hello', error: 'AI_HTTP_503' })])[0];
     expect(row).toMatchObject({ kind: 'user', error: 'AI_HTTP_503' });
+  });
+
+  it('attaches a turn\'s tool runs to its final answer only', () => {
+    const rows = chatRows([
+      user(1),
+      tool(2, 'find_items'),
+      assistant(3, 'Working on it.'),
+      tool(4, 'get_prices'),
+      assistant(5, 'Done.'),
+    ]);
+    const answers = rows.filter((row): row is Extract<ChatRow, { kind: 'assistant' }> => row.kind === 'assistant');
+    expect(answers[0]?.results).toEqual([]);
+    expect(answers[1]?.results.map((run) => run.name)).toEqual(['find_items', 'get_prices']);
+  });
+
+  it('keeps each turn\'s results with that turn', () => {
+    const rows = chatRows([user(1), tool(2, 'find_items'), assistant(3, 'A'), user(4, 'next'), assistant(5, 'B')]);
+    const answers = rows.filter((row): row is Extract<ChatRow, { kind: 'assistant' }> => row.kind === 'assistant');
+    expect(answers.map((answer) => answer.results.map((run) => run.name))).toEqual([['find_items'], []]);
   });
 
   it('counts distinct tool actions for the header badges', () => {

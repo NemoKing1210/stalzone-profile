@@ -15,6 +15,7 @@ function item(name: string): ChatItemView {
     qty: null,
     virtual: false,
     location: null,
+    weight: null,
   };
 }
 

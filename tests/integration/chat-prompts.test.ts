@@ -48,7 +48,7 @@ describe('assistant prompts', () => {
     expect(composed).toContain('## inventory');
     expect(composed).toContain('## Rules');
     expect(composed).toContain('Never buy or list on the auction');
-    expect(composed).toContain('do not repeat or enumerate the rows');
+    expect(composed).toContain('never enumerate item names, levels or metric values');
     expect(composed).toContain('shown as a chart automatically');
     expect(composed.indexOf('## Rules')).toBeGreaterThan(composed.indexOf('## writes'));
   });

@@ -703,6 +703,11 @@
     "copyMessage": "Копировать сообщение",
     "roleAssistant": "Ассистент",
     "queued": "В очереди: {count}",
+    "answer": {
+      "title": "Подборка",
+      "count": "{count} шт.",
+      "showAll": "Показать все ({count})"
+    },
     "chart": {
       "title": "Сравнение",
       "metric": "Метрика",

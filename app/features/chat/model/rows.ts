@@ -27,6 +27,8 @@ export type ChatRow =
       text: string;
       reasoning: string | null;
       meta: ChatMessageMeta | null;
+      /** Tool runs of this turn, attached only to the turn's final answer. */
+      results: ChatToolRunView[];
       createdAt: string;
     }
   | { kind: 'tools'; id: string; runs: ChatToolRunView[] };
@@ -50,6 +52,9 @@ export function toolRunCounts(runs: readonly ChatToolRunView[]): ChatToolRunCoun
  */
 export function chatRows(messages: readonly ChatMessage[]): ChatRow[] {
   const rows: ChatRow[] = [];
+  /** Runs after the latest user message; the turn's final assistant row shows their results. */
+  let turnRuns: ChatToolRunView[] = [];
+  let lastAnswer: Extract<ChatRow, { kind: 'assistant' }> | null = null;
   for (const message of messages) {
     if (message.role === 'tool') {
       const payload = message.payload;
@@ -64,9 +69,13 @@ export function chatRows(messages: readonly ChatMessage[]): ChatRow[] {
       const last = rows.at(-1);
       if (last?.kind === 'tools') last.runs.push(run);
       else rows.push({ kind: 'tools', id: run.id, runs: [run] });
+      turnRuns.push(run);
       continue;
     }
     if (message.role === 'user') {
+      if (lastAnswer) lastAnswer.results = turnRuns;
+      turnRuns = [];
+      lastAnswer = null;
       rows.push({
         kind: 'user',
         id: String(message.id),
@@ -77,14 +86,18 @@ export function chatRows(messages: readonly ChatMessage[]): ChatRow[] {
       });
       continue;
     }
-    rows.push({
-      kind: 'assistant',
+    const answer = {
+      kind: 'assistant' as const,
       id: String(message.id),
       text: cleanAssistantText(message.content),
       reasoning: message.reasoning,
       meta: message.meta,
+      results: [],
       createdAt: message.createdAt,
-    });
+    };
+    rows.push(answer);
+    lastAnswer = answer;
   }
+  if (lastAnswer) lastAnswer.results = turnRuns;
   return rows;
 }

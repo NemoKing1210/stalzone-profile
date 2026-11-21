@@ -72,6 +72,9 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Fixed
 
+- Assistant results now sit under the answer as a results panel — chart, item cards, prices and
+  a plain-text answer — while the tool block is a compact payload log (tool name, status, raw
+  JSON), so the model's working data no longer hides what the owner asked for.
 - The live assistant no longer shows the “Thinking…” shimmer while its reasoning block is already streaming; the reasoning block is the working state.
 - The assistant chat's blocks read as one spacing system now: a user message is a single pane
   bubble with its time above instead of a bubble nested inside Nuxt UI's padded card, messages

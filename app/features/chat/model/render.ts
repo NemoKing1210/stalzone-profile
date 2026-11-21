@@ -15,6 +15,7 @@ export interface ChatItemView {
   virtual: boolean;
   /** Where the instance sits, or the storage name the tool reported. */
   location: string | null;
+  weight: number | null;
 }
 
 export interface ChatPriceView {
@@ -76,6 +77,7 @@ function itemView(row: Json, location: string | null = null, instance = false): 
     qty: num(row.qty),
     virtual: row.virtual === true,
     location,
+    weight: num(row.weight),
   };
 }
 
