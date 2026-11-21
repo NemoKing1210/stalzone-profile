@@ -93,6 +93,14 @@ describe('catalog search', () => {
     expect(names.slice(0, 3)).toEqual(['KS-1', 'АК-12', 'Куница']);
   });
 
+  it('continues one order across pages with offset instead of repeating rows', () => {
+    const first = searchItems(db, { sort: 'name', dir: 'asc', limit: 3 }).map((item) => item.name);
+    const rest = searchItems(db, { sort: 'name', dir: 'asc', limit: 3, offset: 3 }).map((item) => item.name);
+    const all = searchItems(db, { sort: 'name', dir: 'asc', limit: 10 }).map((item) => item.name);
+    expect([...first, ...rest]).toEqual(all);
+    expect(new Set(all).size).toBe(all.length);
+  });
+
   it('accepts a normalized rank key as well as the stored rank label', () => {
     const byKey = searchItems(db, { rank: 'master', limit: 20 }).map((item) => item.name);
     const byLabel = searchItems(db, { rank: 'RANK_MASTER', limit: 20 }).map((item) => item.name);

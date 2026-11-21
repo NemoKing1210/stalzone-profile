@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useQuery } from '@pinia/colada';
+import { useInfiniteQuery } from '@pinia/colada';
 import type { ItemSummary } from '@profile/shared/contracts';
 import { RANK_ORDER } from '@profile/shared/ranks';
 import { useId } from 'vue';
@@ -46,9 +46,10 @@ const sortItems = computed(() => [
 ]);
 
 const request = useRequestFetch();
-const { data: page, isLoading } = useQuery({
+const PAGE_SIZE = 50;
+const { data: catalog, isLoading, hasNextPage, isPlaceholderData, loadNextPage } = useInfiniteQuery({
   key: () => ['catalog', 'picker', props.kind, rank.value, sort.value, dir.value, debouncedSearch.value],
-  query: () =>
+  query: ({ pageParam }) =>
     request<ItemSummary[]>('/api/v1/items', {
       query: {
         q: debouncedSearch.value || undefined,
@@ -56,16 +57,20 @@ const { data: page, isLoading } = useQuery({
         ...(rank.value === 'all' ? {} : { rank: rank.value }),
         sort: sort.value,
         dir: dir.value,
-        limit: 50,
+        limit: PAGE_SIZE,
+        offset: pageParam,
       },
     }),
+  initialPageParam: 0,
+  getNextPageParam: (lastPage, _pages, lastParam) =>
+    lastPage.length === PAGE_SIZE ? lastParam + PAGE_SIZE : undefined,
   enabled: () => props.active,
   // A new key must not blank the list: keep the previous rows while the next query answers.
   placeholderData: (previous) => previous,
 });
 
 /** Only the seven ownable kinds reach the form; motifs and cosmetic variants stay catalog-only. */
-const items = computed(() => (page.value ?? []).filter(isOwnableCatalogItem));
+const items = computed(() => (catalog.value?.pages.flat() ?? []).filter(isOwnableCatalogItem));
 
 const activeItem = computed(() => items.value[activeIndex.value] ?? null);
 
@@ -87,10 +92,14 @@ function setSort(value: string): void {
   dir.value = sort.value === 'rank' ? 'desc' : 'asc';
 }
 
-watch(items, (list) => {
-  activeIndex.value = list.length ? 0 : -1;
-  if (import.meta.client) listEl.value?.scrollTo({ top: 0 });
-});
+/** A new first page means a new query (filter, sort or search): reset the list position once. */
+watch(
+  () => catalog.value?.pages[0],
+  () => {
+    activeIndex.value = items.value.length ? 0 : -1;
+    if (import.meta.client) listEl.value?.scrollTo({ top: 0 });
+  },
+);
 
 watch(selected, (item) => {
   if (!item) return;
@@ -106,6 +115,26 @@ watch(() => props.active, (open) => {
   dir.value = 'desc';
   activeIndex.value = -1;
   if (import.meta.client) listEl.value?.scrollTo({ top: 0 });
+});
+
+function loadMore(): void {
+  if (!hasNextPage.value || isLoading.value || isPlaceholderData.value) return;
+  void loadNextPage();
+}
+
+/** Scrolling near the bottom asks for the next page; the list keeps its own scroll position. */
+function onListScroll(): void {
+  const list = listEl.value;
+  if (list && list.scrollTop + list.clientHeight >= list.scrollHeight - 160) loadMore();
+}
+
+/** A page of catalog-only rows may leave the box unfilled; keep loading until it is or the end. */
+watch([items, hasNextPage, isLoading, isPlaceholderData], () => {
+  if (!hasNextPage.value || isLoading.value || isPlaceholderData.value) return;
+  nextTick(() => {
+    const list = listEl.value;
+    if (list && list.scrollHeight <= list.clientHeight + 8) loadMore();
+  });
 });
 
 /**
@@ -198,6 +227,7 @@ function onSearchKeydown(event: KeyboardEvent): void {
       :aria-busy="isLoading"
       class="h-[21rem] min-h-0 overflow-y-auto border border-[var(--sz-border)] transition-opacity duration-150 md:h-auto md:flex-1"
       :class="isLoading && items.length ? 'opacity-60' : ''"
+      @scroll.passive="onListScroll"
     >
       <template v-if="isLoading && !items.length">
         <div v-for="row in 9" :key="row" class="flex items-center gap-2.5 border-b border-[var(--sz-border)] px-2.5 py-2 last:border-b-0">
@@ -220,7 +250,7 @@ function onSearchKeydown(event: KeyboardEvent): void {
           type="button"
           role="option"
           :aria-selected="selected?.id === item.id"
-          class="grid w-full grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-2.5 border-b border-[var(--sz-border)] px-2.5 py-1.5 text-left transition-colors duration-100 last:border-b-0"
+          class="grid w-full grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-2.5 border-b border-[var(--sz-border)] px-2.5 py-1.5 text-left transition-colors duration-100 last:border-b-0 [contain-intrinsic-size:auto_53px] [content-visibility:auto]"
           :class="
             selected?.id === item.id
               ? 'bg-[var(--sz-surface-alt)] shadow-[inset_2px_0_0_var(--sz-accent)]'
@@ -274,6 +304,13 @@ function onSearchKeydown(event: KeyboardEvent): void {
 
           <RankBadge :rank="item.rank" />
         </button>
+        <div
+          v-if="isLoading && !isPlaceholderData"
+          class="flex items-center justify-center gap-2 px-2.5 py-2 text-[11px] text-[var(--sz-text-dim)]"
+        >
+          <UIcon name="i-lucide-loader-circle" class="size-3.5 animate-spin" aria-hidden="true" />
+          {{ t('common.loading') }}
+        </div>
       </template>
     </div>
 

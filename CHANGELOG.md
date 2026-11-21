@@ -52,6 +52,12 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
   plus/minus/eraser mark per effect bucket. `GET /api/v1/payload` now attaches the catalog
   `card` to equipped instances as it already did for storage rows, so the equipment card can
   print the class and caliber.
+- The add-item catalog is paged instead of capped at the first 50 rows: scrolling the list
+  near the bottom, or a filter whose page leaves the box unfilled, loads the next page through
+  the new `offset` on `GET /api/v1/items`; offscreen rows skip layout and paint with
+  `content-visibility`; the shown count grows with the loaded rows and a spinner marks a page
+  in flight. `offset` continues the same deterministic order, so pages never repeat or drop a
+  row.
 - The add-item modal no longer jumps while its catalog is filtered or an item is picked. On
   desktop the frame has one fixed height and the list and preview column scroll inside it;
   the list keeps its previous rows (dimmed) until the next query answers instead of collapsing

@@ -12,13 +12,14 @@ const QuerySchema = z.object({
   sort: z.enum(['rank', 'name', 'weight']).optional(),
   dir: z.enum(['asc', 'desc']).optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
+  offset: z.coerce.number().int().min(0).max(10_000).default(0),
 });
 
 export default defineEventHandler((event) => {
   const parsed = QuerySchema.safeParse(getQuery(event));
   if (!parsed.success) return validationError(event, parsed.error);
 
-  const { q, kind, rank, slot, sort, dir, limit } = parsed.data;
+  const { q, kind, rank, slot, sort, dir, limit, offset } = parsed.data;
   return searchItemSummaries(useDb(), {
     q: q ?? null,
     kind: kind ?? null,
@@ -27,5 +28,6 @@ export default defineEventHandler((event) => {
     sort: sort ?? null,
     dir: dir ?? null,
     limit,
+    offset,
   });
 });

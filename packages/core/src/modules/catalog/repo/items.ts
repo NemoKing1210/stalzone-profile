@@ -285,6 +285,8 @@ export interface SearchOptions {
   sort?: SearchSort | null;
   dir?: 'asc' | 'desc' | null;
   limit?: number;
+  /** Rows to skip in the same order; the catalog picker pages through results with it. */
+  offset?: number;
   realm?: string;
 }
 
@@ -306,7 +308,11 @@ function sortOrder(sort: SearchSort, dir: 'asc' | 'desc'): string {
 
 export function searchItems(db: Db, opts: SearchOptions = {}): ItemRow[] {
   const where: string[] = ['realm = @realm'];
-  const params: Record<string, unknown> = { realm: opts.realm ?? 'ru', limit: opts.limit ?? 20 };
+  const params: Record<string, unknown> = {
+    realm: opts.realm ?? 'ru',
+    limit: opts.limit ?? 20,
+    offset: opts.offset ?? 0,
+  };
   if (opts.kind) {
     where.push('kind = @kind');
     params.kind = opts.kind;
@@ -359,7 +365,7 @@ export function searchItems(db: Db, opts: SearchOptions = {}): ItemRow[] {
       ? `${relevance}, length(name_norm), name_norm`
       : 'kind, name_norm';
   return db
-    .prepare(`SELECT * FROM item WHERE ${where.join(' AND ')} ORDER BY ${order} LIMIT @limit`)
+    .prepare(`SELECT * FROM item WHERE ${where.join(' AND ')} ORDER BY ${order} LIMIT @limit OFFSET @offset`)
     .all(params) as ItemRow[];
 }
 
