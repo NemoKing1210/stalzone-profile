@@ -141,7 +141,10 @@ Rules that keep the tiers honest:
   ran — name the tier, the command and what it covered. A skipped tier is a stated
   exception, never a silent one.
 - UI changes are checked by typecheck, lint and a manual pass over the affected pages;
-  there is no browser test layer.
+  there is no browser test layer. That pass must not take over the owner's desktop: open
+  the site in a separate, non-maximized window and never in fullscreen or with
+  `--start-maximized`; do not minimize, close or cover the owner's active application
+  windows, and when you are done close only the windows and tabs you opened.
 
 ## Task list (TODO.md)
 
