@@ -31,6 +31,10 @@ export const API_ERROR_CODES = new Set([
   'INVALID_LOGGING_SETTINGS',
   'CLIENT_LOG_RATE_LIMITED',
   'CLIENT_LOG_BATCH_TOO_LARGE',
+  'PIN_LIMIT',
+  'PIN_TARGET_INVALID',
+  'CHAT_REF_NOT_FOUND',
+  'CHAT_REF_UNSUPPORTED',
 ]);
 
 type Translate = (key: string) => string;

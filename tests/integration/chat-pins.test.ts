@@ -129,6 +129,9 @@ describe('chat pins', () => {
       instanceId: id,
       token: `@weapon:ак-12#${id}`,
     });
+    const context = chatItemContext(db, readChatPins(db), []);
+    expect(context).toContain(`instance ${id}`);
+    expect(context).toContain('in storage');
     deleteInventoryItem(db, id, { dryRun: false });
     expect(readChatPins(db)).toEqual([]);
   });

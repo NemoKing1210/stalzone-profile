@@ -139,10 +139,11 @@ export function replaceMention(
   token: string,
 ): { text: string; caret: number } {
   const tail = text.slice(range.end);
-  const inserted = /^\s/u.test(tail) ? token : `${token} `;
+  const gap = /^\s+/u.exec(tail)?.[0] ?? '';
+  const inserted = gap ? token : `${token} `;
   return {
     text: `${text.slice(0, range.start)}${inserted}${tail}`,
-    caret: range.start + inserted.length,
+    caret: range.start + inserted.length + gap.length,
   };
 }
 

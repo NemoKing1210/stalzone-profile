@@ -114,7 +114,7 @@ describe('item mention composer', () => {
     const range = { start: 7, end: 17, query: 'weapon:ак' };
     expect(replaceMention('сравни @weapon:ак дальше', range, '@weapon:ак-12')).toEqual({
       text: 'сравни @weapon:ак-12 дальше',
-      caret: 20,
+      caret: 21,
     });
     expect(replaceMention('сравни @weapon:ак', range, '@weapon:ак-12')).toEqual({
       text: 'сравни @weapon:ак-12 ',

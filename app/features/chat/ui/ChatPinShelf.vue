@@ -4,6 +4,7 @@ import type { ChatPin } from '@profile/shared/contracts';
 const props = defineProps<{ pins: ChatPin[]; limit: number; loading?: boolean }>();
 const emit = defineEmits<{ add: []; remove: [pin: ChatPin] }>();
 const { t } = useI18n();
+const full = computed(() => props.pins.length >= props.limit);
 
 function keyOf(pin: ChatPin): string {
   return `${pin.kind}:${pin.itemId}:${pin.instanceId ?? 'catalog'}`;
@@ -33,6 +34,7 @@ function keyOf(pin: ChatPin): string {
       <span v-if="pin.level != null" class="shrink-0 tabular-nums text-[10px] text-[var(--sz-text-dim)]">
         {{ pin.level }}
       </span>
+      <span v-if="pin.quality" class="shrink-0 text-[10px] text-[var(--sz-text-dim)]">{{ pin.quality }}</span>
       <UIcon name="i-lucide-x" class="size-3 shrink-0 text-[var(--sz-text-dim)]" aria-hidden="true" />
     </button>
     <UButton
@@ -41,9 +43,9 @@ function keyOf(pin: ChatPin): string {
       variant="ghost"
       icon="i-lucide-pin"
       :label="props.pins.length ? undefined : t('chat.pins.add')"
-      :aria-label="t('chat.pins.add')"
-      :title="t('chat.pins.add')"
-      :disabled="props.loading || props.pins.length >= props.limit"
+      :aria-label="full ? t('chat.pins.full', { max: props.limit }) : t('chat.pins.add')"
+      :title="full ? t('chat.pins.full', { max: props.limit }) : t('chat.pins.add')"
+      :disabled="props.loading || full"
       class="shrink-0 max-sm:size-11"
       @click="emit('add')"
     />

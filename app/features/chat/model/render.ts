@@ -131,7 +131,12 @@ export function chatToolView(toolName: string, payload: unknown): ChatToolView {
   }
 
   if (toolName === 'get_inventory_item') {
-    return { kind: 'items', items: [itemView(body, placementLocation(body), true)] };
+    const item = body.item;
+    if (!item || typeof item !== 'object') {
+      return { kind: 'json', json: JSON.stringify(payload, null, 2) };
+    }
+    const row = item as Json;
+    return { kind: 'items', items: [itemView(row, placementLocation(row), true)] };
   }
 
   if (toolName === 'find_items' || toolName === 'compare_items') {

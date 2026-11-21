@@ -261,8 +261,9 @@ function factLine(db: Db, ref: ChatItemRef): string {
     .filter(([, value]) => value != null)
     .map(([key, value]) => (typeof value === 'number' ? `${key} ${Math.round(value * 10) / 10}` : `${key} ${value}`))
     .join(', ');
+  const rank = ref.rank ? `, ${ref.rank}` : '';
   if (ref.instanceId == null) {
-    return `- ${ref.token} — ${name} (${ref.kind}, catalog, level ${level}); ${metrics || 'no data'}; catalog ${ref.itemId}`;
+    return `- ${ref.token} — ${name} (${ref.kind}, catalog, level ${level}${rank}); ${metrics || 'no data'}; catalog ${ref.itemId}`;
   }
   const instance = inventoryItemRead(db, ref.instanceId);
   const mods = (instance?.modifications ?? [])
@@ -271,7 +272,18 @@ function factLine(db: Db, ref: ChatItemRef): string {
     .join(', ');
   const quality = ref.quality == null ? '' : `, quality ${ref.quality}`;
   const virtual = ref.virtual ? ', virtual' : '';
-  return `- ${ref.token} — ${name} (${ref.kind}, level ${level}${quality}${virtual}); ${metrics || 'no data'}; catalog ${ref.itemId}, instance ${ref.instanceId}${mods ? `; modifications: ${mods}` : ''}`;
+  const placement = instance?.placement;
+  const place =
+    placement?.location === 'equipment' || placement?.location === 'weapon_modification'
+      ? ` at ${placement.slot}`
+      : placement?.location === 'container'
+        ? ' in a container'
+        : placement?.location === 'grid'
+          ? ' in storage'
+          : placement?.location === 'loose'
+            ? ' loose'
+            : '';
+  return `- ${ref.token} — ${name} (${ref.kind}, level ${level}${quality}${rank}${virtual})${place}; ${metrics || 'no data'}; catalog ${ref.itemId}, instance ${ref.instanceId}${mods ? `; modifications: ${mods}` : ''}`;
 }
 
 const CONTEXT_LIMIT = 8_000;

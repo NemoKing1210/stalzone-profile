@@ -139,7 +139,11 @@
     "INVALID_LOG_PURGE": "Invalid log purge request",
     "INVALID_LOGGING_SETTINGS": "Invalid logging settings",
     "CLIENT_LOG_RATE_LIMITED": "Too many client log entries. Try again in a minute.",
-    "CLIENT_LOG_BATCH_TOO_LARGE": "The client log batch is too large"
+    "CLIENT_LOG_BATCH_TOO_LARGE": "The client log batch is too large",
+    "PIN_LIMIT": "You can pin up to eight items",
+    "PIN_TARGET_INVALID": "That item cannot be pinned",
+    "CHAT_REF_NOT_FOUND": "An item reference no longer exists",
+    "CHAT_REF_UNSUPPORTED": "That item kind cannot be referenced"
   },
   "auth": {
     "subtitle": "Personal profile. Password sign-in.",
@@ -652,7 +656,7 @@
     "groupToday": "Today",
     "groupYesterday": "Yesterday",
     "groupEarlier": "Earlier",
-    "empty": "Ask about the character, inventory, prices or a planned change. Type {'@'} to reference an item.",
+    "empty": "Ask about the character, inventory, prices or a planned change. Type {'@'} to reference an item, or pin a few to compare them.",
     "suggestions": {
       "inventory": "What is in my backpack?",
       "prices": "What are assault rifles worth right now?",
@@ -782,8 +786,7 @@
       "fullHint": "Remove one to pin another.",
       "failed": "Could not update pinned items",
       "added": "Pinned {name}",
-      "removed": "Unpinned {name}",
-      "empty": "No pinned items"
+      "removed": "Unpinned {name}"
     },
     "mention": {
       "title": "Reference an item",

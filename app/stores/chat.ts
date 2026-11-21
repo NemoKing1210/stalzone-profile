@@ -53,6 +53,8 @@ export const useChatStore = defineStore('chat', () => {
   const pinsLoading = ref(false);
   const pinsLoaded = ref(false);
   const pinsError = ref<string | null>(null);
+  /** Toggles are serialized so a fast second click updates the shelf the first write returned. */
+  let pinQueue: Promise<void> = Promise.resolve();
 
   /** A new/open-thread navigation; a stale turn cannot adopt a conversation the owner left. */
   let navigation = 0;
@@ -113,7 +115,6 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Replace the shelf; the server returns the canonical, enriched list. */
   async function setPins(targets: ChatPinTarget[]): Promise<boolean> {
-    if (pinsLoading.value) return false;
     pinsLoading.value = true;
     try {
       const read = await $fetch<ChatPinsRead>('/api/v1/chat/pins', {
@@ -149,31 +150,39 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /** A pin is cheap to keep and easy to remove; the cap is checked before the request. */
-  async function togglePin(target: ChatPinTarget): Promise<boolean> {
-    const key = (pin: { kind: string; itemId: number; instanceId?: number | null }): string =>
-      `${pin.kind}:${pin.itemId}:${pin.instanceId ?? 'catalog'}`;
-    const existing = pins.value.find((pin) => key(pin) === key(target));
-    const next = existing
-      ? pins.value.filter((pin) => key(pin) !== key(target))
-      : [...pins.value, target];
-    if (!existing && next.length > pinLimit.value) {
-      toast.add({
-        title: t('chat.pins.full', { max: pinLimit.value }),
-        description: t('chat.pins.fullHint'),
-        color: 'warning',
-        icon: 'i-lucide-pin',
-      });
-      return false;
-    }
-    const saved = await setPins(next.map(pinTarget));
-    if (saved && existing) {
-      toast.add({ title: t('chat.pins.removed', { name: existing.name }), color: 'success', icon: 'i-lucide-pin-off' });
-    }
-    if (saved && !existing) {
-      const added = pins.value.find((pin) => key(pin) === key(target));
-      toast.add({ title: t('chat.pins.added', { name: added?.name ?? '' }), color: 'success', icon: 'i-lucide-pin' });
-    }
-    return saved;
+  function togglePin(target: ChatPinTarget): Promise<boolean> {
+    const run = async (): Promise<boolean> => {
+      const key = (pin: { kind: string; itemId: number; instanceId?: number | null }): string =>
+        `${pin.kind}:${pin.itemId}:${pin.instanceId ?? 'catalog'}`;
+      const existing = pins.value.find((pin) => key(pin) === key(target));
+      const next = existing
+        ? pins.value.filter((pin) => key(pin) !== key(target))
+        : [...pins.value, target];
+      if (!existing && next.length > pinLimit.value) {
+        toast.add({
+          title: t('chat.pins.full', { max: pinLimit.value }),
+          description: t('chat.pins.fullHint'),
+          color: 'warning',
+          icon: 'i-lucide-pin',
+        });
+        return false;
+      }
+      const saved = await setPins(next.map(pinTarget));
+      if (saved && existing) {
+        toast.add({ title: t('chat.pins.removed', { name: existing.name }), color: 'success', icon: 'i-lucide-pin-off' });
+      }
+      if (saved && !existing) {
+        const added = pins.value.find((pin) => key(pin) === key(target));
+        toast.add({ title: t('chat.pins.added', { name: added?.name ?? '' }), color: 'success', icon: 'i-lucide-pin' });
+      }
+      return saved;
+    };
+    const next = pinQueue.then(run, run);
+    pinQueue = next.then(
+      () => undefined,
+      () => undefined,
+    );
+    return next;
   }
 
   /** Idempotent first load; a return to `/chat` keeps the stored thread and messages. */

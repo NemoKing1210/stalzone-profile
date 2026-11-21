@@ -53,16 +53,18 @@ describe('assistant tool rendering', () => {
 
   it('maps one owned instance from get_inventory_item', () => {
     const view = chatToolView('get_inventory_item', {
-      id: 5,
-      itemId: 2110,
-      name: 'АК-12',
-      rank: 'RANK_MASTER',
-      kind: 'weapon',
-      category: 'weapon/assault_rifle',
-      icon: '/icons/a.png',
-      level: 10,
-      qty: 1,
-      placement: { location: 'equipment', slot: 'primary' },
+      item: {
+        id: 5,
+        itemId: 2110,
+        name: 'АК-12',
+        rank: 'RANK_MASTER',
+        kind: 'weapon',
+        category: 'weapon/assault_rifle',
+        icon: '/icons/a.png',
+        level: 10,
+        qty: 1,
+        placement: { location: 'equipment', slot: 'primary' },
+      },
     });
     expect(view).toEqual({
       kind: 'items',

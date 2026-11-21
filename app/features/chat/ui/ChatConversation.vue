@@ -304,6 +304,7 @@ function searchCatalog(range: MentionRange): void {
   const q = term.trim();
   clearTimeout(searchTimer);
   if (!q) {
+    catalogRequest += 1;
     catalogResults.value = [];
     catalogLoading.value = false;
     return;
@@ -440,7 +441,9 @@ function onKeydown(event: KeyboardEvent): void {
     }
     if (event.key === 'Escape') {
       event.preventDefault();
+      event.stopImmediatePropagation();
       closeMenu();
+      void nextTick(() => prompt.value?.textareaRef?.focus());
       return;
     }
     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight' || event.key === 'Home' || event.key === 'End') {
@@ -658,9 +661,9 @@ defineExpose({ focus });
             :placeholder="t('chat.placeholder')"
             :submit-on-enter="false"
             aria-autocomplete="list"
-            :aria-controls="listId"
+            :aria-controls="menuOpen && menuCandidates.length ? listId : undefined"
             :aria-expanded="menuOpen"
-            :aria-activedescendant="menuOpen ? `${listId}-${menuActive}` : undefined"
+            :aria-activedescendant="menuOpen && menuCandidates.length ? `${listId}-${menuActive}` : undefined"
             @submit="send"
             @keydown="onKeydown"
             @click="updateMenu"

@@ -610,6 +610,45 @@ describe('chat agent', () => {
     expect(result.messages.at(-1)?.refs).toEqual([]);
   });
 
+  it('keeps pinned context and refs across a retry', async () => {
+    setChatSettings(db);
+    seedCatalog(db);
+    const ak = findItemByKindName(db, 'weapon', 'АК-12');
+    const ks = findItemByKindName(db, 'weapon', 'KS-1');
+    if (!ak || !ks) throw new Error('fixture weapons missing');
+    replaceChatPins(db, [{ kind: 'weapon', itemId: ak.id }]);
+
+    const bodies: string[] = [];
+    let calls = 0;
+    const fetchImpl = (async (_url: string, init: RequestInit) => {
+      bodies.push(String(init.body));
+      calls += 1;
+      return calls === 1
+        ? new Response('bad request', { status: 400 })
+        : json({ choices: [{ message: { content: 'Смотри @weapon:ак-12' } }] });
+    }) as unknown as typeof fetch;
+
+    const first = await runChatTurn(
+      db,
+      { message: 'сравни @weapon:ks-1', refs: [{ token: '@weapon:ks-1', kind: 'weapon', itemId: ks.id }] },
+      { fetchImpl },
+    );
+    expect(first.error).toBe('AI_HTTP_400');
+    const stored = first.messages.find((message) => message.role === 'user');
+    expect(stored?.refs.map((ref) => ref.token)).toEqual(['@weapon:ks-1']);
+    if (!stored) throw new Error('user message missing');
+
+    const second = await runChatTurn(db, { message: '', retryOf: stored.id }, { fetchImpl });
+    expect(second.error).toBeNull();
+    const system = openAiSystem(bodies[1]!);
+    expect(system).toContain('## Pinned items');
+    expect(system).toContain('## Referenced items');
+    expect(second.messages.find((message) => message.role === 'user')?.refs.map((ref) => ref.token)).toEqual([
+      '@weapon:ks-1',
+    ]);
+    expect(second.messages.at(-1)?.refs.map((ref) => ref.token)).toEqual(['@weapon:ак-12']);
+  });
+
   it('logs every tool call and the finished turn under the turn request id', async () => {
     setChatSettings(db);
     let providerCalls = 0;

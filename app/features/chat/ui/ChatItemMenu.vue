@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { VirtualBadge } from '~/entities/item';
+import { RankBadge, VirtualBadge } from '~/entities/item';
 import type { ChatItemCandidate } from '../model/mentions';
 
 const props = defineProps<{
@@ -36,10 +36,14 @@ function pinLabel(candidate: ChatItemCandidate): string {
 
 <template>
   <div
-    :id="props.id"
     class="absolute inset-x-0 bottom-full z-30 mb-1 max-h-72 overflow-y-auto border border-[var(--sz-border-strong)] bg-[var(--sz-surface)] shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
   >
-    <ul v-if="props.candidates.length" role="listbox" :aria-label="t('chat.mention.title')" class="divide-y divide-[var(--sz-border)]">
+    <ul
+      :id="props.id"
+      role="listbox"
+      :aria-label="t('chat.mention.title')"
+      class="divide-y divide-[var(--sz-border)]"
+    >
       <template v-for="(candidate, index) in props.candidates" :key="candidate.token">
         <li v-if="groupOf(index)" class="sz-caps bg-[var(--sz-surface-alt)] px-2.5 py-1 text-[10px] text-[var(--sz-text-dim)]" role="presentation">
           {{ groupOf(index) }}
@@ -56,6 +60,7 @@ function pinLabel(candidate: ChatItemCandidate): string {
           <img v-if="candidate.icon" :src="candidate.icon" alt="" class="size-6 shrink-0 object-contain">
           <UIcon v-else name="i-lucide-package" class="size-6 shrink-0 text-[var(--sz-text-dim)]" aria-hidden="true" />
           <span class="min-w-0 flex-1 truncate text-[12.5px] text-[var(--sz-text)]">{{ candidate.name }}</span>
+          <RankBadge v-if="candidate.rank" :rank="candidate.rank" />
           <span v-if="candidate.level != null" class="shrink-0 text-[10px] tabular-nums text-[var(--sz-text-dim)]">
             {{ t('chat.mention.level', { level: candidate.level }) }}
           </span>
@@ -77,7 +82,7 @@ function pinLabel(candidate: ChatItemCandidate): string {
         </li>
       </template>
     </ul>
-    <p v-else class="px-2.5 py-2 text-[12px] text-[var(--sz-text-muted)]">
+    <p v-if="!props.candidates.length" class="px-2.5 py-2 text-[12px] text-[var(--sz-text-muted)]">
       {{ props.loading ? t('chat.mention.loading') : t('chat.mention.empty') }}
     </p>
   </div>

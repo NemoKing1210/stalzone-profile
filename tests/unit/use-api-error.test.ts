@@ -20,6 +20,10 @@ const KNOWN_CODES = [
   'NOTHING_TO_CLEAR',
   'DB_UNAVAILABLE',
   'NO_CHARACTER',
+  'PIN_LIMIT',
+  'PIN_TARGET_INVALID',
+  'CHAT_REF_NOT_FOUND',
+  'CHAT_REF_UNSUPPORTED',
 ];
 
 function fakeTranslate(available: string[]): (key: string) => string {
