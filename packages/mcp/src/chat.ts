@@ -13,8 +13,10 @@ import {
   appendChatMessage,
   composeChatPrompt,
   createChatThread,
+  currentEventContext,
   getChatSettingsRow,
   getChatThread,
+  getLogger,
   listChatAttachmentData,
   listChatMessages,
   listChatThreads,
@@ -214,6 +216,11 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
   const settings = toChatSettings(getChatSettingsRow(db));
   const base = resolveBaseUrl(settings);
   const { key, env } = resolveApiKey(settings);
+  const requestId = currentEventContext()?.requestId ?? null;
+  const turnLogger = getLogger(db, 'app', { source: 'server', requestId });
+  const startedAt = Date.now();
+  let rounds = 0;
+  let toolCalls = 0;
   // Validate before creating a thread: a rejected file must not leave an empty conversation.
   const attachments = (input.files ?? []).map((file) =>
     prepareChatAttachment({
@@ -229,7 +236,10 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
       (input.title ?? input.message).trim().slice(0, 80) || attachments[0]?.name || 'New thread',
     );
   const thread = getChatThread(db, threadId);
-  if (!thread) throw new Error('thread not found');
+  if (!thread) {
+    turnLogger.error('chat thread missing', { threadId });
+    throw new Error('thread not found');
+  }
 
   appendChatMessage(db, {
     threadId,
@@ -239,16 +249,23 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
   });
 
   if (!base) {
+    turnLogger.warn('chat not configured', { provider: settings.provider, missing: 'baseUrl' });
     return { thread, messages: listChatMessages(db, threadId), pending: null, error: `AI_NOT_CONFIGURED: set a base URL` };
   }
   if (!key && settings.provider !== 'ollama') {
+    turnLogger.warn('chat not configured', { provider: settings.provider, missing: 'apiKey' });
     return { thread, messages: listChatMessages(db, threadId), pending: null, error: `AI_NOT_CONFIGURED: set ${env}` };
   }
 
   const client = options.client ?? localClient(db);
   const fetchImpl = options.fetchImpl ?? fetch;
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-  const server = createProfileServer(client, { limiter: writeLimiter(60) });
+  const server = createProfileServer(client, {
+    limiter: writeLimiter(60),
+    logger: getLogger(db, 'mcp', { source: 'server', requestId }),
+    requestId,
+    channel: 'chat',
+  });
   await server.connect(serverTransport);
   const sdk = new Client({ name: 'profile-chat', version: '0.1.0' });
   await sdk.connect(clientTransport);
@@ -268,6 +285,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
 
   let state: unknown = null;
   let error: string | null = null;
+  let failure: unknown;
   let replied = false;
   /** A confirmed write or a declined one is a delivered result even with no assistant text. */
   let acted = false;
@@ -276,9 +294,16 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
   try {
     const maxRounds = options.maxRounds ?? 4;
     for (let round = 0; round < maxRounds; round++) {
+      rounds += 1;
       // The last round has no tools: the model must summarize what it already fetched
       // instead of the loop ending silently after another tool call.
       const lastRound = round === maxRounds - 1;
+      turnLogger.debug('chat provider request', {
+        provider: settings.provider,
+        model: settings.model,
+        round: rounds,
+        tools: lastRound ? 0 : definitions.length,
+      });
       const providerResult = await callProviderWithRetry(fetchImpl, settings, base, key, session, {
         system,
         transcript,
@@ -313,6 +338,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
       for (const call of result.reply.calls) {
         if (isWriteTool(call.name)) {
           if (pendingWrite && pendingWrite.name === call.name) {
+            toolCalls += 1;
             const done = await callRegistry(sdk, call.name, { ...call.args, ...pendingWrite.args, dry_run: false, confirm: true });
             appendChatMessage(db, {
               threadId,
@@ -327,6 +353,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
             continue;
           }
           const preview = await callRegistry(sdk, call.name, { ...call.args, dry_run: true, confirm: false });
+          toolCalls += 1;
           const record = preview && typeof preview === 'object' ? (preview as Json) : {};
           const nested = record.result && typeof record.result === 'object' ? (record.result as Json) : {};
           const diff = (record.diff ?? nested.diff) as { human?: string } | undefined;
@@ -362,6 +389,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
           continue;
         }
         const toolResult = await callRegistry(sdk, call.name, call.args);
+        toolCalls += 1;
         const content = JSON.stringify(toolResult);
         appendChatMessage(db, {
           threadId,
@@ -380,11 +408,25 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
     // like a delivered reply, which was the silent "did nothing" turn.
     if (!replied && !pending && !acted) error = 'AI_EMPTY: the provider returned no text';
   } catch (turnError) {
+    failure = turnError;
     error = turnError instanceof Error ? turnError.message : String(turnError);
   } finally {
     await sdk.close().catch(() => undefined);
     await server.close().catch(() => undefined);
   }
+
+  const durationMs = Date.now() - startedAt;
+  const summary = {
+    provider: settings.provider,
+    model: settings.model,
+    rounds,
+    toolCalls,
+    pending: pending != null,
+    ok: error == null,
+    error: error == null ? null : (error.split(':')[0] ?? '').slice(0, 80),
+  };
+  if (error) turnLogger.warn('chat turn finished', summary, failure, durationMs);
+  else turnLogger.info('chat turn finished', summary, undefined, durationMs);
 
   return { thread: getChatThread(db, threadId) ?? thread, messages: listChatMessages(db, threadId), pending, error };
 }

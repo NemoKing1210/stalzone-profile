@@ -409,6 +409,10 @@ export interface ProfileServerOptions {
   writesPerMinute?: number;
   limiter?: WriteLimiter;
   logger?: Logger;
+  /** Shared by every tool call of one request; defaults to a fresh id per call. */
+  requestId?: string | null;
+  /** Tells the built-in chat from an external agent in `log_entry.context`. */
+  channel?: 'chat' | 'mcp' | 'stdio';
 }
 
 /** The single tool registry behind stdio and `/mcp`; transports only carry messages. */
@@ -416,7 +420,12 @@ export function createProfileServer(
   profileClient: ProfileClient,
   options: ProfileServerOptions = {},
 ): McpServer {
-  const client = options.logger ? instrumentClient(profileClient, options.logger) : profileClient;
+  const client = options.logger
+    ? instrumentClient(profileClient, options.logger, {
+        requestId: options.requestId,
+        channel: options.channel,
+      })
+    : profileClient;
   const server = new McpServer(
     { name: 'stalzone-profile', version: '0.1.0' },
     { instructions: 'Personal STALZONE profile. Reads are open; writes default to dry_run and require confirm.' },

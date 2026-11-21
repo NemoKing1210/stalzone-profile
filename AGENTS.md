@@ -318,6 +318,16 @@ public read/write service and `apiError` on failure. Business logic belongs in c
 events. The real write and `logEvent` happen in one transaction. Export the function from
 the module's `index.ts`; the façade re-exports it for the server and MCP.
 
+**Every composition root is instrumented.** A path that calls a module outside an HTTP
+route — the built-in assistant (`runChatTurn`), `/mcp`, stdio, a scheduler tick, a CLI
+command — must pass a `Logger` and run inside `runWithEventContext({ origin, requestId })`.
+An agent or assistant surface is not done until every tool call is an `mcp` log entry with
+its `channel` (`chat`, `mcp`, `stdio`), tool and duration under the turn's request id,
+every write is an `event_log` row with `origin` and `request_id` (never NULL), and failures
+are `warn`/`error` without prompt text, message text, file bytes or secrets. The tests in
+`tests/integration/chat-agent.test.ts` and `tests/integration/mcp.test.ts` assert the
+entries; a new surface without them fails the Definition of Done.
+
 **New source.** An adapter in `packages/sources` knows nothing about the DB: it accepts
 `fetchImpl` and returns normalized data. Binding and writing happen in
 `packages/core/src/modules/sync`. On failure the source is marked `stale`; old data is
@@ -361,6 +371,7 @@ are a reference, not marketing copy.
 | DB schema         | new `NNNN_name.sql` migration (`0005`/`0006` were the inventory cutover), `docs/DATA-MODEL.md`, repo, migration tests                                                |
 | API field/route   | `packages/shared/src/contracts/**`, `docs/API.md`, the affected `tests/integration` suite                                                                              |
 | MCP tool          | `packages/mcp/src/registry.ts`, `docs/MCP.md`, the expected read/write lists in `tests/integration/mcp.test.ts`; for a read tool also `READ_OUTPUT_SCHEMAS` and `npm run smoke:mcp` |
+| New composition root or agent surface | `instrumentClient`/logger wiring, `runWithEventContext`, an integration test asserting `log_entry` (`category=mcp`, `requestId`, `channel`) and `event_log` (`origin`, `request_id`), and the `docs/ARCHITECTURE.md` logging table |
 | Data source       | `docs/ARCHITECTURE.md` (source table), `core/src/modules/sync`, `tests/integration/sync.test.ts`                                                                       |
 | Formula/numbers   | only `core/src/modules/catalog/calc`, then `npm run golden`, and `docs/DATA-MODEL.md` when needed                                                                      |
 | UI text           | `i18n/locales/en.json` and `i18n/locales/ru.json` (both), `docs/I18N.md`                                                                                               |
@@ -412,6 +423,8 @@ audit journal or a profile change into the log.
 |---|---|
 | per-source parse steps, HTTP fetch details | `debug` |
 | run start/finish, source ok, duration, slow request (> 1 s) | `info` |
+| assistant tool call (tool, channel, duration); finished assistant turn | `info` |
+| assistant turn failed, provider error, empty reply, assistant not configured | `warn` |
 | source stale, lock skipped, 4xx other than 401/404 | `warn` |
 | run crashed, unhandled error, 5xx | `error` |
 
@@ -422,7 +435,9 @@ How to read it:
 - MCP `list_logs` and `log_stats`; the `/logs` page for filters, repeat groups and a
   previewed purge.
 - A request carries `x-request-id`; a sync run and each MCP call carry their own id in
-  the context.
+  the context. `/mcp` keeps the HTTP request id, and the built-in assistant uses the
+  `POST /api/v1/chat/turn` id, so its tool calls and confirmed writes join on one id;
+  `channel` tells chat from an external agent.
 
 Rules:
 
@@ -491,3 +506,7 @@ Rules:
 7. `TODO.md` reflects reality: the finished task is ticked, moved to `Done` and has its
    changelog entry; no open task was silently dropped, and the shipped result matches what
    the entry described (or the entry was amended with the owner's agreement).
+8. A new composition root or agent surface passes the logger and `EventContext`, and its
+   integration test proves the `log_entry` (`category=mcp`, `requestId`, `channel`) and
+   `event_log` (`origin`, `request_id`) rows; an assistant failure is a `warn` without
+   user text.

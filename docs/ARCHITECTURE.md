@@ -216,15 +216,20 @@ Ownership is per process, because SQLite has one writer and one file:
 
 | Process | Writes | Source |
 |---|---|---|
-| Nitro server | HTTP requests, sync runs, DB boot, retention summaries | `server` |
-| stdio MCP, local DB | tool calls through the instrumented client | `mcp` |
+| Nitro server | HTTP requests, the built-in assistant's turn lifecycle and tool-call rows, sync runs, DB boot, retention summaries | `server` |
+| Nitro server, `/mcp` | every tool call through the instrumented client | `mcp` |
+| stdio MCP, local DB | tool calls through the instrumented client (`channel: stdio`) | `mcp` |
 | CLI scripts | migration lines and the commands they run | `cli` |
 | Browser | error/unhandled-rejection/console batches via `POST /api/v1/logs/client` | `client` |
 | stdio MCP over HTTP | nothing locally; the server logs the HTTP request | — |
 
 Request ids tie a request together: Nitro sets `x-request-id` and `event.context.requestId`,
-a sync run and each MCP call get their own UUID, and the browser batch keeps the client's
-`requestId` when it has one. The `/logs` page, the REST routes, the five MCP log tools and
+`/mcp` reuses that response id for its tool calls and audit rows (`origin: mcp`), the
+built-in assistant reuses the turn's request id and logs its tool calls with
+`channel: chat`, and the browser batch keeps the client's `requestId` when it has one. Every
+composition root — `/mcp`, the assistant, stdio, a scheduler tick, a CLI path — must pass a
+logger and an `EventContext`; a tool call with no log row or a write with NULL `origin` is
+an observability defect. The `/logs` page, the REST routes, the five MCP log tools and
 `npm run logs` all read the same `queryLogs`/`logStats` services, so their filters and
 counts cannot drift.
 

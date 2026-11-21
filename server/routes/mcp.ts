@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { fromNodeMiddleware } from 'h3';
 import { getLogger } from '@profile/core';
@@ -18,11 +19,17 @@ export default fromNodeMiddleware(async (req: IncomingMessage, res: ServerRespon
     return;
   }
   const db = useDb();
+  // Nitro's request hook already set the response id; reuse it so the HTTP line, tool calls
+  // and audit rows share one id even when /mcp is mounted as raw node middleware.
+  const header = res.getHeader('x-request-id');
+  const requestId = typeof header === 'string' && header ? header : randomUUID();
   const handler = createMcpHttpHandler({
     client: localClient(db, serverSyncOptions()),
     token,
     limiter,
     logger: getLogger(db, 'mcp', { source: 'mcp' }),
+    requestId,
+    origin: 'mcp',
   });
   await handler(req, res);
 });

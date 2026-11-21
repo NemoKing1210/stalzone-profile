@@ -21,6 +21,7 @@ _Nothing agreed._
 
 _Newest first; keep at most ten entries._
 
+- chat(agent): every assistant tool call and finished turn is in `log_entry` with the turn request id and `channel: chat`, `/mcp` tool calls reuse the HTTP request id and its writes carry `origin: mcp`, stdio logs `channel: stdio`, and unauthorized/malformed/failed MCP requests are logged; provider failures are `warn` without prompt text. — `fix(chat): log assistant tool calls and MCP requests`
 - chat(agent): DeepSeek's native tool-call markup returned as text is parsed back into calls and executed; the block is stripped from stored prose, the next transcript and already-stored UI messages, so a provider that leaks DSML never shows raw tags. — `fix(chat): recover leaked DSML tool calls`
 - chat(agent): audit follow-ups — `get_item` renders the item card (payload `{ item }`), a confirmed write does not return `AI_EMPTY`, and `useApiError` uses the global composer so stores created outside setup stop throwing. — `fix(chat): finish the assistant audit follow-ups`
 - chat(ui): the `/chat` header shows the provider's live availability — provider label plus a tone dot and Online/Unavailable/Not configured/Checking, a tooltip with the model count or the provider message, and a manual refresh — fed by the same `POST /api/v1/chat/models` probe as the picker and re-run every 60 s while the page is visible; a missing key names its env variable and a failed settings read stays Unknown. — `feat(chat): show provider status in the chat header`

@@ -7,9 +7,12 @@ import {
   closeDb,
   createChatThread,
   ensureDefaultSources,
+  flushLogs,
   listEvents,
   migrate,
   openDb,
+  queryLogs,
+  runWithEventContext,
   updateChatSettings,
   type Db,
 } from '@profile/core';
@@ -331,21 +334,24 @@ describe('chat agent', () => {
       return json(toolCall('create_storage', { name: 'QA stash', kind: 'stash' }));
     }) as typeof fetch;
 
-    const confirmed = await runChatTurn(
-      db,
-      {
-        threadId: first.thread.id,
-        message: 'Confirmed.',
-        confirm: { toolName: first.pending!.toolName, args: first.pending!.args },
-      },
-      { fetchImpl: confirmFetch },
+    const confirmed = await runWithEventContext({ requestId: 'chat-write-1', origin: 'http' }, () =>
+      runChatTurn(
+        db,
+        {
+          threadId: first.thread.id,
+          message: 'Confirmed.',
+          confirm: { toolName: first.pending!.toolName, args: first.pending!.args },
+        },
+        { fetchImpl: confirmFetch },
+      ),
     );
 
     expect(confirmed.pending).toBeNull();
     expect(confirmed.error).toBeNull();
     expect(followUp).toBe(1);
     expect((db.prepare(`SELECT COUNT(*) AS c FROM storage WHERE name = 'QA stash'`).get() as { c: number }).c).toBe(1);
-    expect(listEvents(db).filter((event) => event.action === 'inventory.storage.create')).toHaveLength(1);
+    const created = listEvents(db).find((event) => event.action === 'inventory.storage.create');
+    expect(created).toMatchObject({ request_id: 'chat-write-1', origin: 'http' });
   });
 
   it('refuses an unconfirmed write and returns the refusal to the model', async () => {
@@ -430,5 +436,48 @@ describe('chat agent', () => {
     await runChatTurn(db, { message: 'Look', files: [screenshot] }, { fetchImpl: googleFetch });
     expect(googleBodies[0]).toContain('"inlineData"');
     expect(googleBodies[0]).toContain('"mimeType":"image/png"');
+  });
+
+  it('logs every tool call and the finished turn under the turn request id', async () => {
+    setChatSettings(db);
+    let providerCalls = 0;
+    const fetchImpl = (async () => {
+      providerCalls += 1;
+      return providerCalls === 1
+        ? json(toolCall('get_character', {}))
+        : json({ choices: [{ message: { content: 'Here is your character.' } }] });
+    }) as typeof fetch;
+
+    const result = await runWithEventContext({ requestId: 'chat-turn-1', origin: 'http' }, () =>
+      runChatTurn(db, { message: 'Who am I?' }, { fetchImpl }),
+    );
+    expect(result.error).toBeNull();
+    flushLogs(db);
+
+    const { entries } = queryLogs(db, { requestId: 'chat-turn-1', limit: 100 });
+    const tool = entries.find((entry) => entry.message === 'mcp call');
+    expect(tool).toMatchObject({ level: 'info', category: 'mcp', source: 'server' });
+    expect(tool?.context).toMatchObject({ tool: 'getCharacter', channel: 'chat' });
+    expect(tool?.durationMs).toEqual(expect.any(Number));
+
+    const turn = entries.find((entry) => entry.message === 'chat turn finished');
+    expect(turn).toMatchObject({ level: 'info', category: 'app', source: 'server' });
+    expect(turn?.context).toMatchObject({ provider: 'ollama', rounds: 2, toolCalls: 1, ok: true });
+    expect(JSON.stringify(entries.map((entry) => entry.context))).not.toContain('Who am I?');
+  });
+
+  it('logs a failed turn at warn without the user message', async () => {
+    setChatSettings(db);
+    const fetchImpl = (async () => new Response('bad request', { status: 400 })) as unknown as typeof fetch;
+
+    const result = await runChatTurn(db, { message: 'private words' }, { fetchImpl });
+    expect(result.error).toBe('AI_HTTP_400');
+    flushLogs(db);
+
+    const { entries } = queryLogs(db, { limit: 100 });
+    const turn = entries.find((entry) => entry.message === 'chat turn finished');
+    expect(turn).toMatchObject({ level: 'warn', category: 'app', source: 'server' });
+    expect(turn?.context).toMatchObject({ ok: false, error: 'AI_HTTP_400' });
+    expect(JSON.stringify(turn?.context)).not.toContain('private words');
   });
 });

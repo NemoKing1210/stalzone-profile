@@ -39,7 +39,7 @@ if (apiUrl) {
   });
 }
 
-const server = createProfileServer(client, logger ? { logger } : {});
+const server = createProfileServer(client, logger ? { logger, channel: 'stdio' } : {});
 const transport = new StdioServerTransport();
 
 await server.connect(transport);

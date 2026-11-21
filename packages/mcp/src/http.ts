@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import type { Logger } from '@profile/core';
+import { runWithEventContext, type Logger } from '@profile/core';
 import type { ProfileClient } from './client.js';
 import { createProfileServer, writeLimiter, type WriteLimiter } from './registry.js';
 
@@ -11,6 +11,10 @@ export interface McpHttpOptions {
   writesPerMinute?: number;
   limiter?: WriteLimiter;
   logger?: Logger;
+  /** Reuses the HTTP request id so its log lines, tool calls and audit rows join. */
+  requestId?: string | null;
+  /** Journal origin for writes made through this transport; `/mcp` passes `mcp`. */
+  origin?: string;
   maxBodyBytes?: number;
 }
 
@@ -53,56 +57,71 @@ export function createMcpHttpHandler(options: McpHttpOptions) {
   const maxBodyBytes = options.maxBodyBytes ?? 2 * 1024 * 1024;
 
   return async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    if (!options.token) {
-      sendJson(res, 404, { error: { code: 'NOT_FOUND', message: 'MCP is not enabled' } });
-      return;
-    }
-    if (!authorized(req, options.token)) {
-      sendJson(res, 401, { error: { code: 'UNAUTHORIZED', message: 'MCP bearer token required' } });
-      return;
-    }
-    if (req.method !== 'POST') {
-      res.setHeader('allow', 'POST');
-      sendJson(res, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: 'Use POST' } });
-      return;
-    }
+    const requestId = options.requestId ?? crypto.randomUUID();
+    const log = options.logger?.child({ requestId });
 
-    let body: unknown;
-    try {
-      body = await readJson(req, maxBodyBytes);
-    } catch (error) {
-      const tooLarge = error instanceof Error && error.message === 'BODY_TOO_LARGE';
-      sendJson(res, tooLarge ? 413 : 400, {
-        error: {
-          code: tooLarge ? 'BODY_TOO_LARGE' : 'INVALID_JSON',
-          message: tooLarge ? 'Request body too large' : 'Invalid JSON',
-        },
-      });
-      return;
-    }
-
-    const server = createProfileServer(options.client, { limiter, logger: options.logger });
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined,
-      enableJsonResponse: true,
-    });
-
-    res.once('close', () => {
-      void transport.close();
-      void server.close();
-    });
-
-    try {
-      await server.connect(transport);
-      await transport.handleRequest(req, res, body);
-    } catch (error) {
-      if (!res.headersSent) {
-        sendJson(res, 500, {
-          error: { code: 'MCP_ERROR', message: error instanceof Error ? error.message : 'MCP error' },
-        });
-      } else {
-        res.end();
+    await runWithEventContext({ origin: options.origin ?? 'mcp', requestId }, async () => {
+      if (!options.token) {
+        log?.debug('mcp disabled', {});
+        sendJson(res, 404, { error: { code: 'NOT_FOUND', message: 'MCP is not enabled' } });
+        return;
       }
-    }
+      if (!authorized(req, options.token)) {
+        log?.warn('mcp unauthorized', {});
+        sendJson(res, 401, { error: { code: 'UNAUTHORIZED', message: 'MCP bearer token required' } });
+        return;
+      }
+      if (req.method !== 'POST') {
+        log?.warn('mcp method rejected', { method: req.method });
+        res.setHeader('allow', 'POST');
+        sendJson(res, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: 'Use POST' } });
+        return;
+      }
+
+      let body: unknown;
+      try {
+        body = await readJson(req, maxBodyBytes);
+      } catch (error) {
+        const tooLarge = error instanceof Error && error.message === 'BODY_TOO_LARGE';
+        log?.warn('mcp request rejected', { code: tooLarge ? 'BODY_TOO_LARGE' : 'INVALID_JSON' });
+        sendJson(res, tooLarge ? 413 : 400, {
+          error: {
+            code: tooLarge ? 'BODY_TOO_LARGE' : 'INVALID_JSON',
+            message: tooLarge ? 'Request body too large' : 'Invalid JSON',
+          },
+        });
+        return;
+      }
+
+      const server = createProfileServer(options.client, {
+        limiter,
+        logger: options.logger,
+        requestId,
+        channel: 'mcp',
+      });
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: undefined,
+        enableJsonResponse: true,
+      });
+
+      res.once('close', () => {
+        void transport.close();
+        void server.close();
+      });
+
+      try {
+        await server.connect(transport);
+        await transport.handleRequest(req, res, body);
+      } catch (error) {
+        log?.error('mcp request failed', {}, error);
+        if (!res.headersSent) {
+          sendJson(res, 500, {
+            error: { code: 'MCP_ERROR', message: error instanceof Error ? error.message : 'MCP error' },
+          });
+        } else {
+          res.end();
+        }
+      }
+    });
   };
 }

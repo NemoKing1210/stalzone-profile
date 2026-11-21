@@ -9,6 +9,14 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Fixed
 
+- The built-in assistant and `/mcp` are fully observable now: every tool call writes an
+  `mcp` log row with `channel` (`chat`/`mcp`/`stdio`) and the request id, a finished turn
+  writes an `app` row (a provider failure is `warn` and never contains the prompt or
+  message), MCP writes carry `origin: mcp` and the request id in `event_log`, and
+  unauthorized, malformed or failed MCP requests are logged. Previously `runChatTurn`
+  created its MCP registry without a logger, so the assistant's reads and dry runs never
+  reached `/logs`, and `/mcp` audit rows had NULL `origin`/`request_id`.
+
 - A gateway that returns DeepSeek's native tool-call markup (DSML) as ordinary text no longer
   prints that markup to the owner: the server parses the block back into tool calls, runs
   them, and strips the tags from the assistant prose, from the transcript sent on later

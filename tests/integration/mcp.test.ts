@@ -4,7 +4,18 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { closeDb, enqueueLog, flushLogs, migrate, openDb, runExclusive, type Db } from '@profile/core';
+import {
+  closeDb,
+  enqueueLog,
+  flushLogs,
+  getLogger,
+  listEvents,
+  migrate,
+  openDb,
+  queryLogs,
+  runExclusive,
+  type Db,
+} from '@profile/core';
 import {
   READ_OUTPUT_SCHEMAS,
   READ_TOOLS,
@@ -296,6 +307,9 @@ describe('MCP HTTP transport', () => {
       client: localClient(db),
       token: 'test-mcp-token',
       writesPerMinute: 30,
+      logger: getLogger(db, 'mcp', { source: 'mcp' }),
+      requestId: 'mcp-http-1',
+      origin: 'mcp',
     });
     httpServer = http.createServer((req, res) => {
       void handler(req, res);
@@ -322,6 +336,30 @@ describe('MCP HTTP transport', () => {
     expect(containersOverHttp).toEqual(containersInProcess);
   });
 
+  it('logs tool calls and writes under the MCP request id', async () => {
+    const created = await remote.addInventoryItem({
+      name: 'Пузырь',
+      kind: 'artifact',
+      level: 15,
+      qty: 1,
+      virtual: false,
+      dryRun: false,
+    });
+    expect(created.dryRun).toBe(false);
+    flushLogs(db);
+
+    const { entries } = queryLogs(db, { requestId: 'mcp-http-1', limit: 100 });
+    const tool = entries.find((entry) => entry.message === 'mcp call');
+    expect(tool).toMatchObject({ level: 'info', category: 'mcp', source: 'mcp' });
+    expect(tool?.context).toMatchObject({ tool: 'addInventoryItem', channel: 'mcp' });
+    expect(tool?.durationMs).toEqual(expect.any(Number));
+
+    const event = listEvents(db).find(
+      (entry) => entry.action === 'inventory.item.create' && entry.request_id === 'mcp-http-1',
+    );
+    expect(event).toMatchObject({ origin: 'mcp' });
+  });
+
   it('rejects requests without the bearer token', async () => {
     const response = await fetch(`${baseUrl}/mcp`, {
       method: 'POST',
@@ -330,6 +368,10 @@ describe('MCP HTTP transport', () => {
     });
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toMatchObject({ error: { code: 'UNAUTHORIZED' } });
+
+    flushLogs(db);
+    const { entries } = queryLogs(db, { requestId: 'mcp-http-1', limit: 100 });
+    expect(entries.some((entry) => entry.message === 'mcp unauthorized' && entry.level === 'warn')).toBe(true);
   });
 
   it('is disabled with 404 when no token is configured', async () => {

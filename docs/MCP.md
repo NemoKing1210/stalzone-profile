@@ -41,6 +41,16 @@ Client config:
 }
 ```
 
+## Logging
+
+Every tool call through `/mcp`, local stdio or the built-in assistant writes an `mcp` row
+with the client method, duration, `channel` (`mcp`, `stdio` or `chat`) and the request id;
+the arguments are `debug` only. A write performed through a tool lands in `event_log` with
+`origin: 'mcp'` (or `http` for an assistant turn) and the same `request_id`, so the log line
+and the audit event join. `/mcp` triggers and failures are logged at `warn`/`error`; the
+built-in assistant's failed or empty turn is a `warn` that never contains the prompt or
+message text.
+
 ## Write policy
 
 - `dry_run` defaults to `true`: it returns `{ dryRun, diff, eventId? }` and does not change
