@@ -1599,6 +1599,7 @@
     "skin": "Skin",
     "noSkin": "No skin",
     "slot": "Slot",
+    "category": "Category",
     "rarity": "Rarity",
     "rarityPercent": "Rarity, %",
     "rarityTier": "Rarity tier",

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada';
+import { InventoryKindSchema } from '@profile/shared/contracts';
 import { rarityTierForPct } from '@profile/shared/ranks';
 import { MODAL_WIDTH } from '~/shared/lib/modalWidth';
 import { useProfileData } from '~/stores/profile-data';
@@ -14,35 +15,26 @@ const { t } = useI18n();
 const { payload } = useProfileData();
 const inventory = useInventory();
 
-const KIND_OPTIONS = ['weapon', 'armor', 'container', 'artifact', 'ammo', 'other'] as const;
-const activeKind = ref<string>(props.kind ?? 'weapon');
-const fields = computed(() => itemFormFields(activeKind.value));
-const kindOptions = computed<{ label: string; value: string }[]>(() =>
-  KIND_OPTIONS.map((kind) => {
-    const labelKey =
-      kind === 'weapon'
-        ? 'nav.weapons'
-        : kind === 'armor'
-          ? 'nav.armor'
-          : kind === 'container'
-            ? 'nav.containers'
-            : kind === 'artifact'
-              ? 'nav.artifacts'
-              : `owned.kind.${kind}`;
-    return { label: t(labelKey), value: kind };
-  }),
-);
+const KIND_OPTIONS = InventoryKindSchema.options;
+const activeKind = ref<string>(props.kind ?? 'all');
+const selected = ref<CatalogItem | null>(null);
+const fields = computed(() => itemFormFields(selected.value?.kind ?? activeKind.value));
+const kindOptions = computed<{ label: string; value: string }[]>(() => [
+  { label: t('inventory.filter.allKinds'), value: 'all' },
+  ...KIND_OPTIONS.map((kind) => ({ label: t(`inventory.filterKinds.${kind}`), value: kind })),
+]);
 
 interface CatalogItem {
   id: number;
   name: string;
+  kind: string;
+  category: string | null;
   rank: string | null;
   slot: string | null;
 }
 
 const search = ref('');
 const debouncedSearch = ref('');
-const selected = ref<CatalogItem | null>(null);
 
 const form = reactive({
   level: 0,
@@ -58,9 +50,7 @@ const catalogEmpty = computed(() => {
 });
 
 watch(activeKind, () => {
-  selected.value = null;
-  clearTimeout(timer);
-  debouncedSearch.value = '';
+  if (selected.value && selected.value.kind !== activeKind.value) selected.value = null;
 });
 
 const request = useRequestFetch();
@@ -68,11 +58,18 @@ const { data: itemsPage, isLoading: loading, refetch: refetchItems } = useQuery(
   key: () => ['catalog', 'items', activeKind.value, debouncedSearch.value],
   query: () =>
     request<CatalogItem[]>('/api/v1/items', {
-      query: { q: debouncedSearch.value || undefined, kind: activeKind.value, limit: 20 },
+      query: {
+        q: debouncedSearch.value || undefined,
+        ...(activeKind.value === 'all' ? {} : { kind: activeKind.value }),
+        limit: 20,
+      },
     }),
   enabled: () => open.value,
 });
-const items = computed(() => itemsPage.value ?? []);
+/** Only the seven ownable kinds reach the form; motifs stay catalog-only. */
+const items = computed(() =>
+  (itemsPage.value ?? []).filter((item) => (InventoryKindSchema.options as readonly string[]).includes(item.kind)),
+);
 
 const { data: motifs } = useQuery({
   key: ['catalog', 'motifs'],
@@ -106,22 +103,29 @@ function reset(): void {
   form.rarityPct = null;
   form.skin = undefined;
   if (props.kind) activeKind.value = props.kind;
+  else activeKind.value = 'all';
   debouncedSearch.value = '';
   void refetchItems();
+}
+
+/** Choosing a row fixes the kind for the rest of the form. */
+function choose(item: CatalogItem): void {
+  selected.value = item;
+  activeKind.value = item.kind;
 }
 
 async function submit(): Promise<void> {
   const item = selected.value;
   if (!item) return;
 
-  const body = itemCreatePayload(activeKind.value, item, form);
+  const body = itemCreatePayload(item.kind, item, form);
   const result = await inventory.addItem(body);
   if (!result) return;
 
   const instanceId = (result.diff.after as { id?: number | null } | null)?.id;
   open.value = false;
   emit('saved');
-  if (instanceId) emit('created', { instanceId, name: item.name, kind: activeKind.value });
+  if (instanceId) emit('created', { instanceId, name: item.name, kind: item.kind });
 }
 </script>
 
@@ -164,9 +168,14 @@ async function submit(): Promise<void> {
                   ? 'bg-[var(--sz-surface-alt)] text-[var(--sz-accent)]'
                   : 'hover:bg-[var(--sz-surface-alt)]'
               "
-              @click="selected = item"
+              @click="choose(item)"
             >
-              <span class="min-w-0 truncate">{{ item.name }}</span>
+              <span class="min-w-0">
+                <span class="block truncate">{{ item.name }}</span>
+                <span class="block truncate text-[11px] text-[var(--sz-text-dim)]">
+                  {{ t(`inventory.filterKinds.${item.kind}`) }}<template v-if="item.category"> · {{ item.category }}</template>
+                </span>
+              </span>
               <span class="shrink-0 text-[11px] text-[var(--sz-text-dim)]">{{ item.rank ?? '' }}</span>
             </button>
           </template>
@@ -174,6 +183,14 @@ async function submit(): Promise<void> {
 
         <div v-if="selected" class="space-y-3">
           <dl class="grid gap-x-4 gap-y-1 text-[12px] sm:grid-cols-2">
+            <div class="flex justify-between gap-2">
+              <dt class="text-[var(--sz-text-muted)]">{{ t('owned.kindLabel') }}</dt>
+              <dd>{{ t(`inventory.filterKinds.${selected.kind}`) }}</dd>
+            </div>
+            <div class="flex justify-between gap-2">
+              <dt class="text-[var(--sz-text-muted)]">{{ t('forms.category') }}</dt>
+              <dd class="truncate">{{ selected.category ?? '—' }}</dd>
+            </div>
             <div class="flex justify-between gap-2">
               <dt class="text-[var(--sz-text-muted)]">{{ t('forms.slot') }}</dt>
               <dd>{{ selected.slot ?? t('forms.slotUnknown') }}</dd>

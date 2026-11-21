@@ -2,7 +2,8 @@ import type { InventoryItemCreate, InventoryItemPatch } from '@profile/shared';
 import { rarityTierForPct } from '@profile/shared/ranks';
 import type { Db } from '../../../platform/db/index.js';
 import { logEvent, withTransaction, WriteError, type WriteResult } from '../../../platform/journal/index.js';
-import { resolveItem, resolveMotifExact } from '../../catalog/index.js';
+import { getItemById, resolveItem, resolveMotifExact } from '../../catalog/index.js';
+import type { ItemRow } from '../../catalog/index.js';
 import { characterOrThrow } from '../../identity/index.js';
 import { resolveSize, resolveWeight } from '../layout/index.js';
 import * as repo from '../repo/index.js';
@@ -26,7 +27,7 @@ function findOverflowStack(db: Db, characterId: number, itemId: number): { id: n
 
 function assertQuantity(input: { kind: string; qty?: number }): void {
   if (input.kind !== 'ammo' && input.kind !== 'other' && (input.qty ?? 1) !== 1) {
-    throw new WriteError(422, 'VALIDATION', 'Weapons, armor, containers and artifacts have quantity 1');
+    throw new WriteError(422, 'VALIDATION', 'Only ammo and consumables stack; every other kind has quantity 1');
   }
 }
 
@@ -49,11 +50,29 @@ function assertSkinFits(itemId: number, kind: string, motif: { base_item_id: num
   }
 }
 
+/**
+ * Exact catalog id wins when the client sends one; a missing row or a row of another kind is
+ * `UNKNOWN_ITEM` rather than a same-named item of the requested kind. Name resolution stays
+ * as the fallback for callers that predate `catalogItemId`.
+ */
+function resolveCreateItem(db: Db, input: InventoryItemCreate): ItemRow {
+  if (input.catalogItemId == null) return resolveItem(db, input.name, input.kind);
+  const row = getItemById(db, input.catalogItemId);
+  if (!row || row.kind !== input.kind) {
+    throw new WriteError(422, 'UNKNOWN_ITEM', 'The catalog item does not exist for this kind', {
+      catalogItemId: input.catalogItemId,
+      kind: input.kind,
+      foundKind: row?.kind ?? null,
+    });
+  }
+  return row;
+}
+
 export function createInventoryItem(db: Db, input: InventoryItemCreate): WriteResult {
   const character = characterOrThrow(db);
   assertQuantity(input);
 
-  const item = resolveItem(db, input.name, input.kind);
+  const item = resolveCreateItem(db, input);
   const skin = input.skin ? resolveMotifExact(db, input.skin) : null;
   assertSkinFits(item.id, input.kind, skin);
   assertRarityKind(input.kind, [input.quality, input.rarityPct, input.rarityTier]);

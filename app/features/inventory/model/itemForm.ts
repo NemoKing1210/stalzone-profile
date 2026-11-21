@@ -39,13 +39,14 @@ export function skinsFor(
 /** Create body for one kind: only the visible fields, no free-text role/note/slot. */
 export function itemCreatePayload(
   kind: string,
-  item: { name: string; slot?: string | null },
+  item: { id?: number; name: string; slot?: string | null },
   values: ItemFormValues,
 ): Record<string, unknown> {
   const fields = itemFormFields(kind);
   return {
     name: item.name,
     kind,
+    ...(item.id != null ? { catalogItemId: item.id } : {}),
     dryRun: false,
     ...(fields.level ? { level: Math.max(0, Math.min(15, Math.trunc(values.level))) } : {}),
     ...(fields.qty ? { qty: Math.max(1, Math.min(99, Math.trunc(values.qty))) } : {}),

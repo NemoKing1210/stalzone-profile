@@ -587,6 +587,7 @@ export function createProfileServer(
       return client.addInventoryItem({
         name: args.name,
         kind: args.kind,
+        catalogItemId: args.catalog_item_id,
         level: args.level,
         skin: args.skin ?? null,
         quality: args.quality ?? null,

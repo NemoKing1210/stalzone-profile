@@ -178,6 +178,8 @@ export type DeleteStorage = z.infer<typeof DeleteStorageSchema>;
 export const InventoryItemCreateSchema = WriteOptionsSchema.extend({
   name: z.string().min(1).max(200),
   kind: InventoryKindSchema.default('weapon'),
+  /** Exact catalog row; when present the server resolves by id and never by name. */
+  catalogItemId: z.number().int().positive().optional(),
   level: z.number().int().min(0).max(15).default(0),
   skin: z.string().min(1).max(200).nullish(),
   quality: z.string().min(1).max(100).nullish(),
@@ -292,6 +294,7 @@ export type McpPlacementTarget = z.infer<typeof McpPlacementTargetSchema>;
 export const AddInventoryItemInputSchema = McpWriteOptionsSchema.extend({
   name: z.string().min(1),
   kind: InventoryKindSchema.default('weapon'),
+  catalog_item_id: z.number().int().positive().optional(),
   level: z.number().int().min(0).max(15).default(0),
   skin: z.string().min(1).nullish(),
   quality: z.string().min(1).nullish(),

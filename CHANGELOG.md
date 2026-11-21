@@ -67,6 +67,9 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- The inventory add form searches all ownable catalog kinds, shows the row's kind and
+  category, fixes the kind from the picked row, and sends its exact `catalogItemId`, so
+  attachments, ammo and consumables no longer collide with same-named rows of another kind.
 - A filtered `/inventory` grid packs the matching items from the top-left in the chosen
   layout order, keeping each footprint and rotation; hidden items are not drawn, clearing
   the filter restores the stored cells, and grid drops are refused while any filter is on.

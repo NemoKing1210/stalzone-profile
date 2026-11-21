@@ -86,7 +86,7 @@ The `profile://schema` resource provides tool descriptions and the write rules.
 
 | Tool | Arguments |
 |---|---|
-| `add_inventory_item` | `name`, `kind`, `level?`, `skin?`, `quality?`, `rarity_pct?`, `rarity_tier?`, `qty?`, `display_name?`, `container?`, `dry_run?`; the slot comes from the catalog item and a skin must match it |
+| `add_inventory_item` | `name`, `kind`, `catalog_item_id?`, `level?`, `skin?`, `quality?`, `rarity_pct?`, `rarity_tier?`, `qty?`, `display_name?`, `container?`, `dry_run?`; the slot comes from the catalog item, `catalog_item_id` must name a row of that `kind`, and a skin must match it |
 | `update_inventory_item` | `item_id` plus any of `level`, `skin`, `quality`, `rarity_pct`, `rarity_tier`, `qty`, `display_name`, `container` (or `null` to clear); `note`, `role` and `slot` are gone |
 | `remove_inventory_item` | `item_id`, `qty?`, `dry_run?` |
 | `move_inventory_item` | `item_id`, `target`, `swap?`, `allow_unverified?`, `dry_run?` |

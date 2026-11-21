@@ -108,7 +108,9 @@ owns itself.
   `stat_definition` row, not a migration.
 - `inventory_item` holds one row per owned thing; only `ammo` and `other` may carry `qty > 1`.
   A weapon, armor, container, artifact or attachment is never collapsed into another row,
-  because each carries its own modules, fill, level, quality or placement.
+  because each carries its own modules, fill, level, quality or placement. A create may name
+  the exact catalog row by `catalogItemId`; the row must have the requested `kind`, so an
+  attachment, a consumable or a stack can never resolve to a same-named row of another kind.
 - `storage` has exactly one `inventory` row and exactly one `overflow` row per character
   (partial unique indices) and unique `(character_id, kind, name_norm)` names for stashes.
   The inventory is 8×20; every stash is 8×200 and the intake is 8×80, growing with its
