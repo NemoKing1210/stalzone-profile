@@ -419,6 +419,7 @@ onBeforeUnmount(() => {
                   @click="toggleMute"
                 />
                 <USlider
+                  :ui="SLIDER_MOTION_UI"
                   class="flex-1"
                   :model-value="volumePercent"
                   :aria-label="t('radio.volume')"

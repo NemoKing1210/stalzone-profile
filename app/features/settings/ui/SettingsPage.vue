@@ -342,6 +342,7 @@ const tabItems = computed(() => [
                 <div class="flex items-center gap-2">
                   <span class="text-[12px] text-[var(--sz-text-muted)]">{{ t('settings.soundsVolume') }}</span>
                   <USlider
+                    :ui="SLIDER_MOTION_UI"
                     :model-value="soundVolume"
                     class="w-32"
                     :aria-label="t('settings.soundsVolume')"
