@@ -7,6 +7,16 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ## [Unreleased]
 
+- MCP catalog and gear tools: `find_items` now returns kind metrics (`damage`, `dps`, `ttk`,
+  `rof`, `recoil`, `spread`, `mag`, `armor`, `protectionBullet`, `slots`, `effectiveness`,
+  `slotEquivalent`, `weight`, `caliber`) at a chosen level and target HP, sorts by a metric or
+  `stat_id`, filters by min/max (missing values never match), paginates and reports
+  `total`/`truncated`; `describe_catalog` exposes the metric/stat dictionary, kind counts and
+  freshness. `compare_items` accepts 2–10 items of any kind and names the best per metric,
+  `get_item` filters stats by level and reports verified modification compatibility (or
+  `NO_COMPAT_DATA`), `get_inventory_item` and `get_meta` close the REST parity gaps,
+  `tidy_storage` joins the write tools, and `get_prices` sorts and filters lots. No schema
+  change; every number still comes from `displayDmg`/`displayDps`/`displayTtk`/`armorAtLevel`.
 ### Changed
 
 - Assistant item results are cards, not text rows: `find_items`, `get_item`,
