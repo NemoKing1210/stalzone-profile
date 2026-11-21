@@ -36,6 +36,13 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
+- The add-item modal no longer jumps while its catalog is filtered or an item is picked. On
+  desktop the frame has one fixed height and the list and preview column scroll inside it;
+  the list keeps its previous rows (dimmed) until the next query answers instead of collapsing
+  to skeletons; the result count keeps its line; and the active row is scrolled inside the
+  list only, never through the modal body. Choosing a sort sets the sort and its direction in
+  one step (no wasted first request), and Enter during a pending search no longer picks a row
+  from the previous query.
 - The add-item modal stays open after a successful add: the picked item and its form reset,
   while the catalog search, rank filter and sort stay put, so several items can be added in
   one pass.

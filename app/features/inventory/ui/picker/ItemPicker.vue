@@ -32,6 +32,7 @@ const sort = ref<'rank' | 'name' | 'weight'>('rank');
 const dir = ref<'asc' | 'desc'>('desc');
 const activeIndex = ref(-1);
 const listId = useId();
+const listEl = ref<HTMLElement | null>(null);
 
 const rankItems = computed(() => [
   { label: t('filters.allRanks'), value: 'all' },
@@ -59,6 +60,8 @@ const { data: page, isLoading } = useQuery({
       },
     }),
   enabled: () => props.active,
+  // A new key must not blank the list: keep the previous rows while the next query answers.
+  placeholderData: (previous) => previous,
 });
 
 /** Only the seven ownable kinds reach the form; motifs and cosmetic variants stay catalog-only. */
@@ -79,16 +82,14 @@ watch(search, () => {
 });
 
 /** Rank reads high-to-low, names and weights low-to-high; the toggle still flips either. */
-watch(sort, (value) => {
-  dir.value = value === 'rank' ? 'desc' : 'asc';
-});
-
-watch([debouncedSearch, rank, sort, dir, () => props.kind], () => {
-  activeIndex.value = items.value.length ? 0 : -1;
-});
+function setSort(value: string): void {
+  sort.value = value as 'rank' | 'name' | 'weight';
+  dir.value = sort.value === 'rank' ? 'desc' : 'asc';
+}
 
 watch(items, (list) => {
   activeIndex.value = list.length ? 0 : -1;
+  if (import.meta.client) listEl.value?.scrollTo({ top: 0 });
 });
 
 watch(selected, (item) => {
@@ -104,13 +105,25 @@ watch(() => props.active, (open) => {
   sort.value = 'rank';
   dir.value = 'desc';
   activeIndex.value = -1;
+  if (import.meta.client) listEl.value?.scrollTo({ top: 0 });
 });
 
-watch(activeIndex, async (index) => {
-  if (index < 0 || !import.meta.client) return;
-  await nextTick();
-  document.getElementById(optionId(index))?.scrollIntoView({ block: 'nearest' });
-});
+/**
+ * Keep the keyboard-active row inside the list box. `scrollIntoView` would also scroll the
+ * modal body (and the page), so the list alone is scrolled and only by the overflow amount.
+ */
+function revealActive(): void {
+  if (!import.meta.client || activeIndex.value < 0) return;
+  nextTick(() => {
+    const list = listEl.value;
+    const option = document.getElementById(optionId(activeIndex.value));
+    if (!list || !option) return;
+    const view = list.getBoundingClientRect();
+    const row = option.getBoundingClientRect();
+    if (row.top < view.top) list.scrollTop -= view.top - row.top;
+    else if (row.bottom > view.bottom) list.scrollTop += row.bottom - view.bottom;
+  });
+}
 
 function choose(item: ItemSummary): void {
   selected.value = item;
@@ -118,6 +131,7 @@ function choose(item: ItemSummary): void {
 
 function move(delta: number): void {
   activeIndex.value = nextSelectionIndex(activeIndex.value, delta, items.value.length);
+  revealActive();
 }
 
 function onSearchKeydown(event: KeyboardEvent): void {
@@ -130,13 +144,15 @@ function onSearchKeydown(event: KeyboardEvent): void {
   } else if (event.key === 'Enter') {
     // Enter belongs to the picker: it must never submit the add form before a row is chosen.
     event.preventDefault();
+    // During a filter change the list still shows the previous results; Enter must not pick one.
+    if (isLoading.value || search.value.trim() !== debouncedSearch.value) return;
     if (activeItem.value) choose(activeItem.value);
   }
 }
 </script>
 
 <template>
-  <div class="min-w-0 space-y-2">
+  <div class="flex min-w-0 flex-col gap-2 md:h-full">
     <div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 sm:grid-cols-[minmax(0,1fr)_8.5rem_8.5rem_auto]">
       <UInput
         v-model="search"
@@ -163,7 +179,7 @@ function onSearchKeydown(event: KeyboardEvent): void {
         </template>
       </UInput>
       <USelect v-model="rank" :items="rankItems" size="sm" class="w-full" :aria-label="t('filters.rank')" />
-      <USelect v-model="sort" :items="sortItems" size="sm" class="w-full" :aria-label="t('filters.sort')" />
+      <USelect :model-value="sort" :items="sortItems" size="sm" class="w-full" :aria-label="t('filters.sort')" @update:model-value="setSort" />
       <UButton
         :icon="dir === 'desc' ? 'i-lucide-arrow-down-wide-narrow' : 'i-lucide-arrow-up-narrow-wide'"
         size="sm"
@@ -176,12 +192,15 @@ function onSearchKeydown(event: KeyboardEvent): void {
 
     <div
       :id="listId"
+      ref="listEl"
       role="listbox"
       :aria-label="t('owned.itemsList')"
-      class="max-h-[21rem] overflow-y-auto border border-[var(--sz-border)] lg:max-h-[26rem]"
+      :aria-busy="isLoading"
+      class="h-[21rem] min-h-0 overflow-y-auto border border-[var(--sz-border)] transition-opacity duration-150 md:h-auto md:flex-1"
+      :class="isLoading && items.length ? 'opacity-60' : ''"
     >
       <template v-if="isLoading && !items.length">
-        <div v-for="row in 4" :key="row" class="flex items-center gap-2.5 border-b border-[var(--sz-border)] px-2.5 py-2 last:border-b-0">
+        <div v-for="row in 9" :key="row" class="flex items-center gap-2.5 border-b border-[var(--sz-border)] px-2.5 py-2 last:border-b-0">
           <span class="size-10 shrink-0 animate-pulse bg-[var(--sz-surface-alt)]" />
           <span class="min-w-0 flex-1 space-y-1.5">
             <span class="block h-2.5 w-2/3 animate-pulse bg-[var(--sz-surface-alt)]" />
@@ -258,8 +277,9 @@ function onSearchKeydown(event: KeyboardEvent): void {
       </template>
     </div>
 
-    <p v-if="!isLoading && items.length" class="text-right text-[11px] tabular-nums text-[var(--sz-text-dim)]">
-      {{ t('owned.resultsCount', { count: items.length }) }}
+    <!-- The line always keeps its height, so a refetch cannot resize the list. -->
+    <p class="min-h-4 text-right text-[11px] tabular-nums text-[var(--sz-text-dim)]">
+      <template v-if="items.length">{{ t('owned.resultsCount', { count: items.length }) }}</template>
     </p>
   </div>
 </template>

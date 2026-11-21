@@ -22,6 +22,11 @@ const inventory = useInventory();
 const formId = useId();
 /** The catalog list, preview and fields can outgrow a phone; keep the body scrolling and the footer in place. */
 const modalUi = {
+  content: `${MODAL_WIDTH.wide} max-h-[calc(100dvh-2rem)] md:h-[min(44rem,calc(100dvh-2rem))]`,
+  body: 'min-h-0 overflow-y-auto md:overflow-hidden',
+};
+/** Without a catalog the body is one alert; a fixed desktop height would only add blank space. */
+const modalUiCompact = {
   content: `${MODAL_WIDTH.wide} max-h-[calc(100dvh-2rem)]`,
   body: 'min-h-0 overflow-y-auto',
 };
@@ -112,7 +117,7 @@ async function submit(): Promise<void> {
     v-model:open="open"
     :title="t('owned.addTitle')"
     :description="t('owned.addDescription')"
-    :ui="modalUi"
+    :ui="catalogEmpty ? modalUiCompact : modalUi"
     scrollable
   >
     <template #body>
@@ -121,15 +126,16 @@ async function submit(): Promise<void> {
         <UButton to="/settings" :label="t('owned.catalogRequiredAction')" />
       </div>
 
-      <UForm v-else :id="formId" :state="form" class="space-y-4" @submit="submit">
+      <UForm v-else :id="formId" :state="form" class="space-y-4 md:flex md:h-full md:min-h-0 md:flex-col" @submit="submit">
         <UFormField v-if="!kind" :label="t('owned.kindLabel')" name="kind">
           <USelect v-model="activeKind" :items="kindOptions" class="w-full" />
         </UFormField>
 
-        <div class="grid gap-4 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+        <!-- The desktop grid fills the modal body, so filters and selections only scroll inside it. -->
+        <div class="grid gap-4 md:min-h-0 md:flex-1 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] md:grid-rows-[minmax(0,1fr)]">
           <ItemPicker v-model="selected" :kind="activeKind" :active="open" :owned="owned" />
 
-          <div class="min-w-0 space-y-3">
+          <div class="min-w-0 space-y-3 md:min-h-0 md:overflow-y-auto md:pe-1">
             <ItemPreview
               :item="selected"
               :owned="selected ? (owned.get(selected.name) ?? 0) : 0"
