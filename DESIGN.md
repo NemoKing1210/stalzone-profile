@@ -749,9 +749,13 @@ A three-pane instrument. The page title is the nick; faction, clan and realm sit
 - A third view, **Chart**, plots one damage-by-distance curve per weapon in the filtered
   list on shared axes: inline SVG, a color from the ten `--sz-series-*` tokens per row,
   a base/+15 switch, a toggleable legend with DPS and TTK, and a hover guide that reads
-  damage and TTK at that distance. The first ten rows by the current sort are visible; the
-  legend can show all or none, and weapons without a complete falloff point are counted as
-  "no data" instead of being drawn. The plot component is shared with the modal chart.
+  damage and TTK at that distance. The x axis ends at the furthest falloff end: past it the
+  damage is constant, so the flat tail is not drawn and the curves fill the frame instead of
+  bunching at the left. The crosshair readout sits in a fixed-height strip, so moving the
+  pointer never moves the legend below it. The first ten rows by the current sort are
+  visible; the legend can show all or none, and weapons without a complete falloff point are
+  counted as "no data" instead of being drawn. The plot component is shared with the modal
+  chart.
 - The weapons filter strip carries a **Target HP** field (default 600). It recomputes
   TTK and TTK +15 in the table, cards, modal and chart through the shared formula; at 600
   the numbers equal the server payload exactly.

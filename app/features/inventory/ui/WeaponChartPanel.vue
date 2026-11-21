@@ -3,7 +3,7 @@ import { displayDps, displayTtk } from '@profile/shared/calc';
 
 import { damageAtDistance, type FalloffPlot, type FalloffPlotLine, type FalloffView } from '../model/damageFalloff';
 import type { WeaponRow } from '../model/kinds/weapons';
-import { buildWeaponChart, chartScale } from '../model/weaponChart';
+import { buildWeaponChart, chartScale, type WeaponChartSeries } from '../model/weaponChart';
 import DamageFalloffPlot from './DamageFalloffPlot.vue';
 
 const props = withDefaults(defineProps<{ rows: WeaponRow[]; hp?: number }>(), { hp: 600 });
@@ -19,7 +19,7 @@ const WIDE: FalloffView = { width: 980, height: 260, left: 52, right: 22, top: 1
 const level = ref<0 | 15>(0);
 const visible = ref<string[]>([]);
 const activeKey = ref<string | null>(null);
-const hoverDistance = ref<number | null>(null);
+const hoverDistance = ref(0);
 
 const axis = computed(
   () =>
@@ -75,6 +75,17 @@ function hideAll(): void {
   visible.value = [];
 }
 
+/** The curve is drawn to the axis end; a flat tail is closed at the edge, never cut mid-slope. */
+function drawnPoints(series: WeaponChartSeries): { distance: number; damage: number }[] {
+  const domain = scale.value?.maxDistance ?? 0;
+  const inside = series.points.filter((point) => point.distance <= domain);
+  const last = inside[inside.length - 1];
+  if (last && last.distance < domain && series.maxDistance >= domain) {
+    return [...inside, { distance: domain, damage: last.damage }];
+  }
+  return inside;
+}
+
 function buildPlot(view: FalloffView): FalloffPlot {
   const maxX = scale.value?.maxDistance || 1;
   const maxY = scale.value?.maxDamage || 1;
@@ -83,24 +94,27 @@ function buildPlot(view: FalloffView): FalloffPlot {
   const px = (distance: number): number => view.left + (distance / maxX) * plotWidth;
   const py = (damage: number): number => view.top + plotHeight - (damage / maxY) * plotHeight;
 
-  const lines: FalloffPlotLine[] = shownSeries.value.map((series) => ({
-    key: series.key,
-    label: series.name,
-    color: series.color,
-    d: series.points.map((point, index) => `${index ? 'L' : 'M'}${px(point.distance)} ${py(point.damage)}`).join(' '),
-    points: series.points.map((point) => ({
-      key: `${series.key}-${point.distance}`,
-      x: px(point.distance),
-      y: py(point.damage),
-      label: t('weapons.chart.point', {
-        name: series.name,
-        damage: g1(point.damage),
-        distance: axis.value.format(point.distance),
-      }),
-      distance: point.distance,
-      damage: point.damage,
-    })),
-  }));
+  const lines: FalloffPlotLine[] = shownSeries.value.map((series) => {
+    const points = drawnPoints(series);
+    return {
+      key: series.key,
+      label: series.name,
+      color: series.color,
+      d: points.map((point, index) => `${index ? 'L' : 'M'}${px(point.distance)} ${py(point.damage)}`).join(' '),
+      points: points.map((point) => ({
+        key: `${series.key}-${point.distance}`,
+        x: px(point.distance),
+        y: py(point.damage),
+        label: t('weapons.chart.point', {
+          name: series.name,
+          damage: g1(point.damage),
+          distance: axis.value.format(point.distance),
+        }),
+        distance: point.distance,
+        damage: point.damage,
+      })),
+    };
+  });
 
   const xTicks = (scale.value?.xTicks ?? []).map((value) => ({ x: px(value), label: axis.value.format(value) }));
   const yTicks = (scale.value?.yTicks ?? []).map((value) => ({ y: py(value), label: axis.value.format(value) }));
@@ -128,45 +142,36 @@ const plots = computed(() =>
 
 function onHover(plot: FalloffPlot, x: number | null): void {
   const max = scale.value?.maxDistance;
-  if (x == null || !max) {
-    hoverDistance.value = null;
-    return;
-  }
+  if (x == null || !max) return;
   const width = plot.view.width - plot.view.left - plot.view.right;
   const local = Math.min(Math.max(x - plot.view.left, 0), width);
   hoverDistance.value = (local / width) * max;
 }
 
 function guideXFor(plot: FalloffPlot): number | null {
-  const distance = hoverDistance.value;
   const max = scale.value?.maxDistance;
-  if (distance == null || !max) return null;
+  if (!max) return null;
   const width = plot.view.width - plot.view.left - plot.view.right;
-  return plot.view.left + (distance / max) * width;
+  return plot.view.left + (hoverDistance.value / max) * width;
 }
 
-/** Hovering the canvas answers the comparison question: which weapon still hits hardest here. */
-const hoverRows = computed(() => {
-  const distance = hoverDistance.value;
-  if (distance == null) return [];
-  return shownSeries.value
-    .map((series) => {
-      const row = rowsByKey.value.get(series.key);
-      const damage = damageAtDistance(series.points, distance);
-      return {
-        key: series.key,
-        name: series.name,
-        color: series.color,
-        damage,
-        ttk: displayTtk(damage, row?.rof ?? null, props.hp),
-      };
-    })
-    .sort((a, b) => (b.damage ?? -1) - (a.damage ?? -1));
-});
-
-const hoverDistanceLabel = computed(() =>
-  hoverDistance.value == null ? '' : axis.value.format(hoverDistance.value),
+/** Every visible weapon reads at the crosshair; past its own range it has no value, not a guess. */
+const hoverRows = computed(() =>
+  shownSeries.value.map((series) => {
+    const row = rowsByKey.value.get(series.key);
+    const distance = hoverDistance.value;
+    const damage = distance > series.maxDistance ? null : damageAtDistance(series.points, distance);
+    return {
+      key: series.key,
+      name: series.name,
+      color: series.color,
+      damage,
+      ttk: displayTtk(damage, row?.rof ?? null, props.hp),
+    };
+  }),
 );
+
+const hoverDistanceLabel = computed(() => axis.value.format(hoverDistance.value));
 
 /** A screen reader gets each drawn curve as one sentence instead of a wall of point labels. */
 function seriesSummary(series: { name: string; points: { distance: number; damage: number }[] }): string {
@@ -189,6 +194,7 @@ function seriesSummary(series: { name: string; points: { distance: number; damag
         <span class="text-[10.5px] tabular-nums text-[var(--sz-text-dim)]">
           {{ t('weapons.chart.shown', { shown: visible.length, total: plottable.length }) }}
         </span>
+        <span class="text-[10.5px] text-[var(--sz-text-dim)]">{{ t('weapons.chart.trim') }}</span>
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <span class="text-[10.5px] text-[var(--sz-text-dim)]">{{ t('weapons.chart.level') }}</span>
@@ -245,21 +251,24 @@ function seriesSummary(series: { name: string; points: { distance: number; damag
       {{ t('weapons.chart.empty') }}
     </p>
 
-    <div v-if="hoverRows.length" class="border border-[var(--sz-border)] bg-[var(--sz-surface-header)] p-2">
-      <div class="flex flex-wrap items-baseline justify-between gap-x-3">
+    <div class="flex h-24 flex-col border border-[var(--sz-border)] bg-[var(--sz-surface-header)]">
+      <div class="flex flex-wrap items-baseline justify-between gap-x-3 border-b border-[var(--sz-border)] px-2 py-1">
         <span class="sz-caps text-[10.5px] text-[var(--sz-text-muted)]">
           {{ t('weapons.chart.atDistance', { distance: hoverDistanceLabel }) }}
         </span>
         <span class="text-[10px] text-[var(--sz-text-dim)]">{{ t('weapons.chart.hoverHint') }}</span>
       </div>
-      <ul class="mt-1 grid gap-x-4 gap-y-0.5 sm:grid-cols-2 xl:grid-cols-3">
-        <li v-for="entry in hoverRows" :key="`hover-${entry.key}`" class="flex items-baseline gap-1.5 text-[11px]">
-          <span class="h-2 w-2 shrink-0" :style="{ background: entry.color }" aria-hidden="true" />
-          <span class="min-w-0 flex-1 truncate">{{ entry.name }}</span>
-          <span class="tabular-nums">{{ entry.damage == null ? '—' : g1(entry.damage) }}</span>
-          <span class="tabular-nums text-[var(--sz-text-muted)]">{{ entry.ttk == null ? '—' : g2(entry.ttk) }}</span>
-        </li>
-      </ul>
+      <div class="min-h-0 flex-1 overflow-auto px-2 py-1">
+        <ul v-if="hoverRows.length" class="grid gap-x-4 gap-y-0.5 sm:grid-cols-2 xl:grid-cols-3">
+          <li v-for="entry in hoverRows" :key="`hover-${entry.key}`" class="flex items-baseline gap-1.5 text-[11px]">
+            <span class="h-2 w-2 shrink-0" :style="{ background: entry.color }" aria-hidden="true" />
+            <span class="min-w-0 flex-1 truncate" :title="entry.name">{{ entry.name }}</span>
+            <span class="tabular-nums">{{ entry.damage == null ? '—' : g1(entry.damage) }}</span>
+            <span class="tabular-nums text-[var(--sz-text-muted)]">{{ entry.ttk == null ? '—' : g2(entry.ttk) }}</span>
+          </li>
+        </ul>
+        <p v-else class="text-[11px] text-[var(--sz-text-dim)]">{{ t('weapons.chart.noSeries') }}</p>
+      </div>
     </div>
 
     <div v-if="legend.length" class="border border-[var(--sz-border)]">
@@ -275,6 +284,7 @@ function seriesSummary(series: { name: string; points: { distance: number; damag
             class="flex w-full items-baseline gap-2 px-2 py-1 text-left text-[11px] hover:bg-ink-700 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--sz-accent)]"
             :aria-pressed="visible.includes(entry.key)"
             :class="visible.includes(entry.key) ? '' : 'text-[var(--sz-text-dim)]'"
+            :title="t('weapons.chart.upTo', { name: entry.name, distance: axis.format(entry.maxDistance) })"
             @click="toggle(entry.key)"
             @mouseenter="activeKey = entry.key"
             @mouseleave="activeKey = null"

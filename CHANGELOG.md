@@ -9,6 +9,11 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Fixed
 
+- The weapons chart no longer stretches its x axis to the longest-range outlier: it ends at
+  the furthest damage-falloff end, so the curves fill the frame instead of bunching at the
+  left, and the flat constant tail is not drawn. The crosshair readout has a fixed height,
+  so moving the pointer (or the readout appearing) no longer shifts the legend, and legend
+  rows carry the full name and range in their title.
 - An assistant turn that uses a tool now keeps the provider conversation valid: every
   executed result is returned as a `tool` message (OpenAI-compatible), a `tool_result` block
   (Anthropic) or a `functionResponse` part (Google). Previously only the assistant

@@ -18,6 +18,10 @@ export interface WeaponChartSeries {
   name: string;
   color: string;
   points: FalloffPoint[];
+  /** Distance where the damage stops falling; the drawn curve ends here. */
+  falloffEnd: number;
+  /** The weapon's own maximum range; constant damage continues to here. */
+  maxDistance: number;
 }
 
 export interface WeaponChart {
@@ -30,12 +34,17 @@ export interface WeaponChart {
   yTicks: number[];
 }
 
-/** The axes of a set of curves; the panel recomputes it for the visible subset. */
-export function chartScale(series: readonly { points: readonly FalloffPoint[] }[]): Omit<WeaponChart, 'series'> | null {
-  const points = series.flatMap((entry) => entry.points);
-  if (!points.length) return null;
-  const maxDistance = Math.max(...points.map((point) => point.distance));
-  const maxDamage = Math.max(...points.map((point) => point.damage));
+/**
+ * The axes of a set of curves; the panel recomputes it for the visible subset. The x axis
+ * ends at the furthest falloff end, not the furthest maximum range: past that point every
+ * curve is flat, so plotting the constant tail only shrinks the part that carries shape.
+ */
+export function chartScale(
+  series: readonly { falloffEnd: number; points: readonly FalloffPoint[] }[],
+): Omit<WeaponChart, 'series'> | null {
+  if (!series.length) return null;
+  const maxDistance = Math.max(...series.map((entry) => entry.falloffEnd));
+  const maxDamage = Math.max(...series.flatMap((entry) => entry.points).map((point) => point.damage));
   const ticks = (max: number): number[] => [0, max / 4, max / 2, (max * 3) / 4, max];
   return { maxDistance, maxDamage, xTicks: ticks(maxDistance), yTicks: ticks(maxDamage) };
 }
@@ -48,8 +57,19 @@ export function seriesColor(index: number): string {
 /** One curve per plottable row; rows without a complete point are skipped, not guessed. */
 export function buildWeaponChart(rows: readonly WeaponChartRow[], level: 0 | 15): WeaponChart | null {
   const series = rows.flatMap((row, index) => {
-    const points = falloffPoints(level === 15 ? row.p15 : row.p0);
-    return points ? [{ key: row.key, name: row.name, color: seriesColor(index), points }] : [];
+    const point = level === 15 ? row.p15 : row.p0;
+    const points = falloffPoints(point);
+    if (!points || point?.distB == null || point.distMax == null) return [];
+    return [
+      {
+        key: row.key,
+        name: row.name,
+        color: seriesColor(index),
+        points,
+        falloffEnd: point.distB,
+        maxDistance: point.distMax,
+      },
+    ];
   });
   if (!series.length) return null;
 
