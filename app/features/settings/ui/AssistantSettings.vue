@@ -408,7 +408,7 @@ async function togglePrompt(prompt: ChatPrompt): Promise<void> {
 
           <template #content>
             <div class="space-y-3 border-t border-[var(--sz-border)] p-2.5">
-              <div v-if="block.key === 'connection'">
+              <div v-if="block.key === 'connection'" class="space-y-3">
                 <div class="grid gap-3 sm:grid-cols-2">
                   <UFormField :label="t('settings.assistant.provider')" name="provider">
                     <USelect
