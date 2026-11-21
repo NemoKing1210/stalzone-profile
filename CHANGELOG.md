@@ -95,9 +95,10 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 ### Added
 
 - Deleting a stack asks how many pieces to remove: the item card and the grid context menu
-  open one `RemoveItemModal` whose count is bounded by what the stack holds, and a partial
-  delete keeps the card and the selection in place. The write API already accepted `qty`;
-  the inventory UI now sends the chosen amount instead of always deleting one piece.
+  open one `RemoveItemModal` whose count is bounded by what the stack holds, with a
+  one-click `Delete all` shortcut and a partial delete that keeps the card and the selection
+  in place. The write API already accepted `qty`; the inventory UI now sends the chosen
+  amount instead of always deleting one piece.
 
 - The assistant chat is redesigned around streamed answers. `POST /api/v1/chat/turn/stream`
   answers with server-sent events (`meta`, `delta` for text and reasoning, `tool`, `pending`

@@ -415,6 +415,7 @@
     "removeItemDesc": "Удалить «{name}»? Действие можно откатить в настройках.",
     "removeQty": "Сколько удалить",
     "removeQtyHint": "Доступно: {qty} шт.",
+    "removeAll": "Удалить всё ({qty})",
     "inContainer": "В контейнере",
     "inGrid": "В сетке",
     "weight": "Вес",

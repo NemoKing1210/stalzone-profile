@@ -415,6 +415,7 @@
     "removeItemDesc": "Delete “{name}”? The action can be rolled back in settings.",
     "removeQty": "How many to delete",
     "removeQtyHint": "Available: {qty}",
+    "removeAll": "Delete all ({qty})",
     "inContainer": "In a container",
     "inGrid": "On the grid",
     "weight": "Weight",

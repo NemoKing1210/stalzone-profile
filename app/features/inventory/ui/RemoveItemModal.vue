@@ -47,7 +47,16 @@ watch(available, (max) => {
     </template>
 
     <template #footer>
-      <div class="flex w-full justify-end gap-2">
+      <div class="flex w-full flex-wrap justify-end gap-2">
+        <UButton
+          v-if="available > 1"
+          class="mr-auto"
+          color="error"
+          variant="outline"
+          :loading="props.loading"
+          :label="t('inventory.removeAll', { qty: available })"
+          @click="emit('confirm', available)"
+        />
         <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="open = false" />
         <UButton
           color="error"
