@@ -12,6 +12,7 @@ function message(overrides: Partial<ChatMessage> & Pick<ChatMessage, 'id' | 'rol
     reasoning: null,
     meta: null,
     attachments: [],
+    refs: [],
     error: null,
     createdAt: '2026-11-21T10:00:00.000Z',
     ...overrides,

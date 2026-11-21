@@ -574,6 +574,8 @@ export const ChatMessageSchema = z.object({
   meta: ChatMessageMetaSchema.nullable().default(null),
   /** Files the owner attached to this message; metadata only, bytes are served separately. */
   attachments: z.array(ChatAttachmentSchema).default([]),
+  /** Items this message names; stored so a chip survives renames and reloads. */
+  refs: z.array(ChatItemRefSchema).default([]),
   /** Why the turn behind a user message failed; null means delivered (or still in flight). */
   error: z.string().nullable().default(null),
   createdAt: z.string(),
@@ -593,6 +595,8 @@ export const ChatSendSchema = z
     message: z.string().max(8_000).default(''),
     /** The files travel with the turn; an empty message is valid when at least one is attached. */
     files: z.array(ChatAttachmentInputSchema).max(CHAT_ATTACHMENT_LIMITS.files).optional(),
+    /** Exact items the message references; ids only, labels are re-read by the server. */
+    refs: z.array(ChatSendRefSchema).max(CHAT_REF_LIMIT).optional(),
     /** Retry this stored user message: no new row is created and the failed attempt is discarded. */
     retryOf: z.number().int().positive().optional(),
     /** A write the model proposed and the owner confirmed in a previous turn. */

@@ -4,6 +4,7 @@ export * from './repo/prompts.js';
 export * from './repo/threads.js';
 export * from './service/settings.js';
 export * from './service/prompts.js';
+export * from './service/items.js';
 export * from './write/settings.js';
 export * from './write/prompts.js';
 export * from './write/threads.js';
