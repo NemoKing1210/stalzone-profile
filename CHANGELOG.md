@@ -31,6 +31,11 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
+- The add-item modal's catalog picker has a sort control and a direction toggle. Rank is the
+  default order (legend first) with unranked rows last; name and weight are the other orders,
+  switching to them sets the natural direction. `GET /api/v1/items` accepts `sort=rank|name|
+  weight&dir=asc|desc`, keeps the relevance buckets of a text query ahead of the explicit
+  order, and leaves the payload unchanged for callers that send neither.
 - The assistant conversation scrolls at the page edge: the message list keeps its centred
   52 rem column and padding, but the scroll container spans the whole screen column, so the
   scrollbar sits against the right edge on `/chat` and inside the assistant slideover instead

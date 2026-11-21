@@ -633,6 +633,7 @@
     "noItemsHint": "Try fewer words, another spelling or another rank.",
     "itemsList": "Catalog items",
     "clearSearch": "Clear search",
+    "sortDirection": "Sort direction",
     "resultsCount": "Shown: {count}",
     "selectHint": "Pick an item to see its card and parameters."
   },

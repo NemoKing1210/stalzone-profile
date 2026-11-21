@@ -81,6 +81,18 @@ describe('catalog search', () => {
     expect(names[0]).toBe('Куница');
   });
 
+  it('orders by rank with unranked rows last and the direction applied to the rank', () => {
+    const names = searchItems(db, { sort: 'rank', dir: 'desc', limit: 20 }).map((item) => item.name);
+    expect(names.slice(0, 2)).toEqual(['АК-12', 'Нервяк']);
+    expect(names.indexOf('KS-1')).toBeLessThan(names.indexOf('Куница'));
+    expect(names.at(-1)).toBe('Камуфляж');
+  });
+
+  it('orders by weight with unowned numbers first and missing weights last', () => {
+    const names = searchItems(db, { sort: 'weight', dir: 'asc', limit: 20 }).map((item) => item.name);
+    expect(names.slice(0, 3)).toEqual(['KS-1', 'АК-12', 'Куница']);
+  });
+
   it('accepts a normalized rank key as well as the stored rank label', () => {
     const byKey = searchItems(db, { rank: 'master', limit: 20 }).map((item) => item.name);
     const byLabel = searchItems(db, { rank: 'RANK_MASTER', limit: 20 }).map((item) => item.name);

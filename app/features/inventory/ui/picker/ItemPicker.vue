@@ -28,6 +28,8 @@ const { g2 } = useFormat();
 const search = ref('');
 const debouncedSearch = ref('');
 const rank = ref('all');
+const sort = ref<'rank' | 'name' | 'weight'>('rank');
+const dir = ref<'asc' | 'desc'>('desc');
 const activeIndex = ref(-1);
 const listId = useId();
 
@@ -36,15 +38,23 @@ const rankItems = computed(() => [
   ...RANK_ORDER.map((key) => ({ label: t(`ranks.${key}`), value: key })),
 ]);
 
+const sortItems = computed(() => [
+  { label: t('table.rank'), value: 'rank' },
+  { label: t('table.name'), value: 'name' },
+  { label: t('table.weight'), value: 'weight' },
+]);
+
 const request = useRequestFetch();
 const { data: page, isLoading } = useQuery({
-  key: () => ['catalog', 'picker', props.kind, rank.value, debouncedSearch.value],
+  key: () => ['catalog', 'picker', props.kind, rank.value, sort.value, dir.value, debouncedSearch.value],
   query: () =>
     request<ItemSummary[]>('/api/v1/items', {
       query: {
         q: debouncedSearch.value || undefined,
         ...(props.kind === 'all' ? {} : { kind: props.kind }),
         ...(rank.value === 'all' ? {} : { rank: rank.value }),
+        sort: sort.value,
+        dir: dir.value,
         limit: 50,
       },
     }),
@@ -68,7 +78,12 @@ watch(search, () => {
   }, 200);
 });
 
-watch([debouncedSearch, rank, () => props.kind], () => {
+/** Rank reads high-to-low, names and weights low-to-high; the toggle still flips either. */
+watch(sort, (value) => {
+  dir.value = value === 'rank' ? 'desc' : 'asc';
+});
+
+watch([debouncedSearch, rank, sort, dir, () => props.kind], () => {
   activeIndex.value = items.value.length ? 0 : -1;
 });
 
@@ -86,6 +101,8 @@ watch(() => props.active, (open) => {
   search.value = '';
   debouncedSearch.value = '';
   rank.value = 'all';
+  sort.value = 'rank';
+  dir.value = 'desc';
   activeIndex.value = -1;
 });
 
@@ -120,7 +137,7 @@ function onSearchKeydown(event: KeyboardEvent): void {
 
 <template>
   <div class="min-w-0 space-y-2">
-    <div class="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_9rem]">
+    <div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 sm:grid-cols-[minmax(0,1fr)_8.5rem_8.5rem_auto]">
       <UInput
         v-model="search"
         :placeholder="t('owned.searchItem')"
@@ -131,7 +148,7 @@ function onSearchKeydown(event: KeyboardEvent): void {
         :aria-controls="listId"
         :aria-activedescendant="activeIndex >= 0 ? optionId(activeIndex) : undefined"
         :ui="{ base: 'pe-8' }"
-        class="min-w-0 flex-1"
+        class="col-span-3 min-w-0 sm:col-span-1"
         @keydown="onSearchKeydown"
       >
         <template v-if="search" #trailing>
@@ -145,7 +162,16 @@ function onSearchKeydown(event: KeyboardEvent): void {
           />
         </template>
       </UInput>
-      <USelect v-model="rank" :items="rankItems" size="sm" class="w-36" :aria-label="t('filters.rank')" />
+      <USelect v-model="rank" :items="rankItems" size="sm" class="w-full" :aria-label="t('filters.rank')" />
+      <USelect v-model="sort" :items="sortItems" size="sm" class="w-full" :aria-label="t('filters.sort')" />
+      <UButton
+        :icon="dir === 'desc' ? 'i-lucide-arrow-down-wide-narrow' : 'i-lucide-arrow-up-narrow-wide'"
+        size="sm"
+        color="neutral"
+        variant="outline"
+        :aria-label="t('owned.sortDirection')"
+        @click="dir = dir === 'desc' ? 'asc' : 'desc'"
+      />
     </div>
 
     <div

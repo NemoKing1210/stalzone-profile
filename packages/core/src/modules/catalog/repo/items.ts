@@ -274,13 +274,34 @@ export function findItemByKindName(db: Db, kind: string, name: string, realm = '
   );
 }
 
+export type SearchSort = 'rank' | 'name' | 'weight';
+
 export interface SearchOptions {
   q?: string | null;
   kind?: string | null;
   rank?: string | null;
   slot?: string | null;
+  /** Explicit ordering; without it the relevance order (or kind + name) stands. */
+  sort?: SearchSort | null;
+  dir?: 'asc' | 'desc' | null;
   limit?: number;
   realm?: string;
+}
+
+const RANK_SORT_ORDER = `CASE LOWER(rank)
+        WHEN 'default' THEN 0 WHEN 'rank_default' THEN 0
+        WHEN 'newbie' THEN 1 WHEN 'rank_newbie' THEN 1
+        WHEN 'stalker' THEN 2 WHEN 'rank_stalker' THEN 2
+        WHEN 'veteran' THEN 3 WHEN 'rank_veteran' THEN 3
+        WHEN 'master' THEN 4 WHEN 'rank_master' THEN 4
+        WHEN 'legend' THEN 5 WHEN 'rank_legend' THEN 5
+      END`;
+
+function sortOrder(sort: SearchSort, dir: 'asc' | 'desc'): string {
+  const direction = dir === 'asc' ? 'ASC' : 'DESC';
+  if (sort === 'rank') return `(rank IS NULL) ASC, ${RANK_SORT_ORDER} ${direction}`;
+  if (sort === 'weight') return `(weight IS NULL) ASC, weight ${direction}`;
+  return `name_norm ${direction}`;
 }
 
 export function searchItems(db: Db, opts: SearchOptions = {}): ItemRow[] {
@@ -313,15 +334,30 @@ export function searchItems(db: Db, opts: SearchOptions = {}): ItemRow[] {
     params.exact = query;
     params.prefix = `${query}%`;
   }
-  const order = tokens.length
+  const relevance = tokens.length
     ? `CASE
         WHEN name_norm = @exact THEN 0
         WHEN name_norm LIKE @prefix THEN 1
         WHEN name_en_norm = @exact THEN 1
         WHEN name_en_norm LIKE @prefix THEN 2
         ELSE 3
-      END, length(name_norm), name_norm`
-    : `kind, name_norm`;
+      END`
+    : null;
+  const explicit = opts.sort ? sortOrder(opts.sort, opts.dir ?? 'desc') : null;
+  const order = explicit
+    ? [
+        relevance,
+        relevance ? 'length(name_norm)' : null,
+        explicit,
+        // Ties stay deterministic; `name_norm` is already the primary key for the name order.
+        opts.sort === 'name' ? null : 'name_norm',
+        'kind',
+      ]
+        .filter(Boolean)
+        .join(', ')
+    : relevance
+      ? `${relevance}, length(name_norm), name_norm`
+      : 'kind, name_norm';
   return db
     .prepare(`SELECT * FROM item WHERE ${where.join(' AND ')} ORDER BY ${order} LIMIT @limit`)
     .all(params) as ItemRow[];
