@@ -137,7 +137,7 @@ export function queryCatalog(db: Db, input: CatalogQueryInput = {}): CatalogQuer
     return row;
   });
 
-  return { items, total, truncated };
+  return { items, total, truncated, level, hp };
 }
 
 export interface CompareResult {

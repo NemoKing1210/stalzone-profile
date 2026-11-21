@@ -84,6 +84,9 @@ export const CatalogQueryResultSchema = z.object({
   items: z.array(CatalogRowSchema),
   total: z.number().int().nonnegative(),
   truncated: z.boolean(),
+  /** The level and target HP the metrics were computed at, so a caller can label them. */
+  level: z.number().int().min(0).max(15),
+  hp: z.number().int().min(1).max(100000),
 });
 export type CatalogQueryResult = z.infer<typeof CatalogQueryResultSchema>;
 
