@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CatalogQuerySchema, CompareItemsQuerySchema } from './catalog-query.js';
 import {
   EquipmentSlotSchema,
   FactionSchema,
@@ -387,21 +388,11 @@ export const SetItemLayoutInputSchema = McpWriteOptionsSchema.extend({
 });
 export type SetItemLayoutInput = z.infer<typeof SetItemLayoutInputSchema>;
 
-export const FindItemsQuerySchema = z.object({
-  q: z.string().min(1).nullish(),
-  kind: ItemKindSchema.nullish(),
-  rank: z.string().nullish(),
-  slot: z.string().nullish(),
-  limit: z.coerce.number().int().min(1).max(200).default(20),
-});
+export const FindItemsQuerySchema = CatalogQuerySchema;
 
 export type FindItemsQuery = z.infer<typeof FindItemsQuerySchema>;
 
-export const CompareItemsInputSchema = z.object({
-  a: z.string().min(1),
-  b: z.string().min(1),
-  level: z.number().int().min(0).max(15).default(15),
-});
+export const CompareItemsInputSchema = CompareItemsQuerySchema;
 
 export type CompareItemsInput = z.infer<typeof CompareItemsInputSchema>;
 

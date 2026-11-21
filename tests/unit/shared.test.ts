@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   CHAT_PROVIDERS,
   CHAT_PROVIDER_META,
+  CatalogQuerySchema,
+  CatalogRowSchema,
   ChatModelsRequestSchema,
   ChatSettingsUpdateSchema,
   ChatTestConnectionSchema,
@@ -279,5 +281,38 @@ describe('assistant provider catalog', () => {
     expect(ChatSettingsUpdateSchema.safeParse({ apiKey: '' }).success).toBe(false);
     expect(ChatModelsRequestSchema.safeParse({ apiKey: 'stored-token' }).success).toBe(true);
     expect(ChatTestConnectionSchema.safeParse({ apiKey: 'stored-token' }).success).toBe(true);
+  });
+});
+
+describe('catalog query', () => {
+  it('defaults to the metrics view at +15 and 600 HP', () => {
+    const query = CatalogQuerySchema.parse({ kind: 'weapon' });
+    expect(query.limit).toBe(20);
+    expect(query.level).toBe(15);
+    expect(query.hp).toBe(600);
+    expect(query.include).toBe('metrics');
+  });
+
+  it('rejects a filter with no bound and a limit above 200', () => {
+    expect(CatalogQuerySchema.safeParse({ filters: [{ key: 'dps' }] }).success).toBe(false);
+    expect(CatalogQuerySchema.safeParse({ limit: 201 }).success).toBe(false);
+  });
+
+  it('keeps a metric row valid when a value is missing', () => {
+    const row = CatalogRowSchema.parse({
+      id: 1,
+      externalId: 'x',
+      name: 'АК-12',
+      nameEn: null,
+      kind: 'weapon',
+      category: 'weapon/rifle',
+      rank: 'common',
+      slot: 'primary',
+      weight: 3.8,
+      cosmetic: false,
+      icon: null,
+      metrics: { dps: null, damage: 55 },
+    });
+    expect(row.metrics?.dps).toBeNull();
   });
 });

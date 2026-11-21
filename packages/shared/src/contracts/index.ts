@@ -2,6 +2,7 @@ export * from './primitives.js';
 export * from './equipment.js';
 export * from './writes.js';
 export * from './catalog.js';
+export * from './catalog-query.js';
 export * from './identity.js';
 export * from './inventory.js';
 export * from './journal.js';
