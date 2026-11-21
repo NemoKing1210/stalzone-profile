@@ -52,6 +52,10 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- One chat thread can be deleted from the `/chat` list or the side panel after a confirmation:
+  its messages, pending write and attachment blobs are removed, the active conversation resets
+  to a fresh thread, and the audited `chat.thread.delete` event keeps only the id and counts
+  (never the title, message text or bytes). The deletion is not rollbackable.
 - Chat files have real viewers: an image thumbnail opens a full-screen carousel with a
   counter, thumbnails, arrow/keyboard navigation, zoom, download and "open original"; a text
   file opens a readable preview with copy and download; every message gains a copy action.

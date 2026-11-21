@@ -18,6 +18,7 @@ import { chatHttpStatus, turnOutcome, type TurnToast } from '~/shared/lib/chatTu
 export const useChatStore = defineStore('chat', () => {
   const { t } = useI18n();
   const { message: apiMessage } = useApiError();
+  const { write } = useWrite();
   const toast = useToast();
   const route = useRoute();
 
@@ -156,6 +157,37 @@ export const useChatStore = defineStore('chat', () => {
     await turn({ message: text, ...(files.length ? { files } : {}) });
   }
 
+  /**
+   * Deletes one thread through the audited write route. The active conversation resets to a
+   * fresh thread; a turn in flight blocks the delete so its reply cannot land in a dead thread.
+   */
+  async function deleteThread(threadId: number): Promise<boolean> {
+    if (sending.value) return false;
+    const removed = threads.value.find((thread) => thread.id === threadId);
+    const result = await write<{ dryRun: boolean }>(`/api/v1/chat/threads/${threadId}`, {
+      method: 'DELETE',
+      body: { dryRun: false },
+      silent: true,
+      reconcile: 'none',
+    });
+    if (!result) return false;
+    threads.value = threads.value.filter((thread) => thread.id !== threadId);
+    setPending(threadId, null);
+    if (activeThreadId.value === threadId) {
+      navigation += 1;
+      activeThreadId.value = null;
+      messages.value = [];
+      loadError.value = null;
+    }
+    toast.add({
+      title: t('chat.threadDeleted'),
+      description: removed?.title,
+      color: 'success',
+      icon: 'i-lucide-trash-2',
+    });
+    return true;
+  }
+
   async function confirmPending(): Promise<void> {
     const write = pending.value;
     const threadId = activeThreadId.value;
@@ -186,6 +218,7 @@ export const useChatStore = defineStore('chat', () => {
     openThread,
     newThread,
     send,
+    deleteThread,
     confirmPending,
     declinePending,
   };

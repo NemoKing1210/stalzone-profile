@@ -17,7 +17,7 @@ export type LogCategory = z.infer<typeof LogCategorySchema>;
 export type LogSource = z.infer<typeof LogSourceSchema>;
 
 /** Audit actions that cannot be rolled back; the journal UI hides the action. */
-export const NON_ROLLBACKABLE_ACTIONS = ['rollback', 'log.clear'] as const;
+export const NON_ROLLBACKABLE_ACTIONS = ['rollback', 'log.clear', 'chat.thread.delete'] as const;
 
 const ISO = z.string().datetime();
 

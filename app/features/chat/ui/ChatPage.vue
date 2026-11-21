@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import type { ChatModel, ChatModelsResult, ChatSettingsRead } from '@profile/shared/contracts';
 import { storeToRefs } from 'pinia';
-import { ProfilePane } from '~/shared/ui';
+import { ConfirmActionModal, ProfilePane } from '~/shared/ui';
 
 import { useChatStore } from '~/stores/chat';
 import { chatModelItems } from '../model/modelChoice';
 import ChatConversation from './ChatConversation.vue';
+import { useThreadDelete } from './useThreadDelete';
 
 const { t } = useI18n();
 const { formatDate } = useFormat();
@@ -17,6 +18,13 @@ useHead(() => ({ title: `${t('chat.pageTitle')} // ${t('common.appName')}` }));
 /** Threads, messages, pending confirmation and the in-flight turn live in the store. */
 const chat = useChatStore();
 const { threads, activeThreadId, sending, activeThread } = storeToRefs(chat);
+const {
+  target: deleteTarget,
+  open: deleteOpen,
+  busy: deleting,
+  ask: askDelete,
+  confirm: confirmDelete,
+} = useThreadDelete();
 
 /** The same audited `chat_settings.model` Settings -> Assistant writes; no per-thread model. */
 const chatSettings = ref<ChatSettingsRead | null>(null);
@@ -142,10 +150,10 @@ onMounted(() => {
       <ProfilePane :title="t('chat.threads')" dense>
         <p v-if="!threads.length" class="text-[12px] text-[var(--sz-text-dim)]">{{ t('chat.noThreads') }}</p>
         <ul v-else class="space-y-0.5">
-          <li v-for="thread in threads" :key="thread.id">
+          <li v-for="thread in threads" :key="thread.id" class="flex items-stretch">
             <button
               type="button"
-              class="w-full border-l-2 px-2 py-1.5 text-left text-[12px] transition-colors"
+              class="min-w-0 flex-1 border-l-2 px-2 py-1.5 text-left text-[12px] transition-colors"
               :class="
                 thread.id === activeThreadId
                   ? 'border-[var(--sz-accent)] bg-[var(--sz-surface-alt)] text-[var(--sz-text)]'
@@ -156,6 +164,16 @@ onMounted(() => {
               <span class="block truncate">{{ thread.title }}</span>
               <span class="mt-0.5 block text-[10px] text-[var(--sz-text-dim)]">{{ formatDate(thread.updatedAt) }}</span>
             </button>
+            <button
+              type="button"
+              class="flex w-7 shrink-0 items-center justify-center border-l-2 border-transparent text-[var(--sz-text-dim)] transition-colors hover:bg-[var(--sz-surface-alt)] hover:text-[var(--sz-warning-text)] disabled:opacity-40"
+              :disabled="sending"
+              :aria-label="t('chat.deleteThreadName', { title: thread.title })"
+              :title="t('chat.deleteThread')"
+              @click="askDelete(thread)"
+            >
+              <UIcon name="i-lucide-trash-2" class="size-3.5" aria-hidden="true" />
+            </button>
           </li>
         </ul>
       </ProfilePane>
@@ -164,5 +182,14 @@ onMounted(() => {
         <ChatConversation class="h-[calc(100vh-18rem)] min-h-[380px]" />
       </ProfilePane>
     </div>
+
+    <ConfirmActionModal
+      v-model:open="deleteOpen"
+      :title="t('chat.deleteThreadTitle')"
+      :description="deleteTarget ? t('chat.deleteThreadText', { title: deleteTarget.title }) : ''"
+      :confirm-label="t('chat.deleteThreadConfirm')"
+      :loading="deleting"
+      @confirm="confirmDelete"
+    />
   </section>
 </template>

@@ -1,15 +1,24 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 
+import { ConfirmActionModal } from '~/shared/ui';
 import { useAssistantPanelStore } from '~/stores/assistantPanel';
 import { useChatStore } from '~/stores/chat';
 import ChatConversation from './ChatConversation.vue';
+import { useThreadDelete } from './useThreadDelete';
 
 const panel = useAssistantPanelStore();
 const chat = useChatStore();
 const { threads, activeThreadId, activeThread, sending, pending } = storeToRefs(chat);
 const { t } = useI18n();
 const conversation = ref<{ focus: () => void } | null>(null);
+const {
+  target: deleteTarget,
+  open: deleteOpen,
+  busy: deleting,
+  ask: askDelete,
+  confirm: confirmDelete,
+} = useThreadDelete();
 
 const threadItems = computed(() => threads.value.map((thread) => ({ label: thread.title, value: thread.id })));
 const currentThreadItem = computed(() => threadItems.value.find((item) => item.value === activeThreadId.value));
@@ -97,6 +106,17 @@ async function startThread(): Promise<void> {
           @click="startThread"
         />
         <UButton
+          size="sm"
+          color="neutral"
+          variant="ghost"
+          icon="i-lucide-trash-2"
+          :aria-label="t('chat.deleteThread')"
+          :title="t('chat.deleteThread')"
+          :disabled="!activeThread || sending"
+          class="max-sm:size-11"
+          @click="askDelete(activeThread)"
+        />
+        <UButton
           to="/chat"
           size="sm"
           color="neutral"
@@ -126,4 +146,13 @@ async function startThread(): Promise<void> {
       </div>
     </template>
   </USlideover>
+
+  <ConfirmActionModal
+    v-model:open="deleteOpen"
+    :title="t('chat.deleteThreadTitle')"
+    :description="deleteTarget ? t('chat.deleteThreadText', { title: deleteTarget.title }) : ''"
+    :confirm-label="t('chat.deleteThreadConfirm')"
+    :loading="deleting"
+    @confirm="confirmDelete"
+  />
 </template>
