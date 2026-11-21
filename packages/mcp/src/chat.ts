@@ -12,10 +12,14 @@ import {
 } from '@profile/shared/contracts';
 import {
   appendChatMessage,
+  chatItemContext,
   composeChatPrompt,
   createChatThread,
   currentEventContext,
+  dedupeChatRefs,
   deleteChatMessagesAfter,
+  extractChatRefs,
+  getChatMessageRefs,
   getChatMessageRow,
   getChatSettingsRow,
   getChatThread,
@@ -23,14 +27,18 @@ import {
   listChatAttachmentData,
   listChatMessages,
   listChatThreads,
+  mentionRefsFromText,
   prepareChatAttachment,
+  readChatPins,
   resolveApiKey,
   resolveBaseUrl,
+  resolveChatRefs,
   setChatMessageError,
   toChatSettings,
   type ChatAttachmentData,
   type Db,
 } from '@profile/core';
+import type { ChatItemRef, ChatPin } from '@profile/shared/contracts';
 import { localClient, type ProfileClient } from './client.js';
 import { createProfileServer, isWriteTool, toolDefinitions, writeLimiter } from './registry.js';
 
@@ -223,6 +231,13 @@ function providerSession(thread: { id: number; createdAt: string }): string {
   return `ses_${createHash('sha256').update(`${thread.id}:${thread.createdAt}`).digest('hex').slice(0, 32)}`;
 }
 
+/** Explicit refs first, then hand-typed tokens the turn can resolve exactly. */
+function turnRefs(db: Db, input: ChatSend, pins: readonly ChatPin[]): ChatItemRef[] {
+  const explicit = resolveChatRefs(db, input.refs ?? [], input.message);
+  const known = new Set([...pins.map((pin) => pin.token), ...explicit.map((ref) => ref.token)]);
+  return dedupeChatRefs([...explicit, ...mentionRefsFromText(db, input.message, known)]);
+}
+
 /**
  * One assistant turn: compose the active prompt, call the provider, run read tools freely and
  * pause on the first write with its dry-run diff. Nothing here writes profile data directly;
@@ -280,12 +295,15 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
     throw new Error('thread not found');
   }
 
+  const pins = readChatPins(db);
+  const userRefs = retryMessage ? getChatMessageRefs(db, retryMessage.id) : turnRefs(db, input, pins);
   const userMessageId =
     retryMessage?.id ??
     appendChatMessage(db, {
       threadId,
       role: 'user',
       content: input.message,
+      refs: userRefs,
       attachments,
     });
   const userMessage = listChatMessages(db, threadId).at(-1);
@@ -329,7 +347,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
   const images = storedFiles
     .filter((file) => chatFileKind(file.name, file.mimeType) === 'image')
     .map((file) => ({ mimeType: file.mimeType, data: file.data.toString('base64') }));
-  const system = composeChatPrompt(db);
+  const system = composeChatPrompt(db) + chatItemContext(db, pins, userRefs);
   const session = providerSession(thread);
   const pendingWrite = input.confirm?.toolName ? { name: input.confirm.toolName, args: input.confirm.args } : null;
 
@@ -389,6 +407,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
           threadId,
           role: 'assistant',
           content: result.reply.text.trim(),
+          refs: extractChatRefs(result.reply.text.trim(), [...pins, ...userRefs]),
           reasoning: result.reply.reasoning.trim() || null,
           meta: {
             model: settings.model,

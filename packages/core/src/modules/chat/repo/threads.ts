@@ -83,6 +83,16 @@ function stored(row: ChatAttachmentRow): ChatAttachmentData {
   };
 }
 
+function parseRefs(raw: string | null): ChatItemRef[] {
+  if (!raw) return [];
+  try {
+    const parsed = ChatItemRefSchema.array().safeParse(JSON.parse(raw));
+    return parsed.success ? parsed.data : [];
+  } catch {
+    return [];
+  }
+}
+
 function message(row: ChatMessageRow, attachments: ChatAttachment[] = []): ChatMessage {
   let payload: unknown = null;
   if (row.payload) {
@@ -100,15 +110,7 @@ function message(row: ChatMessageRow, attachments: ChatAttachment[] = []): ChatM
       meta = null;
     }
   }
-  let refs: ChatItemRef[] = [];
-  if (row.refs) {
-    try {
-      const parsed = ChatItemRefSchema.array().safeParse(JSON.parse(row.refs));
-      if (parsed.success) refs = parsed.data;
-    } catch {
-      refs = [];
-    }
-  }
+  const refs = parseRefs(row.refs);
   return {
     id: row.id,
     threadId: row.thread_id,
@@ -136,6 +138,12 @@ export function listChatThreads(db: Db): ChatThread[] {
 
 export function getChatMessageRow(db: Db, id: number): ChatMessageRow | null {
   return (db.prepare(`SELECT * FROM chat_message WHERE id = ?`).get(id) as ChatMessageRow | undefined) ?? null;
+}
+
+/** The refs of one stored message, for a retry that must keep its identities. */
+export function getChatMessageRefs(db: Db, id: number): ChatItemRef[] {
+  const row = getChatMessageRow(db, id);
+  return row ? parseRefs(row.refs) : [];
 }
 
 /** `null` clears a marker after a successful delivery; the caller holds the turn. */

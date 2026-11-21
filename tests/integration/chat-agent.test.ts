@@ -7,11 +7,13 @@ import {
   closeDb,
   createChatThread,
   ensureDefaultSources,
+  findItemByKindName,
   flushLogs,
   listEvents,
   migrate,
   openDb,
   queryLogs,
+  replaceChatPins,
   runWithEventContext,
   updateChatSettings,
   type Db,
@@ -19,6 +21,7 @@ import {
 import { runChatTurn, toolDefinitions } from '@profile/mcp';
 import { CHAT_PROVIDER_META, ChatSettingsUpdateSchema, type ChatProvider } from '@profile/shared/contracts';
 import { setChatSettings } from './chat-test-helpers';
+import { seedCatalog } from '../fixtures/seed';
 
 let dir: string;
 let db: Db;
@@ -55,6 +58,15 @@ const screenshot = {
   mimeType: 'image/png',
   data: Buffer.from(png).toString('base64'),
 };
+
+/** The system message of an OpenAI-compatible request, without trusting an unchecked shape. */
+function openAiSystem(body: string): string {
+  const parsed: unknown = JSON.parse(body);
+  if (!parsed || typeof parsed !== 'object' || !('messages' in parsed) || !Array.isArray(parsed.messages)) return '';
+  const first = parsed.messages[0];
+  if (!first || typeof first !== 'object' || !('content' in first) || typeof first.content !== 'string') return '';
+  return first.content;
+}
 
 function toolCall(name: string, args: Record<string, unknown>, id = 'call-1') {
   return { choices: [{ message: { content: '', tool_calls: [{ id, type: 'function', function: { name, arguments: JSON.stringify(args) } }] } }] };
@@ -498,6 +510,50 @@ describe('chat agent', () => {
     await runChatTurn(db, { message: 'Look', files: [screenshot] }, { fetchImpl: googleFetch });
     expect(googleBodies[0]).toContain('"inlineData"');
     expect(googleBodies[0]).toContain('"mimeType":"image/png"');
+  });
+
+  it('sends every pinned item and stores the refs an answer names', async () => {
+    setChatSettings(db);
+    seedCatalog(db);
+    const ak = findItemByKindName(db, 'weapon', 'АК-12');
+    const ks = findItemByKindName(db, 'weapon', 'KS-1');
+    if (!ak || !ks) throw new Error('fixture weapons missing');
+    replaceChatPins(db, [{ kind: 'weapon', itemId: ak.id }]);
+
+    const bodies: string[] = [];
+    const fetchImpl = (async (_url: string, init: RequestInit) => {
+      bodies.push(String(init.body));
+      return json({ choices: [{ message: { content: 'Смотри @weapon:ак-12' } }] });
+    }) as unknown as typeof fetch;
+
+    const result = await runChatTurn(
+      db,
+      { message: 'сравни @weapon:ks-1', refs: [{ token: '@weapon:ks-1', kind: 'weapon', itemId: ks.id }] },
+      { fetchImpl },
+    );
+
+    const system = openAiSystem(bodies[0]!);
+    expect(system).toContain('## Pinned items');
+    expect(system).toContain('@weapon:ак-12');
+    expect(system).toContain(`catalog ${ak.id}`);
+    expect(system).toContain('## Referenced items');
+    expect(system).toContain('@weapon:ks-1');
+    expect(system).not.toContain('Рюкзак');
+
+    expect(result.messages.find((message) => message.role === 'user')?.refs.map((ref) => ref.token)).toEqual([
+      '@weapon:ks-1',
+    ]);
+    expect(result.messages.at(-1)?.refs.map((ref) => ref.token)).toEqual(['@weapon:ак-12']);
+  });
+
+  it('does not store a ref for a token the turn never provided', async () => {
+    setChatSettings(db);
+    const fetchImpl = (async () =>
+      json({ choices: [{ message: { content: 'Смотри @weapon:нет-такого' } }] })) as unknown as typeof fetch;
+
+    const result = await runChatTurn(db, { message: 'привет' }, { fetchImpl });
+
+    expect(result.messages.at(-1)?.refs).toEqual([]);
   });
 
   it('logs every tool call and the finished turn under the turn request id', async () => {

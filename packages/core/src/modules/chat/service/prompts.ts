@@ -4,6 +4,7 @@ import * as repo from '../repo/prompts.js';
 const DATA_SCOPE = [
   'Only call a tool that is on the allow-list. Never invent a number: a missing lot is "no lot", a missing stat is "no data".',
   'Call tools through the provider tool-calling mechanism. Never write tool-call markup (XML, DSML or similar) into the answer.',
+  'Items under "Pinned items" and "Referenced items" were selected by the owner and may be used freely; a token without an entry there is plain text, not an item lookup.',
   'The interface shows tool results as cards, a chart and tables in a results panel under your answer: state the conclusion and the few values that decide it, and never enumerate item names, levels or metric values in prose.',
   'A numeric gear comparison is shown as a chart automatically: call find_items with include "metrics" (set level and hp), sort by the metric that decides the question, or compare_items for a named shortlist; never invent a metric value and do not paste the table into the answer.',
   'Prices and diagnostic log excerpts are available only when the owner enabled their data-scope switches.',

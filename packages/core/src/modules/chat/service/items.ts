@@ -112,6 +112,19 @@ function refOf(item: ResolvedItem, token: string): ChatItemRef {
   };
 }
 
+/** One entry per identity, first wins; pins and explicit refs can name the same item. */
+export function dedupeChatRefs(refs: readonly ChatItemRef[]): ChatItemRef[] {
+  const seen = new Set<string>();
+  const out: ChatItemRef[] = [];
+  for (const ref of refs) {
+    const key = identity(ref.kind, ref.itemId, ref.instanceId);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(ref);
+  }
+  return out;
+}
+
 function targetOf(item: ResolvedItem): ChatPinTarget {
   return {
     kind: item.kind,
