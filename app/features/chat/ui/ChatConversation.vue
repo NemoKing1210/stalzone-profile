@@ -443,6 +443,10 @@ function onKeydown(event: KeyboardEvent): void {
       closeMenu();
       return;
     }
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight' || event.key === 'Home' || event.key === 'End') {
+      // The caret moves after this handler; re-read it once the browser applied the key.
+      void nextTick(updateMenu);
+    }
     return;
   }
   if (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
@@ -656,6 +660,7 @@ defineExpose({ focus });
             aria-autocomplete="list"
             :aria-controls="listId"
             :aria-expanded="menuOpen"
+            :aria-activedescendant="menuOpen ? `${listId}-${menuActive}` : undefined"
             @submit="send"
             @keydown="onKeydown"
             @click="updateMenu"

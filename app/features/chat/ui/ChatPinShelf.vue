@@ -13,6 +13,7 @@ function keyOf(pin: ChatPin): string {
 <template>
   <div
     class="flex items-center gap-1.5 overflow-x-auto border-b border-[var(--sz-border)] px-2 py-1.5"
+    role="group"
     :aria-label="t('chat.pins.title')"
   >
     <UIcon name="i-lucide-pin" class="size-3.5 shrink-0 text-[var(--sz-accent)]" aria-hidden="true" />

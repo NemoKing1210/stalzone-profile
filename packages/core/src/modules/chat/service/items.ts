@@ -252,7 +252,10 @@ export function mentionRefsFromText(
 function factLine(db: Db, ref: ChatItemRef): string {
   const item = getItemById(db, ref.itemId);
   if (!item) return '';
-  const name = ref.name.length > 120 ? `${ref.name.slice(0, 119)}…` : ref.name;
+  // A catalog name is game data, but the prompt is a line-oriented block: collapse any
+  // whitespace so a crafted name cannot open a new section or break the fact line.
+  const rawName = ref.name.replace(/\s+/gu, ' ').trim();
+  const name = rawName.length > 120 ? `${rawName.slice(0, 119)}…` : rawName;
   const level = ref.instanceId == null ? 15 : (ref.level ?? 0);
   const metrics = Object.entries(metricRow({ item, rows: itemStats(db, item.id), level, hp: 600 }))
     .filter(([, value]) => value != null)
