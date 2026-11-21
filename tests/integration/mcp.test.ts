@@ -554,3 +554,42 @@ describe('MCP item detail', () => {
     expect(item.item.modifications?.items.map((entry) => entry.name)).toContain('Прицел');
   });
 });
+
+describe('MCP instance, freshness and tidy', () => {
+  it('reads one inventory instance with its children', async () => {
+    const result = await callTool('get_inventory_item', { item_id: seeded.instanceIds.backpack });
+    const item = result.structuredContent as {
+      item: { id: number; artifacts?: { name: string }[]; card?: unknown };
+    };
+    expect(item.item.id).toBe(seeded.instanceIds.backpack);
+    expect(item.item.card).toBeTruthy();
+    expect(item.item.artifacts?.map((entry) => entry.name)).toContain('Нервяк');
+  });
+
+  it('answers INSTANCE_NOT_FOUND for an unknown instance', async () => {
+    const result = await callTool('get_inventory_item', { item_id: 99_999 });
+    expect(result.isError).toBe(true);
+  });
+
+  it('returns catalog freshness', async () => {
+    const result = await callTool('get_meta', {});
+    const body = result.structuredContent as { catalogMeta: { items: number } };
+    expect(body.catalogMeta.items).toBeGreaterThan(0);
+  });
+
+  it('tidies a stash only after confirmation', async () => {
+    const preview = await callTool('tidy_storage', {
+      storage_id: seeded.storageIds.stash,
+      order: 'name',
+    });
+    expect(preview.isError).not.toBe(true);
+    const real = await callTool('tidy_storage', {
+      storage_id: seeded.storageIds.stash,
+      order: 'name',
+      dry_run: false,
+      confirm: true,
+    });
+    expect(real.isError).not.toBe(true);
+    expect((real.structuredContent as { dryRun: boolean }).dryRun).toBe(false);
+  });
+});
