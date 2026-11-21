@@ -35,6 +35,30 @@ task gives a reason not to, and say what you chose. Commands, paths, module list
 counts drift; when this file disagrees with `package.json`, the code or the tests, the code
 is the truth until the file is fixed in the same change.
 
+## Effort matches the ask
+
+The tiers below say how to verify; this section says how much process a task is worth. A
+simple ask gets a simple run: read what the task names, change it, run the one check that
+can fail because of it, report. No plan, no brainstorm, no subagent, no review pass, no
+design document and no full gate unless the change actually needs one.
+
+- **One check, once.** A green run of the covering check is the proof. Do not rerun the same
+  command to "confirm", re-read your applied edit, or poll a job.
+- **Ceremony scales with risk.** A spacing, colour, copy or docs edit is one edit batch and
+  one check; `npm run check`, `npm run build`, `npm run golden` and `npm run smoke:mcp`
+  belong to the changes the tier table names, not to every edit. A template/CSS tweak needs
+  `npm run typecheck` only when it changes script logic, plus one look at the affected state.
+- **No speculative work.** No refactoring neighbours, no new abstraction, test or doc the
+  change does not need, no "improve while here". Code your change makes obsolete is in
+  scope; everything else is a separate ask.
+- **Appearance is not behaviour.** CSS, spacing, copy and template-only changes need no new
+  test; behaviour and contract changes keep RED → GREEN.
+- **A foreign red tree is information, not a quest.** When unrelated uncommitted work breaks
+  the tree, say so in one line, verify what can be verified, and finish the asked change.
+  Isolate only when the answer truly depends on that check.
+- **Stop at the requested outcome.** Report what changed, what you ran and any real gap. No
+  follow-up scope, no "next steps".
+
 ## Commands
 
 | Task                              | Command                                                                      |
@@ -72,7 +96,8 @@ until the wizard (or `POST /api/v1/character`) creates one.
 Testing is tiered by stage and risk. Running the full gate after every edit wastes time;
 running one focused test alone proves nothing. Move up a tier only when the previous one is
 green. The tiers are the default cadence, not a ritual: a throwaway spike, a read-only
-investigation or a docs-only change may skip them — say what you skipped and why.
+investigation, a docs-only change or a visual-only tweak may skip them — say what you skipped
+and why.
 Correctness and the hard invariants are never optional.
 
 | Tier                               | When                                    | What to run                                                     |
@@ -206,11 +231,11 @@ of them. The owner sets the priorities; the rules below define what counts as re
   change is named in the reply and in `CHANGELOG.md`, never passed off as a side effect.
 - **Review the result.** Read your own diff against the plan — the `TODO.md` entry or the
   linked design — covering contracts, invariants, error paths, rollback, tests and docs
-  before reporting completion. Interface work (screens, components, layout, i18n)
-  additionally gets a manual pass in a browser over the affected pages and states, both
-  locales and narrow widths; typecheck and lint are not a review.
-  When a review skill or subagent is available, use it — review is evidence, not a rubber
-  stamp.
+  before reporting completion. A new screen or a changed layout gets a manual pass in a
+  browser over the affected pages and states, both locales and narrow widths; a spacing,
+  colour or copy tweak gets one look at the affected state. Typecheck and lint are not a
+  review. When a review skill or subagent is available, use it for a large or risky change —
+  not for a one-file fix, where it is pure delay.
 - **Close it in the same change.** Tick the box, add the `CHANGELOG.md` entry and append
   the line to `Done` with the commit subject. A task is done when the tier ran green and
   the documentation moved, not when the code exists.
@@ -307,9 +332,10 @@ hard invariant or deleting data needs an explicit owner decision. Record it in t
 **Commit every finished task.** A task is finished when its Tier 2 checks are green and its
 docs, `CHANGELOG.md` and `TODO.md` entries have moved; at that point make the commit — do not
 leave finished work uncommitted, and do not batch several finished tasks into one commit.
-One task is one Conventional Commit (`feat(scope): …`, `fix: …`, `docs: …`) containing only
-that task's files: with other uncommitted work in the tree, stage the task's lines, not
-everything in the file.
+A small fix carries one `CHANGELOG.md` line; a `TODO.md` entry exists only when the work came
+from the queue. One task is one Conventional Commit (`feat(scope): …`, `fix: …`, `docs: …`)
+containing only that task's files: with other uncommitted work in the tree, stage the task's
+lines, not everything in the file.
 
 **New route.** Request/response schema in `packages/shared/src/contracts/**`; the route in
 `server/api/v1/**` only calls `requireSession`/`requireOrigin`, `zod.parse`, the module's
