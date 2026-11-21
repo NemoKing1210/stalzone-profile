@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { RankBadge } from '~/entities/item';
+import { ItemIconFallback, RankBadge, VirtualBadge } from '~/entities/item';
 import { chatToolView } from '../model/render';
 
 const props = defineProps<{ toolName: string; payload: unknown }>();
@@ -19,7 +19,7 @@ const view = computed(() => chatToolView(props.toolName, props.payload));
         class="flex min-w-0 items-center gap-2 border border-[var(--sz-border)] px-2 py-1.5"
       >
         <img v-if="item.icon" :src="item.icon" alt="" width="22" height="22" loading="lazy" class="size-[22px] object-contain">
-        <span v-else class="text-[var(--sz-text-dim)]">—</span>
+        <ItemIconFallback v-else :size="16" />
         <span class="min-w-0 flex-1 truncate">{{ item.name }}</span>
         <RankBadge v-if="item.rank" :rank="item.rank" />
       </div>
@@ -53,7 +53,7 @@ const view = computed(() => chatToolView(props.toolName, props.payload));
       </thead>
       <tbody>
         <tr v-for="(row, index) in view.rows" :key="`${row.name}-${index}`" class="border-t border-[var(--sz-border)]">
-          <td class="py-0.5">{{ row.name }}</td>
+          <td class="py-0.5"><span class="inline-flex items-center gap-1">{{ row.name }}<VirtualBadge v-if="row.virtual" /></span></td>
           <td class="py-0.5 text-right tabular-nums">{{ row.level }}</td>
           <td class="py-0.5 text-right tabular-nums">{{ row.qty }}</td>
           <td class="py-0.5">{{ row.location }}</td>

@@ -32,7 +32,7 @@ export function tidyStorage(db: Db, storageId: number, input: TidyStorage): Writ
       name: row.display_name ?? row.item_name,
       rank: row.item_rank,
       size: itemSize(db, row),
-      original: { x: placement.x, y: placement.y, rotated: placement.rotated === 1 },
+      original: { x: placement.x, y: placement.y },
     });
   }
 
@@ -55,7 +55,7 @@ export function tidyStorage(db: Db, storageId: number, input: TidyStorage): Writ
         return {
           itemId,
           placement: next
-            ? { location: 'grid', storageId, x: next.x, y: next.y, rotated: next.rotated }
+            ? { location: 'grid', storageId, x: next.x, y: next.y }
             : placementSnapshot(placement),
         };
       }),
@@ -66,7 +66,7 @@ export function tidyStorage(db: Db, storageId: number, input: TidyStorage): Writ
     const current = originals.get(entry.id);
     return (
       current != null &&
-      (current.x !== entry.x || current.y !== entry.y || current.rotated !== (entry.rotated ? 1 : 0))
+      (current.x !== entry.x || current.y !== entry.y)
     );
   });
   const human = moves.length
@@ -93,7 +93,6 @@ export function tidyStorage(db: Db, storageId: number, input: TidyStorage): Writ
         storageId,
         x: entry.x,
         y: entry.y,
-        rotated: entry.rotated,
       });
     }
     eventId = logEvent(db, {

@@ -10,6 +10,7 @@ export type PaletteCommandAction =
   | 'toggle-theme'
   | 'toggle-locale'
   | 'toggle-density'
+  | 'open-assistant'
   | 'select-stash';
 
 export type PaletteGroup = 'navigate' | 'character' | 'data' | 'items' | 'appearance' | 'stashes';
@@ -138,6 +139,14 @@ export function paletteCommands(context: PaletteContext): PaletteCommand[] {
       action: 'add-item',
       write: true,
       confirm: true,
+    },
+    {
+      id: 'assistant.open',
+      group: 'data',
+      label: t('palette.openAssistant'),
+      icon: 'i-lucide-sparkles',
+      keywords: 'assistant chat ai panel',
+      action: 'open-assistant',
     },
     {
       id: 'appearance.theme',

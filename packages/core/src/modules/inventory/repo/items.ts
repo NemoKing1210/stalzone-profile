@@ -11,6 +11,7 @@ export interface InventoryItemRow {
   rarity_tier: string | null;
   skin_item_id: number | null;
   qty: number;
+  is_virtual: number;
   display_name: string | null;
   slot: string | null;
   created_at: string;
@@ -39,6 +40,7 @@ export interface InventoryItemInput {
   rarityTier?: string | null;
   skinItemId?: number | null;
   qty?: number;
+  virtual?: boolean;
   displayName?: string | null;
   slot?: string | null;
 }
@@ -49,9 +51,9 @@ export function insertInventoryItem(db: Db, input: InventoryItemInput): number {
     .prepare(
       `INSERT INTO inventory_item
         (character_id, item_id, kind, level, quality, rarity_pct, rarity_tier, skin_item_id, qty,
-         display_name, slot, created_at, updated_at)
+         is_virtual, display_name, slot, created_at, updated_at)
        VALUES (@character_id, @item_id, @kind, @level, @quality, @rarity_pct, @rarity_tier, @skin_item_id, @qty,
-         @display_name, @slot, @created_at, @updated_at)`,
+         @is_virtual, @display_name, @slot, @created_at, @updated_at)`,
     )
     .run({
       character_id: input.characterId,
@@ -63,6 +65,7 @@ export function insertInventoryItem(db: Db, input: InventoryItemInput): number {
       rarity_tier: input.rarityTier ?? null,
       skin_item_id: input.skinItemId ?? null,
       qty: Math.max(1, Math.trunc(input.qty ?? 1)),
+      is_virtual: input.virtual ? 1 : 0,
       display_name: input.displayName ?? null,
       slot: input.slot ?? null,
       created_at: now,
@@ -93,12 +96,13 @@ export function getInventoryItem(db: Db, id: number): InventoryItemJoined | null
 export function listInventoryItems(
   db: Db,
   characterId: number,
-  filter: { kind?: string; location?: string; storageId?: number } = {},
+  filter: { kind?: string; location?: string; storageId?: number; virtual?: boolean } = {},
 ): InventoryItemJoined[] {
   const where = ['o.character_id = @characterId'];
   if (filter.kind) where.push('o.kind = @kind');
   if (filter.location) where.push('p.location = @location');
   if (filter.storageId != null) where.push('p.storage_id = @storageId');
+  if (filter.virtual != null) where.push('o.is_virtual = @virtual');
   return db
     .prepare(
       `SELECT ${JOIN_COLUMNS} ${JOIN_TABLES}
@@ -111,6 +115,7 @@ export function listInventoryItems(
       kind: filter.kind ?? null,
       location: filter.location ?? null,
       storageId: filter.storageId ?? null,
+      virtual: filter.virtual == null ? null : filter.virtual ? 1 : 0,
     }) as InventoryItemJoined[];
 }
 
@@ -142,7 +147,15 @@ export function updateInventoryItemRow(
   patch: Partial<
     Pick<
       InventoryItemRow,
-      'level' | 'quality' | 'rarity_pct' | 'rarity_tier' | 'skin_item_id' | 'qty' | 'display_name' | 'slot'
+      | 'level'
+      | 'quality'
+      | 'rarity_pct'
+      | 'rarity_tier'
+      | 'skin_item_id'
+      | 'qty'
+      | 'is_virtual'
+      | 'display_name'
+      | 'slot'
     >
   >,
 ): void {
@@ -154,6 +167,7 @@ export function updateInventoryItemRow(
     'rarity_tier',
     'skin_item_id',
     'qty',
+    'is_virtual',
     'display_name',
     'slot',
   ] as const) {
@@ -180,10 +194,10 @@ export function restoreInventoryItemRow(db: Db, row: InventoryItemRow): void {
   db.prepare(
     `INSERT INTO inventory_item
       (id, character_id, item_id, kind, level, quality, rarity_pct, rarity_tier, skin_item_id, qty,
-       display_name, slot, created_at, updated_at)
+       is_virtual, display_name, slot, created_at, updated_at)
      VALUES
       (@id, @character_id, @item_id, @kind, @level, @quality, @rarity_pct, @rarity_tier, @skin_item_id, @qty,
-       @display_name, @slot, @created_at, @updated_at)
+       @is_virtual, @display_name, @slot, @created_at, @updated_at)
      ON CONFLICT(id) DO UPDATE SET
        character_id = excluded.character_id,
        item_id = excluded.item_id,
@@ -194,6 +208,7 @@ export function restoreInventoryItemRow(db: Db, row: InventoryItemRow): void {
        rarity_tier = excluded.rarity_tier,
        skin_item_id = excluded.skin_item_id,
        qty = excluded.qty,
+       is_virtual = excluded.is_virtual,
        display_name = excluded.display_name,
        slot = excluded.slot,
        updated_at = excluded.updated_at`,

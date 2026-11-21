@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import type { InventoryItemRead, ModuleSlot } from '@profile/shared/contracts';
+import type { DamagePoint, InventoryItemRead, ModuleSlot } from '@profile/shared/contracts';
 
-import { RankBadge, RarityName } from '~/entities/item';
+import { ItemIconFallback, RankBadge, RarityName, VirtualBadge } from '~/entities/item';
 import { MODAL_WIDTH } from '~/shared/lib/modalWidth';
 import { rarityTierForPct } from '@profile/shared/ranks';
 
 import { detailRows } from '../model/details';
 import { itemFormFields } from '../model/itemForm';
 import ContainerPanel from './grid/ContainerPanel.vue';
+import DamageFalloffChart from './DamageFalloffChart.vue';
 import WeaponPanel from './grid/WeaponPanel.vue';
 
 const props = withDefaults(
@@ -53,6 +54,7 @@ const icon = computed(() => props.item?.icon ?? (typeof props.row?.icon === 'str
 const rank = computed(() => props.item?.rank ?? (typeof props.row?.rank === 'string' ? props.row.rank : null));
 const level = computed(() => props.item?.level ?? (typeof props.row?.lvl === 'number' ? props.row.lvl : null));
 const category = computed(() => props.item?.category ?? (typeof props.row?.type === 'string' ? props.row.type : null));
+const virtual = computed(() => props.item?.virtual ?? props.row?.virtual === true);
 
 interface ArtifactEntry {
   name: string;
@@ -72,6 +74,12 @@ const containerArtifacts = computed<ArtifactEntry[]>(() => {
   });
 });
 
+/** Both owned and catalog weapons read the curve from the card the screen already has. */
+const falloffCard = computed(
+  () =>
+    (props.card ?? props.item?.card ?? null) as { p0?: DamagePoint | null; p15?: DamagePoint | null } | null,
+);
+
 const rows = computed(() =>
   detailRows(props.kind, {
     item: props.item,
@@ -89,7 +97,7 @@ function format(key: string, value: string | number): string {
 }
 
 /** Instances can be edited in place; a catalog row only opens the owned editor. */
-const form = reactive({ level: 0, qty: 1, rarityPct: null as number | null });
+const form = reactive({ level: 0, qty: 1, rarityPct: null as number | null, virtual: false });
 const fields = computed(() => itemFormFields(props.item?.kind ?? ''));
 const rarityTier = computed(() => rarityTierForPct(form.rarityPct));
 
@@ -98,6 +106,7 @@ function fillForm(): void {
   form.level = props.item.level;
   form.qty = props.item.qty;
   form.rarityPct = props.item.rarityPct;
+  form.virtual = props.item.virtual;
 }
 
 watch(() => props.item, fillForm, { immediate: true });
@@ -108,6 +117,7 @@ const changed = computed(() => {
   if (fields.value.level && Math.trunc(form.level) !== item.level) return true;
   if (fields.value.qty && Math.trunc(form.qty) !== item.qty) return true;
   if (fields.value.rarity && form.rarityPct !== item.rarityPct) return true;
+  if (form.virtual !== item.virtual) return true;
   return false;
 });
 
@@ -124,6 +134,7 @@ function save(): void {
     if (qty !== item.qty) patch.qty = qty;
   }
   if (fields.value.rarity && form.rarityPct !== item.rarityPct) patch.rarityPct = form.rarityPct;
+  if (form.virtual !== item.virtual) patch.virtual = form.virtual;
   if (Object.keys(patch).length) emit('update', patch);
 }
 
@@ -155,10 +166,10 @@ function confirmRemove(): void {
               class="max-h-12 max-w-full object-contain"
               loading="lazy"
             >
-            <UIcon v-else name="i-lucide-package" class="size-6 text-[var(--sz-text-dim)]" />
+            <ItemIconFallback v-else :size="24" />
           </span>
           <div class="min-w-0 flex-1">
-            <p><RarityName :name="props.name" :rank="rank" size="lg" /></p>
+            <p class="flex flex-wrap items-center gap-1.5"><RarityName :name="props.name" :rank="rank" size="lg" /><VirtualBadge v-if="virtual" /></p>
             <p class="text-[11px] text-[var(--sz-text-muted)]">
               {{ category ?? props.kind }}
               <span v-if="level != null">{{ t('items.level', { level }) }}</span>
@@ -189,6 +200,13 @@ function confirmRemove(): void {
           </li>
         </ul>
 
+        <DamageFalloffChart
+          v-if="props.kind === 'weapon' && falloffCard"
+          class="border-t border-[var(--sz-border)] pt-2"
+          :p0="falloffCard.p0"
+          :p15="falloffCard.p15"
+        />
+
         <div v-if="props.item && props.item.kind === 'weapon'" class="[&_header]:hidden">
           <WeaponPanel
             :weapon="props.item"
@@ -209,6 +227,7 @@ function confirmRemove(): void {
         <section v-if="props.item" class="space-y-2 border-t border-[var(--sz-border)] pt-2">
           <h3 class="sz-caps text-[10.5px] text-[var(--sz-text-muted)]">{{ t('inventory.instanceSettings') }}</h3>
           <div class="grid grid-cols-2 gap-2">
+            <USwitch v-model="form.virtual" class="col-span-2" :label="t('forms.virtual')" />
             <label v-if="fields.level" class="block text-[11px] text-[var(--sz-text-muted)]">
               {{ t('inventory.level') }}
               <UInput v-model.number="form.level" type="number" size="xs" class="mt-0.5 w-full" :min="0" :max="15" />

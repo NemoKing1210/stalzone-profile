@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { InventoryItemRead } from '@profile/shared/contracts';
 
+import { ItemIconFallback, VirtualBadge } from '~/entities/item';
 import { useGridDragContext } from './drag-context';
 
 const props = withDefaults(
@@ -116,7 +117,8 @@ const summary = computed(() => {
               class="h-7 max-w-full object-contain"
               loading="lazy"
             >
-            <UIcon v-else name="i-lucide-gem" class="size-4 text-[var(--sz-text-dim)]" />
+            <ItemIconFallback v-else :size="24" />
+            <VirtualBadge v-if="artifactAt(index)!.virtual" class="absolute left-0.5 top-0.5" />
             <span class="line-clamp-1 text-[10px] leading-tight">{{ artifactAt(index)!.name }}</span>
             <button
               type="button"
@@ -143,8 +145,9 @@ const summary = computed(() => {
             @click="place(artifact.id)"
           >
             <img v-if="artifact.icon" :src="artifact.icon" :alt="artifact.name" class="h-4 w-4 object-contain" loading="lazy">
-            <UIcon v-else name="i-lucide-gem" class="size-3 text-[var(--sz-text-dim)]" />
+            <ItemIconFallback v-else :size="12" />
             {{ artifact.name }}
+            <VirtualBadge v-if="artifact.virtual" />
           </button>
         </div>
       </div>

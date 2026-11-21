@@ -4,6 +4,7 @@ import {
   CreateStorageInputSchema,
   DeleteStorageSchema,
   InventoryItemCreateSchema,
+  InventoryItemPatchSchema,
   McpPlacementTargetSchema,
   PlacementTargetSchema,
   StorageCreateSchema,
@@ -30,6 +31,11 @@ describe('write contracts', () => {
     expect(StorageCreateSchema.parse({ name: 'Stash' }).dryRun).toBe(false);
     expect(StorageCreateSchema.parse({ name: 'Stash', width: 4, height: 4 })).not.toHaveProperty('width');
     expect(InventoryItemCreateSchema.parse({ name: 'АК-12', kind: 'weapon' }).dryRun).toBe(false);
+  });
+  it('defaults the virtual mark off and keeps it optional in a patch', () => {
+    expect(InventoryItemCreateSchema.parse({ name: 'АК-12', kind: 'weapon' }).virtual).toBe(false);
+    expect(InventoryItemCreateSchema.parse({ name: 'АК-12', kind: 'weapon', virtual: true }).virtual).toBe(true);
+    expect(InventoryItemPatchSchema.parse({ virtual: true }).virtual).toBe(true);
   });
   it('rejects a rarity outside 0..175', () => {
     expect(() => InventoryItemCreateSchema.parse({ name: 'X', kind: 'artifact', rarityPct: 176 })).toThrow();

@@ -9,7 +9,6 @@ export interface PlacementRow {
   storage_id: number | null;
   x: number | null;
   y: number | null;
-  rotated: number;
   equipment_slot: string | null;
   container_item_id: number | null;
   container_slot: number | null;
@@ -26,7 +25,6 @@ export interface PlacementInput {
   storageId?: number | null;
   x?: number | null;
   y?: number | null;
-  rotated?: boolean;
   equipmentSlot?: string | null;
   containerItemId?: number | null;
   containerSlot?: number | null;
@@ -38,10 +36,10 @@ export interface PlacementInput {
 export function upsertPlacement(db: Db, input: PlacementInput): void {
   db.prepare(
     `INSERT INTO item_placement
-      (item_id, character_id, location, storage_id, x, y, rotated, equipment_slot,
+      (item_id, character_id, location, storage_id, x, y, equipment_slot,
        container_item_id, container_slot, weapon_item_id, module_slot, verified, updated_at)
      VALUES
-      (@item_id, @character_id, @location, @storage_id, @x, @y, @rotated, @equipment_slot,
+      (@item_id, @character_id, @location, @storage_id, @x, @y, @equipment_slot,
        @container_item_id, @container_slot, @weapon_item_id, @module_slot, @verified, @updated_at)
      ON CONFLICT(item_id) DO UPDATE SET
        character_id = excluded.character_id,
@@ -49,7 +47,6 @@ export function upsertPlacement(db: Db, input: PlacementInput): void {
        storage_id = excluded.storage_id,
        x = excluded.x,
        y = excluded.y,
-       rotated = excluded.rotated,
        equipment_slot = excluded.equipment_slot,
        container_item_id = excluded.container_item_id,
        container_slot = excluded.container_slot,
@@ -64,7 +61,6 @@ export function upsertPlacement(db: Db, input: PlacementInput): void {
     storage_id: input.storageId ?? null,
     x: input.x ?? null,
     y: input.y ?? null,
-    rotated: input.rotated ? 1 : 0,
     equipment_slot: input.equipmentSlot ?? null,
     container_item_id: input.containerItemId ?? null,
     container_slot: input.containerSlot ?? null,
@@ -101,10 +97,10 @@ export function deletePlacement(db: Db, itemId: number): void {
 export function restorePlacementRow(db: Db, row: PlacementRow): void {
   db.prepare(
     `INSERT INTO item_placement
-      (item_id, character_id, location, storage_id, x, y, rotated, equipment_slot,
+      (item_id, character_id, location, storage_id, x, y, equipment_slot,
        container_item_id, container_slot, weapon_item_id, module_slot, verified, updated_at)
      VALUES
-      (@item_id, @character_id, @location, @storage_id, @x, @y, @rotated, @equipment_slot,
+      (@item_id, @character_id, @location, @storage_id, @x, @y, @equipment_slot,
        @container_item_id, @container_slot, @weapon_item_id, @module_slot, @verified, @updated_at)
      ON CONFLICT(item_id) DO UPDATE SET
        character_id = excluded.character_id,
@@ -112,7 +108,6 @@ export function restorePlacementRow(db: Db, row: PlacementRow): void {
        storage_id = excluded.storage_id,
        x = excluded.x,
        y = excluded.y,
-       rotated = excluded.rotated,
        equipment_slot = excluded.equipment_slot,
        container_item_id = excluded.container_item_id,
        container_slot = excluded.container_slot,

@@ -47,7 +47,7 @@ export function setItemLayout(
         intake = true;
         continue;
       }
-      const rect = itemRect(placement.x, placement.y, nextSize, placement.rotated === 1);
+      const rect = itemRect(placement.x, placement.y, nextSize);
       if (!fits({ width: storage.width, height: storage.height }, rect)) {
         conflicts.push(instance.id);
         continue;
@@ -58,7 +58,7 @@ export function setItemLayout(
         const row = repo.getInventoryItem(db, other.item_id);
         if (!row) continue;
         const size = row.item_id === itemId ? nextSize : itemSize(db, row);
-        others.push(itemRect(other.x, other.y, size, other.rotated === 1));
+        others.push(itemRect(other.x, other.y, size));
       }
       if (findCollision(rect, others)) conflicts.push(instance.id);
     }

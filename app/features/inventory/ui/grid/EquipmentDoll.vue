@@ -4,6 +4,7 @@ import type { EquipmentRead, EquipmentSlot, InventoryItemRead, StorageRead } fro
 import { EQUIPMENT_GRID, equipmentLayout } from '../../model/equipmentLayout';
 import { highlightedSlots } from '../../model/slotHighlights';
 import type { ItemMenuAction } from '../../model/menu';
+import { ItemIconFallback, VirtualBadge } from '~/entities/item';
 import { useGridDragContext } from './drag-context';
 import ItemContextMenu from './ItemContextMenu.vue';
 
@@ -22,6 +23,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   open: [item: InventoryItemRead];
   pick: [item: InventoryItemRead, event: KeyboardEvent];
+  quick: [item: InventoryItemRead, event: MouseEvent];
   menu: [item: InventoryItemRead, action: ItemMenuAction];
 }>();
 
@@ -74,6 +76,11 @@ function gesture(item: InventoryItemRead | null): void {
   if (item) emit('open', item);
 }
 
+/** Shift + primary click on a filled slot is the quick move; an empty slot ignores it. */
+function click(item: InventoryItemRead | null, event: MouseEvent): void {
+  if (item && event.shiftKey && event.detail === 1) emit('quick', item, event);
+}
+
 function border(item: InventoryItemRead | null): string {
   return item ? (rankColor(item.rank) ?? 'var(--sz-border-strong)') : 'var(--sz-border)';
 }
@@ -110,6 +117,7 @@ function border(item: InventoryItemRead | null): string {
           :data-drop="`equipment:${cell.slot}`"
           :data-size="itemIn(cell.slot) ? `${itemIn(cell.slot)!.size.width}x${itemIn(cell.slot)!.size.height}` : undefined"
           :aria-label="`${t(`inventory.slots.${cell.slot}`)}: ${itemIn(cell.slot)?.name ?? t('inventory.slotEmpty')}`"
+          @click="click(itemIn(cell.slot), $event)"
           @dblclick="gesture(itemIn(cell.slot))"
           @keydown.enter.prevent="itemIn(cell.slot) && emit('open', itemIn(cell.slot)!)"
           @keydown.space.prevent="itemIn(cell.slot) && emit('pick', itemIn(cell.slot)!, $event)"
@@ -123,11 +131,7 @@ function border(item: InventoryItemRead | null): string {
               loading="lazy"
               draggable="false"
             >
-            <UIcon
-              v-else
-              :name="SLOT_ICONS[cell.slot].icon ?? 'i-lucide-package'"
-              class="size-1/2 text-[var(--sz-text-dim)]"
-            />
+            <ItemIconFallback v-else size="50%" />
             <span
               class="absolute inset-x-0 bottom-0 truncate bg-ink-950/80 px-1 py-0.5 text-[10.5px] leading-tight text-[var(--sz-text)]"
             >
@@ -139,6 +143,7 @@ function border(item: InventoryItemRead | null): string {
             >
               +{{ itemIn(cell.slot)!.level }}
             </span>
+            <VirtualBadge v-if="itemIn(cell.slot)!.virtual" class="absolute left-0.5 top-0.5" />
           </template>
           <template v-else>
             <span

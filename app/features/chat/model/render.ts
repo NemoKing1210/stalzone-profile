@@ -21,6 +21,7 @@ export interface ChatInventoryView {
   level: number;
   qty: number;
   location: string;
+  virtual: boolean;
 }
 
 export type ChatToolView =
@@ -85,6 +86,7 @@ export function chatToolView(toolName: string, payload: unknown): ChatToolView {
           name: String(item.name ?? item.displayName ?? '—'),
           level: num(item.level) ?? 0,
           qty: num(item.qty) ?? 1,
+          virtual: item.virtual === true,
           location: String(storage.name ?? storage.kind ?? 'grid'),
         });
       }
@@ -94,6 +96,7 @@ export function chatToolView(toolName: string, payload: unknown): ChatToolView {
         name: String(item.name ?? '—'),
         level: num(item.level) ?? 0,
         qty: num(item.qty) ?? 1,
+        virtual: item.virtual === true,
         location: 'equipment',
       });
     }
@@ -102,6 +105,7 @@ export function chatToolView(toolName: string, payload: unknown): ChatToolView {
         name: String(item.name ?? '—'),
         level: num(item.level) ?? 0,
         qty: num(item.qty) ?? 1,
+        virtual: item.virtual === true,
         location: 'loose',
       });
     }
@@ -111,6 +115,7 @@ export function chatToolView(toolName: string, payload: unknown): ChatToolView {
         name: String(item.name ?? item.displayName ?? '—'),
         level: num(item.level) ?? 0,
         qty: num(item.qty) ?? 1,
+        virtual: item.virtual === true,
         location: String(placement?.location ?? item.location ?? '—'),
       });
     }

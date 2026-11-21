@@ -18,6 +18,7 @@ const { t } = useI18n();
 const form = reactive({
   level: 0,
   qty: 1,
+  virtual: false,
   skin: undefined as string | undefined,
   rarityPct: null as number | null,
   layoutWidth: null as number | null,
@@ -64,6 +65,7 @@ function reset(): void {
   if (!target) return;
   form.level = target.level;
   form.qty = target.qty;
+  form.virtual = target.virtual === true;
   form.skin = undefined;
   form.rarityPct = target.rarityPct;
   form.layoutWidth = null;
@@ -98,6 +100,7 @@ function instancePatch(target: InstanceEditTarget): Record<string, unknown> {
   // The read shape carries the skin id, not its name: send a skin only when one is chosen.
   if (fields.value.skin && form.skin) patch.skin = form.skin;
   if (fields.value.rarity && form.rarityPct !== target.rarityPct) patch.rarityPct = form.rarityPct;
+  if (form.virtual !== (target.virtual === true)) patch.virtual = form.virtual;
   if (isContainer.value) {
     const current = target.container;
     const next = { ...form.container };
@@ -214,6 +217,10 @@ async function remove(): Promise<void> {
               class="w-full"
             />
           </UFormField>
+        </div>
+
+        <div class="space-y-3 border-t border-[var(--sz-border)] pt-3">
+          <USwitch v-model="form.virtual" :label="t('forms.virtual')" />
         </div>
 
         <div class="space-y-3 border-t border-[var(--sz-border)] pt-3">

@@ -87,7 +87,7 @@ describe('MCP inventory input contracts', () => {
       item_id: 2,
       target: { location: 'grid', storage_id: 1, x: 0, y: 1 },
     });
-    expect(grid.target).toMatchObject({ location: 'grid', storage_id: 1, x: 0, y: 1, rotated: false });
+    expect(grid.target).toMatchObject({ location: 'grid', storage_id: 1, x: 0, y: 1 });
 
     const equipment = MoveInventoryItemInputSchema.parse({
       item_id: 2,

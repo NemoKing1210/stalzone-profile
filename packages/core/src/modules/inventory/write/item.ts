@@ -138,7 +138,6 @@ export function createInventoryItem(db: Db, input: InventoryItemCreate): WriteRe
       storageId: spot.storageId,
       x: spot.x,
       y: spot.y,
-      rotated: spot.rotated,
     };
   }
 
@@ -156,6 +155,7 @@ export function createInventoryItem(db: Db, input: InventoryItemCreate): WriteRe
     rarityTier,
     skinItemId: skin?.id ?? null,
     qty: input.qty,
+    virtual: input.virtual,
     slot: item.slot,
     icon: null,
     weight: resolveWeight(item.weight, null),
@@ -187,6 +187,7 @@ export function createInventoryItem(db: Db, input: InventoryItemCreate): WriteRe
       rarityTier,
       skinItemId: skin?.id ?? null,
       qty: input.qty,
+      virtual: input.virtual,
       displayName: input.displayName ?? null,
       slot: item.slot,
     });
@@ -302,6 +303,7 @@ export function updateInventoryItem(db: Db, id: number, patch: InventoryItemPatc
     rarityPct,
     rarityTier,
     qty,
+    virtual: patch.virtual === undefined ? row.is_virtual === 1 : patch.virtual,
     displayName: patch.displayName === undefined ? row.display_name : patch.displayName,
     skinItemId,
     skinName,
@@ -324,7 +326,7 @@ export function updateInventoryItem(db: Db, id: number, patch: InventoryItemPatc
       : null,
   };
   const changes: string[] = [];
-  for (const key of ['level', 'quality', 'rarityPct', 'rarityTier', 'qty'] as const) {
+  for (const key of ['level', 'quality', 'rarityPct', 'rarityTier', 'qty', 'virtual'] as const) {
     if (before[key] !== after[key]) changes.push(`${key}: ${String(before[key])} → ${String(after[key])}`);
   }
   if (before.name !== after.name) changes.push(`name: ${before.name} → ${after.name}`);
@@ -346,6 +348,7 @@ export function updateInventoryItem(db: Db, id: number, patch: InventoryItemPatc
       rarity_tier: merged.rarityTier,
       skin_item_id: merged.skinItemId,
       qty: merged.qty,
+      is_virtual: merged.virtual ? 1 : 0,
       display_name: merged.displayName,
     });
     if (patch.container !== undefined) {
@@ -435,7 +438,6 @@ export function deleteInventoryItem(
         storageId: intake!.id,
         x: entry.x,
         y: entry.y,
-        rotated: entry.rotated,
       });
     }
     repo.deleteInventoryItemRow(db, id);

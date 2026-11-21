@@ -70,6 +70,7 @@ export const containersKind: InventoryKind<ContainerRow> = {
           key: `instance-${item.id}`,
           instanceId: item.id,
           item,
+          virtual: item.virtual,
           placement: item.placement,
           ...locationOf(item, index),
           qty: item.qty,
@@ -159,6 +160,7 @@ export const containersKind: InventoryKind<ContainerRow> = {
           slot: row.item?.slot ?? null,
           rarityPct: row.item.rarityPct,
           rarityTier: row.item.rarityTier,
+          virtual: row.item.virtual,
           container: row.item.container
             ? {
                 type: row.item.container.type,

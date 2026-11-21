@@ -9,6 +9,12 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Fixed
 
+- A pointer drag keeps the pressed pixel under the cursor: the floating preview is
+  anchored by the exact in-cell offset (`grabOffset`) instead of the grabbed cell's
+  corner, so a card no longer jumps by up to one cell — a whole tile for a 1×1 stack — the
+  moment it is picked up. The snapped ghost and the landing still use the whole grabbed
+  cell, and the offset is clamped to the footprint's pixel size so a press deep inside a
+  larger slot cannot push the card off the pointer.
 - Tidy and its rollback park every moved row before writing the new cells, so reordered
   origins and item-id rollback order can no longer trip the unique grid-origin index. A
   rollback whose snapshot cell now holds an item written after the event answers
@@ -19,13 +25,42 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
   accepting the fresh cache, and an optimistic move is cleared only when the refreshed
   payload actually shows its target.
 
+### Added
+
+- A virtual inventory instance (`inventory_item.is_virtual`, migration `0018`) marks gear that
+  is not owned in game while keeping it a full instance: it keeps its grid cell, weight,
+  storage and loadout contribution, and a dashed `VIRT`/`ВИРТ` badge with a flask glyph
+  appears on the tile, item card, list icon well, equipment slot, weapon and container panels,
+  detail modal and chat rows. The REST create/patch bodies and the MCP add/update tools accept
+  `virtual`, `list_inventory_items` filters by it, and every rollback restores the exact flag.
+
+### Changed
+
+- The weapon card's damage-falloff chart fills the modal width with a wide plot instead of a
+  full-height one: two responsive geometries keep the axis text legible from phone to desktop,
+  the legend sits beside the heading, the plot keeps only horizontal guides, axis ticks stop
+  at one decimal, and each breakpoint is a marker with its damage and distance in a hover
+  title. The series still come from `p0`/`p15` unchanged.
+
 ### Removed
 
 - `inventory_item.note` and `inventory_item.role` (migration `0011`), their REST/MCP fields
   and the free-text modal inputs.
+- Item rotation end to end: migration `0017_drop_item_rotation.sql` moves every `rotated = 1`
+  grid row into its character's intake as an upright single-column row after the existing
+  unrotated intake rows, then drops `item_placement.rotated`. The `rotated` field leaves the
+  REST/MCP contracts, packing, tidy, auto-arrange, snapshots and rollback; the app loses the
+  `R` key, the rotated drag preview and the rotated landing. Auto-arrange, tidy and overflow
+  packing fit upright only, and a legacy rollback snapshot carrying `rotated: true` restores
+  into the intake unrotated instead of writing an overlapping placement.
 
 ### Changed
 
+- Catalog and inventory list rows show a larger 64 px icon well (image 60 px, crate fallback
+  36 px); the static 135° hatch on item cards, inventory grid tiles and those wells drops to
+  16% of `--sz-border-strong` (from 40%), so the striping reads as texture instead of a
+  pattern behind the item name and numbers. Cards and grid tiles keep the 8 px pitch, while
+  the well uses a new `sz-hatch--fine` 4 px pitch so the texture stays legible at that size.
 - The stash and carried-inventory panes share a fixed header height (52 px touch / 36 px
   pointer) and one filter row component, so both rows start and wrap identically; intake
   keeps the tidy controls visible but disabled with its release hint below the row.
@@ -84,6 +119,57 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
   the filter restores the stored cells, and grid drops are refused while any filter is on.
 - Item cards and `/inventory` grid tiles carry one faint static 135°/8 px hatch; panes,
   tables and modals stay flat.
+- Every catalog list row's 48 px icon well carries the same faint static hatch as an item
+  card or grid tile, and its border takes the row's translucent rank colour; the plain strong
+  border stands in when the rank is unknown. The shared `itemEdgeColor()` also fixes the grid
+  tile edge, which previously emitted an invalid `var(--sz-rank-*)b3` value and never showed
+  its rank colour.
+- Every catalog item card pins its weight at the bottom-left corner of the footer, formatted
+  with the shared `kg` label and an em dash when the value is missing; the remaining stats wrap
+  to the right. Artifact rows now carry their instance weight from the payload.
+- The assistant opens as a right-side panel on every page except `/chat`, from a sparkles
+  button in the top bar (desktop and mobile) or the new `open-assistant` palette command. It
+  uses the same conversation store and one shared `ChatConversation` as the page, names the
+  active thread, offers a thread selector, New thread and Open full chat, and is a real
+  dialog with a focus trap, Esc/overlay close and focus returned to its trigger; closing
+  never stops a turn.
+- Owned and catalog weapon modals chart damage falloff from the card's `p0`/`p15`: an inline
+  SVG flat–linear–flat curve per level, 0 solid and +15 dashed, with metre/damage axes, faint
+  ticks, a legend and an `sr-only` list of every plotted point. Missing or unordered points
+  skip a series and a localized no-data line stands in when neither is valid.
+- An assistant turn now keeps running after the owner leaves `/chat`: threads, messages, the
+  per-thread pending confirmation and the in-flight request live in one Pinia store, so a
+  return reuses the stored conversation and a completion elsewhere arrives as a reply,
+  pending-write or error toast. Switching threads mid-turn never overwrites another
+  conversation; `sending` stays true through the post-turn refresh and a reload still cancels.
+- `/chat` can switch the assistant model from its header without opening Settings: the
+  searchable selector loads the provider list when the assistant is configured, always
+  includes the stored id, accepts a typed id, and PATCHes the same audited
+  `chat_settings.model` every later turn and Settings → Assistant read. The value changes
+  only after success, the selector and composer disable while a save or turn runs, and a
+  missing key shows a disabled control with a Settings link.
+- The assistant model field is a searchable picker instead of a bare input: Settings →
+  Assistant loads the provider's model list through the new `POST /api/v1/chat/models`
+  (OpenAI-compatible, Anthropic and Google shapes, Google limited to `generateContent`),
+  debounces reloads when the form names a key variable or the provider is Ollama, offers a
+  refresh control and a non-blocking inline error, and still accepts a manually typed id.
+  The endpoint resolves the key only from the named env variable and writes nothing.
+- Settings → Assistant is five collapsible blocks behind a per-browser Basic/Advanced
+  switch: Basic shows only Connection, Advanced opens Connection and keeps Generation,
+  Reliability and tools, Data scope, Prompts and skills collapsed until needed; the loaded
+  form survives mode switches and Save stays visible outside the blocks.
+- Items without a game icon now share one asset-free mark — a 32×32 isometric crate outline
+  with a centred top diamond and three short 135° hatch strokes — in item cards, list icon
+  wells, the inventory grid and its drag preview, equipment slots, container and weapon
+  panels, detail modals and chat item rows. It inherits `currentColor`, stays neutral and is
+  `aria-hidden`; no image file or network request is added, and page/section empty states,
+  slot glyphs and the `—` for missing data are unchanged.
+- On `/inventory`, Shift + primary click on a tile or a filled equipment slot performs one
+  quick move without opening the card: with the equipment pane open a carried tile equips
+  (swapping an occupied compatible slot) and a worn item returns to the first free carried
+  cell; with a stash pane open a stash or intake tile comes home and a carried tile goes to
+  the selected stash, while the intake never receives one. A blocked move shows one warning
+  toast and writes nothing; a plain click, double click and Enter keep their behaviour.
 - The ZONE FM radio is mounted again in the default layout; its FAB, bar, track list,
   persistence and Media Session behaviour are unchanged.
 - The side panel shows the character's faction emblem and name beside the nick, and its

@@ -95,6 +95,7 @@ function instanceFields(item: InventoryItemJoined, placements: Map<number, Place
   return {
     ownedId: item.id,
     instanceId: item.id,
+    virtual: item.is_virtual === 1,
     storageId: placement?.storage_id ?? null,
     placement: placementRead(placement),
   };

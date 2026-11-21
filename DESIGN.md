@@ -132,7 +132,9 @@ instead of mixing Bebas with a fallback.
 6. **Quiet texture.** The page shell may carry a low-contrast weathered backdrop (§4.7), but
    texture never reaches a data area: panes, tables and modals keep flat opaque surfaces. No
    scanlines or high-frequency noise under rows. The one exception is the 1 px diagonal hatch
-   at an 8 px pitch on item cards and `/inventory` grid tiles (owner decision 2026-11-21); a
+   on item cards and `/inventory` grid tiles at an 8 px pitch, and at a 4 px pitch inside the
+   64 px icon well of every item list row, whose border also takes the row's translucent rank
+   colour (owner decisions 2026-11-21); a
    faint inset highlight on header bars and a blurred backdrop behind modals remain the in-pane
    maximum. Nothing animates, so reduced motion needs no special case.
 7. **Honest affordances.** No fake keyboard shortcuts. Keycaps appear only for shortcuts that
@@ -313,6 +315,18 @@ Rules:
   next to one.
 - Section icons: crosshair (weapons), shield (armor), backpack (containers), gem (artifacts),
   layers (builds), lightbulb (recommendations), coins (earnings), notebook (notes), settings.
+- An item without a game icon uses one shared, asset-free mark (`ItemIconFallback.vue`):
+  a 32×32 isometric crate outline at a 1.5 px `currentColor` stroke, a centred top diamond
+  and three short 135° hatch strokes at 55% opacity. It is sized by a `size` prop, stays
+  neutral (`--sz-text-dim`) and `aria-hidden`, because the item name always sits beside it;
+  no image file, no network request, no animation. Page/section emptiness keeps `UEmpty`,
+  slot placeholders keep their slot glyph or quick-slot digit, and `—` still means no data.
+- A virtual instance (not owned in game but a full instance for layout, weight and loadout
+  previews) carries one badge, `VirtualBadge.vue`: a dashed neutral border, the Lucide
+  flask glyph and the short `VIRT`/`ВИРТ` word, with `items.virtualHint` in `title` and
+  `aria-label`. It is outline plus text, never colour alone, and it appears on the inventory
+  tile, item card, list icon well, equipment slot, weapon/container panels, detail modal and
+  chat inventory rows.
 - The brand mark is a small radiation trefoil or a simple bracket monogram drawn in CSS/SVG;
   it is not an asset from the game. The shipped favicon (`public/favicon.ico`, 16/32/48 px)
   is that trefoil in the default game green on the ink tile; browser icons cannot follow the
@@ -360,7 +374,7 @@ Rules: the layer is `position: fixed` and `pointer-events: none`, so it does not
 rows and does not capture input; it renders at z-index −1 inside an isolated stacking context,
 above the base colour and below every pane. Panes, tables, modals and the header keep opaque
 surfaces — no texture is painted inside a data area, except the static item-card/tile hatch
-(§3.6). Nothing animates, so reduced motion
+and the list icon well that shares it (§3.6). Nothing animates, so reduced motion
 needs no special case. Weight: one CSS block plus two inline SVG data URIs; no image files
 and no network requests.
 
@@ -415,6 +429,15 @@ client is hydrated:
   never shifts the layout. The open/collapsed choice persists. It exists only in the
   authenticated shell (not on `/login` or `/setup`) and stays silent until the user presses
   play; it never autoplays. See §6.4.
+- Assistant panel: a `USlideover` from the right on every authenticated page except `/chat`,
+  toggled by the sparkles button in the top bar (both desktop cluster and mobile header) and
+  by the `open-assistant` palette command. Width `min(94vw, 27rem)`, full height, square
+  `bg-ink-950`, a 1px left border, no texture or shadow, z-index 50 with a modal overlay. Its
+  header names the panel and the truncated active thread and carries a thread selector, New
+  thread, Open full chat and the close button. The body is the one shared
+  `ChatConversation`, so closing never stops a turn and reopening shows the reply; opening
+  focuses the composer. It is a real dialog (title/description, focus trap, Esc/overlay
+  close, focus returns to the trigger) and reduced motion drops the slide.
 
 ### 5.2 Page archetypes
 
@@ -424,7 +447,9 @@ grid/list views, search, type/class, rank, sort and direction, grouping, reset) 
 or table + a count hint. Grouping renders sections with `label · count` headings. Selecting
 an item opens its card in a modal at every width; the list is never narrowed by a side
 column. Sections are reached from the top navigation. Item cards in the grid carry the faint
-static hatch from §3.6; the table mode stays flat.
+static hatch from §3.6; table rows stay flat except the 64 px icon well, which carries the
+same hatch at a finer 4 px pitch and the row's translucent rank edge (owner decision
+2026-11-21).
 
 **B. Two-pane list + detail** — reserved.
 No current section uses it; the pages that did were removed or moved to archetype A.
@@ -526,11 +551,12 @@ data fetching.
    supported by the visible rank word elsewhere in the same card, not colour alone.
 
 4. **`ProfileItemCard.vue`** — an inventory card.
-   Props: `name`, `rank`, `category`, `level`, `icon?`, `stats` (array of `{ label, value,
-   tone? }`), `to?`/`clickable?`.
-   Renders: category caps, `RarityName`, a 16:9 icon/silhouette well (game icons when present,
-   a generic Lucide silhouette otherwise), a footer with 2–3 stats (weight green, caliber
-   neutral). Opens the details modal on a double click or Enter; a single click changes
+   Props: `name`, `rank`, `category`, `level`, `icon?`, `weight?`, `stats` (array of
+   `{ label, value, tone? }`), `to?`/`clickable?`.
+   Renders: category caps, `RarityName`, a 16:9 icon well (game icons when present, otherwise
+   the shared asset-free `ItemIconFallback` crate mark), a footer whose weight sits pinned at the bottom-left
+   (formatted with `items.weightValue`, `—` when null) while the remaining stats wrap to the
+   right (caliber neutral, +15 values green). Opens the details modal on a double click or Enter; a single click changes
    nothing and leaves no selection frame. The card background carries the faint 135°/8 px
    hatch from §3.6; the icon well and stats footer stay opaque. Hover: surface-alt. Click
    and keyboard handling live on a real `<button>`; the card is not a naked div.
@@ -656,8 +682,8 @@ field, parsing a display string, or changing the data model to satisfy a visual 
   names. The character pane shows faction, clan and playstyle instead.
 - **No numeric stash bar.** `character.stash` is a localized string. It is displayed as text;
   `StorageBar` is used only where numeric ratios exist.
-- **No artifact weight.** The artifact payload does not expose item weight. The card omits it
-  and shows `—` for other missing fields.
+- **No invented artifact weight.** An artifact card shows the instance weight the payload
+  carries; when the value is absent it renders `—`, never a guess.
 - **No URL selection state.** Weapons/armor selection stays local; there is no `?item=` deep
   link in this refresh.
 - **No new date path.** `formatDate` stays the single formatter. If a stored value is not ISO,
@@ -707,6 +733,11 @@ A three-pane instrument. The page title is the nick; faction, clan and realm sit
 - The item detail modal remains for mobile and for details opened from builds/containers; on
   desktop the center pane is the primary detail surface. Selection is not encoded in the URL
   in this refresh (no `?item=` deep links).
+- A weapon modal adds one damage-falloff chart for owned and catalog rows, read from the
+  card's `p0`/`p15`: inline SVG, no chart dependency, flat–linear–flat per series drawn
+  solid (`0`) and dashed (`+15`) in `--sz-text`/`--sz-text-muted`, x in metres, y in damage,
+  faint ticks and a legend. It plots no point the card does not carry, names its axes and
+  every plotted point in text, and shows a localized no-data line when the card has none.
 - No change to calculations, sorting keys or filters.
 
 ### 8.3 Containers (`/containers`)
@@ -726,11 +757,11 @@ A three-pane instrument. The page title is the nick; faction, clan and realm sit
 - One full-width pane with the shared inventory toolbar: grid/list views, search over name,
   type and effect, rank and type filters, sort (name, level, rank), direction, grouping by
   type and reset. State persists per browser.
-- Cards: `RarityName`, type, quality, level and effect text clamped to 3 lines. List: name,
+- Cards: `RarityName`, type, quality, level and effect text clamped to 3 lines; the footer
+  pins the instance weight at the left, `—` until the payload carries one. List: name,
   type, rank, level, quality and a one-line truncated effect.
 - Clicking a card or row opens the artifact card modal with full effects; owned artifacts
-  keep the Edit action. Artifact weight is not exposed by the payload and is therefore not
-  shown; missing fields render `—`, never a guess.
+  keep the Edit action. Missing fields render `—`, never a guess.
 - Effects text stays muted prose; no colouring of arbitrary words.
 
 ### 8.5 Builds (`/builds`)
@@ -765,6 +796,13 @@ A three-pane instrument. The page title is the nick; faction, clan and realm sit
 ### 8.9 Settings (`/settings`)
 
 - Appearance pane first.
+- Assistant pane: a Basic/Advanced segmented control persisted per browser
+  (`localStorage['profile:settings:assistant-mode']`, invalid or absent → Basic). Basic
+  renders only the Connection block; Advanced renders five collapsible blocks — Connection,
+  Generation, Reliability and tools, Data scope, Prompts and skills — with Connection open
+  and the rest collapsed on first render. Each header is a real button with `aria-expanded`
+  and keyboard operation, switching modes never resets the loaded form, and Save stays
+  outside the blocks and visible while they are collapsed.
 - Sources pane: table + sync buttons; status badges semantic (ok green, stale amber, error
   red, idle muted); error text red-bright.
 - Event log pane: table; action badges neutral; rollback button ghost; confirm modal danger.
@@ -929,7 +967,9 @@ Anti-goals (would make the result a failure even if it looks "cool"):
 | Rank colours | exact `RANK_COLOR` for chips/borders; text-safe variants for names | `default`, `veteran`, `master` fail 4.5:1 as text on the pane |
 | Player rank chip | omitted | the data model has no player rank; no field is invented |
 | Stash | displayed as the stored string | `character.stash` is not numeric; parsing it would invent data |
-| Artifact weight | omitted | not exposed by the payload |
+| Artifact weight | shown from the instance weight, `—` when absent | the card footer keeps one honest source; no value is invented |
+| Missing item icon | one shared asset-free isometric crate mark, neutral and `aria-hidden` | a bare Lucide glyph or an em dash read as a different thing on every screen |
+| Virtual instance | kept as a real instance with a dashed `VIRT` badge on every surface | the build preview needs its weight and stats; the badge is the ownership signal |
 | URL selection | no `?item=` deep link in this refresh | keeps routing/SSR out of a visual change |
 | Screenshots | local only; anonymized fixture or empty server for any shared image | the real profile is personal data |
 | Overview composition | KPI tiles and inventory-slot tiles inside the three panes | the owner asked for a more game-like, clearer reading; still only real numbers and bars with a true maximum |
@@ -938,7 +978,6 @@ Anti-goals (would make the result a failure even if it looks "cool"):
 Open items that the builder may settle:
 
 - whether the status bar is useful on every page or only on data pages;
-- the exact icon/silhouette used for items without a game icon;
 - whether the center detail pane on weapons/armor persists the last selection across
   navigation (recommended: persist in `localStorage` like sorting);
 - whether the accent boot script is worth the inline bytes versus a one-frame flash

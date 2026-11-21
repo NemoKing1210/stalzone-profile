@@ -21,6 +21,7 @@ function weapon(size: { width: number; height: number }): InventoryItemRead {
     quality: null,
     rarityPct: null,
     rarityTier: null,
+    virtual: false,
     qty: 1,
     skinItemId: null,
     icon: null,

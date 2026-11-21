@@ -106,7 +106,14 @@ export const GUIDE_SITE: GuideSitePage[] = [
     kind: 'main',
     titleKey: 'guide.site.chat.title',
     summaryKey: 'guide.site.chat.summary',
-    capabilityKeys: ['guide.site.chat.caps.threads', 'guide.site.chat.caps.tools', 'guide.site.chat.caps.confirm'],
+    capabilityKeys: [
+      'guide.site.chat.caps.threads',
+      'guide.site.chat.caps.tools',
+      'guide.site.chat.caps.confirm',
+      'guide.site.chat.caps.model',
+      'guide.site.chat.caps.background',
+      'guide.site.chat.caps.panel',
+    ],
   },
   {
     id: 'inventory',
@@ -118,6 +125,7 @@ export const GUIDE_SITE: GuideSitePage[] = [
     capabilityKeys: [
       'guide.site.inventory.caps.equipment',
       'guide.site.inventory.caps.grid',
+      'guide.site.inventory.caps.virtual',
       'guide.site.inventory.caps.stash',
       'guide.site.inventory.caps.filter',
       'guide.site.inventory.caps.tidy',
@@ -137,6 +145,7 @@ export const GUIDE_SITE: GuideSitePage[] = [
       'guide.site.weapons.caps.catalog',
       'guide.site.weapons.caps.dps',
       'guide.site.weapons.caps.filters',
+      'guide.site.weapons.caps.falloff',
       'guide.site.weapons.caps.manage',
     ],
   },
@@ -392,6 +401,7 @@ export const GUIDE_API: GuideApiEndpoint[] = [
   { method: 'GET', path: '/api/v1/chat/threads/:id', group: 'read', descriptionKey: 'guide.api.chat.threadRead' },
   { method: 'POST', path: '/api/v1/chat/turn', group: 'write', descriptionKey: 'guide.api.chat.turn' },
   { method: 'POST', path: '/api/v1/chat/test', group: 'write', descriptionKey: 'guide.api.chat.test' },
+  { method: 'POST', path: '/api/v1/chat/models', group: 'write', descriptionKey: 'guide.api.chat.models' },
   // Administration: scoped profile resets and source sync.
   { method: 'GET', path: '/api/v1/admin/cleanup', group: 'admin', descriptionKey: 'guide.api.admin.cleanupRead' },
   { method: 'GET', path: '/api/v1/admin/logging', group: 'admin', descriptionKey: 'guide.api.admin.loggingRead' },

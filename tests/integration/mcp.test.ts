@@ -153,7 +153,7 @@ describe('MCP inventory reads and moves', () => {
   it('moves an intake item onto a storage grid and refuses a move back', async () => {
     const local = localClient(db);
     const result = await local.moveInventoryItem(seeded.instanceIds.smg!, {
-      target: { location: 'grid', storageId: seeded.storageIds.inventory, x: 0, y: 0, rotated: false },
+      target: { location: 'grid', storageId: seeded.storageIds.inventory, x: 0, y: 0 },
       dryRun: false,
     });
     expect(result.dryRun).toBe(false);
@@ -164,7 +164,7 @@ describe('MCP inventory reads and moves', () => {
 
     await expect(
       local.moveInventoryItem(seeded.instanceIds.smg!, {
-        target: { location: 'grid', storageId: seeded.storageIds.overflow, x: 0, y: 0, rotated: false },
+        target: { location: 'grid', storageId: seeded.storageIds.overflow, x: 0, y: 0 },
         dryRun: false,
       }),
     ).rejects.toMatchObject({ code: 'INVALID_PLACEMENT' });
@@ -391,6 +391,28 @@ describe('MCP local sync options', () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe('MCP virtual inventory', () => {
+  it('adds a virtual instance and lists only virtual items', async () => {
+    const added = await callTool('add_inventory_item', {
+      name: 'Пузырь',
+      kind: 'artifact',
+      virtual: true,
+      dry_run: false,
+      confirm: true,
+    });
+    expect(added.isError).not.toBe(true);
+    const diff = (added.structuredContent as { diff?: { after?: { id?: number } } }).diff;
+    const id = diff?.after?.id;
+    expect(id).toBeTypeOf('number');
+
+    const listed = await callTool('list_inventory_items', { virtual: true });
+    const items = (listed.structuredContent as { items: { id: number; virtual: boolean }[] }).items;
+    expect(items.length).toBeGreaterThan(0);
+    expect(items.every((item) => item.virtual)).toBe(true);
+    expect(items.some((item) => item.id === id)).toBe(true);
   });
 });
 

@@ -68,6 +68,29 @@ export const ChatTestResultSchema = z.object({
 });
 export type ChatTestResult = z.infer<typeof ChatTestResultSchema>;
 
+export const ChatModelsRequestSchema = z.object({
+  provider: ChatProviderSchema.optional(),
+  baseUrl: z.string().url().max(300).nullable().optional(),
+  /** An env variable name the form names but has not saved yet. */
+  apiKeyEnv: z.string().min(1).max(100).nullable().optional(),
+  timeoutMs: z.number().int().min(1_000).max(120_000).optional(),
+});
+export type ChatModelsRequest = z.infer<typeof ChatModelsRequestSchema>;
+
+export const ChatModelSchema = z.object({
+  id: z.string().min(1).max(200),
+  label: z.string().min(1).max(200).nullable(),
+});
+export type ChatModel = z.infer<typeof ChatModelSchema>;
+
+export const ChatModelsResultSchema = z.object({
+  ok: z.boolean(),
+  status: z.number().int().nullable(),
+  message: z.string(),
+  models: z.array(ChatModelSchema),
+});
+export type ChatModelsResult = z.infer<typeof ChatModelsResultSchema>;
+
 export const ChatPromptKindSchema = z.enum(['system', 'skill']);
 
 export const ChatPromptSchema = z.object({

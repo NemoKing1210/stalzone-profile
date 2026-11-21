@@ -17,6 +17,8 @@ export interface InstanceRow {
   instanceId: number | null;
   /** The payload object the row was built from; `null` for catalog rows. */
   item: InventoryItemRead | null;
+  /** Not owned in game; the badge is the ownership signal. */
+  virtual: boolean;
   placement: PlacementRead | null;
 }
 

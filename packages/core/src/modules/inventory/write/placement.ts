@@ -78,7 +78,6 @@ export function placementInputSnapshot(next: repo.PlacementInput): Record<string
     storageId: next.storageId ?? null,
     x: next.x ?? null,
     y: next.y ?? null,
-    rotated: next.rotated === true,
     slot: next.equipmentSlot ?? null,
     containerItemId: next.containerItemId ?? null,
     slotIndex: next.containerSlot ?? null,
@@ -90,7 +89,7 @@ export function placementInputSnapshot(next: repo.PlacementInput): Record<string
 
 function placementRect(db: Db, row: repo.InventoryItemJoined, placement: repo.PlacementRow): Rect | null {
   if (placement.x == null || placement.y == null) return null;
-  return itemRect(placement.x, placement.y, itemSize(db, row), placement.rotated === 1);
+  return itemRect(placement.x, placement.y, itemSize(db, row));
 }
 
 function toPlacement(
@@ -106,7 +105,6 @@ function toPlacement(
       storageId: target.storageId,
       x: target.x,
       y: target.y,
-      rotated: target.rotated,
     };
   }
   if (target.location === 'equipment') {
@@ -143,7 +141,6 @@ function samePlacement(current: repo.PlacementRow | null, next: repo.PlacementIn
     current.storage_id === (next.storageId ?? null) &&
     current.x === (next.x ?? null) &&
     current.y === (next.y ?? null) &&
-    current.rotated === (next.rotated ? 1 : 0) &&
     current.equipment_slot === (next.equipmentSlot ?? null) &&
     current.container_item_id === (next.containerItemId ?? null) &&
     current.container_slot === (next.containerSlot ?? null) &&
@@ -213,7 +210,7 @@ function resolveSwapPlacement(
     if (storage.kind === 'overflow') {
       throw new WriteError(422, 'INVALID_PLACEMENT', 'The occupant has no safe place to return to');
     }
-    const rect = itemRect(old.x, old.y, itemSize(db, occupant), old.rotated === 1);
+    const rect = itemRect(old.x, old.y, itemSize(db, occupant));
     if (!fits({ width: storage.width, height: storage.height }, rect)) {
       throw new WriteError(409, 'INVALID_PLACEMENT', 'The occupant does not fit the old grid location');
     }
@@ -235,7 +232,6 @@ function resolveSwapPlacement(
       storageId: storage.id,
       x: old.x,
       y: old.y,
-      rotated: old.rotated === 1,
     };
   }
   if (old.location === 'equipment') {
@@ -330,7 +326,7 @@ export function resolveTargetPlacement(
     if (storage.kind === 'overflow') {
       throw new WriteError(422, 'INVALID_PLACEMENT', 'The intake stash only releases items');
     }
-    const rect = itemRect(target.x, target.y, itemSize(db, item), target.rotated);
+    const rect = itemRect(target.x, target.y, itemSize(db, item));
     if (!fits({ width: storage.width, height: storage.height }, rect)) {
       throw new WriteError(409, 'OUT_OF_BOUNDS', 'The item does not fit this grid position', {
         width: storage.width,
@@ -539,7 +535,6 @@ export function setWeaponModule(
           storageId: spot.storageId,
           x: spot.x,
           y: spot.y,
-          rotated: spot.rotated,
         },
       },
     };
@@ -554,7 +549,6 @@ export function setWeaponModule(
         storageId: spot.storageId,
         x: spot.x,
         y: spot.y,
-        rotated: spot.rotated,
       });
       eventId = logEvent(db, {
         actor: 'owner',
@@ -615,7 +609,6 @@ export function setWeaponModule(
         storageId: displaced.spot.storageId,
         x: displaced.spot.x,
         y: displaced.spot.y,
-        rotated: displaced.spot.rotated,
       });
     }
     repo.upsertPlacement(db, {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { RankBadge, RarityName } from '~/entities/item';
+import { ItemIconFallback, RankBadge, RarityName } from '~/entities/item';
 import { StatRow, StorageBar } from '~/shared/ui';
 
 import type { ContainerPayload } from '~/shared/types/profile';
@@ -32,7 +32,7 @@ const equivalent = computed(() => {
         v-else
         class="flex size-12 shrink-0 items-center justify-center border border-[var(--sz-border)] bg-[var(--sz-surface-alt)]"
       >
-        <UIcon name="i-lucide-backpack" class="size-6 text-[var(--sz-text-dim)]" />
+        <ItemIconFallback :size="24" />
       </div>
       <div class="min-w-0 flex-1 space-y-1">
         <p><RarityName :name="props.container.name" :rank="props.container.rank" size="lg" /></p>

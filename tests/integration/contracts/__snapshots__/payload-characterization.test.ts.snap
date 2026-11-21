@@ -63,6 +63,7 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
       "rank": "stalker",
       "skin": null,
       "storageId": null,
+      "virtual": false,
       "weight": 8,
     },
   ],
@@ -94,6 +95,7 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
       "skin": null,
       "storageId": null,
       "type": "гравитационный",
+      "virtual": false,
     },
     {
       "card": {
@@ -124,6 +126,7 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
       "skin": null,
       "storageId": null,
       "type": "гравитационный",
+      "virtual": false,
     },
   ],
   "catalog": {
@@ -245,6 +248,7 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
       "slots": 4,
       "storageId": null,
       "type": "Рюкзак",
+      "virtual": false,
       "weight": null,
     },
   ],
@@ -370,6 +374,7 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
         },
         "skinItemId": null,
         "slot": null,
+        "virtual": false,
         "weight": 8,
       },
       {
@@ -408,6 +413,7 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
         },
         "skinItemId": null,
         "slot": null,
+        "virtual": false,
         "weight": null,
       },
       {
@@ -450,6 +456,7 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
             },
             "skinItemId": null,
             "slot": null,
+            "virtual": false,
             "weight": null,
           },
         ],
@@ -500,6 +507,7 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
         },
         "skinItemId": null,
         "slot": null,
+        "virtual": false,
         "weight": null,
       },
       {
@@ -571,6 +579,7 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
         },
         "skinItemId": null,
         "slot": null,
+        "virtual": false,
         "weight": 3.8,
       },
     ],
@@ -773,6 +782,7 @@ exports[`payload characterization > keeps the current read shape and values 1`] 
       "ttk": 1,
       "ttk15": 1,
       "type": "Автоматы",
+      "virtual": false,
       "weight": 3.8,
     },
   ],

@@ -20,6 +20,7 @@ function item(id: number, placement: PlacementRead, extra: Partial<InventoryItem
     quality: null,
     rarityPct: null,
     rarityTier: null,
+    virtual: false,
     qty: 1,
     skinItemId: null,
     icon: null,
@@ -50,7 +51,7 @@ function storage(id: number, kind: StorageRead['kind'], items: InventoryItemRead
 function fixture(): InventoryRead {
   return {
     storages: [
-      storage(1, 'inventory', [item(10, { location: 'grid', storageId: 1, x: 0, y: 0, rotated: false })]),
+      storage(1, 'inventory', [item(10, { location: 'grid', storageId: 1, x: 0, y: 0 })]),
       storage(2, 'stash', []),
     ],
     equipment: {
@@ -111,13 +112,13 @@ function* walk(items: readonly InventoryItemRead[]): Generator<InventoryItemRead
 
 describe('relocateItem', () => {
   it('moves a grid item inside the same storage', () => {
-    const next = relocateItem(fixture(), 10, { location: 'grid', storageId: 1, x: 3, y: 4, rotated: false });
-    expect(itemOf(next, 10)?.placement).toEqual({ location: 'grid', storageId: 1, x: 3, y: 4, rotated: false });
+    const next = relocateItem(fixture(), 10, { location: 'grid', storageId: 1, x: 3, y: 4 });
+    expect(itemOf(next, 10)?.placement).toEqual({ location: 'grid', storageId: 1, x: 3, y: 4 });
     expect(next.storages[0]?.items.filter((entry) => entry.id === 10)).toHaveLength(1);
   });
 
   it('moves a grid item to another storage', () => {
-    const next = relocateItem(fixture(), 10, { location: 'grid', storageId: 2, x: 0, y: 0, rotated: false });
+    const next = relocateItem(fixture(), 10, { location: 'grid', storageId: 2, x: 0, y: 0 });
     expect(next.storages[0]?.items.some((entry) => entry.id === 10)).toBe(false);
     expect(next.storages[1]?.items.some((entry) => entry.id === 10)).toBe(true);
   });
@@ -131,34 +132,33 @@ describe('relocateItem', () => {
       storageId: 1,
       x: 0,
       y: 0,
-      rotated: false,
     });
   });
 
   it('pulls an artifact out of a container', () => {
-    const next = relocateItem(fixture(), 30, { location: 'grid', storageId: 2, x: 1, y: 1, rotated: false });
+    const next = relocateItem(fixture(), 30, { location: 'grid', storageId: 2, x: 1, y: 1 });
     expect(next.storages[1]?.items.some((entry) => entry.id === 30)).toBe(true);
     expect(next.equipment.backpack?.artifacts).toHaveLength(0);
   });
 
   it('returns the same inventory for an unknown id', () => {
     const base = fixture();
-    expect(relocateItem(base, 999, { location: 'grid', storageId: 2, x: 0, y: 0, rotated: false })).toBe(base);
+    expect(relocateItem(base, 999, { location: 'grid', storageId: 2, x: 0, y: 0 })).toBe(base);
   });
 });
 
 describe('applyPending', () => {
   it('applies moves in order', () => {
     const next = applyPending(fixture(), [
-      { itemId: 10, target: { location: 'grid', storageId: 2, x: 1, y: 1, rotated: false } },
-      { itemId: 20, target: { location: 'grid', storageId: 2, x: 5, y: 5, rotated: false } },
+      { itemId: 10, target: { location: 'grid', storageId: 2, x: 1, y: 1 } },
+      { itemId: 20, target: { location: 'grid', storageId: 2, x: 5, y: 5 } },
     ]);
     expect(next.storages[1]?.items.map((entry) => entry.id).sort()).toEqual([10, 20]);
   });
 });
 
 describe('clearPending', () => {
-  const target = { location: 'grid' as const, storageId: 2, x: 0, y: 0, rotated: false };
+  const target = { location: 'grid' as const, storageId: 2, x: 0, y: 0 };
 
   it('keeps a move whose write has not settled yet', () => {
     expect(clearPending([{ itemId: 10, target }], 5)).toHaveLength(1);

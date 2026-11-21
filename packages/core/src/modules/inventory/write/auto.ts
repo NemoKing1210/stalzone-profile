@@ -18,7 +18,7 @@ export function autoArrangeStorage(db: Db, storageId: number, opts: { dryRun: bo
     if (placement.x == null || placement.y == null) continue;
     const row = repo.getInventoryItem(db, placement.item_id);
     if (!row) continue;
-    occupied.push(itemRect(placement.x, placement.y, itemSize(db, row), placement.rotated === 1));
+    occupied.push(itemRect(placement.x, placement.y, itemSize(db, row)));
   }
 
   const intake = repo.getOverflowStorage(db, storage.character_id);
@@ -62,7 +62,6 @@ export function autoArrangeStorage(db: Db, storageId: number, opts: { dryRun: bo
         storageId,
         x: entry.x,
         y: entry.y,
-        rotated: entry.rotated,
       });
     }
     eventId = logEvent(db, {

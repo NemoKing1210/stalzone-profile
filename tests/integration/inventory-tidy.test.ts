@@ -265,8 +265,8 @@ describe('tidy property loop', () => {
 
       const result = tidyStorage(db, box, TidyStorageSchema.parse({ order: orders[layout % orders.length], dryRun: false }));
       const rows = db
-        .prepare(`SELECT item_id, x, y, rotated, location FROM item_placement WHERE storage_id = ?`)
-        .all(box) as { item_id: number; x: number; y: number; rotated: number; location: string }[];
+        .prepare(`SELECT item_id, x, y, location FROM item_placement WHERE storage_id = ?`)
+        .all(box) as { item_id: number; x: number; y: number; location: string }[];
       expect(rows).toHaveLength(originals.size);
       expect(rows.every((row) => row.location === 'grid')).toBe(true);
       const sizes = new Map<number, { w: number; h: number }>();
@@ -278,8 +278,7 @@ describe('tidy property loop', () => {
       }
       const cells = rows.map((row) => {
         const size = sizes.get(row.item_id)!;
-        const rotated = row.rotated === 1;
-        return { x: row.x, y: row.y, w: rotated ? size.h : size.w, h: rotated ? size.w : size.h };
+        return { x: row.x, y: row.y, w: size.w, h: size.h };
       });
       for (let left = 0; left < cells.length; left += 1) {
         for (let right = left + 1; right < cells.length; right += 1) {

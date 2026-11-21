@@ -16,7 +16,6 @@ export interface OverflowSpot {
   storageId: number;
   x: number;
   y: number;
-  rotated: boolean;
 }
 
 const OVERFLOW_NAME = 'Intake';
@@ -34,7 +33,7 @@ function occupiedRects(db: Db, storageId: number, excludeIds: ReadonlySet<number
   for (const placement of repo.listStoragePlacements(db, storageId)) {
     if (placement.x == null || placement.y == null) continue;
     if (excludeIds.has(placement.item_id)) continue;
-    rects.push(itemRect(placement.x, placement.y, sizeOf(db, placement.item_id), placement.rotated === 1));
+    rects.push(itemRect(placement.x, placement.y, sizeOf(db, placement.item_id)));
   }
   return rects;
 }
@@ -99,7 +98,7 @@ export function nextOverflowPlacement(db: Db, characterId: number, size: Size): 
   const { placed } = packItems({ width: storage.width, height }, [{ id: 0, size }], occupied);
   const spot = placed[0];
   if (!spot) throw cannotHold();
-  return { storageId: storage.id, x: spot.x, y: spot.y, rotated: spot.rotated };
+  return { storageId: storage.id, x: spot.x, y: spot.y };
 }
 
 /** Packs a batch into intake in one pass; the caller writes the placements. */
@@ -124,7 +123,6 @@ export function placeIntoOverflow(db: Db, characterId: number, itemId: number, s
     storageId: spot.storageId,
     x: spot.x,
     y: spot.y,
-    rotated: spot.rotated,
   });
   return spot;
 }

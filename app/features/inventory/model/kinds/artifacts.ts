@@ -20,6 +20,7 @@ export interface ArtifactRow extends InstanceRow, InstanceLocationRow {
   lvl: number;
   effects: string | null;
   rank: string | null;
+  weight: number | null;
   icon: string | null;
 }
 
@@ -52,6 +53,7 @@ export const artifactsKind: InventoryKind<ArtifactRow> = {
           key: `instance-${item.id}`,
           instanceId: item.id,
           item,
+          virtual: item.virtual,
           placement: item.placement,
           ...locationOf(item, index),
           qty: item.qty,
@@ -64,6 +66,7 @@ export const artifactsKind: InventoryKind<ArtifactRow> = {
           lvl: item.level,
           effects: cardText(card, 'effects'),
           rank: item.rank,
+          weight: item.weight,
           icon: item.icon,
         };
       });
@@ -120,5 +123,6 @@ export const artifactsKind: InventoryKind<ArtifactRow> = {
           slot: null,
           rarityPct: row.item.rarityPct,
           rarityTier: row.item.rarityTier,
+          virtual: row.item.virtual,
         },
 };

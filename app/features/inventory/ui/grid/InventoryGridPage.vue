@@ -4,7 +4,7 @@ import type { InventoryItemRead, ModuleSlot, StorageRead } from '@profile/shared
 import { ConfirmActionModal, ProfilePane } from '~/shared/ui';
 import type { DropTarget } from '../../model/drag';
 import { storageLabel } from '../../model/labels';
-import type { ItemMenuAction } from '../../model/menu';
+import { quickMove, type ItemMenuAction } from '../../model/menu';
 import { useFilters } from '../../model/useFilters';
 import { useContainerFilters } from '../../model/useContainerFilters';
 import type { ContainerFilter } from '../../model/containerFilters';
@@ -76,6 +76,23 @@ function pickItem(item: InventoryItemRead, event: KeyboardEvent): void {
   // While something is picked the global key handler owns Enter/Space (drop or cancel).
   if (drag.picked.value) return;
   drag.start(item, event);
+}
+
+/** Shift + click: one move to the open pane's destination, never opening the card. */
+function quickItem(item: InventoryItemRead, event: MouseEvent): void {
+  if (event.detail !== 1 || inventory.busy.value || drag.shouldIgnoreClick() || drag.picked.value) return;
+  const result = quickMove(item, {
+    pane: leftPane.value,
+    home: inventory.inventoryStorage.value,
+    stash: inventory.selectedStorage.value,
+    equipment: inventory.equipment.value,
+  });
+  if (!result.target) {
+    toast.add({ title: t('inventory.dropBlocked'), color: 'warning', icon: 'i-lucide-ban' });
+    return;
+  }
+  playPlace();
+  void inventory.move(item.id, result.target, { swap: result.target.location === 'equipment' });
 }
 
 /** Context-menu commands: the screen owns every write, the menu only names the intent. */
@@ -402,6 +419,7 @@ const containerNames = computed<Record<number, string>>(() => {
                 :attach-tile="drag.attachTile"
                 @open="openItem"
                 @pick="pickItem"
+                @quick="quickItem"
                 @menu="itemMenu"
               />
               <div class="mt-3">
@@ -449,6 +467,7 @@ const containerNames = computed<Record<number, string>>(() => {
                   :attach-tile="drag.attachTile"
                   @open="openItem"
                   @pick="pickItem"
+                  @quick="quickItem"
                   @menu="itemMenu"
                 />
             </template>
@@ -493,6 +512,7 @@ const containerNames = computed<Record<number, string>>(() => {
               :attach-tile="drag.attachTile"
               @open="openItem"
               @pick="pickItem"
+              @quick="quickItem"
               @menu="itemMenu"
             />
             </div>

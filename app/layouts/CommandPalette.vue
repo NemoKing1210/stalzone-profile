@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAssistantPanelStore } from '~/stores/assistantPanel';
 import { useProfileData } from '~/stores/profile-data';
 import { navCounts } from '~/shared/lib/nav';
 import {
@@ -24,6 +25,8 @@ const { density, setDensity } = useAppearance();
 const { payload, refresh } = useProfileData();
 const { message: apiMessage } = useApiError();
 const toast = useToast();
+const route = useRoute();
+const assistant = useAssistantPanelStore();
 
 const open = ref(false);
 const search = ref('');
@@ -118,6 +121,9 @@ async function execute(command: PaletteCommand): Promise<void> {
       return;
     case 'toggle-density':
       setDensity(density.value === 'compact' ? 'comfortable' : 'compact');
+      return;
+    case 'open-assistant':
+      if (route.path !== '/chat') assistant.show();
       return;
     default:
       if (command.to) await navigateTo(command.to);

@@ -10,7 +10,6 @@ export interface PackPlacement {
   id: number;
   x: number;
   y: number;
-  rotated: boolean;
 }
 
 export interface PackResult {
@@ -39,19 +38,13 @@ export function packOrdered(grid: Size, ordered: readonly PackItem[], occupied: 
 
   for (const item of ordered) {
     let position: PackPlacement | null = null;
-    // Both orientations are tried at each origin, so the scan must reach every origin
-    // where the smaller dimension fits — not only where the unrotated one does.
-    const minSide = Math.min(item.size.width, item.size.height);
-    for (let y = 0; y <= grid.height - minSide && !position; y += 1) {
-      for (let x = 0; x <= grid.width - minSide && !position; x += 1) {
-        for (const rotated of [false, true]) {
-          if (rotated && item.size.width === item.size.height) continue;
-          const rect = itemRect(x, y, item.size, rotated);
-          if (fits(grid, rect) && !findCollision(rect, taken)) {
-            position = { id: item.id, x, y, rotated };
-            taken.push(rect);
-            break;
-          }
+    const rect = itemRect(0, 0, item.size);
+    for (let y = 0; y <= grid.height - rect.height && !position; y += 1) {
+      for (let x = 0; x <= grid.width - rect.width && !position; x += 1) {
+        const candidate = itemRect(x, y, item.size);
+        if (fits(grid, candidate) && !findCollision(candidate, taken)) {
+          position = { id: item.id, x, y };
+          taken.push(candidate);
         }
       }
     }

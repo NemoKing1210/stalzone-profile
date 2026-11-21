@@ -10,9 +10,7 @@ export interface Point {
   y: number;
 }
 
-export interface Ghost extends Point {
-  rotated: boolean;
-}
+export type Ghost = Point;
 
 const ARROWS: Record<string, Point> = {
   ArrowLeft: { x: -1, y: 0 },
@@ -26,21 +24,19 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 /**
- * The keyboard ghost move: one cell per arrow press, clamped so the origin stays
- * inside the grid, and `R` toggles rotation without moving the origin. Validity
- * (bounds of the whole rectangle, collisions) is decided by `canDrop` on drop.
+ * The keyboard ghost move: one cell per arrow press, clamped so the origin stays inside
+ * the grid. Validity (bounds of the whole rectangle, collisions) is decided by `canDrop`
+ * on drop; there is no rotation key because the game has no turning.
  */
-export function keyboardTarget(start: Point, key: string, size: Size, rotated: boolean, grid: Size): Ghost {
+export function keyboardTarget(start: Point, key: string, grid: Size): Ghost {
   const delta = ARROWS[key];
   if (delta) {
     return {
       x: clamp(start.x + delta.x, 0, Math.max(0, grid.width - 1)),
       y: clamp(start.y + delta.y, 0, Math.max(0, grid.height - 1)),
-      rotated,
     };
   }
-  if (key === 'r' || key === 'R') return { x: start.x, y: start.y, rotated: !rotated };
-  return { x: start.x, y: start.y, rotated };
+  return { x: start.x, y: start.y };
 }
 
 /** True when a drop target is exactly where the item already is, so no write is needed. */
@@ -50,8 +46,7 @@ export function isSameTarget(placement: PlacementRead, target: DropTarget): bool
     return (
       placement.storageId === target.storageId &&
       placement.x === target.x &&
-      placement.y === target.y &&
-      placement.rotated === target.rotated
+      placement.y === target.y
     );
   }
   if (placement.location === 'equipment' && target.location === 'equipment') {
@@ -66,19 +61,9 @@ export function isSameTarget(placement: PlacementRead, target: DropTarget): bool
   return false;
 }
 
-/**
- * The rotation a pick starts with. A storage item keeps what it has; an intake item and
- * anything outside a grid start unrotated, because the landing chooses a fresh rotation.
- */
-export function pickRotation(placement: PlacementRead, intakeStorageId: number | null): boolean {
-  if (placement.location !== 'grid' || placement.storageId === intakeStorageId) return false;
-  return placement.rotated;
-}
-
 export interface StartSpot {
   ghost: (Point & { storageId: number }) | null;
   target: DropTarget | null;
-  rotated: boolean;
 }
 
 /**
@@ -91,7 +76,6 @@ export function startPlacement(
   options: { homeStorageId: number | null; intakeStorageId: number | null },
 ): StartSpot {
   if (placement.location === 'grid' && placement.storageId !== options.intakeStorageId) {
-    const rotated = placement.rotated;
     return {
       ghost: { x: placement.x, y: placement.y, storageId: placement.storageId },
       target: {
@@ -99,17 +83,14 @@ export function startPlacement(
         storageId: placement.storageId,
         x: placement.x,
         y: placement.y,
-        rotated,
       },
-      rotated,
     };
   }
   const home = options.homeStorageId;
-  if (home == null) return { ghost: null, target: null, rotated: false };
+  if (home == null) return { ghost: null, target: null };
   return {
     ghost: { x: 0, y: 0, storageId: home },
-    target: { location: 'grid', storageId: home, x: 0, y: 0, rotated: false },
-    rotated: false,
+    target: { location: 'grid', storageId: home, x: 0, y: 0 },
   };
 }
 
@@ -192,6 +173,19 @@ export function isPrimaryButton(button: number): boolean {
   return button === 0;
 }
 
+/**
+ * The pointer's exact pixel offset inside the picked rectangle. `grabPoint` keeps only
+ * the whole cell, so a preview that used it would snap the card's cell corner under the
+ * cursor and jump by up to a full cell — a whole tile for a 1×1 — the moment the drag
+ * starts. The offset keeps the pressed pixel under the pointer instead.
+ */
+export function grabOffset(rect: GridBounds, pointer: Point): Point {
+  return {
+    x: clamp(pointer.x - rect.left, 0, Math.max(0, rect.width)),
+    y: clamp(pointer.y - rect.top, 0, Math.max(0, rect.height)),
+  };
+}
+
 /** The footprint cell at the middle of an item; a slot-sourced card hangs from it. */
 export function centerGrab(size: Size): Point {
   return { x: Math.floor(size.width / 2), y: Math.floor(size.height / 2) };
@@ -205,15 +199,18 @@ export interface PreviewBox {
 }
 
 /**
- * The floating drag preview: it follows the pointer at the item's real footprint,
- * holding the cell the pointer grabbed under the cursor. The snapped landing stays
- * with the ghost, so the preview and the ghost answer different questions.
+ * The floating drag preview: it follows the pointer at the item's real footprint, holding
+ * the pressed pixel (not just its cell) under the cursor. The snapped landing stays with
+ * the ghost, so the preview and the ghost answer different questions. The offset is
+ * clamped to the footprint so a large grab cannot push the card past the pointer.
  */
-export function previewBox(pointer: Point, grab: Point, cell: Size, size: Size): PreviewBox {
+export function previewBox(pointer: Point, offset: Point, cell: Size, size: Size): PreviewBox {
+  const width = size.width * cell.width;
+  const height = size.height * cell.height;
   return {
-    left: pointer.x - grab.x * cell.width,
-    top: pointer.y - grab.y * cell.height,
-    width: size.width * cell.width,
-    height: size.height * cell.height,
+    left: pointer.x - Math.min(offset.x, width),
+    top: pointer.y - Math.min(offset.y, height),
+    width,
+    height,
   };
 }

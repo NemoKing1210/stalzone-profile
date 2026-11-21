@@ -41,7 +41,7 @@ export function planTidy(grid: Size, items: readonly TidyCandidate[], order: Tid
     for (const id of result.unplaced) {
       const item = byId.get(id);
       if (!item) continue;
-      fixed.set(id, itemRect(item.original.x, item.original.y, item.size, item.original.rotated));
+      fixed.set(id, itemRect(item.original.x, item.original.y, item.size));
     }
   }
 }

@@ -106,8 +106,8 @@ describe('inventory repository', () => {
     const artifact = insertInventoryItem(db, { characterId, itemId: artifactId, kind: 'artifact' });
     const scope = insertInventoryItem(db, { characterId, itemId: attachmentId, kind: 'attachment' });
 
-    upsertPlacement(db, { itemId: rifle, characterId, location: 'grid', storageId, x: 1, y: 2, rotated: true });
-    expect(getPlacement(db, rifle)).toMatchObject({ location: 'grid', storage_id: storageId, x: 1, y: 2, rotated: 1 });
+    upsertPlacement(db, { itemId: rifle, characterId, location: 'grid', storageId, x: 1, y: 2 });
+    expect(getPlacement(db, rifle)).toMatchObject({ location: 'grid', storage_id: storageId, x: 1, y: 2 });
 
     upsertPlacement(db, { itemId: rifle, characterId, location: 'equipment', equipmentSlot: 'primary' });
     expect(getPlacement(db, rifle)).toMatchObject({ location: 'equipment', equipment_slot: 'primary' });

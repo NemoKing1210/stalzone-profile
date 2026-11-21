@@ -25,6 +25,7 @@ export interface ItemFormValues {
   qty: number;
   rarityPct: number | null;
   skin: string | null | undefined;
+  virtual: boolean;
 }
 
 /** Motifs the picker may offer: only those whose base catalog item is the chosen one. */
@@ -46,6 +47,7 @@ export function itemCreatePayload(
   return {
     name: item.name,
     kind,
+    virtual: values.virtual,
     ...(item.id != null ? { catalogItemId: item.id } : {}),
     dryRun: false,
     ...(fields.level ? { level: Math.max(0, Math.min(15, Math.trunc(values.level))) } : {}),

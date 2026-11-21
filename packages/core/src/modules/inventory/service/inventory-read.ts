@@ -35,7 +35,6 @@ export function placementRead(placement: repo.PlacementRow | null): PlacementRea
       storageId: placement.storage_id,
       x: placement.x,
       y: placement.y,
-      rotated: placement.rotated === 1,
     };
   }
   if (placement.location === 'equipment') {
@@ -129,6 +128,7 @@ function buildNodes(db: Db, characterId: number, snapshot?: InventorySnapshot): 
       rarityPct: row.rarity_pct,
       rarityTier: row.rarity_tier as InventoryItemRead['rarityTier'],
       qty: row.qty,
+      virtual: row.is_virtual === 1,
       skinItemId: row.skin_item_id,
       icon: row.item_icon,
       slot: row.slot,
@@ -237,7 +237,7 @@ export function inventoryReadFrom(db: Db, characterId: number, snapshot: Invento
             storage.height,
             ...items.map((item) =>
               item.placement.location === 'grid'
-                ? item.placement.y + (item.placement.rotated ? item.size.width : item.size.height)
+                ? item.placement.y + item.size.height
                 : 0,
             ),
           )

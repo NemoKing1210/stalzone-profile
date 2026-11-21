@@ -177,8 +177,9 @@ const TOOL_DOCS: Record<string, string> = {
     get_prices: 'Latest auction prices by item name',
     sources_status: 'Data source state and freshness',
     export_profile_json: 'Export the profile as portable JSON',
-    add_inventory_item: 'Add an item instance to intake (dry_run by default)',
-    update_inventory_item: 'Change an instance level, quality, rarity, skin or quantity (dry_run by default)',
+    add_inventory_item: 'Add an item instance to intake; virtual marks it as not owned in game (dry_run by default)',
+    update_inventory_item:
+      'Change an instance level, quality, rarity, skin, quantity or virtual mark (dry_run by default)',
     remove_inventory_item: 'Remove an instance or part of a stack (dry_run by default)',
     move_inventory_item:
       'Move an instance to a grid cell, slot, container or module; intake only releases items (dry_run by default)',
@@ -277,7 +278,6 @@ function placementTarget(target: McpPlacementTarget): PlacementTarget {
         storageId: target.storage_id,
         x: target.x,
         y: target.y,
-        rotated: target.rotated,
       };
     case 'equipment':
       return { location: 'equipment', slot: target.slot };
@@ -314,6 +314,7 @@ function itemPatch(args: UpdateInventoryItemInput, dryRun: boolean): InventoryIt
   if (args.rarity_pct !== undefined) patch.rarityPct = args.rarity_pct;
   if (args.rarity_tier !== undefined) patch.rarityTier = args.rarity_tier;
   if (args.qty !== undefined) patch.qty = args.qty;
+  if (args.virtual !== undefined) patch.virtual = args.virtual;
   if (args.display_name !== undefined) patch.displayName = args.display_name;
   if (args.container !== undefined) patch.container = containerData(args.container);
   return patch;
@@ -449,6 +450,7 @@ export function createProfileServer(
         kind: ItemKindSchema.optional(),
         location: z.enum(['grid', 'equipment', 'container', 'weapon_module', 'loose']).optional(),
         storage_id: z.number().int().positive().optional(),
+        virtual: z.boolean().optional(),
       }),
     },
     async (args) => {
@@ -458,6 +460,7 @@ export function createProfileServer(
             kind: args.kind,
             location: args.location,
             storageId: args.storage_id,
+            virtual: args.virtual,
           }),
         });
       } catch (error) {
@@ -594,6 +597,7 @@ export function createProfileServer(
         rarityPct: args.rarity_pct ?? null,
         rarityTier: args.rarity_tier ?? null,
         qty: args.qty,
+        virtual: args.virtual,
         displayName: args.display_name ?? null,
         container: containerData(args.container) ?? undefined,
         dryRun,

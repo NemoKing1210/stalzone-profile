@@ -1,4 +1,4 @@
-import type { ChatProvider, ChatSettings, ChatTestResult } from '@profile/shared/contracts';
+import type { ChatModel, ChatModelsResult, ChatProvider, ChatSettings, ChatTestResult } from '@profile/shared/contracts';
 import { WriteError } from '../../../platform/journal/index.js';
 import * as repo from '../repo/settings.js';
 import type { Db } from '../../../platform/db/index.js';
@@ -176,6 +176,130 @@ export async function testChatConnection(
       provider: settings.provider,
       status: null,
       message: error instanceof Error ? error.message : 'connection failed',
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+
+interface ModelsOptions {
+  fetchImpl?: typeof fetch;
+  signal?: AbortSignal;
+}
+
+/** Reads id/display name out of the three documented model-list shapes, without inventing entries. */
+function parseModels(provider: ChatProvider, body: unknown): ChatModel[] {
+  if (!body || typeof body !== 'object') return [];
+  const record = body as Record<string, unknown>;
+  const models: ChatModel[] = [];
+  const seen = new Set<string>();
+
+  if (provider === 'google') {
+    const entries = Array.isArray(record.models) ? record.models : [];
+    for (const entry of entries) {
+      if (!entry || typeof entry !== 'object') continue;
+      const model = entry as Record<string, unknown>;
+      const methods = Array.isArray(model.supportedGenerationMethods) ? model.supportedGenerationMethods : [];
+      if (!methods.includes('generateContent')) continue;
+      const raw = typeof model.name === 'string' ? model.name : '';
+      const id = raw.replace(/^models\//, '');
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      const label = typeof model.displayName === 'string' && model.displayName.trim() ? model.displayName : null;
+      models.push({ id, label });
+    }
+    return models.sort((left, right) => left.id.localeCompare(right.id)).slice(0, 500);
+  }
+
+  const entries = Array.isArray(record.data) ? record.data : [];
+  for (const entry of entries) {
+    if (!entry || typeof entry !== 'object') continue;
+    const model = entry as Record<string, unknown>;
+    const id = typeof model.id === 'string' ? model.id.trim() : '';
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const rawLabel = model.display_name ?? model.displayName;
+    const label = typeof rawLabel === 'string' && rawLabel.trim() ? rawLabel : null;
+    models.push({ id, label });
+    if (models.length >= 500) break;
+  }
+  return models;
+}
+
+/**
+ * The provider's model list for the settings picker. A read: it never writes the DB, an
+ * event or the key, and the key comes only from the named environment variable.
+ */
+export async function listChatModels(
+  db: Db,
+  overrides: { provider?: ChatProvider; baseUrl?: string | null; apiKeyEnv?: string | null; timeoutMs?: number },
+  options: ModelsOptions = {},
+): Promise<ChatModelsResult> {
+  const stored = repo.toChatSettings(repo.getChatSettingsRow(db));
+  const settings: ChatSettings = {
+    ...stored,
+    ...(overrides.provider ? { provider: overrides.provider } : {}),
+    ...(overrides.baseUrl !== undefined ? { baseUrl: overrides.baseUrl } : {}),
+    ...(overrides.apiKeyEnv !== undefined ? { apiKeyEnv: overrides.apiKeyEnv } : {}),
+    ...(overrides.timeoutMs ? { timeoutMs: overrides.timeoutMs } : {}),
+  };
+  const config = PROVIDERS[settings.provider];
+  let base: string;
+  try {
+    base = configuredBaseUrl(settings);
+  } catch (error) {
+    return {
+      ok: false,
+      status: null,
+      message: error instanceof WriteError ? error.message : 'Set the provider base URL',
+      models: [],
+    };
+  }
+
+  const { key } = resolveApiKey(settings);
+  if (config.auth !== 'none' && !key) {
+    return {
+      ok: false,
+      status: null,
+      message: `AI_NOT_CONFIGURED: set ${settings.apiKeyEnv ?? config.keyEnv}`,
+      models: [],
+    };
+  }
+
+  const url =
+    config.auth === 'google'
+      ? `${base}${config.modelsPath}?key=${encodeURIComponent(key ?? '')}`
+      : `${base}${config.modelsPath}`;
+  const headers: Record<string, string> = {};
+  if (config.auth === 'bearer') headers.authorization = `Bearer ${key}`;
+  if (config.auth === 'anthropic') {
+    headers['x-api-key'] = key ?? '';
+    headers['anthropic-version'] = '2023-06-01';
+  }
+
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), settings.timeoutMs);
+  const signal = options.signal ?? controller.signal;
+  try {
+    const response = await fetchImpl(url, { method: 'GET', headers, signal });
+    if (!response.ok) {
+      return {
+        ok: false,
+        status: response.status,
+        message: `${config.label}: HTTP ${response.status}`,
+        models: [],
+      };
+    }
+    const body: unknown = await response.json();
+    return { ok: true, status: response.status, message: `${config.label}: connected`, models: parseModels(settings.provider, body) };
+  } catch (error) {
+    return {
+      ok: false,
+      status: null,
+      message: error instanceof Error ? error.message : 'connection failed',
+      models: [],
     };
   } finally {
     clearTimeout(timer);

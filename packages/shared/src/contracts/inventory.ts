@@ -51,7 +51,6 @@ export const PlacementReadSchema = z.discriminatedUnion('location', [
     storageId: z.number().int(),
     x: z.number().int().nonnegative(),
     y: z.number().int().nonnegative(),
-    rotated: z.boolean(),
   }),
   z.object({
     location: z.literal('equipment'),
@@ -112,6 +111,8 @@ export interface InventoryItemRead {
   rarityPct: number | null;
   rarityTier: z.infer<typeof RarityTierSchema> | null;
   qty: number;
+  /** Not owned in game; still a real instance for layout, weight and loadout previews. */
+  virtual: boolean;
   skinItemId: number | null;
   icon: string | null;
   slot: string | null;
@@ -139,6 +140,7 @@ export const InventoryItemReadSchema: z.ZodType<InventoryItemRead> = z.lazy(() =
     rarityPct: z.number().nullable(),
     rarityTier: RarityTierSchema.nullable(),
     qty: z.number().int(),
+    virtual: z.boolean(),
     skinItemId: z.number().int().nullable(),
     icon: z.string().nullable(),
     slot: z.string().nullable(),

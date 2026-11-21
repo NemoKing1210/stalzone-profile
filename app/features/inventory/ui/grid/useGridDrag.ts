@@ -4,10 +4,10 @@ import { acceptsEquipment, EquipmentSlotSchema, ModuleSlotSchema } from '@profil
 import {
   cellPixels,
   centerGrab,
+  grabOffset,
   grabPoint,
   gridUnder,
   isPrimaryButton,
-  pickRotation,
   isSameTarget,
   keyboardTarget,
   previewBox,
@@ -54,7 +54,7 @@ function loadInteract(): Promise<InteractApi | null> {
 }
 
 export interface GridDragOptions {
-  onDrop: (itemId: number, target: DropTarget, rotated: boolean) => void | Promise<void>;
+  onDrop: (itemId: number, target: DropTarget) => void | Promise<void>;
   /** The storage behind an id, used for grid dimensions and for validating a landing. */
   storageFor: (storageId: number) => StorageRead | null;
   /** The landing is blocked locally; the caller explains why. */
@@ -85,13 +85,14 @@ interface TileRecord {
  */
 export function useGridDrag(options: GridDragOptions) {
   const picked = ref<InventoryItemRead | null>(null);
-  const rotated = ref(false);
   const ghost = ref<DragGhost | null>(null);
   const target = ref<DropTarget | null>(null);
   /** The floating tile under the pointer at the item's real footprint. */
   const preview = ref<PreviewBox | null>(null);
   /** The cell of the item's footprint under the pointer; the drop keeps it under the pointer. */
   const grab = ref<Point>({ x: 0, y: 0 });
+  /** The pressed pixel inside the picked rectangle; the preview keeps it under the pointer. */
+  let grabPx: Point = { x: 0, y: 0 };
 
   /** The keydown that picked an item; the same event must not immediately drop it. */
   let pickEvent: KeyboardEvent | null = null;
@@ -125,9 +126,10 @@ export function useGridDrag(options: GridDragOptions) {
     });
     ghost.value = spot.ghost;
     target.value = spot.target;
-    rotated.value = spot.rotated;
-    const size = effectiveSize(item.size, rotated.value);
+    const size = effectiveSize(item.size);
     grab.value = at ?? centerGrab(size);
+    // A keyboard pick has no pressed pixel; the pointer path sets it once the drag starts.
+    grabPx = { x: 0, y: 0 };
   }
 
   function stopScroll(): void {
@@ -175,21 +177,17 @@ export function useGridDrag(options: GridDragOptions) {
     if (!picked.value) return;
     ghost.value = next.storageId == null ? null : { x: next.x, y: next.y, storageId: next.storageId };
     target.value =
-      next.storageId == null
-        ? null
-        : { location: 'grid', storageId: next.storageId, x: next.x, y: next.y, rotated: next.rotated };
-    rotated.value = next.rotated;
+      next.storageId == null ? null : { location: 'grid', storageId: next.storageId, x: next.x, y: next.y };
   }
 
   interface GhostUpdate {
     x: number;
     y: number;
-    rotated: boolean;
     storageId: number | null;
   }
 
   function overGrid(storageId: number, x: number, y: number): void {
-    moveTo({ x, y, rotated: rotated.value, storageId });
+    moveTo({ x, y, storageId });
   }
 
   function overEquipment(slot: EquipmentSlot): void {
@@ -215,18 +213,6 @@ export function useGridDrag(options: GridDragOptions) {
     ghost.value = null;
   }
 
-  function rotate(): void {
-    if (!picked.value) return;
-    rotated.value = !rotated.value;
-    const size = effectiveSize(picked.value.size, rotated.value);
-    grab.value = { x: Math.min(grab.value.x, size.width - 1), y: Math.min(grab.value.y, size.height - 1) };
-    if (target.value?.location === 'grid') {
-      target.value = { ...target.value, rotated: rotated.value };
-    }
-    // The carried card turns with the ghost, not on the next pointer move.
-    if (lastPointer) movePreview(lastPointer);
-  }
-
   function moveBy(key: string): void {
     const item = picked.value;
     const current = ghost.value;
@@ -234,16 +220,13 @@ export function useGridDrag(options: GridDragOptions) {
     const storage = options.storageFor(current.storageId);
     if (!storage) return;
     const grid = { width: storage.width, height: storage.height };
-    const next = keyboardTarget(current, key, item.size, rotated.value, grid);
+    const next = keyboardTarget(current, key, grid);
     overGrid(current.storageId, next.x, next.y);
-    rotated.value = next.rotated;
-    if (target.value?.location === 'grid') target.value = { ...target.value, rotated: next.rotated };
   }
 
   function drop(): void {
     const item = picked.value;
     const destination = target.value;
-    const wasRotated = rotated.value;
     if (!item || !destination || isSameTarget(item.placement, destination)) {
       cancel();
       return;
@@ -267,7 +250,6 @@ export function useGridDrag(options: GridDragOptions) {
             { width: storage.width, height: storage.height },
             item,
             destination,
-            wasRotated,
             items,
           )
         : null;
@@ -280,7 +262,7 @@ export function useGridDrag(options: GridDragOptions) {
       }
     }
     cancel();
-    void options.onDrop(item.id, destination, wasRotated);
+    void options.onDrop(item.id, destination);
   }
 
   /** The non-grid drop zones, which are small and still resolved by the element on top. */
@@ -351,7 +333,7 @@ export function useGridDrag(options: GridDragOptions) {
       }
       const grid = { width: storage.width, height: storage.height };
       cellPx = cellPixels({ width: node.clientWidth, height: node.clientHeight }, grid);
-      const size = effectiveSize(picked.value.size, rotated.value);
+      const size = effectiveSize(picked.value.size);
       const origin = clampOrigin({ x: hit.x - grab.value.x, y: hit.y - grab.value.y }, size, grid);
       overGrid(hit.storageId, origin.x, origin.y);
       return;
@@ -382,7 +364,7 @@ export function useGridDrag(options: GridDragOptions) {
   function movePreview(pointer: Point): void {
     const item = picked.value;
     if (!item || !cellPx) return;
-    preview.value = previewBox(pointer, grab.value, cellPx, effectiveSize(item.size, rotated.value));
+    preview.value = previewBox(pointer, grabPx, cellPx, effectiveSize(item.size));
   }
 
   /* ------------------------------------------------------------------ */
@@ -408,12 +390,11 @@ export function useGridDrag(options: GridDragOptions) {
     const item = record.item;
     if (!item) return;
     const rect = record.rect ?? el.getBoundingClientRect();
-    // The grab must use the rotation the pick actually starts with: an intake item is
-    // stored rotated but starts unrotated, and a rotated grab would offset the card.
-    const rotatedAtStart = pickRotation(item.placement, options.intakeStorageId());
-    const size = effectiveSize(item.size, rotatedAtStart);
+    const size = effectiveSize(item.size);
     const at = grabPoint(sourceOf(item.placement, options.intakeStorageId()), rect, pointer, size);
     start(item, undefined, at);
+    // Keep the pressed pixel, not just its cell, under the pointer while the tile flies.
+    grabPx = grabOffset(rect, pointer);
     // An item picked up outside a grid has no cell to preview: hover decides the target.
     if (item.placement.location !== 'grid') {
       ghost.value = null;
@@ -525,8 +506,6 @@ export function useGridDrag(options: GridDragOptions) {
       cancel();
     } else if (event.key === 'Enter' || event.key === ' ') {
       drop();
-    } else if (event.key === 'r' || event.key === 'R') {
-      rotate();
     } else if (event.key.startsWith('Arrow')) {
       moveBy(event.key);
     } else {
@@ -547,7 +526,6 @@ export function useGridDrag(options: GridDragOptions) {
 
   return {
     picked,
-    rotated,
     ghost,
     target,
     preview,
@@ -560,7 +538,6 @@ export function useGridDrag(options: GridDragOptions) {
     overContainer,
     overModule,
     clearTarget,
-    rotate,
     moveBy,
     drop,
     cancel,

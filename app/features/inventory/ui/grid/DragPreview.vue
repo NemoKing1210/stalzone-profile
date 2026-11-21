@@ -5,7 +5,6 @@ import { useGridDragContext } from './drag-context';
 const drag = useGridDragContext();
 const item = computed(() => drag?.picked.value ?? null);
 const box = computed(() => drag?.preview.value ?? null);
-const rotated = computed(() => drag?.rotated.value ?? false);
 </script>
 
 <template>
@@ -23,7 +22,6 @@ const rotated = computed(() => drag?.rotated.value ?? false);
     >
       <ItemTile
         :item="item"
-        :rotated="rotated"
         class="cursor-grabbing shadow-[0_10px_30px_rgba(0,0,0,0.55)]"
         :style="{ position: 'absolute', left: '0', top: '0', width: '100%', height: '100%' }"
       />

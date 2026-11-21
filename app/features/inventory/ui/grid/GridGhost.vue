@@ -26,7 +26,6 @@ const ghost = computed(() => {
     { width: props.storage.width, height: props.storage.height },
     picked,
     spot,
-    drag.rotated.value,
     items,
   );
 });

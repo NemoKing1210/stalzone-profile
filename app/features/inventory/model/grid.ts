@@ -16,7 +16,6 @@ export interface Rect extends Size {
 export interface GridPlacement {
   x: number;
   y: number;
-  rotated: boolean;
 }
 
 /** The subset of an inventory item the grid needs to draw it. */
@@ -38,9 +37,9 @@ export interface GridBounds {
   height: number;
 }
 
-/** A rotated item swaps its rendered width and height. */
-export function effectiveSize(size: Size, rotated: boolean): Size {
-  return rotated ? { width: size.height, height: size.width } : { width: size.width, height: size.height };
+/** The rendered footprint; rotation no longer exists, so this is the stored size. */
+export function effectiveSize(size: Size): Size {
+  return { width: size.width, height: size.height };
 }
 
 function overlaps(a: Rect, b: Rect): boolean {
@@ -97,14 +96,14 @@ export function grabCell(rect: GridBounds, point: { x: number; y: number }, size
 /** Every placed item as a grid rectangle, in the same order as the input. */
 export function itemRects(items: readonly GridItem[]): Rect[] {
   return items.map((item) => {
-    const size = effectiveSize(item.size, item.placement.rotated);
+    const size = effectiveSize(item.size);
     return { x: item.placement.x, y: item.placement.y, ...size };
   });
 }
 
 /**
- * The first cell a row-by-row scan reaches where the item fits, upright before rotated.
- * The item itself is ignored, so a menu can re-pack an item already inside the storage.
+ * The first cell a row-by-row scan reaches where the upright item fits. The item itself is
+ * ignored, so a menu can re-pack an item already inside the storage.
  */
 export function firstFreeSpot(
   grid: Size,
@@ -112,13 +111,10 @@ export function firstFreeSpot(
   items: readonly (GridItem & { id: number })[],
 ): GridPlacement | null {
   const others = itemRects(items.filter((entry) => entry.id !== item.id));
+  const size = effectiveSize(item.size);
   for (let y = 0; y < grid.height; y += 1) {
     for (let x = 0; x < grid.width; x += 1) {
-      for (const rotated of [false, true]) {
-        const size = effectiveSize(item.size, rotated);
-        if (rotated && size.width === item.size.width && size.height === item.size.height) continue;
-        if (canDrop({ x, y, ...size }, grid, others)) return { x, y, rotated };
-      }
+      if (canDrop({ x, y, ...size }, grid, others)) return { x, y };
     }
   }
   return null;
@@ -132,10 +128,9 @@ export function ghostForGrid(
   grid: Size,
   picked: { id: number; size: Size },
   ghost: { x: number; y: number },
-  rotated: boolean,
   items: readonly (GridItem & { id: number })[],
 ): GridGhostPreview {
-  const size = effectiveSize(picked.size, rotated);
+  const size = effectiveSize(picked.size);
   const rect = { x: ghost.x, y: ghost.y, ...size };
   const others = itemRects(items.filter((item) => item.id !== picked.id));
   return { ...rect, valid: canDrop(rect, grid, others) };

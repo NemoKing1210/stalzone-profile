@@ -72,6 +72,14 @@ describe('command palette registry', () => {
     }
   });
 
+  it('offers the assistant panel command without a write or a route', () => {
+    const command = paletteCommands(context).find((entry) => entry.action === 'open-assistant');
+    expect(command).toMatchObject({ id: 'assistant.open', group: 'data', icon: 'i-lucide-sparkles' });
+    expect(command?.write).toBeUndefined();
+    expect(command?.confirm).toBeUndefined();
+    expect(command?.to).toBeUndefined();
+  });
+
   it('offers one stash command per storage and no dead stash id', () => {
     const stashCommands = paletteCommands(context).filter((command) => command.action === 'select-stash');
     expect(stashCommands.map((command) => command.stashId)).toEqual([2, 7]);

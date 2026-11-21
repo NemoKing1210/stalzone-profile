@@ -3,6 +3,7 @@
 import type { InventoryItemRead, ModuleSlot } from '@profile/shared/contracts';
 
 
+import { ItemIconFallback, VirtualBadge } from '~/entities/item';
 import { useGridDragContext } from './drag-context';
 
 const props = withDefaults(
@@ -96,9 +97,9 @@ function isVerified(item: InventoryItemRead): boolean {
   <div class="space-y-3">
     <header class="flex items-center gap-2">
       <img v-if="props.weapon.icon" :src="props.weapon.icon" :alt="props.weapon.name" class="h-9 w-9 object-contain" loading="lazy">
-      <UIcon v-else name="i-lucide-crosshair" class="size-6 text-[var(--sz-text-dim)]" />
+      <ItemIconFallback v-else :size="24" />
       <div class="min-w-0">
-        <p class="truncate text-[13px]">{{ props.weapon.name }}</p>
+        <p class="flex min-w-0 items-center gap-1 truncate text-[13px]"><span class="truncate">{{ props.weapon.name }}</span><VirtualBadge v-if="props.weapon.virtual" /></p>
         <p class="text-[11px] text-[var(--sz-text-muted)]">
           {{ props.weapon.category ?? t('items.kind.weapon') }} · {{ t('items.level', { level: props.weapon.level }) }}
         </p>
@@ -160,7 +161,9 @@ function isVerified(item: InventoryItemRead): boolean {
             class="h-5 w-5 object-contain"
             loading="lazy"
           >
+          <ItemIconFallback v-else :size="20" />
           <span class="truncate text-[12px]">{{ installed(selectedSlot)!.name }}</span>
+          <VirtualBadge v-if="installed(selectedSlot)!.virtual" />
           <span
             v-if="!isVerified(installed(selectedSlot)!)"
             class="shrink-0 border border-[var(--sz-warning)] px-1 text-[11px] text-[var(--sz-warning-text)]"
@@ -199,8 +202,9 @@ function isVerified(item: InventoryItemRead): boolean {
             class="h-4 w-4 object-contain"
             loading="lazy"
           >
-          <UIcon v-else name="i-lucide-paperclip" class="size-3 text-[var(--sz-text-dim)]" />
+          <ItemIconFallback v-else :size="12" />
           {{ attachment.name }}
+          <VirtualBadge v-if="attachment.virtual" />
         </button>
       </div>
       <p v-else class="text-[12px] text-[var(--sz-text-dim)]">{{ t('inventory.noAttachments') }}</p>

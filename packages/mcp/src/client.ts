@@ -118,6 +118,7 @@ export interface InventoryListQuery {
   kind?: string;
   location?: 'grid' | 'equipment' | 'container' | 'weapon_module' | 'loose';
   storageId?: number;
+  virtual?: boolean;
 }
 
 /** Everything the MCP tools need from a profile, whether it lives in this process or behind HTTP. */
@@ -272,7 +273,8 @@ export function localClient(db: Db, syncOptions: LocalClientOptions = {}): Profi
           (query.kind == null || item.kind === query.kind) &&
           (query.location == null || item.placement.location === query.location) &&
           (query.storageId == null ||
-            (item.placement.location === 'grid' && item.placement.storageId === query.storageId)),
+            (item.placement.location === 'grid' && item.placement.storageId === query.storageId)) &&
+          (query.virtual == null || item.virtual === query.virtual),
       );
     },
 

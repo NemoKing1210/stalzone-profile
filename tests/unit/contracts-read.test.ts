@@ -23,6 +23,7 @@ describe('read contracts', () => {
       quality: null,
       rarityPct: null,
       rarityTier: null,
+      virtual: false,
       skinItemId: null,
       icon: null,
       note: null,

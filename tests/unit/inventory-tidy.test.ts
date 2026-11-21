@@ -17,7 +17,7 @@ function candidate(
     kind: 'weapon',
     rank: 'RANK_NEWBIE',
     size: { width: 1, height: 1 },
-    original: { x: 0, y: 0, rotated: false },
+    original: { x: 0, y: 0 },
     ...overrides,
   };
 }
@@ -47,22 +47,22 @@ describe('tidy order', () => {
 describe('tidy plan', () => {
   it('packs every item into an empty grid without overlap', () => {
     const items = [
-      candidate(1, 'A', { size: { width: 2, height: 2 }, original: { x: 4, y: 0, rotated: false } }),
-      candidate(2, 'B', { size: { width: 2, height: 2 }, original: { x: 4, y: 4, rotated: false } }),
+      candidate(1, 'A', { size: { width: 2, height: 2 }, original: { x: 4, y: 0 } }),
+      candidate(2, 'B', { size: { width: 2, height: 2 }, original: { x: 4, y: 4 } }),
     ];
     const plan = planTidy({ width: 4, height: 4 }, items, 'name');
     expect(plan.unplaced).toEqual([]);
     expect(plan.placed).toEqual([
-      { id: 1, x: 0, y: 0, rotated: false },
-      { id: 2, x: 2, y: 0, rotated: false },
+      { id: 1, x: 0, y: 0 },
+      { id: 2, x: 2, y: 0 },
     ]);
   });
 
   it('keeps an item that cannot fit at its original cells and reports it', () => {
     const items = [
-      candidate(1, 'Small', { size: { width: 1, height: 1 }, original: { x: 0, y: 0, rotated: false } }),
-      candidate(2, 'Wide', { size: { width: 5, height: 2 }, original: { x: 0, y: 1, rotated: false } }),
-      candidate(3, 'Other', { size: { width: 1, height: 1 }, original: { x: 1, y: 0, rotated: false } }),
+      candidate(1, 'Small', { size: { width: 1, height: 1 }, original: { x: 0, y: 0 } }),
+      candidate(2, 'Wide', { size: { width: 5, height: 2 }, original: { x: 0, y: 1 } }),
+      candidate(3, 'Other', { size: { width: 1, height: 1 }, original: { x: 1, y: 0 } }),
     ];
     const plan = planTidy({ width: 4, height: 4 }, items, 'name');
     expect(plan.unplaced).toEqual([2]);

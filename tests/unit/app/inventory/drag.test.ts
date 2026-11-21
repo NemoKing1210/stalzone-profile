@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   cellPixels,
+  grabOffset,
   grabPoint,
   gridUnder,
   isPrimaryButton,
   isSameTarget,
   keyboardTarget,
-  pickRotation,
   pointerToCell,
   previewBox,
   sourceOf,
@@ -18,47 +18,37 @@ const grid = { width: 8, height: 8 };
 
 describe('keyboardTarget', () => {
   it('moves the ghost with arrow keys and clamps at the grid edge', () => {
-    expect(keyboardTarget({ x: 0, y: 0 }, 'ArrowLeft', { width: 2, height: 2 }, false, grid).x).toBe(0);
-    expect(keyboardTarget({ x: 7, y: 0 }, 'ArrowRight', { width: 2, height: 2 }, false, grid).x).toBe(7);
+    expect(keyboardTarget({ x: 0, y: 0 }, 'ArrowLeft', grid).x).toBe(0);
+    expect(keyboardTarget({ x: 7, y: 0 }, 'ArrowRight', grid).x).toBe(7);
   });
 
   it('moves one cell per arrow press', () => {
-    expect(keyboardTarget({ x: 3, y: 3 }, 'ArrowDown', { width: 1, height: 1 }, false, grid)).toEqual({
+    expect(keyboardTarget({ x: 3, y: 3 }, 'ArrowDown', grid)).toEqual({
       x: 3,
       y: 4,
-      rotated: false,
     });
-    expect(keyboardTarget({ x: 3, y: 3 }, 'ArrowUp', { width: 1, height: 1 }, false, grid)).toEqual({
+    expect(keyboardTarget({ x: 3, y: 3 }, 'ArrowUp', grid)).toEqual({
       x: 3,
       y: 2,
-      rotated: false,
     });
   });
 
-  it('rotates the ghost and keeps the origin', () => {
-    expect(keyboardTarget({ x: 2, y: 2 }, 'r', { width: 5, height: 2 }, false, grid)).toEqual({
-      x: 2,
-      y: 2,
-      rotated: true,
-    });
-    expect(keyboardTarget({ x: 2, y: 2 }, 'R', { width: 5, height: 2 }, true, grid).rotated).toBe(false);
+  it('ignores R: the game has no rotation key', () => {
+    expect(keyboardTarget({ x: 2, y: 2 }, 'r', grid)).toEqual({ x: 2, y: 2 });
+    expect(keyboardTarget({ x: 2, y: 2 }, 'R', grid)).toEqual({ x: 2, y: 2 });
   });
 
   it('leaves the ghost alone for other keys', () => {
-    expect(keyboardTarget({ x: 1, y: 1 }, 'Enter', { width: 1, height: 1 }, false, grid)).toEqual({
-      x: 1,
-      y: 1,
-      rotated: false,
-    });
+    expect(keyboardTarget({ x: 1, y: 1 }, 'Enter', grid)).toEqual({ x: 1, y: 1 });
   });
 });
 
 describe('isSameTarget', () => {
   it('recognises the current grid cell', () => {
-    const placement = { location: 'grid' as const, storageId: 4, x: 2, y: 1, rotated: false };
-    expect(isSameTarget(placement, { location: 'grid', storageId: 4, x: 2, y: 1, rotated: false })).toBe(true);
-    expect(isSameTarget(placement, { location: 'grid', storageId: 4, x: 2, y: 1, rotated: true })).toBe(false);
-    expect(isSameTarget(placement, { location: 'grid', storageId: 5, x: 2, y: 1, rotated: false })).toBe(false);
+    const placement = { location: 'grid' as const, storageId: 4, x: 2, y: 1 };
+    expect(isSameTarget(placement, { location: 'grid', storageId: 4, x: 2, y: 1 })).toBe(true);
+    expect(isSameTarget(placement, { location: 'grid', storageId: 4, x: 3, y: 1 })).toBe(false);
+    expect(isSameTarget(placement, { location: 'grid', storageId: 5, x: 2, y: 1 })).toBe(false);
   });
 
   it('recognises equipment, container and module targets', () => {
@@ -82,7 +72,7 @@ describe('isSameTarget', () => {
     expect(isSameTarget({ location: 'equipment', slot: 'primary' }, { location: 'equipment', slot: 'armor' })).toBe(
       false,
     );
-    expect(isSameTarget({ location: 'loose' }, { location: 'grid', storageId: 1, x: 0, y: 0, rotated: false })).toBe(
+    expect(isSameTarget({ location: 'loose' }, { location: 'grid', storageId: 1, x: 0, y: 0 })).toBe(
       false,
     );
   });
@@ -93,36 +83,33 @@ describe('startPlacement', () => {
 
   it('keeps a storage item where it is', () => {
     expect(
-      startPlacement({ location: 'grid', storageId: 4, x: 2, y: 3, rotated: true }, options),
+      startPlacement({ location: 'grid', storageId: 4, x: 2, y: 3 }, options),
     ).toEqual({
       ghost: { x: 2, y: 3, storageId: 4 },
-      target: { location: 'grid', storageId: 4, x: 2, y: 3, rotated: true },
-      rotated: true,
+      target: { location: 'grid', storageId: 4, x: 2, y: 3 },
     });
   });
 
   it('starts an intake item on the home grid, because intake only releases items', () => {
     expect(
-      startPlacement({ location: 'grid', storageId: 9, x: 2, y: 3, rotated: true }, options),
+      startPlacement({ location: 'grid', storageId: 9, x: 2, y: 3 }, options),
     ).toEqual({
       ghost: { x: 0, y: 0, storageId: 7 },
-      target: { location: 'grid', storageId: 7, x: 0, y: 0, rotated: false },
-      rotated: false,
+      target: { location: 'grid', storageId: 7, x: 0, y: 0 },
     });
   });
 
   it('starts an equipped or slotted item on the home grid', () => {
     expect(startPlacement({ location: 'equipment', slot: 'primary' }, options)).toEqual({
       ghost: { x: 0, y: 0, storageId: 7 },
-      target: { location: 'grid', storageId: 7, x: 0, y: 0, rotated: false },
-      rotated: false,
+      target: { location: 'grid', storageId: 7, x: 0, y: 0 },
     });
   });
 
   it('has no ghost without a home storage', () => {
     expect(
       startPlacement({ location: 'equipment', slot: 'primary' }, { homeStorageId: null, intakeStorageId: 9 }),
-    ).toEqual({ ghost: null, target: null, rotated: false });
+    ).toEqual({ ghost: null, target: null });
   });
 });
 
@@ -157,37 +144,56 @@ describe('cellPixels', () => {
 });
 
 describe('previewBox', () => {
-  it('keeps the grabbed cell under the pointer at the item footprint', () => {
+  it('keeps the grabbed pixel under the pointer at the item footprint', () => {
     expect(
-      previewBox({ x: 100, y: 200 }, { x: 1, y: 0 }, { width: 50, height: 50 }, { width: 2, height: 1 }),
+      previewBox({ x: 100, y: 200 }, { x: 50, y: 0 }, { width: 50, height: 50 }, { width: 2, height: 1 }),
     ).toEqual({ left: 50, top: 200, width: 100, height: 50 });
   });
 
-  it('grows the preview for a rotated footprint', () => {
+  it('grows the preview for a tall footprint', () => {
     expect(
       previewBox({ x: 100, y: 200 }, { x: 0, y: 0 }, { width: 40, height: 40 }, { width: 1, height: 5 }),
     ).toEqual({ left: 100, top: 200, width: 40, height: 200 });
   });
+
+  it('clamps an offset larger than the footprint so the card stays under the pointer', () => {
+    expect(
+      previewBox({ x: 300, y: 300 }, { x: 180, y: 90 }, { width: 50, height: 50 }, { width: 2, height: 1 }),
+    ).toEqual({ left: 200, top: 250, width: 100, height: 50 });
+  });
+
+  it('does not shift the card when the drag starts, whatever cell the pointer is inside', () => {
+    // The regression: snapping the grabbed cell to the pointer moved a 1×1 card so its
+    // top-left sat under the cursor, up to a full cell away from the press point.
+    const rect = { left: 276, top: 243, width: 62.5, height: 62.5 };
+    const press = { x: 276 + 44, y: 243 + 37 };
+    const cell = cellPixels({ width: rect.width, height: rect.height }, { width: 1, height: 1 });
+    expect(previewBox(press, grabOffset(rect, press), cell, { width: 1, height: 1 })).toEqual({
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+    });
+  });
 });
 
-describe('pickRotation', () => {
-  it('keeps the stored rotation of a storage item', () => {
-    expect(pickRotation({ location: 'grid', storageId: 4, x: 0, y: 0, rotated: true }, 9)).toBe(true);
+describe('grabOffset', () => {
+  it('measures the pointer inside the tile in pixels', () => {
+    const rect = { left: 100, top: 50, width: 200, height: 100 };
+    expect(grabOffset(rect, { x: 225, y: 75 })).toEqual({ x: 125, y: 25 });
   });
 
-  it('starts an intake item unrotated', () => {
-    expect(pickRotation({ location: 'grid', storageId: 9, x: 0, y: 0, rotated: true }, 9)).toBe(false);
-  });
-
-  it('starts an item outside a grid unrotated', () => {
-    expect(pickRotation({ location: 'equipment', slot: 'primary' }, 9)).toBe(false);
+  it('clamps a press on the tile edge into the footprint', () => {
+    const rect = { left: 100, top: 50, width: 200, height: 100 };
+    expect(grabOffset(rect, { x: 90, y: 40 })).toEqual({ x: 0, y: 0 });
+    expect(grabOffset(rect, { x: 400, y: 400 })).toEqual({ x: 200, y: 100 });
   });
 });
 
 describe('sourceOf', () => {
   it('names the rectangle an item is picked from', () => {
-    expect(sourceOf({ location: 'grid', storageId: 4, x: 0, y: 0, rotated: false }, 9)).toBe('grid');
-    expect(sourceOf({ location: 'grid', storageId: 9, x: 0, y: 0, rotated: false }, 9)).toBe('intake');
+    expect(sourceOf({ location: 'grid', storageId: 4, x: 0, y: 0 }, 9)).toBe('grid');
+    expect(sourceOf({ location: 'grid', storageId: 9, x: 0, y: 0 }, 9)).toBe('intake');
     expect(sourceOf({ location: 'equipment', slot: 'primary' }, 9)).toBe('equipment');
     expect(sourceOf({ location: 'container', containerItemId: 3, slotIndex: 0 }, 9)).toBe('container');
   });
@@ -230,13 +236,13 @@ describe('isPrimaryButton', () => {
 
 describe('ghostForGrid', () => {
   const items = [
-    { id: 1, size: { width: 2, height: 2 }, placement: { x: 0, y: 0, rotated: false } },
-    { id: 2, size: { width: 1, height: 1 }, placement: { x: 4, y: 4, rotated: false } },
+    { id: 1, size: { width: 2, height: 2 }, placement: { x: 0, y: 0 } },
+    { id: 2, size: { width: 1, height: 1 }, placement: { x: 4, y: 4 } },
   ];
   const picked = { id: 1, size: { width: 2, height: 2 } };
 
   it('is valid on free cells inside the grid', () => {
-    expect(ghostForGrid({ width: 8, height: 8 }, picked, { x: 2, y: 0 }, false, items)).toEqual({
+    expect(ghostForGrid({ width: 8, height: 8 }, picked, { x: 2, y: 0 }, items)).toEqual({
       x: 2,
       y: 0,
       width: 2,
@@ -246,12 +252,12 @@ describe('ghostForGrid', () => {
   });
 
   it('ignores the picked item itself when it lands on its own cells', () => {
-    expect(ghostForGrid({ width: 8, height: 8 }, picked, { x: 1, y: 1 }, false, items).valid).toBe(true);
+    expect(ghostForGrid({ width: 8, height: 8 }, picked, { x: 1, y: 1 }, items).valid).toBe(true);
   });
 
   it('is invalid on a collision or past the edge', () => {
-    expect(ghostForGrid({ width: 8, height: 8 }, picked, { x: 4, y: 4 }, false, items).valid).toBe(false);
-    expect(ghostForGrid({ width: 8, height: 8 }, picked, { x: 7, y: 0 }, false, items).valid).toBe(false);
+    expect(ghostForGrid({ width: 8, height: 8 }, picked, { x: 4, y: 4 }, items).valid).toBe(false);
+    expect(ghostForGrid({ width: 8, height: 8 }, picked, { x: 7, y: 0 }, items).valid).toBe(false);
   });
 });
 

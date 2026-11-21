@@ -38,7 +38,7 @@ describe('profile export round-trip', () => {
     moveInventoryItem(
       db,
       seeded.instanceIds.smg!,
-      { location: 'grid', storageId: seeded.storageIds.inventory, x: 1, y: 2, rotated: false },
+      { location: 'grid', storageId: seeded.storageIds.inventory, x: 1, y: 2 },
       { dryRun: false },
     );
     const exported = exportProfileJson(db);

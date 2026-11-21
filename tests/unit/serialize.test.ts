@@ -56,7 +56,6 @@ describe('HTTP serializers', () => {
       storage_id: null,
       x: null,
       y: null,
-      rotated: 0,
       equipment_slot: 'primary',
       container_item_id: null,
       container_slot: null,

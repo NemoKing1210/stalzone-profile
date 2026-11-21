@@ -18,6 +18,8 @@ const stats = computed(() => [
     :rank="row.rank"
     :category="row.type"
     :icon="row.icon"
+    :virtual="row.virtual"
+    :weight="row.weight"
     :description="row.effects ?? undefined"
     :stats="stats"
     :priority="priority"

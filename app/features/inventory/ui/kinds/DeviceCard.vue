@@ -7,10 +7,8 @@ const props = defineProps<{ row: DeviceRow; priority: boolean }>();
 defineEmits<{ open: [] }>();
 
 const { t } = useI18n();
-const { g2 } = useFormat();
 
 const stats = computed(() => [
-  { label: t('table.weight'), value: props.row.weight == null ? '—' : g2(props.row.weight) },
   { label: t('table.type'), value: props.row.type ?? '—' },
 ]);
 </script>
@@ -21,6 +19,7 @@ const stats = computed(() => [
     :rank="row.rank"
     :category="row.type"
     :icon="row.icon"
+    :weight="row.weight"
     :stats="stats"
     :priority="priority"
     @open="$emit('open')"

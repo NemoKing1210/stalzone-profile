@@ -1,7 +1,7 @@
 import type { EquipmentRead, InventoryItemRead, PlacementRead, StorageRead } from '@profile/shared/contracts';
 import { describe, expect, it } from 'vitest';
 import { equipmentSlotsFor } from '@profile/shared/contracts';
-import { equipTarget, moveDestinations } from '~/features/inventory/model/menu';
+import { equipTarget, moveDestinations, quickMove } from '~/features/inventory/model/menu';
 
 function item(id: number, placement: PlacementRead, extra: Partial<InventoryItemRead> = {}): InventoryItemRead {
   return {
@@ -16,6 +16,7 @@ function item(id: number, placement: PlacementRead, extra: Partial<InventoryItem
     quality: null,
     rarityPct: null,
     rarityTier: null,
+    virtual: false,
     qty: 1,
     skinItemId: null,
     icon: null,
@@ -49,7 +50,7 @@ function storage(
 }
 
 describe('moveDestinations', () => {
-  const pack = item(1, { location: 'grid', storageId: 10, x: 0, y: 0, rotated: false });
+  const pack = item(1, { location: 'grid', storageId: 10, x: 0, y: 0 });
   const inventory = storage(10, 'inventory', [pack]);
   const stash = storage(11, 'stash', []);
   const intake = storage(12, 'overflow', []);
@@ -67,7 +68,7 @@ describe('moveDestinations', () => {
   });
 
   it('keeps a full storage in the list with no free spot', () => {
-    const blocker = item(3, { location: 'grid', storageId: 11, x: 0, y: 0, rotated: false }, {
+    const blocker = item(3, { location: 'grid', storageId: 11, x: 0, y: 0 }, {
       size: { width: 2, height: 2 },
     });
     const full = storage(11, 'stash', [blocker]);
@@ -142,5 +143,85 @@ describe('equipTarget', () => {
 
   it('does nothing for an item that is already worn', () => {
     expect(equipTarget(item(1, { location: 'equipment', slot: 'armor' }, { kind: 'armor' }), equipment())).toBeNull();
+  });
+});
+
+
+describe('quickMove', () => {
+  const home = storage(10, 'inventory', []);
+  const stash = storage(11, 'stash', []);
+
+  function context(overrides: Partial<Parameters<typeof quickMove>[1]> = {}) {
+    return { pane: 'equipment' as const, home, stash, equipment: equipment(), ...overrides };
+  }
+
+  it('sends a carried tile to the selected stash', () => {
+    const carried = item(1, { location: 'grid', storageId: 10, x: 0, y: 0 });
+    expect(quickMove(carried, context({ pane: 'stash' }))).toEqual({
+      target: { location: 'grid', storageId: 11, x: 0, y: 0 },
+      blocked: null,
+    });
+  });
+
+  it('brings a stash tile back to the first free carried cell', () => {
+    const blocker = item(2, { location: 'grid', storageId: 10, x: 0, y: 0 });
+    const carried = storage(10, 'inventory', [blocker]);
+    const stored = item(3, { location: 'grid', storageId: 11, x: 0, y: 0 });
+    expect(quickMove(stored, context({ pane: 'stash', home: carried }))).toEqual({
+      target: { location: 'grid', storageId: 10, x: 1, y: 0 },
+      blocked: null,
+    });
+  });
+
+  it('releases an intake tile into the carried grid', () => {
+    const intake = storage(12, 'overflow', []);
+    const released = item(4, { location: 'grid', storageId: 12, x: 0, y: 0 });
+    expect(quickMove(released, context({ pane: 'stash', stash: intake }))).toEqual({
+      target: { location: 'grid', storageId: 10, x: 0, y: 0 },
+      blocked: null,
+    });
+  });
+
+  it('never puts a carried tile into the intake', () => {
+    const intake = storage(12, 'overflow', []);
+    const carried = item(1, { location: 'grid', storageId: 10, x: 0, y: 0 });
+    expect(quickMove(carried, context({ pane: 'stash', stash: intake }))).toEqual({
+      target: null,
+      blocked: 'intake',
+    });
+  });
+
+  it('equips a carried weapon through the first compatible slot', () => {
+    const gun = item(5, { location: 'grid', storageId: 10, x: 0, y: 0 }, {
+      category: 'weapon/pistol',
+    });
+    expect(quickMove(gun, context())).toEqual({ target: { location: 'equipment', slot: 'secondary' }, blocked: null });
+  });
+
+  it('returns a worn item to the carried grid', () => {
+    const vest = item(6, { location: 'equipment', slot: 'armor' }, { kind: 'armor' });
+    expect(quickMove(vest, context())).toEqual({
+      target: { location: 'grid', storageId: 10, x: 0, y: 0 },
+      blocked: null,
+    });
+  });
+
+  it('refuses an item the equipment slots do not accept', () => {
+    const gem = item(7, { location: 'grid', storageId: 10, x: 0, y: 0 }, { kind: 'artifact' });
+    expect(quickMove(gem, context())).toEqual({ target: null, blocked: 'incompatible' });
+  });
+
+  it('refuses a full destination', () => {
+    const carried = item(1, { location: 'grid', storageId: 10, x: 0, y: 0 });
+    const blocker = item(8, { location: 'grid', storageId: 11, x: 0, y: 0 }, {
+      size: { width: 2, height: 2 },
+    });
+    const full = storage(11, 'stash', [blocker]);
+    expect(quickMove(carried, context({ pane: 'stash', stash: full }))).toEqual({ target: null, blocked: 'full' });
+  });
+
+  it('reports a missing carried storage instead of writing', () => {
+    const vest = item(6, { location: 'equipment', slot: 'armor' }, { kind: 'armor' });
+    expect(quickMove(vest, context({ home: null }))).toEqual({ target: null, blocked: 'no-home' });
   });
 });

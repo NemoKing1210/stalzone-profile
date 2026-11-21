@@ -91,7 +91,7 @@ describe('inventory read', () => {
     moveInventoryItem(
       db,
       data.instanceIds.backpack!,
-      { location: 'grid', storageId: data.storageIds.inventory, x: 0, y: 0, rotated: false },
+      { location: 'grid', storageId: data.storageIds.inventory, x: 0, y: 0 },
       { dryRun: false },
     );
 

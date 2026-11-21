@@ -121,7 +121,6 @@ export const PlacementTargetSchema = z.discriminatedUnion('location', [
     storageId: z.number().int().positive(),
     x: z.number().int().nonnegative(),
     y: z.number().int().nonnegative(),
-    rotated: z.boolean().default(false),
   }),
   z.object({
     location: z.literal('equipment'),
@@ -186,6 +185,7 @@ export const InventoryItemCreateSchema = WriteOptionsSchema.extend({
   rarityPct: z.number().min(0).max(175).nullish(),
   rarityTier: RarityTierSchema.nullish(),
   qty: z.number().int().min(1).max(99).default(1),
+  virtual: z.boolean().default(false),
   displayName: z.string().min(1).max(200).nullish(),
   container: ContainerDataWriteSchema.optional(),
   target: PlacementTargetSchema.optional(),
@@ -199,6 +199,7 @@ export const InventoryItemPatchSchema = WriteOptionsSchema.extend({
   rarityPct: z.number().min(0).max(175).nullish(),
   rarityTier: RarityTierSchema.nullish(),
   qty: z.number().int().min(1).max(99).optional(),
+  virtual: z.boolean().optional(),
   displayName: z.string().min(1).max(200).nullish(),
   container: ContainerDataWriteSchema.nullish(),
 }).strict().refine((value) => Object.keys(value).some((key) => key !== 'dryRun'), {
@@ -271,7 +272,6 @@ export const McpPlacementTargetSchema = z.discriminatedUnion('location', [
     storage_id: z.number().int().positive(),
     x: z.number().int().nonnegative(),
     y: z.number().int().nonnegative(),
-    rotated: z.boolean().default(false),
   }),
   z.object({
     location: z.literal('equipment'),
@@ -301,6 +301,7 @@ export const AddInventoryItemInputSchema = McpWriteOptionsSchema.extend({
   rarity_pct: z.number().min(0).max(175).nullish(),
   rarity_tier: RarityTierSchema.nullish(),
   qty: z.number().int().min(1).max(99).default(1),
+  virtual: z.boolean().default(false),
   display_name: z.string().min(1).nullish(),
   container: McpContainerDataInputSchema.nullish(),
 });
@@ -314,6 +315,7 @@ export const UpdateInventoryItemInputSchema = McpWriteOptionsSchema.extend({
   rarity_pct: z.number().min(0).max(175).nullish(),
   rarity_tier: RarityTierSchema.nullish(),
   qty: z.number().int().min(1).max(99).optional(),
+  virtual: z.boolean().optional(),
   display_name: z.string().min(1).nullish(),
   container: McpContainerDataInputSchema.nullish(),
 }).refine((value) => Object.keys(value).some((key) => !['item_id', 'dry_run', 'confirm'].includes(key)), {

@@ -19,6 +19,7 @@ function item(partial: Partial<InventoryItemRead> & Pick<InventoryItemRead, 'id'
     quality: null,
     rarityPct: null,
     rarityTier: null,
+    virtual: false,
     qty: 1,
     skinItemId: null,
     icon: null,
@@ -36,19 +37,20 @@ const rifleA = item({
   name: 'AK-12',
   kind: 'weapon',
   category: 'assault rifle',
-  placement: { location: 'grid', storageId: 1, x: 0, y: 0, rotated: false },
+  placement: { location: 'grid', storageId: 1, x: 0, y: 0 },
 });
 const rifleB = item({
   id: 12,
   name: 'AK-12',
   kind: 'weapon',
   category: 'assault rifle',
-  placement: { location: 'grid', storageId: 1, x: 5, y: 0, rotated: false },
+  placement: { location: 'grid', storageId: 1, x: 5, y: 0 },
 });
 const artifact = item({
   id: 21,
   name: 'Moonlight',
   kind: 'artifact',
+  weight: 1.5,
   placement: { location: 'container', containerItemId: 31, slotIndex: 1 },
 });
 const vest = item({
@@ -61,7 +63,7 @@ const container = item({
   id: 31,
   name: 'Backpack',
   kind: 'container',
-  placement: { location: 'grid', storageId: 1, x: 0, y: 3, rotated: false },
+  placement: { location: 'grid', storageId: 1, x: 0, y: 3 },
   container: { type: 'backpack', shield: null, bonus: null, protection: 10, slots: 4, eff: 100 },
   artifacts: [artifact],
 });
@@ -141,6 +143,11 @@ describe('instance rows', () => {
       armor: [{ instanceId: 22, name: 'Vest', lvl: 10, prot: { bullet: 40, bullet15: 60 } }],
     } as never);
     expect(armorRows[0]).toMatchObject({ instanceId: 22, armor: 40, armor15: 60 });
+  });
+
+  it('carries the instance weight onto an artifact row', () => {
+    const rows = artifactsKind.toRows(payload);
+    expect(rows[0]).toMatchObject({ name: 'Moonlight', weight: 1.5 });
   });
 
   it('labels an equipped item by its slot and a container artifact by its parent', () => {

@@ -17,13 +17,14 @@ const rifle: InventoryItemRead = {
   quality: null,
   rarityPct: null,
   rarityTier: null,
+  virtual: false,
   qty: 2,
   skinItemId: null,
   icon: null,
   slot: 'primary',
   weight: 4.2,
   size: { width: 5, height: 2 },
-  placement: { location: 'grid', storageId: 1, x: 0, y: 0, rotated: false },
+  placement: { location: 'grid', storageId: 1, x: 0, y: 0 },
   container: null,
 };
 

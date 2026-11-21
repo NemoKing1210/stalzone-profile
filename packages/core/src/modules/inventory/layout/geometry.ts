@@ -5,10 +5,8 @@ export interface Rect extends Size {
   y: number;
 }
 
-export function itemRect(x: number, y: number, size: Size, rotated: boolean): Rect {
-  return rotated
-    ? { x, y, width: size.height, height: size.width }
-    : { x, y, width: size.width, height: size.height };
+export function itemRect(x: number, y: number, size: Size): Rect {
+  return { x, y, width: size.width, height: size.height };
 }
 
 export function overlaps(a: Rect, b: Rect): boolean {

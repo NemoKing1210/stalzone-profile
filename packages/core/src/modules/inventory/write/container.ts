@@ -116,7 +116,6 @@ export function setContainerFill(
         storageId: intake!.id,
         x: entry.x,
         y: entry.y,
-        rotated: entry.rotated,
       });
     }
     eventId = logEvent(db, {

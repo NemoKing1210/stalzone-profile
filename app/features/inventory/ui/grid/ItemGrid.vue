@@ -48,6 +48,7 @@ const props = withDefaults(
 defineEmits<{
   open: [item: InventoryItemRead];
   pick: [item: InventoryItemRead, event: KeyboardEvent];
+  quick: [item: InventoryItemRead, event: MouseEvent];
   menu: [item: InventoryItemRead, action: ItemMenuAction];
 }>();
 
@@ -103,7 +104,7 @@ const styleCache = new Map<string, Record<string, string>>();
 function styleFor(item: InventoryItemRead): Record<string, string> {
   const placement = item.placement;
   if (placement.location !== 'grid') return {};
-  const size = effectiveSize(item.size, placement.rotated);
+  const size = effectiveSize(item.size);
   const synthetic = visual.value?.placements.get(item.id);
   const x = synthetic?.x ?? placement.x;
   const y = synthetic?.y ?? placement.y;
@@ -157,11 +158,11 @@ function cells(x: number, y: number, size: { width: number; height: number }): R
         <ItemTile
           :item="item"
           :picked="item.id === props.pickedId"
-          :rotated="item.placement.location === 'grid' && item.placement.rotated"
           :attach="props.attachTile"
           :style="styleFor(item)"
           @open="$emit('open', item)"
           @pick="$emit('pick', item, $event)"
+          @quick="$emit('quick', item, $event)"
         />
       </ItemContextMenu>
 

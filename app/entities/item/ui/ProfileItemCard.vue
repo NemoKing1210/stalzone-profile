@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import ItemIconFallback from './ItemIconFallback.vue';
 import RankBadge from './RankBadge.vue';
 import RarityName from './RarityName.vue';
+import VirtualBadge from './VirtualBadge.vue';
 
 interface ItemStat {
   label: string;
@@ -15,6 +17,8 @@ withDefaults(
     category?: string | null;
     level?: number | null;
     icon?: string | null;
+    weight?: number | null;
+    virtual?: boolean;
     stats?: ItemStat[];
     description?: string;
     priority?: boolean;
@@ -24,6 +28,8 @@ withDefaults(
     category: undefined,
     level: undefined,
     icon: undefined,
+    weight: null,
+    virtual: false,
     stats: undefined,
     description: undefined,
     priority: false,
@@ -31,6 +37,9 @@ withDefaults(
 );
 
 defineEmits<{ open: [] }>();
+
+const { t } = useI18n();
+const { g2 } = useFormat();
 
 function toneClass(tone: ItemStat['tone']): string {
   return {
@@ -53,7 +62,10 @@ function toneClass(tone: ItemStat['tone']): string {
       <span class="sz-caps min-w-0 truncate text-[var(--sz-text-muted)]" :title="category ?? undefined">
         {{ category || '—' }}
       </span>
-      <RankBadge v-if="rank" :rank="rank" class="shrink-0" />
+      <span class="flex shrink-0 items-center gap-1">
+        <VirtualBadge v-if="virtual" />
+        <RankBadge v-if="rank" :rank="rank" />
+      </span>
     </span>
     <RarityName :name="name" :rank="rank" :level="level" class="mt-1" />
 
@@ -66,7 +78,7 @@ function toneClass(tone: ItemStat['tone']): string {
         :loading="priority ? 'eager' : 'lazy'"
         :fetchpriority="priority ? 'high' : undefined"
       >
-      <UIcon v-else name="i-lucide-package" class="size-8 text-[var(--sz-text-dim)]" />
+      <ItemIconFallback v-else :size="32" />
     </span>
 
     <span v-if="description" class="mb-1 line-clamp-3 text-[11px] text-[var(--sz-text-muted)]">
@@ -74,11 +86,13 @@ function toneClass(tone: ItemStat['tone']): string {
     </span>
 
     <span
-      v-if="stats?.length"
-      class="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 border-t border-[var(--sz-border)] pt-1 text-[11px] text-[var(--sz-text-muted)]"
+      class="flex items-baseline gap-2 border-t border-[var(--sz-border)] pt-1 text-[11px] text-[var(--sz-text-muted)]"
     >
-      <span v-for="stat in stats" :key="stat.label">
-        <span class="tabular-nums" :class="toneClass(stat.tone)">{{ stat.value }}</span> {{ stat.label }}
+      <span class="shrink-0 tabular-nums">{{ weight == null ? '—' : t('items.weightValue', { value: g2(weight) }) }}</span>
+      <span v-if="stats?.length" class="flex min-w-0 flex-1 flex-wrap items-baseline justify-end gap-x-2 gap-y-0.5">
+        <span v-for="stat in stats" :key="`${stat.label}-${stat.value}`">
+          <span class="tabular-nums" :class="toneClass(stat.tone)">{{ stat.value }}</span> {{ stat.label }}
+        </span>
       </span>
     </span>
   </button>

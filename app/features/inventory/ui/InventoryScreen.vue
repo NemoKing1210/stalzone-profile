@@ -114,7 +114,7 @@ function tdClass(column: InventoryColumn<TRow>): string | undefined {
     column.strong ? 'font-medium' : '',
     column.wide ? 'min-w-48' : '',
     column.truncate ? 'max-w-72 truncate' : '',
-    column.icon ? 'w-16' : '',
+    column.icon ? 'w-20' : '',
   ].filter(Boolean);
   return classes.length ? classes.join(' ') : undefined;
 }
@@ -143,8 +143,13 @@ function barFor(metric: string, key: string) {
   return barScales.value[metric as keyof typeof barScales.value]?.get(key) ?? null;
 }
 
+/** Kinds whose rows carry the instance flag; a catalog/device row is never virtual. */
+function rowVirtual(row: TRow): boolean {
+  return 'virtual' in row && row.virtual === true;
+}
+
 function renderCell(column: InventoryColumn<TRow>, row: TRow): string | VNode {
-  if (column.icon) return h(ItemIconCell, { icon: column.icon(row) });
+  if (column.icon) return h(ItemIconCell, { icon: column.icon(row), rank: row.rank, virtual: rowVirtual(row) });
   const component = ui.value.cells?.[column.key];
   if (component) return h(component, { row });
   const fmt = { g1, g2, num, bar: barFor };

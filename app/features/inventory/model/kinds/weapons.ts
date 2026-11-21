@@ -61,6 +61,7 @@ export const weaponsKind: InventoryKind<WeaponRow> = {
         key: `catalog-${index}-${entry.name}`,
         instanceId: null,
         item: null,
+        virtual: false,
         placement: null,
         location: null,
         ...EMPTY_LOCATION,
@@ -100,6 +101,7 @@ export const weaponsKind: InventoryKind<WeaponRow> = {
           key: `instance-${item.id}`,
           instanceId: item.id,
           item,
+          virtual: item.virtual,
           placement: item.placement,
           ...locationOf(item, index),
           qty: item.qty,
@@ -297,5 +299,6 @@ export const weaponsKind: InventoryKind<WeaponRow> = {
           slot: row.slot,
           rarityPct: row.item.rarityPct,
           rarityTier: row.item.rarityTier,
+          virtual: row.item.virtual,
         },
 };

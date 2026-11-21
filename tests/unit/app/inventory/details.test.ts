@@ -16,6 +16,7 @@ function item(overrides: Partial<InventoryItemRead> = {}): InventoryItemRead {
     quality: null,
     rarityPct: null,
     rarityTier: null,
+    virtual: false,
     qty: 1,
     skinItemId: null,
     icon: null,

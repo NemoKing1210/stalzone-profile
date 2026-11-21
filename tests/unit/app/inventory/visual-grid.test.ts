@@ -16,13 +16,14 @@ function item(overrides: Partial<InventoryItemRead> = {}): InventoryItemRead {
     quality: null,
     rarityPct: null,
     rarityTier: null,
+    virtual: false,
     qty: 1,
     skinItemId: null,
     icon: null,
     slot: null,
     weight: null,
     size: { width: 2, height: 2 },
-    placement: { location: 'grid', storageId: 7, x: 5, y: 4, rotated: false },
+    placement: { location: 'grid', storageId: 7, x: 5, y: 4 },
     container: null,
     ...overrides,
   };
@@ -50,17 +51,17 @@ describe('visual grid packing', () => {
     expect(items.map((entry) => entry.placement)).toEqual(stored);
   });
 
-  it('keeps each item rotation and footprint', () => {
+  it('keeps each item footprint', () => {
     const rotated = item({
       id: 1,
       name: 'A',
       size: { width: 5, height: 2 },
-      placement: { location: 'grid', storageId: 7, x: 0, y: 0, rotated: true },
+      placement: { location: 'grid', storageId: 7, x: 0, y: 0 },
     });
     const plain = item({ id: 2, name: 'B', size: { width: 1, height: 1 } });
     const grid = visualPlacements([rotated, plain], { width: 8, height: 8 }, 'name');
     expect(grid.placements.get(1)).toEqual({ x: 0, y: 0 });
-    expect(grid.placements.get(2)).toEqual({ x: 2, y: 0 });
+    expect(grid.placements.get(2)).toEqual({ x: 5, y: 0 });
   });
 
   it('grows the box instead of dropping an item that does not fit the stored height', () => {
@@ -77,17 +78,14 @@ describe('visual grid packing', () => {
         id: index + 1,
         name: `Item ${index}`,
         size: { width: 1 + (index % 3), height: 1 + ((index + 1) % 3) },
-        placement: { location: 'grid', storageId: 7, x: index % 8, y: index, rotated: index % 2 === 1 },
+        placement: { location: 'grid', storageId: 7, x: index % 8, y: index },
       }),
     );
     const grid = visualPlacements(items, { width: 8, height: 8 }, 'footprint');
     expect(grid.placements.size).toBe(items.length);
     const rects = items.map((entry) => {
       const at = grid.placements.get(entry.id)!;
-      const size = entry.placement.location === 'grid' && entry.placement.rotated
-        ? { width: entry.size.height, height: entry.size.width }
-        : entry.size;
-      return { x: at.x, y: at.y, ...size };
+      return { x: at.x, y: at.y, ...entry.size };
     });
     for (let left = 0; left < rects.length; left += 1) {
       for (let right = left + 1; right < rects.length; right += 1) {

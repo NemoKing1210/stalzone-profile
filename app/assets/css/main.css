@@ -357,14 +357,24 @@
     text-shadow: var(--sz-shadow-image-text);
   }
 
-  /* The one texture allowed in a data area: a 1 px 135° hatch at an 8 px pitch on item
-     cards and grid tiles. It stays transparent so the card or tile background shows. */
+  /* The one texture allowed in a data area: a 1 px 135° hatch on item cards and grid
+     tiles, kept at 16% of `--sz-border-strong` so it reads as a texture and never
+     competes with the name, icon or numbers. It stays transparent so the card or tile
+     background shows through. The pitch is a variable because a 64 px icon well needs a
+     tighter repeat than a full card. */
   .sz-hatch {
+    --sz-hatch-pitch: 8px;
     background-image: repeating-linear-gradient(
       135deg,
-      color-mix(in srgb, var(--sz-border-strong) 40%, transparent) 0 1px,
-      transparent 1px 8px
+      color-mix(in srgb, var(--sz-border-strong) 16%, transparent) 0 1px,
+      transparent 1px var(--sz-hatch-pitch)
     );
+  }
+
+  /* Small icon wells (catalog and inventory list rows): half the pitch keeps the same
+     number of strokes per surface instead of a texture that almost vanishes. */
+  .sz-hatch--fine {
+    --sz-hatch-pitch: 4px;
   }
 }
 

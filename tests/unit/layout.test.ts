@@ -10,8 +10,8 @@ import {
   resolveWeight,
 } from '@profile/core/modules/inventory/layout';
 
-describe('packItems rotation bounds', () => {
-  it('tries a rotated placement below the unrotated height bound', () => {
+describe('packItems upright bounds', () => {
+  it('leaves an item unplaced when only a rotated footprint would fit', () => {
     const occupied = [
       { x: 0, y: 0, width: 2, height: 4 },
       { x: 2, y: 0, width: 6, height: 6 },
@@ -21,8 +21,8 @@ describe('packItems rotation bounds', () => {
       [{ id: 1, size: { width: 2, height: 5 } }],
       occupied,
     );
-    expect(unplaced).toEqual([]);
-    expect(placed).toEqual([{ id: 1, x: 0, y: 6, rotated: true }]);
+    expect(unplaced).toEqual([1]);
+    expect(placed).toEqual([]);
   });
 });
 
@@ -38,8 +38,8 @@ describe('inventory layout', () => {
     expect(resolveWeight(null, null)).toBeNull();
   });
 
-  it('swaps dimensions when rotated', () => {
-    expect(itemRect(1, 2, { width: 5, height: 2 }, true)).toEqual({ x: 1, y: 2, width: 2, height: 5 });
+  it('keeps the stored footprint; there is no rotation', () => {
+    expect(itemRect(1, 2, { width: 5, height: 2 })).toEqual({ x: 1, y: 2, width: 5, height: 2 });
   });
 
   it('does not treat an edge-touching rectangle as overlapping', () => {
@@ -65,6 +65,6 @@ describe('inventory layout', () => {
     ]);
     expect(result.placed.map((p) => p.id)).toEqual([1, 2]);
     expect(result.unplaced).toEqual([3]);
-    expect(result.placed[0]).toEqual({ id: 1, x: 0, y: 0, rotated: false });
+    expect(result.placed[0]).toEqual({ id: 1, x: 0, y: 0 });
   });
 });

@@ -73,7 +73,7 @@ describe('intake storage', () => {
   it('places a new item in intake', () => {
     catalog('box', 'Ящик');
     const id = add('Ящик');
-    expect(getPlacement(db, id)).toMatchObject({ location: 'grid', storage_id: overflowId, x: 0, y: 0, rotated: 0 });
+    expect(getPlacement(db, id)).toMatchObject({ location: 'grid', storage_id: overflowId, x: 0, y: 0 });
   });
 
   it('merges a stackable add with an existing intake stack', () => {
@@ -99,9 +99,8 @@ describe('intake storage', () => {
       const placement = item.placement;
       expect(placement.location).toBe('grid');
       if (placement.location !== 'grid') continue;
-      const width = placement.rotated ? item.size.height : item.size.width;
       expect(placement.x).toBeGreaterThanOrEqual(0);
-      expect(placement.x + width).toBeLessThanOrEqual(8);
+      expect(placement.x + item.size.width).toBeLessThanOrEqual(8);
     }
   });
 
@@ -112,9 +111,9 @@ describe('intake storage', () => {
     expect(inventoryRead(db, characterId).storages.find((row) => row.id === overflowId)?.height).toBe(81);
   });
 
-  it('expands the intake read height for a rotated item', () => {
+  it('expands the intake read height for a tall item', () => {
     const itemId = catalog('wide', 'Широкий');
-    setItemLayout(db, itemId, { width: 5, height: 2 }, { dryRun: false });
+    setItemLayout(db, itemId, { width: 2, height: 5 }, { dryRun: false });
     const id = seed.insertInventoryItem(db, { characterId, itemId, kind: 'other' });
     upsertPlacement(db, {
       itemId: id,
@@ -123,7 +122,6 @@ describe('intake storage', () => {
       storageId: overflowId,
       x: 0,
       y: 78,
-      rotated: true,
     });
     expect(inventoryRead(db, characterId).storages.find((row) => row.id === overflowId)?.height).toBe(83);
   });
@@ -267,7 +265,7 @@ describe('removals go to intake', () => {
         moveInventoryItem(
           db,
           id,
-          { location: 'grid', storageId: overflowId, x: 1, y: 0, rotated: false },
+          { location: 'grid', storageId: overflowId, x: 1, y: 0 },
           { dryRun: false },
         ),
       'INVALID_PLACEMENT',

@@ -7,12 +7,11 @@ const props = defineProps<{ row: ContainerRow; priority: boolean }>();
 defineEmits<{ open: [] }>();
 
 const { t } = useI18n();
-const { g2, num } = useFormat();
+const { num } = useFormat();
 
 const stats = computed(() => [
   { label: t('table.slots'), value: props.row.slots == null ? '—' : num(props.row.slots) },
   { label: t('table.fill'), value: `${props.row.fill} / ${props.row.slots ?? '—'}` },
-  { label: t('table.weight'), value: props.row.weight == null ? '—' : g2(props.row.weight) },
 ]);
 </script>
 
@@ -22,6 +21,8 @@ const stats = computed(() => [
     :rank="row.rank"
     :category="row.type"
     :icon="row.icon"
+    :virtual="row.virtual"
+    :weight="row.weight"
     :description="row.bonus ?? undefined"
     :stats="stats"
     :priority="priority"

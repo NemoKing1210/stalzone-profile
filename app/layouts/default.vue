@@ -2,7 +2,9 @@
 import SiteNav from './SiteNav.vue';
 import CommandPalette from './CommandPalette.vue';
 import TopBarTools from './TopBarTools.vue';
+import { AssistantPanel } from '~/features/chat';
 import { ZoneRadio } from '~/features/radio';
+import { useAssistantPanelStore } from '~/stores/assistantPanel';
 import { useProfileData } from '~/stores/profile-data';
 
 const { t } = useI18n();
@@ -11,6 +13,7 @@ const profile = useProfileData();
 // before the child screens render, so the first HTML already carries their rows.
 if (import.meta.server) await profile.refresh();
 const route = useRoute();
+const assistant = useAssistantPanelStore();
 
 /** Desktop rail width; the drawer reuses the same panel on narrow screens. */
 const COLLAPSED_WIDTH = '4rem';
@@ -37,6 +40,7 @@ watch(
   () => route.fullPath,
   () => {
     mobileOpen.value = false;
+    if (route.path === '/chat') assistant.hide();
   },
 );
 
@@ -122,6 +126,7 @@ const sideWidth = computed(() => (collapsed.value ? COLLAPSED_WIDTH : EXPANDED_W
     </div>
 
     <ZoneRadio />
+    <AssistantPanel />
     <CommandPalette />
   </div>
 </template>

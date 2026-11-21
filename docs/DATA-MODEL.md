@@ -27,8 +27,8 @@ only through new migrations in `db/migrations/`.
 | `character` | identity: nick, region, faction, alliance, clan, money |
 | `character_stat` | raw counters per character and stat, with origin `api` or `manual` |
 | `storage` | the character's own grids: exactly one 8×20 `inventory`, exactly one 8×80 `overflow` (the intake stash, which grows with its contents) and any number of 8×200 `stash` rows, each with a unique normalized name per kind; a stash size is fixed after creation |
-| `inventory_item` | one row per gear instance (weapon, armor, container, artifact, attachment, ammo, other) with level, quality, rarity, skin, display name and the catalog's slot; `qty > 1` only for `ammo`/`other`. No free-text note or role columns |
-| `item_placement` | where an instance is: `grid` (storage, x, y, rotated), `equipment` (slot), `container` (container instance, slot) or `weapon_module` (weapon instance, module slot); one row per instance. `loose` survives only as a legacy/transient value: it is never a write target, `0008` converts stored rows, and the read model reports any unplaced instance as `loose` |
+| `inventory_item` | one row per gear instance (weapon, armor, container, artifact, attachment, ammo, other) with level, quality, rarity, skin, display name, the catalog's slot and `is_virtual` (not owned in game but a full instance for layout, weight and loadout previews); `qty > 1` only for `ammo`/`other`. No free-text note or role columns |
+| `item_placement` | where an instance is: `grid` (storage, x, y), `equipment` (slot), `container` (container instance, slot) or `weapon_module` (weapon instance, module slot); one row per instance. `loose` survives only as a legacy/transient value: it is never a write target, `0008` converts stored rows, and the read model reports any unplaced instance as `loose` |
 | `container_data` | per-container override of type, shield, bonus, protection, slots, efficiency |
 | `attachment_compat` | EXBO/manual attachment ↔ weapon compatibility pairs |
 | `item_layout` | optional catalog-wide grid override: width, height, weight for an `item` |
@@ -73,7 +73,13 @@ intake unchanged. `0015_intake_grid_width.sql` resizes the intake to eight colum
 80-row base height and repacks every intake placement into one column (x=0, unrotated,
 cumulative y) through a temp copy, then rebuilds the unique grid-origin index.
 `0016_item_stat_read_index.sql` adds a covering index over the card columns of `item_stat`, so
-the payload reads its stats without a table lookup.
+the payload reads its stats without a table lookup. `0017_drop_item_rotation.sql` moves every
+`rotated = 1` grid row into its character's intake as an upright single-column row after the
+existing unrotated intake rows, then drops `item_placement.rotated`: the original game has no
+turning, so no manual, preview or automatic rotation exists. Unrotated rows keep their cells.
+A legacy rollback snapshot containing `rotated: true` restores into the intake unrotated.
+`0018_inventory_virtual.sql` adds `inventory_item.is_virtual` (0/1, default 0), so old rows
+read as real and a rollback restores the exact flag.
 
 ## Source authority
 
@@ -109,7 +115,9 @@ owns itself.
 - `item_stat` is keyed `(item_id, stat_id, level, is_additional)` and has the covering
   `item_stat_read` index for the card columns; a new EXBO stat needs a
   `stat_definition` row, not a migration.
-- `inventory_item` holds one row per owned thing; only `ammo` and `other` may carry `qty > 1`.
+- `inventory_item` holds one row per thing; only `ammo` and `other` may carry `qty > 1`.
+  `is_virtual = 1` marks an instance that is not owned in game: it keeps its cells, weight,
+  storage contribution and loadout stats, and the badge is the only ownership signal.
   A weapon, armor, container, artifact or attachment is never collapsed into another row,
   because each carries its own modules, fill, level, quality or placement. A create may name
   the exact catalog row by `catalogItemId`; the row must have the requested `kind`, so an

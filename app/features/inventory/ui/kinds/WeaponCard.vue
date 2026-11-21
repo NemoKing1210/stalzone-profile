@@ -10,7 +10,6 @@ const { t } = useI18n();
 const { g1, g2, num } = useFormat();
 
 const stats = computed(() => [
-  { label: t('table.weight'), value: props.row.weight == null ? '—' : g2(props.row.weight) },
   { label: t('table.caliber'), value: props.row.caliber ?? '—' },
   { label: t('table.damage'), value: props.row.dmg == null ? '—' : g1(props.row.dmg) },
   { label: t('table.damage15'), value: props.row.dmg15 == null ? '—' : g1(props.row.dmg15) },
@@ -28,6 +27,8 @@ const stats = computed(() => [
     :category="row.type"
     :level="row.lvl"
     :icon="row.icon"
+    :virtual="row.virtual"
+    :weight="row.weight"
     :stats="stats"
     :priority="priority"
     @open="$emit('open')"

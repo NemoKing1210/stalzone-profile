@@ -200,7 +200,6 @@ export function deleteStorage(db: Db, id: number, opts: { dryRun: boolean }): Wr
         storageId: intake!.id,
         x: entry.x,
         y: entry.y,
-        rotated: entry.rotated,
       });
     }
     repo.deleteStorageRow(db, id);

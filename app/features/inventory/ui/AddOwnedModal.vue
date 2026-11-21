@@ -41,6 +41,7 @@ const form = reactive({
   qty: 1,
   rarityPct: null as number | null,
   skin: undefined as string | undefined,
+  virtual: false,
 });
 const rarityTier = computed(() => rarityTierForPct(form.rarityPct));
 
@@ -102,6 +103,7 @@ function reset(): void {
   form.qty = 1;
   form.rarityPct = null;
   form.skin = undefined;
+  form.virtual = false;
   if (props.kind) activeKind.value = props.kind;
   else activeKind.value = 'all';
   debouncedSearch.value = '';
@@ -209,6 +211,9 @@ async function submit(): Promise<void> {
               <p v-if="rarityTier" class="mt-1 text-[11px] text-[var(--sz-text-muted)]">
                 {{ t('forms.rarityTier') }}: {{ t(`items.rarityTier.${rarityTier}`) }}
               </p>
+            </UFormField>
+            <UFormField name="virtual" class="col-span-2">
+              <USwitch v-model="form.virtual" :label="t('forms.virtual')" />
             </UFormField>
             <UFormField v-if="fields.skin" :label="t('forms.skin')" name="skin">
               <USelectMenu

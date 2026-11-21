@@ -35,6 +35,7 @@ export interface InstanceEditTarget {
   slot: string | null;
   rarityPct: number | null;
   rarityTier: RarityTier | null;
+  virtual?: boolean;
   /** Present only for containers; ignored by the editor for other kinds. */
   container?: ContainerOverride | null;
 }
@@ -71,6 +72,7 @@ export interface ProfileCharacter {
 
 export interface WeaponPayload {
   name: string;
+  virtual?: boolean;
   ownedId?: number;
   instanceId?: number;
   storageId?: number | null;
@@ -98,6 +100,7 @@ export interface WeaponPayload {
 
 export interface ArmorPayload {
   name: string;
+  virtual?: boolean;
   ownedId?: number;
   instanceId?: number;
   storageId?: number | null;
@@ -118,6 +121,7 @@ export interface ArmorPayload {
 
 export interface ArtifactPayload {
   name: string;
+  virtual?: boolean;
   ownedId?: number;
   instanceId?: number;
   storageId?: number | null;
@@ -136,6 +140,7 @@ export interface ArtifactPayload {
 
 export interface ContainerPayload {
   name: string;
+  virtual?: boolean;
   ownedId?: number;
   instanceId?: number;
   storageId?: number | null;

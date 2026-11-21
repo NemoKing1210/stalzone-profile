@@ -72,7 +72,7 @@ The `profile://schema` resource provides tool descriptions and the write rules.
 | `compare_items` | `a`, `b`, `level` | DPS/TTK and stats of two items |
 | `get_inventory` | — | `InventoryRead`: storages (including the intake stash), equipment and the computed loadout |
 | `list_storages` | — | storages with grid items, weight and effective height (intake reports its expanded height) |
-| `list_inventory_items` | `kind?`, `location?`, `storage_id?` | flat inventory instances with placement, size and container data |
+| `list_inventory_items` | `kind?`, `location?`, `storage_id?`, `virtual?` | flat inventory instances with placement, size, container data and the virtual mark; `virtual` filters to only virtual or only real instances |
 | `list_containers` | — | container instances and their fill from instance placements |
 | `plan_artifact_build` | preset/effects, slots, budget, mode, quality, unique, requireLot | an artifact plan by price |
 | `get_prices` | `names[]`, `quality?` | latest prices for each combination |
@@ -87,7 +87,7 @@ The `profile://schema` resource provides tool descriptions and the write rules.
 | Tool | Arguments |
 |---|---|
 | `add_inventory_item` | `name`, `kind`, `catalog_item_id?`, `level?`, `skin?`, `quality?`, `rarity_pct?`, `rarity_tier?`, `qty?`, `display_name?`, `container?`, `dry_run?`; the slot comes from the catalog item, `catalog_item_id` must name a row of that `kind`, and a skin must match it |
-| `update_inventory_item` | `item_id` plus any of `level`, `skin`, `quality`, `rarity_pct`, `rarity_tier`, `qty`, `display_name`, `container` (or `null` to clear); `note`, `role` and `slot` are gone |
+| `update_inventory_item` | `item_id` plus any of `level`, `skin`, `quality`, `rarity_pct`, `rarity_tier`, `qty`, `virtual`, `display_name`, `container` (or `null` to clear); `note`, `role` and `slot` are gone |
 | `remove_inventory_item` | `item_id`, `qty?`, `dry_run?` |
 | `move_inventory_item` | `item_id`, `target`, `swap?`, `allow_unverified?`, `dry_run?` |
 | `create_storage` | `name`, `kind?` (`stash`), `max_weight?`, `sort_order?`, `dry_run?`; the grid is always 8×200 for a stash and 8×20 for the carried grid |
@@ -103,9 +103,12 @@ The `profile://schema` resource provides tool descriptions and the write rules.
 | `rollback_event` | `event_id`, `dry_run?` |
 | `rebuild_site` | — |
 
-`target` is a discriminated union on `location`: `grid` (`storage_id`, `x`, `y`,
-`rotated?`), `equipment` (`slot`), `container` (`container_item_id`, `slot`) or
+`target` is a discriminated union on `location`: `grid` (`storage_id`, `x`, `y`),
+`equipment` (`slot`), `container` (`container_item_id`, `slot`) or
 `weapon_module` (`weapon_item_id`, `slot`, `allow_unverified?`). There is no `loose` target.
+
+A virtual instance is not owned in game but remains a full instance: reads, the payload and
+loadout previews include it, and `virtual: true`/`false` filters `list_inventory_items`.
 
 The intake stash (`kind: 'overflow'`) is structural. `add_inventory_item` puts new
 instances there; `set_container_artifacts`, `set_weapon_module` and `remove_inventory_item`

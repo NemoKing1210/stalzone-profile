@@ -33,10 +33,19 @@ describe('assistant tool rendering', () => {
     expect(view.kind).toBe('inventory');
     if (view.kind !== 'inventory') return;
     expect(view.rows).toEqual([
-      { name: 'АК-12', level: 5, qty: 1, location: 'Inventory' },
-      { name: 'АК-12', level: 5, qty: 1, location: 'equipment' },
-      { name: 'Виток', level: 0, qty: 1, location: 'loose' },
+      { name: 'АК-12', level: 5, qty: 1, virtual: false, location: 'Inventory' },
+      { name: 'АК-12', level: 5, qty: 1, virtual: false, location: 'equipment' },
+      { name: 'Виток', level: 0, qty: 1, virtual: false, location: 'loose' },
     ]);
+  });
+
+  it('keeps the virtual mark on an inventory row', () => {
+    const view = chatToolView('list_inventory_items', {
+      items: [{ name: 'Пузырь', level: 0, qty: 1, virtual: true, placement: { location: 'grid' } }],
+    });
+    expect(view.kind).toBe('inventory');
+    if (view.kind !== 'inventory') return;
+    expect(view.rows[0]).toMatchObject({ name: 'Пузырь', virtual: true });
   });
 
   it('falls back to a readable JSON block for an unknown tool', () => {

@@ -84,7 +84,8 @@
       "items": "Inventory",
       "appearance": "Appearance",
       "stashes": "Stashes"
-    }
+    },
+    "openAssistant": "Open assistant"
   },
   "accents": {
     "green": "Zone green",
@@ -558,7 +559,19 @@
     "notFoundTitle": "Card not found",
     "notFoundDescription": "The source profile has no card for this item.",
     "rawData": "Raw card data",
-    "noLot": "no lot"
+    "noLot": "no lot",
+    "falloff": {
+      "title": "Damage falloff",
+      "description": "Damage by distance for the base level and +15: full damage to the first distance, a straight line to the second, then the reduced value to the maximum range.",
+      "axisDistance": "Distance, m",
+      "axisDamage": "Damage",
+      "base": "0",
+      "plus15": "+15",
+      "point": "{level}: {damage} damage at {distance} m",
+      "noData": "No damage-falloff data for this weapon."
+    },
+    "virtualShort": "VIRT",
+    "virtualHint": "Virtual: not owned in game, but counted in layout, weight and loadout previews."
   },
   "catalogNotice": {
     "title": "The item catalog is not downloaded",
@@ -607,7 +620,19 @@
       "level": "Lvl.",
       "qty": "Qty",
       "location": "Location"
-    }
+    },
+    "modelLabel": "Assistant model",
+    "modelPlaceholder": "Pick a model or type its id",
+    "modelOpenSettings": "Open settings",
+    "modelsFallback": "Model list unavailable; a manually typed id still works.",
+    "background": {
+      "replyTitle": "Assistant replied",
+      "pendingTitle": "Assistant needs confirmation",
+      "pendingText": "A write is waiting in “{title}”."
+    },
+    "panelTitle": "Assistant",
+    "panelOpen": "Open assistant panel",
+    "fullChat": "Open full chat"
   },
   "settings": {
     "pageTitle": "Settings",
@@ -626,8 +651,21 @@
     "appearanceText": "The accent changes selection, active sections, focus and primary buttons. Positive, negative and warning colours do not change.",
     "assistant": {
       "intro": "Provider and connection for the in-app assistant. The API key is read from the environment variable named here and never stored in the profile.",
+      "modeLabel": "Settings view",
+      "modeBasic": "Basic",
+      "modeAdvanced": "Advanced",
+      "blocks": {
+        "connection": "Connection",
+        "generation": "Generation",
+        "reliability": "Reliability and tools",
+        "dataScope": "Data scope",
+        "prompts": "Prompts and skills"
+      },
       "provider": "Provider",
       "model": "Model",
+      "modelPlaceholder": "Pick a model or type its id",
+      "modelsRefresh": "Refresh model list",
+      "modelsFailed": "Could not load the model list; the typed id still works.",
       "baseUrl": "Base URL",
       "baseUrlPlaceholder": "Provider default",
       "apiKeyEnv": "API key environment variable",
@@ -1113,7 +1151,7 @@
       "mcp": {
         "title": "MCP server",
         "hint": "{count} tools for an agent",
-        "intro": "The MCP server exposes the same profile to an agent over stdio or HTTP: read tools, confirmed write tools and the same dry-run contract as the REST API."
+        "intro": "The MCP server exposes the same profile to an agent over stdio or HTTP: read tools, confirmed write tools and the same dry-run contract as the REST API. Virtual instances are not owned in game, yet they stay in read results and loadout previews."
       },
       "cli": {
         "title": "Commands",
@@ -1153,7 +1191,10 @@
         "caps": {
           "threads": "Threads and messages persist in the profile database; the left pane switches threads and starts a new one.",
           "tools": "Read tools run freely and their results render as item rows, inventory tables and price lists, not raw JSON.",
-          "confirm": "A write first returns its dry-run diff and waits; Confirm runs it with the journal, Decline sends the refusal back to the model."
+          "confirm": "A write first returns its dry-run diff and waits; Confirm runs it with the journal, Decline sends the refusal back to the model.",
+          "model": "The header switches the assistant model through the same audited setting Settings → Assistant uses; a provider without a list still accepts a typed id.",
+          "background": "A turn keeps running after leaving the page; its reply, pending write or error arrives as a toast, and returning reuses the stored thread.",
+          "panel": "A right-side panel on every page except /chat reuses the same conversation and composer; closing it never stops a turn."
         }
       },
       "inventory": {
@@ -1161,13 +1202,14 @@
         "summary": "Equipment, the carried grid, stashes and the read-only intake stash, drawn like the game.",
         "caps": {
           "equipment": "A paper-doll of the ten equipment slots with level, rank and quality.",
-          "grid": "The left pane switches between the paper-doll and the selected stash, the carried grid stays on the right, and both are eight cells wide (the carried grid is 8×20, a stash 8×200); items move by drag and drop or with the keyboard: Space picks up, arrows move, R rotates, Enter places and Escape cancels.",
+          "grid": "The left pane switches between the paper-doll and the selected stash, the carried grid stays on the right, and both are eight cells wide (the carried grid is 8×20, a stash 8×200); items move by drag and drop or with the keyboard: Space picks up, arrows move, Enter places and Escape cancels.",
           "stash": "Stash tabs pick the left-pane stash — intake first, then the regular stashes; the storage manager creates and deletes stashes and changes their weight limit, and the wand packs items waiting in intake into the selected one.",
           "filter": "Filter either grid by kind, rank and quality without moving anything; the matches repack from the top-left in the layout order, grid drops are refused while the filter is on, and clearing it restores every stored cell.",
           "tidy": "Tidy repacks one storage in the chosen order (kind, name, rank or footprint); an item that cannot be placed stays at its cells and the toast reports how many stayed.",
           "intake": "New and displaced items land in a read-only intake stash that only releases them and grows as it fills.",
           "loadout": "Carry weight, protection, artifact effects and container warnings come from the computed loadout.",
-          "form": "The add and edit forms follow the kind: level and a matching skin for weapons/armor, one rarity percentage for artifacts, quantity for stacks; the slot is read from the catalog."
+          "form": "The add and edit forms follow the kind: level and a matching skin for weapons/armor, one rarity percentage for artifacts, quantity for stacks; the slot is read from the catalog.",
+          "virtual": "An instance can be marked virtual (not owned in game): it keeps its grid cell, weight and loadout contribution, and every surface shows a dashed VIRT badge."
         }
       },
       "weapons": {
@@ -1177,7 +1219,8 @@
           "catalog": "Owned gear and the full catalog side by side; switch modes without leaving the page.",
           "dps": "DPS and TTK columns are the +15 catalog values from the one calculator; an owned copy's own level is a separate column.",
           "filters": "Search, type and rank filters, sorting, grouping and a grid/list toggle; the last view is restored per browser.",
-          "manage": "Add a copy from the catalog, edit level, quality or note, remove a copy; the item card opens from the row."
+          "manage": "Add a copy from the catalog, edit level, quality or note, remove a copy; the item card opens from the row.",
+          "falloff": "Weapon modals chart damage by distance for the base and +15 levels, with axis ticks and a text list of every plotted point."
         }
       },
       "devices": {
@@ -1395,7 +1438,8 @@
         "threadsRead": "Assistant threads, newest first.",
         "threadRead": "One thread with its ordered messages, including tool payloads.",
         "turn": "Run one assistant turn: reads execute, the first write returns its dry-run diff and waits for confirm.",
-        "test": "Send one model-list request to the configured provider and report its status."
+        "test": "Send one model-list request to the configured provider and report its status.",
+        "models": "Reads the provider's model list for the settings picker; the key comes only from the named env variable and nothing is written."
       }
     },
     "mcp": {
@@ -1610,7 +1654,8 @@
     "layoutWidth": "Width, cells",
     "layoutHeight": "Height, cells",
     "layoutWeight": "Weight, kg",
-    "layoutPairError": "Enter both width and height, or leave both empty."
+    "layoutPairError": "Enter both width and height, or leave both empty.",
+    "virtual": "Virtual (not owned in game)"
   },
   "radio": {
     "station": "ZONE FM",

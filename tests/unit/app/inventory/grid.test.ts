@@ -13,12 +13,8 @@ import {
 const grid = { width: 8, height: 8 };
 
 describe('effectiveSize', () => {
-  it('swaps the rendered size when rotated', () => {
-    expect(effectiveSize({ width: 5, height: 2 }, true)).toEqual({ width: 2, height: 5 });
-  });
-
-  it('keeps the size when upright', () => {
-    expect(effectiveSize({ width: 5, height: 2 }, false)).toEqual({ width: 5, height: 2 });
+  it('keeps the stored footprint; there is no rotation', () => {
+    expect(effectiveSize({ width: 5, height: 2 })).toEqual({ width: 5, height: 2 });
   });
 });
 
@@ -75,30 +71,29 @@ describe('grabCell', () => {
 });
 
 describe('itemRects', () => {
-  it('collects placed rectangles and applies rotation', () => {
+  it('collects placed rectangles at their stored footprint', () => {
     const items: GridItem[] = [
-      { size: { width: 5, height: 2 }, placement: { x: 1, y: 2, rotated: false } },
-      { size: { width: 2, height: 3 }, placement: { x: 4, y: 0, rotated: true } },
+      { size: { width: 5, height: 2 }, placement: { x: 1, y: 2 } },
+      { size: { width: 2, height: 3 }, placement: { x: 4, y: 0 } },
     ];
     expect(itemRects(items)).toEqual([
       { x: 1, y: 2, width: 5, height: 2 },
-      { x: 4, y: 0, width: 3, height: 2 },
+      { x: 4, y: 0, width: 2, height: 3 },
     ]);
   });
 });
 
 describe('firstFreeSpot', () => {
-  const item = (id: number, width: number, height: number, x: number, y: number, rotated = false) => ({
+  const item = (id: number, width: number, height: number, x: number, y: number) => ({
     id,
     size: { width, height },
-    placement: { x, y, rotated },
+    placement: { x, y },
   });
 
   it('starts at the top-left corner of an empty grid', () => {
     expect(firstFreeSpot(grid, { id: 9, size: { width: 2, height: 2 } }, [])).toEqual({
       x: 0,
       y: 0,
-      rotated: false,
     });
   });
 
@@ -106,16 +101,11 @@ describe('firstFreeSpot', () => {
     expect(firstFreeSpot({ width: 3, height: 4 }, { id: 9, size: { width: 2, height: 2 } }, [item(1, 2, 2, 0, 0)])).toEqual({
       x: 0,
       y: 2,
-      rotated: false,
     });
   });
 
-  it('falls back to a rotated landing when only that fits', () => {
-    expect(firstFreeSpot({ width: 2, height: 3 }, { id: 9, size: { width: 3, height: 2 } }, [])).toEqual({
-      x: 0,
-      y: 0,
-      rotated: true,
-    });
+  it('returns null when only a rotated footprint would fit', () => {
+    expect(firstFreeSpot({ width: 2, height: 3 }, { id: 9, size: { width: 3, height: 2 } }, [])).toBeNull();
   });
 
   it('ignores the item itself so it can be re-packed', () => {
@@ -123,7 +113,6 @@ describe('firstFreeSpot', () => {
     expect(firstFreeSpot({ width: 2, height: 2 }, { id: 9, size: { width: 2, height: 2 } }, [own])).toEqual({
       x: 0,
       y: 0,
-      rotated: false,
     });
   });
 

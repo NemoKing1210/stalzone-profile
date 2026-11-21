@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { closeDb, ensureDefaultSources, migrate, openDb, type Db } from '@profile/core';
+import { closeDb, ensureDefaultSources, migrate, openDb, rollbackEvent, type Db } from '@profile/core';
 import * as seed from '@profile/core/testing';
 
 const migrationsDir = path.join(process.cwd(), 'db', 'migrations');
@@ -291,7 +291,7 @@ describe('intake grid width migration', () => {
       .readdirSync(migrationsDir)
       .filter((file) => /^00(?:0[6-9]|1[0-4])_.*\.sql$/.test(file))
       .sort();
-    copyMigrations(through14);
+    copyMigrations([...through14, '0018_inventory_virtual.sql']);
     migrate(db, workDir);
     ensureDefaultSources(db);
 
@@ -319,7 +319,6 @@ describe('intake grid width migration', () => {
       storageId,
       x: 39,
       y: 5,
-      rotated: true,
     });
     seed.upsertPlacement(db, {
       itemId: second,
@@ -328,7 +327,6 @@ describe('intake grid width migration', () => {
       storageId,
       x: 20,
       y: 5,
-      rotated: false,
     });
 
     copyMigrations(['0015_intake_grid_width.sql']);
@@ -345,6 +343,120 @@ describe('intake grid width migration', () => {
       { item_id: second, x: 0, y: 0, rotated: 0 },
       { item_id: first, x: 0, y: 1, rotated: 0 },
     ]);
+    expect(db.pragma('foreign_key_check')).toEqual([]);
+  });
+});
+
+
+describe('item rotation removal migration', () => {
+  it('drops the column, parks rotated rows in intake and keeps unrotated cells', () => {
+    const through16 = fs
+      .readdirSync(migrationsDir)
+      .filter((file) => /^00(?:0[6-9]|1[0-6])_.*\.sql$/.test(file))
+      .sort();
+    copyMigrations([...through16, '0018_inventory_virtual.sql']);
+    migrate(db, workDir);
+    ensureDefaultSources(db);
+
+    const characterId = seed.upsertCharacter(db, { nick: 'Owner', region: 'ru' });
+    const itemId = seed.upsertItem(db, {
+      sourceId: 'local',
+      externalId: 'migration:rotation:item',
+      name: 'Коробка',
+      kind: 'other',
+    });
+    const inventoryId = seed.insertStorage(db, {
+      characterId,
+      kind: 'inventory',
+      name: 'Inventory',
+      width: 8,
+      height: 20,
+      sortOrder: 0,
+    });
+    const intakeId = seed.insertStorage(db, {
+      characterId,
+      kind: 'overflow',
+      name: 'Intake',
+      width: 8,
+      height: 80,
+      sortOrder: 0,
+    });
+
+    const home = seed.insertInventoryItem(db, { characterId, itemId, kind: 'other' });
+    const rotated = seed.insertInventoryItem(db, { characterId, itemId, kind: 'other' });
+    const intake = seed.insertInventoryItem(db, { characterId, itemId, kind: 'other' });
+    const moved = seed.insertInventoryItem(db, { characterId, itemId, kind: 'other' });
+    seed.upsertPlacement(db, { itemId: home, characterId, location: 'grid', storageId: inventoryId, x: 0, y: 0 });
+    seed.upsertPlacement(db, { itemId: rotated, characterId, location: 'grid', storageId: inventoryId, x: 3, y: 3 });
+    seed.upsertPlacement(db, { itemId: intake, characterId, location: 'grid', storageId: intakeId, x: 0, y: 0 });
+    seed.upsertPlacement(db, { itemId: moved, characterId, location: 'grid', storageId: inventoryId, x: 5, y: 5 });
+    db.prepare(`UPDATE item_placement SET rotated = 1 WHERE item_id = ?`).run(rotated);
+
+    copyMigrations(['0017_drop_item_rotation.sql']);
+    migrate(db, workDir);
+
+    expect(columns('item_placement')).not.toContain('rotated');
+    const placements = db
+      .prepare(`SELECT item_id, storage_id, x, y FROM item_placement WHERE item_id IN (?, ?, ?) ORDER BY item_id`)
+      .all(home, rotated, intake) as { item_id: number; storage_id: number; x: number; y: number }[];
+    expect(placements).toEqual([
+      { item_id: home, storage_id: inventoryId, x: 0, y: 0 },
+      { item_id: rotated, storage_id: intakeId, x: 0, y: 1 },
+      { item_id: intake, storage_id: intakeId, x: 0, y: 0 },
+    ]);
+
+    const before = {
+      id: moved,
+      placement: { location: 'grid', storageId: inventoryId, x: 5, y: 5, rotated: true },
+    };
+    db.prepare(
+      `INSERT INTO event_log (id, at, actor, action, entity, entity_id, before, after)
+       VALUES (900, ?, 'owner', 'inventory.item.move', 'inventory', ?, ?, '{}')`,
+    ).run(NOW, String(moved), JSON.stringify(before));
+
+    rollbackEvent(db, 900, false);
+
+    expect(db.prepare(`SELECT storage_id, x, y FROM item_placement WHERE item_id = ?`).get(moved)).toEqual({
+      storage_id: intakeId,
+      x: 1,
+      y: 0,
+    });
+    expect(db.pragma('foreign_key_check')).toEqual([]);
+  });
+});
+
+
+describe('virtual inventory migration', () => {
+  it('adds is_virtual defaulting old rows to real and accepts a virtual mark', () => {
+    const through17 = fs
+      .readdirSync(migrationsDir)
+      .filter((file) => /^00(?:0[6-9]|1[0-7])_.*\.sql$/.test(file))
+      .sort();
+    copyMigrations(through17);
+    migrate(db, workDir);
+    ensureDefaultSources(db);
+
+    const characterId = seed.upsertCharacter(db, { nick: 'Owner', region: 'ru' });
+    const itemId = seed.upsertItem(db, {
+      sourceId: 'local',
+      externalId: 'migration:virtual:item',
+      name: 'Коробка',
+      kind: 'other',
+    });
+    db.prepare(
+      `INSERT INTO inventory_item
+         (character_id, item_id, kind, level, quality, rarity_pct, rarity_tier, skin_item_id, qty,
+          display_name, slot, created_at, updated_at)
+       VALUES (?, ?, 'other', 0, NULL, NULL, NULL, NULL, 1, NULL, NULL, ?, ?)`,
+    ).run(characterId, itemId, NOW, NOW);
+
+    copyMigrations(['0018_inventory_virtual.sql']);
+    migrate(db, workDir);
+
+    expect(columns('inventory_item')).toContain('is_virtual');
+    expect(db.prepare(`SELECT is_virtual FROM inventory_item`).get()).toEqual({ is_virtual: 0 });
+    db.prepare(`UPDATE inventory_item SET is_virtual = 1`).run();
+    expect(db.prepare(`SELECT is_virtual FROM inventory_item`).get()).toEqual({ is_virtual: 1 });
     expect(db.pragma('foreign_key_check')).toEqual([]);
   });
 });

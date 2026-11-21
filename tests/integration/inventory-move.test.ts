@@ -92,8 +92,8 @@ function expectWriteError(fn: () => unknown, code: string): void {
   }
 }
 
-function grid(storageId: number, x: number, y: number, rotated = false): PlacementTarget {
-  return { location: 'grid', storageId, x, y, rotated };
+function grid(storageId: number, x: number, y: number): PlacementTarget {
+  return { location: 'grid', storageId, x, y };
 }
 
 beforeEach(() => {
@@ -134,7 +134,6 @@ describe('inventory placement writes', () => {
       storage_id: stashId,
       x: 1,
       y: 2,
-      rotated: 0,
     });
     expect(listStoragePlacements(db, stashId)).toHaveLength(1);
     expect(getEvent(db, result.eventId!)?.action).toBe('inventory.item.move');
@@ -157,15 +156,15 @@ describe('inventory placement writes', () => {
     expect(getPlacement(db, rifle)).toMatchObject({ location: 'grid', storage_id: overflowId });
   });
 
-  it('applies rotation before checking bounds and collisions', () => {
+  it('stores the upright footprint and rejects an overlapping origin', () => {
     const first = make('weapon', 'АК-12');
     const second = make('weapon', 'АК-74');
 
-    moveInventoryItem(db, first, grid(inventoryId, 3, 0, true), { dryRun: false });
-    expect(getPlacement(db, first)).toMatchObject({ x: 3, y: 0, rotated: 1 });
+    moveInventoryItem(db, first, grid(inventoryId, 3, 0), { dryRun: false });
+    expect(getPlacement(db, first)).toMatchObject({ x: 3, y: 0 });
 
     expectWriteError(
-      () => moveInventoryItem(db, second, grid(inventoryId, 3, 0, true), { dryRun: false }),
+      () => moveInventoryItem(db, second, grid(inventoryId, 3, 0), { dryRun: false }),
       'SLOT_OCCUPIED',
     );
   });

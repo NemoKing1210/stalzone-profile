@@ -1,123 +1,84 @@
 <script setup lang="ts">
-import type { ChatMessage, ChatPendingWrite, ChatThread, ChatThreadRead, ChatTurnResult } from '@profile/shared/contracts';
+import type { ChatModel, ChatModelsResult, ChatSettingsRead } from '@profile/shared/contracts';
+import { storeToRefs } from 'pinia';
 import { ProfilePane } from '~/shared/ui';
 
-import ChatToolResult from './ChatToolResult.vue';
+import { useChatStore } from '~/stores/chat';
+import { chatModelItems } from '../model/modelChoice';
+import ChatConversation from './ChatConversation.vue';
 
 const { t } = useI18n();
-const { message: apiMessage } = useApiError();
 const { formatDate } = useFormat();
-const toast = useToast();
+const { write } = useWrite();
 const request = useRequestFetch();
 
 useHead(() => ({ title: `${t('chat.pageTitle')} // ${t('common.appName')}` }));
 
-const threads = ref<ChatThread[]>([]);
-const activeThreadId = ref<number | null>(null);
-const messages = ref<ChatMessage[]>([]);
-const pending = ref<ChatPendingWrite | null>(null);
-const draft = ref('');
-const sending = ref(false);
-const loadError = ref<string | null>(null);
+/** Threads, messages, pending confirmation and the in-flight turn live in the store. */
+const chat = useChatStore();
+const { threads, activeThreadId, sending, activeThread } = storeToRefs(chat);
 
-const activeThread = computed(() => threads.value.find((thread) => thread.id === activeThreadId.value) ?? null);
+/** The same audited `chat_settings.model` Settings -> Assistant writes; no per-thread model. */
+const chatSettings = ref<ChatSettingsRead | null>(null);
+const models = ref<ChatModel[]>([]);
+const modelError = ref('');
+const savingModel = ref(false);
+let modelsRequest = 0;
 
-interface UiMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  parts: { type: 'text'; text: string }[];
-  metadata: { toolName?: string; payload?: unknown; tool?: boolean };
-}
+const modelItems = computed(() => chatModelItems(chatSettings.value?.model, models.value));
+const modelEnabled = computed(() => chatSettings.value?.enabled === true);
+const currentModelItem = computed(() => modelItems.value.find((item) => item.value === chatSettings.value?.model));
+const assistantBusy = computed(() => sending.value || savingModel.value);
 
-const uiMessages = computed<UiMessage[]>(() =>
-  messages.value.map((message) => ({
-    id: String(message.id),
-    role: message.role === 'user' ? 'user' : 'assistant',
-    parts: [{ type: 'text', text: message.role === 'tool' ? '' : message.content }],
-    metadata: {
-      tool: message.role === 'tool',
-      toolName: message.toolName ?? undefined,
-      payload: message.payload,
-    },
-  })),
-);
-
-async function loadThreads(): Promise<void> {
-  threads.value = await request<ChatThread[]>('/api/v1/chat/threads');
-}
-
-async function openThread(id: number): Promise<void> {
-  const read = await request<ChatThreadRead>(`/api/v1/chat/threads/${id}`);
-  activeThreadId.value = read.thread.id;
-  messages.value = read.messages;
-  pending.value = null;
-  loadError.value = null;
-}
-
-function newThread(): void {
-  activeThreadId.value = null;
-  messages.value = [];
-  pending.value = null;
-  loadError.value = null;
-}
-
-function apply(result: ChatTurnResult): void {
-  activeThreadId.value = result.thread.id;
-  messages.value = result.messages;
-  pending.value = result.pending;
-  loadError.value = result.error;
-}
-
-async function turn(body: Record<string, unknown>): Promise<void> {
-  if (sending.value) return;
-  sending.value = true;
-  loadError.value = null;
+/** Settings decide whether the selector is live; a missing key shows the settings link. */
+async function loadAssistant(): Promise<void> {
   try {
-    const result = await $fetch<ChatTurnResult>('/api/v1/chat/turn', {
-      method: 'POST',
-      body: { threadId: activeThreadId.value ?? undefined, ...body },
-    });
-    apply(result);
-    await loadThreads();
-  } catch (error) {
-    const data =
-      error && typeof error === 'object' && 'data' in error
-        ? (error as { data?: { error?: { code?: string; message?: string } } }).data
-        : undefined;
-    toast.add({
-      title: t('chat.failed'),
-      description: apiMessage(data?.error?.code, data?.error?.message || t('chat.failedDescription')),
-      color: 'error',
-      icon: 'i-lucide-triangle-alert',
-    });
-  } finally {
-    sending.value = false;
+    chatSettings.value = await request<ChatSettingsRead>('/api/v1/chat/settings');
+  } catch {
+    chatSettings.value = null;
+    return;
+  }
+  if (chatSettings.value.enabled) await loadModels();
+}
+
+async function loadModels(): Promise<void> {
+  const token = ++modelsRequest;
+  modelError.value = '';
+  try {
+    const result = await $fetch<ChatModelsResult>('/api/v1/chat/models', { method: 'POST', body: {} });
+    if (token !== modelsRequest) return;
+    if (!result.ok) {
+      modelError.value = result.message;
+      return;
+    }
+    models.value = result.models;
+  } catch {
+    if (token === modelsRequest) modelError.value = t('chat.modelsFallback');
   }
 }
 
-async function send(): Promise<void> {
-  const text = draft.value.trim();
-  if (!text) return;
-  draft.value = '';
-  await turn({ message: text });
-}
-
-async function confirmPending(): Promise<void> {
-  const write = pending.value;
-  if (!write) return;
-  pending.value = null;
-  await turn({ message: t('chat.confirmed'), confirm: { toolName: write.toolName, args: write.args } });
-}
-
-async function declinePending(): Promise<void> {
-  const write = pending.value;
-  if (!write) return;
-  pending.value = null;
-  await turn({ message: t('chat.declined'), decline: { toolName: write.toolName } });
+/** The list value is updated only after the audited PATCH succeeds; a failure keeps the old id. */
+async function selectModel(value: unknown): Promise<void> {
+  const id = typeof value === 'string' ? value : value && typeof value === 'object' && 'value' in value ? value.value : '';
+  const current = chatSettings.value?.model;
+  if (!id || typeof id !== 'string' || !current || id === current || savingModel.value || sending.value) return;
+  savingModel.value = true;
+  try {
+    const result = await write<{ dryRun: boolean }>('/api/v1/chat/settings', {
+      method: 'PATCH',
+      body: { model: id, dryRun: false },
+      silent: true,
+      reconcile: 'none',
+    });
+    if (result && chatSettings.value) chatSettings.value = { ...chatSettings.value, model: id };
+  } finally {
+    savingModel.value = false;
+  }
 }
 
 onMounted(() => {
-  void loadThreads();
+  void chat.init();
+  void loadAssistant();
 });
 </script>
 
@@ -128,7 +89,53 @@ onMounted(() => {
         <h1>{{ t('chat.title') }}</h1>
         <p class="text-[12.5px] text-[var(--sz-text-muted)]">{{ t('chat.summary') }}</p>
       </div>
-      <UButton icon="i-lucide-plus" :label="t('chat.newThread')" color="neutral" variant="outline" @click="newThread" />
+      <div class="flex flex-col items-end gap-1">
+        <div class="flex flex-wrap items-center justify-end gap-2">
+          <template v-if="chatSettings">
+            <USelectMenu
+              v-if="modelEnabled"
+              :model-value="currentModelItem"
+              :items="modelItems"
+              create-item="always"
+              size="sm"
+              class="w-52 max-w-full"
+              :loading="savingModel"
+              :disabled="assistantBusy"
+              :placeholder="t('chat.modelPlaceholder')"
+              :aria-label="t('chat.modelLabel')"
+              @update:model-value="selectModel"
+            />
+            <template v-else>
+              <USelectMenu
+                :model-value="currentModelItem"
+                :items="modelItems"
+                size="sm"
+                class="w-52 max-w-full"
+                disabled
+                :aria-label="t('chat.modelLabel')"
+              />
+              <UButton
+                to="/settings?tab=assistant"
+                size="sm"
+                color="neutral"
+                variant="link"
+                icon="i-lucide-settings-2"
+                :label="t('chat.modelOpenSettings')"
+              />
+            </template>
+          </template>
+          <UButton
+            icon="i-lucide-plus"
+            :label="t('chat.newThread')"
+            color="neutral"
+            variant="outline"
+            @click="chat.newThread"
+          />
+        </div>
+        <p v-if="modelError" class="max-w-72 text-right text-[11px] text-[var(--sz-warning-text)]">
+          {{ modelError }}
+        </p>
+      </div>
     </header>
 
     <div class="grid gap-3 lg:grid-cols-[240px_minmax(0,1fr)]">
@@ -144,7 +151,7 @@ onMounted(() => {
                   ? 'border-[var(--sz-accent)] bg-[var(--sz-surface-alt)] text-[var(--sz-text)]'
                   : 'border-transparent text-[var(--sz-text-muted)] hover:bg-[var(--sz-surface-alt)] hover:text-[var(--sz-text)]'
               "
-              @click="openThread(thread.id)"
+              @click="chat.openThread(thread.id)"
             >
               <span class="block truncate">{{ thread.title }}</span>
               <span class="mt-0.5 block text-[10px] text-[var(--sz-text-dim)]">{{ formatDate(thread.updatedAt) }}</span>
@@ -154,45 +161,7 @@ onMounted(() => {
       </ProfilePane>
 
       <ProfilePane :title="activeThread?.title ?? t('chat.newTitle')" dense flush>
-        <div class="flex h-[calc(100vh-18rem)] min-h-[380px] flex-col">
-          <div class="min-h-0 flex-1 overflow-y-auto p-3">
-            <p v-if="!messages.length" class="py-10 text-center text-[12.5px] text-[var(--sz-text-dim)]">
-              {{ t('chat.empty') }}
-            </p>
-            <UChatMessages v-else :messages="uiMessages as never" :auto-scroll="true">
-              <template #content="{ message }">
-                <ChatToolResult
-                  v-if="(message as unknown as UiMessage).metadata.tool"
-                  :tool-name="(message as unknown as UiMessage).metadata.toolName ?? 'tool'"
-                  :payload="(message as unknown as UiMessage).metadata.payload"
-                />
-                <span v-else class="whitespace-pre-wrap">{{ (message as unknown as UiMessage).parts[0]?.text }}</span>
-              </template>
-            </UChatMessages>
-            <p v-if="loadError" class="mt-3 border border-[var(--sz-warning)] px-2.5 py-2 text-[12px] text-[var(--sz-warning-text)]">
-              {{ loadError }}
-            </p>
-          </div>
-
-          <div v-if="pending" class="border-t border-[var(--sz-border)] bg-[var(--sz-surface-alt)] p-2.5">
-            <p class="sz-caps text-[var(--sz-text-muted)]">{{ t('chat.pendingTitle') }} · {{ pending.toolName }}</p>
-            <p class="mt-1 text-[12.5px]">{{ pending.human }}</p>
-            <div class="mt-2 flex justify-end gap-2">
-              <UButton size="xs" color="neutral" variant="ghost" :label="t('chat.decline')" @click="declinePending" />
-              <UButton size="xs" :label="t('chat.confirm')" :loading="sending" @click="confirmPending" />
-            </div>
-          </div>
-
-          <div class="border-t border-[var(--sz-border)] p-2">
-            <UChatPrompt
-              v-model="draft"
-              :placeholder="t('chat.placeholder')"
-              :loading="sending"
-              :disabled="sending"
-              @submit="send"
-            />
-          </div>
-        </div>
+        <ChatConversation class="h-[calc(100vh-18rem)] min-h-[380px]" />
       </ProfilePane>
     </div>
   </section>

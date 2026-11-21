@@ -76,6 +76,7 @@ interface ItemSnapshot {
   rarityTier: string | null;
   skinItemId: number | null;
   qty: number;
+  virtual?: boolean;
   displayName: string | null;
   slot: string | null;
   placement: Record<string, unknown> | null;
@@ -93,6 +94,26 @@ function restorePlacementSnapshot(
   characterId: number,
 ): void {
   const location = String(snapshot.location ?? 'loose') as repo.PlacementLocation;
+  // Rotation no longer exists: a legacy snapshot restores into the intake unrotated instead
+  // of writing a footprint the current item can never occupy.
+  if (location === 'grid' && snapshot.rotated === true) {
+    const row = repo.getInventoryItem(db, itemId);
+    if (row) {
+      const intakeId = ensureIntakeRow(db, characterId);
+      const [spot] = packIntoOverflow(db, characterId, [{ id: itemId, size: itemSize(db, row) }]);
+      if (spot) {
+        repo.upsertPlacement(db, {
+          itemId,
+          characterId,
+          location: 'grid',
+          storageId: intakeId,
+          x: spot.x,
+          y: spot.y,
+        });
+        return;
+      }
+    }
+  }
   repo.upsertPlacement(db, {
     itemId,
     characterId,
@@ -100,7 +121,6 @@ function restorePlacementSnapshot(
     storageId: snapshot.storageId as number | null,
     x: snapshot.x as number | null,
     y: snapshot.y as number | null,
-    rotated: Boolean(snapshot.rotated),
     equipmentSlot: snapshot.slot as string | null,
     containerItemId: snapshot.containerItemId as number | null,
     containerSlot: snapshot.slotIndex as number | null,
@@ -131,6 +151,7 @@ export function updateInventoryTx(db: Db, snapshot: Record<string, unknown>): vo
     rarity_tier: item.rarityTier,
     skin_item_id: item.skinItemId,
     qty: item.qty,
+    is_virtual: item.virtual ? 1 : 0,
     display_name: item.displayName,
     slot: item.slot,
   });
@@ -157,6 +178,7 @@ export function restoreInventoryItemTx(
     rarity_tier: item.rarityTier,
     skin_item_id: item.skinItemId,
     qty: item.qty,
+    is_virtual: item.virtual ? 1 : 0,
     display_name: item.displayName,
     slot: item.slot,
     created_at: stamp,
@@ -266,7 +288,6 @@ export function deleteStorageTx(db: Db, id: number): void {
         storageId: intakeId,
         x: entry.x,
         y: entry.y,
-        rotated: entry.rotated,
       });
     }
   }
@@ -298,7 +319,6 @@ function sendToIntake(db: Db, characterId: number, itemId: number, size: ReturnT
     storageId: spot.storageId,
     x: spot.x,
     y: spot.y,
-    rotated: spot.rotated,
   });
 }
 
@@ -451,7 +471,7 @@ export function restoreTidyTx(
       .flatMap((placement) => {
         const row = repo.getInventoryItem(db, placement.item_id);
         if (!row || placement.x == null || placement.y == null) return [];
-        return [itemRect(placement.x, placement.y, itemSize(db, row), placement.rotated === 1)];
+        return [itemRect(placement.x, placement.y, itemSize(db, row))];
       });
     for (const entry of entries) {
       const target = entry.placement;
@@ -459,7 +479,7 @@ export function restoreTidyTx(
       if (target.x == null || target.y == null) continue;
       const row = repo.getInventoryItem(db, entry.itemId);
       if (!row) continue;
-      const rect = itemRect(Number(target.x), Number(target.y), itemSize(db, row), Boolean(target.rotated));
+      const rect = itemRect(Number(target.x), Number(target.y), itemSize(db, row));
       if (findCollision(rect, foreign)) {
         throw new WriteError(
           409,

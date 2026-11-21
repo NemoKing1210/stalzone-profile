@@ -82,7 +82,7 @@ function take(inventory: InventoryRead, id: number): InventoryItemRead | null {
 
 function placementOf(target: PlacementTarget): PlacementRead {
   if (target.location === 'grid') {
-    return { location: 'grid', storageId: target.storageId, x: target.x, y: target.y, rotated: target.rotated };
+    return { location: 'grid', storageId: target.storageId, x: target.x, y: target.y };
   }
   if (target.location === 'equipment') return { location: 'equipment', slot: target.slot };
   if (target.location === 'container') {
@@ -167,8 +167,7 @@ function placementMatchesTarget(placement: PlacementRead, target: PendingMove['t
       placement.location === 'grid' &&
       placement.storageId === target.storageId &&
       placement.x === target.x &&
-      placement.y === target.y &&
-      placement.rotated === target.rotated
+      placement.y === target.y
     );
   }
   if (target.location === 'equipment') {

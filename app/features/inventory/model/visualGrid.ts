@@ -28,8 +28,8 @@ function overlaps(a: Rect, b: Rect): boolean {
 
 /**
  * A view-only packing of the items a filter leaves visible: the chosen tidy order, each
- * item's saved rotation and footprint, first fit row by row from the top-left. Nothing
- * is written, so clearing the filter instantly restores the stored cells.
+ * item's footprint, first fit row by row from the top-left. Nothing is written, so
+ * clearing the filter instantly restores the stored cells.
  */
 export function visualPlacements(
   items: readonly InventoryItemRead[],
@@ -53,8 +53,7 @@ export function visualPlacements(
   let bottom = 0;
 
   for (const entry of ordered) {
-    const rotated = entry.item.placement.location === 'grid' && entry.item.placement.rotated;
-    const size = effectiveSize(entry.size, Boolean(rotated));
+    const size = effectiveSize(entry.size);
     const w = Math.min(size.width, width);
     const h = size.height;
     let spot: VisualPlacement | null = null;

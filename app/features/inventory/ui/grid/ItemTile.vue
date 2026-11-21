@@ -2,26 +2,26 @@
 import type { InventoryItemRead } from '@profile/shared/contracts';
 
 import { effectiveSize } from '../../model/grid';
+import { ItemIconFallback, VirtualBadge } from '~/entities/item';
+import { itemEdgeColor } from '~/shared/lib/rankBorder';
 
 const props = withDefaults(
   defineProps<{
     item: InventoryItemRead;
     picked?: boolean;
-    rotated?: boolean;
     /** Registers the tile with the drag layer; the tile itself moves under the pointer. */
     attach?: (el: HTMLElement | null, item: InventoryItemRead | null) => void;
   }>(),
-  { picked: false, rotated: false, attach: undefined },
+  { picked: false, attach: undefined },
 );
 
-defineEmits<{ open: []; pick: [event: KeyboardEvent] }>();
+const emit = defineEmits<{ open: []; pick: [event: KeyboardEvent]; quick: [event: MouseEvent] }>();
 
 const { t } = useI18n();
-const { rankColor, rankTextColor } = useFormat();
+const { rankTextColor } = useFormat();
 
-const size = computed(() => effectiveSize(props.item.size, props.rotated));
+const size = computed(() => effectiveSize(props.item.size));
 const name = computed(() => props.item.displayName ?? props.item.name);
-const rank = computed(() => rankColor(props.item.rank));
 const nameColor = computed(() => rankTextColor(props.item.rank));
 const artifacts = computed(() => props.item.artifacts?.length ?? 0);
 const modules = computed(() => props.item.modules?.length ?? 0);
@@ -53,13 +53,18 @@ const label = computed(() =>
 );
 
 /** The rank edge is a hint, not a frame: the card keeps its grid lines visible through it. */
-const edge = computed(() => (rank.value ? `${rank.value}b3` : 'var(--sz-border-strong)'));
+const edge = computed(() => itemEdgeColor(props.item.rank));
 
 /** Picked has to vanish while the drag copy flies; every resting tile keeps the same frame. */
 const stateClass = computed(() => {
   if (props.picked) return 'invisible';
   return 'shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]';
 });
+
+/** Shift + primary click is the one-cell quick move; a plain click still changes nothing. */
+function click(event: MouseEvent): void {
+  if (event.shiftKey && event.detail === 1) emit('quick', event);
+}
 
 let tileEl: HTMLElement | null = null;
 
@@ -96,6 +101,7 @@ watch(
     :data-size="`${size.width}x${size.height}`"
     draggable="false"
     @dragstart.prevent
+    @click="click"
     @dblclick="$emit('open')"
     @keydown.enter.prevent="$emit('open')"
     @keydown.space.prevent="$emit('pick', $event)"
@@ -106,6 +112,7 @@ watch(
     >
       <span v-if="item.qty > 1" class="shrink-0 font-semibold tabular-nums text-[var(--sz-text)]">×{{ item.qty }}</span>
       <span class="min-w-0 flex-1 truncate font-medium" :style="{ color: nameColor }">{{ name }}</span>
+      <VirtualBadge v-if="item.virtual" />
     </span>
 
     <span
@@ -127,7 +134,7 @@ watch(
         loading="lazy"
         draggable="false"
       >
-      <UIcon v-else name="i-lucide-package" class="size-2/5 text-[var(--sz-text-dim)]" />
+      <ItemIconFallback v-else size="45%" />
     </span>
 
     <!-- Footer: contents left, ammo type right. Both fold away on the smallest cells. -->

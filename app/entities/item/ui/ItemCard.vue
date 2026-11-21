@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ItemIconFallback from './ItemIconFallback.vue';
 import RankBadge from './RankBadge.vue';
 import RarityName from './RarityName.vue';
 import { StatRow } from '~/shared/ui';
@@ -168,7 +169,7 @@ function display(value: unknown): string {
         v-else
         class="flex size-16 shrink-0 items-center justify-center border border-[var(--sz-border)] bg-[var(--sz-surface-alt)]"
       >
-        <UIcon name="i-lucide-package" class="size-7 text-[var(--sz-text-dim)]" />
+        <ItemIconFallback :size="28" />
       </div>
       <div class="min-w-0 flex-1">
         <p><RarityName :name="props.name" :rank="rank" size="lg" /></p>
