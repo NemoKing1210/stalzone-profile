@@ -331,15 +331,20 @@ function ok(data: unknown) {
   };
 }
 
-function fail(code: string, message: string) {
+function fail(code: string, message: string, details?: unknown) {
   return {
     isError: true,
-    content: [{ type: 'text' as const, text: JSON.stringify({ error: { code, message } }) }],
+    content: [
+      {
+        type: 'text' as const,
+        text: JSON.stringify({ error: { code, message, ...(details === undefined ? {} : { details }) } }),
+      },
+    ],
   };
 }
 
 function errorResult(error: unknown) {
-  if (error instanceof McpClientError) return fail(error.code, error.message);
+  if (error instanceof McpClientError) return fail(error.code, error.message, error.details);
   const message = error instanceof Error ? error.message : String(error);
   return fail('INTERNAL', message);
 }

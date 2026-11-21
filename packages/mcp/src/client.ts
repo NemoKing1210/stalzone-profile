@@ -237,7 +237,11 @@ export function localClient(db: Db, syncOptions: LocalClientOptions = {}): Profi
     },
 
     async findItems(query) {
-      return queryCatalog(db, query);
+      try {
+        return queryCatalog(db, query);
+      } catch (error) {
+        return writeError(error);
+      }
     },
 
     async describeCatalog(kind) {

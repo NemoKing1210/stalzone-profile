@@ -614,3 +614,16 @@ describe('MCP prices', () => {
     );
   });
 });
+
+describe('MCP catalog errors', () => {
+  it('keeps UNKNOWN_FILTER and its available keys on the MCP surface', async () => {
+    const result = await callTool('find_items', { filters: [{ key: 'recoill', min: 40 }] });
+    expect(result.isError).toBe(true);
+    const text = (result.content as { text?: string }[])[0]?.text ?? '{}';
+    const body = JSON.parse(text) as {
+      error: { code: string; details?: { available?: string[] } };
+    };
+    expect(body.error.code).toBe('UNKNOWN_FILTER');
+    expect(body.error.details?.available).toContain('dps');
+  });
+});
