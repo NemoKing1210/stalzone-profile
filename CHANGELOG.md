@@ -33,6 +33,15 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Added
 
+- Adding an item now starts from a catalog picker instead of a raw result list: search matches
+  every word in any order across Russian and English names and category paths (`12 ак`,
+  `assault rifle`), the rank select narrows the catalog, and each row shows a 40 px icon, a
+  rank-coloured name with the matched fragments underlined, its category, weight and an
+  owned-instance counter. The selected row opens a card with the icon, English name, kind,
+  category, slot, weight and the catalog stat rows from `/api/v1/details/:key`, while the
+  per-kind form sits beside it; on a phone the columns stack and the footer stays in view.
+  Motifs, styles and cosmetic variants are no longer offered as owned gear.
+  `GET /api/v1/items` treats `q` as words and accepts `rank=master` as well as `RANK_MASTER`.
 - A virtual inventory instance (`inventory_item.is_virtual`, migration `0018`) marks gear that
   is not owned in game while keeping it a full instance: it keeps its grid cell, weight,
   storage and loadout contribution, and a dashed `VIRT`/`ВИРТ` badge with a flask glyph

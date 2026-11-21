@@ -593,7 +593,12 @@
     "catalogRequiredAction": "Open settings",
     "created": "Added",
     "fillNext": "Fill the container slots",
-    "noItems": "Nothing found in the catalog."
+    "noItems": "Nothing found in the catalog.",
+    "noItemsHint": "Try fewer words, another spelling or another rank.",
+    "itemsList": "Catalog items",
+    "clearSearch": "Clear search",
+    "resultsCount": "Shown: {count}",
+    "selectHint": "Pick an item to see its card and parameters."
   },
   "chat": {
     "pageTitle": "Assistant",

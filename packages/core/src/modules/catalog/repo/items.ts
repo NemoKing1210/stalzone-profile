@@ -291,21 +291,36 @@ export function searchItems(db: Db, opts: SearchOptions = {}): ItemRow[] {
     params.kind = opts.kind;
   }
   if (opts.rank) {
-    where.push('LOWER(rank) = LOWER(@rank)');
+    // The catalog stores `RANK_MASTER`; the payload and the filter options use `master`.
+    where.push('(LOWER(rank) = LOWER(@rank) OR LOWER(rank) = LOWER(@rank_label))');
     params.rank = opts.rank;
+    params.rank_label = `RANK_${opts.rank}`;
   }
   if (opts.slot) {
     where.push('slot = @slot');
     params.slot = opts.slot;
   }
-  if (opts.q) {
-    params.q = `%${norm(opts.q)}%`;
-    params.exact = norm(opts.q);
-    params.prefix = `${norm(opts.q)}%`;
-    where.push('(name_norm LIKE @q OR name_en_norm LIKE @q)');
+  const query = opts.q ? norm(opts.q) : '';
+  const tokens = query ? query.split(' ').filter(Boolean) : [];
+  for (const [index, token] of tokens.entries()) {
+    // Each word may land in a different column: "assault rifle" is a category phrase.
+    params[`token${index}`] = `%${token}%`;
+    where.push(
+      `(name_norm LIKE @token${index} OR name_en_norm LIKE @token${index} OR category LIKE @token${index})`,
+    );
   }
-  const order = opts.q
-    ? `CASE WHEN name_norm = @exact THEN 0 WHEN name_norm LIKE @prefix THEN 1 ELSE 2 END, name_norm`
+  if (tokens.length) {
+    params.exact = query;
+    params.prefix = `${query}%`;
+  }
+  const order = tokens.length
+    ? `CASE
+        WHEN name_norm = @exact THEN 0
+        WHEN name_norm LIKE @prefix THEN 1
+        WHEN name_en_norm = @exact THEN 1
+        WHEN name_en_norm LIKE @prefix THEN 2
+        ELSE 3
+      END, length(name_norm), name_norm`
     : `kind, name_norm`;
   return db
     .prepare(`SELECT * FROM item WHERE ${where.join(' AND ')} ORDER BY ${order} LIMIT @limit`)

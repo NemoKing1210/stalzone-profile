@@ -21,6 +21,7 @@ _Nothing agreed._
 
 _Newest first; keep at most ten entries._
 
+- inventory(ui): the add-item modal searches the catalog by every word in any order across RU/EN names and category paths, with a rank filter, 40 px icons, owned-instance counts and a rich preview card; motifs, styles and cosmetic variants stay catalog-only. — `feat(inventory): add a smart catalog picker to the add-item modal`
 - chat(ui): the assistant side panel fits its controls — a two-row header clear of the close button, `min(94vw, 34rem)` width, the thread menu above the panel, a composer submit button, scrolling tool tables and a locale-independent focus return. — `fix(chat): fit the assistant side panel`
 - chat(ui): assistant turns survive leaving `/chat` — one Pinia `stores/chat.ts` keeps threads, messages, per-thread pending confirmations and the in-flight turn; a completion elsewhere toasts the reply, pending write or error through a pure `turnOutcome`, and returning reuses the stored conversation. — `feat(chat): keep assistant turns running across pages`
 - chat(ui): the assistant opens as a right-side `USlideover` panel on every page except `/chat`, from the top-bar sparkles button and the `open-assistant` palette command, sharing `ChatConversation` and the store with the page. — `feat(chat): open the assistant as a side panel`
@@ -30,4 +31,3 @@ _Newest first; keep at most ten entries._
 - inventory: rotation is gone end to end (`0017`) — no `R`, rotated preview or rotated landing; packed rows are upright and a legacy rotated rollback lands in intake unrotated. — `feat(inventory): drop item rotation`
 - inventory(ui): Shift + primary click on a tile or filled equipment slot performs one quick move through `quickMove` and one warning toast when blocked. — `feat(inventory): quick-move on Shift click`
 - catalog(ui): weapon modals chart the card's `p0`/`p15` damage falloff in inline SVG with axes, legend, an `sr-only` point list and a no-data line. — `feat(catalog): chart weapon damage falloff`
-- catalog(ui): list icon wells carry the hatch and a translucent rank edge through one `itemEdgeColor`, cards pin their weight bottom-left, and every item surface shares one asset-free missing-icon mark. — `feat(catalog): polish item wells, weights and fallbacks`

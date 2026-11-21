@@ -1,11 +1,16 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada';
+import type { ItemSummary } from '@profile/shared/contracts';
 import { InventoryKindSchema } from '@profile/shared/contracts';
 import { rarityTierForPct } from '@profile/shared/ranks';
 import { MODAL_WIDTH } from '~/shared/lib/modalWidth';
 import { useProfileData } from '~/stores/profile-data';
+import { allInventoryItems } from '../model/instances';
+import { ownedInstanceCounts } from '../model/itemPicker';
 import { useInventory } from '../model/useInventory';
 import { itemCreatePayload, itemFormFields, skinsFor } from '../model/itemForm';
+import ItemPicker from './picker/ItemPicker.vue';
+import ItemPreview from './picker/ItemPreview.vue';
 
 const open = defineModel<boolean>('open', { default: false });
 const props = defineProps<{ kind?: string }>();
@@ -14,27 +19,24 @@ const emit = defineEmits<{ saved: []; created: [{ instanceId: number; name: stri
 const { t } = useI18n();
 const { payload } = useProfileData();
 const inventory = useInventory();
+const formId = useId();
+/** The catalog list, preview and fields can outgrow a phone; keep the body scrolling and the footer in place. */
+const modalUi = {
+  content: `${MODAL_WIDTH.wide} max-h-[calc(100dvh-2rem)]`,
+  body: 'min-h-0 overflow-y-auto',
+};
 
 const KIND_OPTIONS = InventoryKindSchema.options;
 const activeKind = ref<string>(props.kind ?? 'all');
-const selected = ref<CatalogItem | null>(null);
+const selected = ref<ItemSummary | null>(null);
 const fields = computed(() => itemFormFields(selected.value?.kind ?? activeKind.value));
 const kindOptions = computed<{ label: string; value: string }[]>(() => [
   { label: t('inventory.filter.allKinds'), value: 'all' },
   ...KIND_OPTIONS.map((kind) => ({ label: t(`inventory.filterKinds.${kind}`), value: kind })),
 ]);
 
-interface CatalogItem {
-  id: number;
-  name: string;
-  kind: string;
-  category: string | null;
-  rank: string | null;
-  slot: string | null;
-}
-
-const search = ref('');
-const debouncedSearch = ref('');
+/** Catalog names double as the instance names, so the picker can mark what is already owned. */
+const owned = computed(() => ownedInstanceCounts(allInventoryItems(payload.value?.inventory ?? null)));
 
 const form = reactive({
   level: 0,
@@ -54,23 +56,12 @@ watch(activeKind, () => {
   if (selected.value && selected.value.kind !== activeKind.value) selected.value = null;
 });
 
-const request = useRequestFetch();
-const { data: itemsPage, isLoading: loading, refetch: refetchItems } = useQuery({
-  key: () => ['catalog', 'items', activeKind.value, debouncedSearch.value],
-  query: () =>
-    request<CatalogItem[]>('/api/v1/items', {
-      query: {
-        q: debouncedSearch.value || undefined,
-        ...(activeKind.value === 'all' ? {} : { kind: activeKind.value }),
-        limit: 20,
-      },
-    }),
-  enabled: () => open.value,
+/** Choosing a row fixes the kind for the rest of the form. */
+watch(selected, (item) => {
+  if (item) activeKind.value = item.kind;
 });
-/** Only the seven ownable kinds reach the form; motifs stay catalog-only. */
-const items = computed(() =>
-  (itemsPage.value ?? []).filter((item) => (InventoryKindSchema.options as readonly string[]).includes(item.kind)),
-);
+
+const request = useRequestFetch();
 
 const { data: motifs } = useQuery({
   key: ['catalog', 'motifs'],
@@ -81,39 +72,18 @@ const { data: motifs } = useQuery({
 });
 const skinItems = computed(() => skinsFor(motifs.value ?? [], selected.value?.id));
 
-let timer: ReturnType<typeof setTimeout> | undefined;
-onBeforeUnmount(() => clearTimeout(timer));
-
-watch(search, () => {
-  selected.value = null;
-  clearTimeout(timer);
-  timer = setTimeout(() => {
-    debouncedSearch.value = search.value.trim();
-  }, 250);
-});
-
 watch(open, (value) => {
   if (value) reset();
 });
 
 function reset(): void {
-  search.value = '';
   selected.value = null;
   form.level = 0;
   form.qty = 1;
   form.rarityPct = null;
   form.skin = undefined;
   form.virtual = false;
-  if (props.kind) activeKind.value = props.kind;
-  else activeKind.value = 'all';
-  debouncedSearch.value = '';
-  void refetchItems();
-}
-
-/** Choosing a row fixes the kind for the rest of the form. */
-function choose(item: CatalogItem): void {
-  selected.value = item;
-  activeKind.value = item.kind;
+  activeKind.value = props.kind ?? 'all';
 }
 
 async function submit(): Promise<void> {
@@ -136,7 +106,7 @@ async function submit(): Promise<void> {
     v-model:open="open"
     :title="t('owned.addTitle')"
     :description="t('owned.addDescription')"
-    :ui="{ content: MODAL_WIDTH.form }"
+    :ui="modalUi"
     scrollable
   >
     <template #body>
@@ -145,99 +115,63 @@ async function submit(): Promise<void> {
         <UButton to="/settings" :label="t('owned.catalogRequiredAction')" />
       </div>
 
-      <UForm v-else :state="form" class="space-y-4" @submit="submit">
+      <UForm v-else :id="formId" :state="form" class="space-y-4" @submit="submit">
         <UFormField v-if="!kind" :label="t('owned.kindLabel')" name="kind">
           <USelect v-model="activeKind" :items="kindOptions" class="w-full" />
         </UFormField>
 
-        <UFormField :label="t('owned.item')" name="item">
-          <UInput v-model="search" :placeholder="t('owned.searchItem')" icon="i-lucide-search" class="w-full" />
-        </UFormField>
+        <div class="grid gap-4 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+          <ItemPicker v-model="selected" :kind="activeKind" :active="open" :owned="owned" />
 
-        <div class="max-h-56 overflow-y-auto border border-[var(--sz-border)]">
-          <p v-if="loading" class="px-3 py-2 text-[12px] text-[var(--sz-text-muted)]">{{ t('common.loading') }}</p>
-          <p v-else-if="!items.length" class="px-3 py-2 text-[12px] text-[var(--sz-text-muted)]">
-            {{ t('owned.noItems') }}
-          </p>
-          <template v-else>
-            <button
-              v-for="item in items"
-              :key="item.id"
-              type="button"
-              class="flex w-full items-center justify-between gap-2 border-b border-[var(--sz-border)] px-3 py-2 text-left text-[13px] last:border-b-0"
-              :class="
-                selected?.id === item.id
-                  ? 'bg-[var(--sz-surface-alt)] text-[var(--sz-accent)]'
-                  : 'hover:bg-[var(--sz-surface-alt)]'
-              "
-              @click="choose(item)"
-            >
-              <span class="min-w-0">
-                <span class="block truncate">{{ item.name }}</span>
-                <span class="block truncate text-[11px] text-[var(--sz-text-dim)]">
-                  {{ t(`inventory.filterKinds.${item.kind}`) }}<template v-if="item.category"> · {{ item.category }}</template>
-                </span>
-              </span>
-              <span class="shrink-0 text-[11px] text-[var(--sz-text-dim)]">{{ item.rank ?? '' }}</span>
-            </button>
-          </template>
-        </div>
+          <div class="min-w-0 space-y-3">
+            <ItemPreview
+              :item="selected"
+              :owned="selected ? (owned.get(selected.name) ?? 0) : 0"
+            />
 
-        <div v-if="selected" class="space-y-3">
-          <dl class="grid gap-x-4 gap-y-1 text-[12px] sm:grid-cols-2">
-            <div class="flex justify-between gap-2">
-              <dt class="text-[var(--sz-text-muted)]">{{ t('owned.kindLabel') }}</dt>
-              <dd>{{ t(`inventory.filterKinds.${selected.kind}`) }}</dd>
+            <div v-if="selected" class="grid gap-3 sm:grid-cols-2 md:grid-cols-1">
+              <UFormField v-if="fields.level" :label="t('forms.level')" name="level">
+                <UInputNumber v-model="form.level" :min="0" :max="15" class="w-full" />
+              </UFormField>
+              <UFormField v-if="fields.qty" :label="t('forms.qty')" name="qty">
+                <UInputNumber v-model="form.qty" :min="1" :max="99" class="w-full" />
+              </UFormField>
+              <UFormField v-if="fields.rarity" :label="t('forms.rarityPercent')" name="rarityPct">
+                <UInputNumber v-model="form.rarityPct" :min="0" :max="175" class="w-full" />
+                <p v-if="rarityTier" class="mt-1 text-[11px] text-[var(--sz-text-muted)]">
+                  {{ t('forms.rarityTier') }}: {{ t(`items.rarityTier.${rarityTier}`) }}
+                </p>
+              </UFormField>
+              <UFormField v-if="fields.skin" :label="t('forms.skin')" name="skin">
+                <USelectMenu
+                  v-model="form.skin"
+                  :items="skinItems"
+                  searchable
+                  clearable
+                  :placeholder="t('forms.noSkin')"
+                  class="w-full"
+                />
+              </UFormField>
+              <UFormField name="virtual">
+                <USwitch v-model="form.virtual" :label="t('forms.virtual')" />
+              </UFormField>
             </div>
-            <div class="flex justify-between gap-2">
-              <dt class="text-[var(--sz-text-muted)]">{{ t('forms.category') }}</dt>
-              <dd class="truncate">{{ selected.category ?? '—' }}</dd>
-            </div>
-            <div class="flex justify-between gap-2">
-              <dt class="text-[var(--sz-text-muted)]">{{ t('forms.slot') }}</dt>
-              <dd>{{ selected.slot ?? t('forms.slotUnknown') }}</dd>
-            </div>
-          </dl>
-
-          <div class="grid gap-3 sm:grid-cols-2">
-            <UFormField v-if="fields.level" :label="t('forms.level')" name="level">
-              <UInputNumber v-model="form.level" :min="0" :max="15" class="w-full" />
-            </UFormField>
-            <UFormField v-if="fields.qty" :label="t('forms.qty')" name="qty">
-              <UInputNumber v-model="form.qty" :min="1" :max="99" class="w-full" />
-            </UFormField>
-            <UFormField v-if="fields.rarity" :label="t('forms.rarityPercent')" name="rarityPct">
-              <UInputNumber v-model="form.rarityPct" :min="0" :max="175" class="w-full" />
-              <p v-if="rarityTier" class="mt-1 text-[11px] text-[var(--sz-text-muted)]">
-                {{ t('forms.rarityTier') }}: {{ t(`items.rarityTier.${rarityTier}`) }}
-              </p>
-            </UFormField>
-            <UFormField name="virtual" class="col-span-2">
-              <USwitch v-model="form.virtual" :label="t('forms.virtual')" />
-            </UFormField>
-            <UFormField v-if="fields.skin" :label="t('forms.skin')" name="skin">
-              <USelectMenu
-                v-model="form.skin"
-                :items="skinItems"
-                searchable
-                clearable
-                :placeholder="t('forms.noSkin')"
-                class="w-full"
-              />
-            </UFormField>
           </div>
         </div>
-
-        <div class="flex justify-end gap-2">
-          <UButton type="button" color="neutral" variant="ghost" :label="t('common.cancel')" @click="open = false" />
-          <UButton
-            type="submit"
-            :loading="inventory.busy.value"
-            :disabled="!selected"
-            :label="t('owned.add')"
-          />
-        </div>
       </UForm>
+    </template>
+
+    <template #footer>
+      <div class="flex w-full justify-end gap-2">
+        <UButton type="button" color="neutral" variant="ghost" :label="t('common.cancel')" @click="open = false" />
+        <UButton
+          type="submit"
+          :form="formId"
+          :loading="inventory.busy.value"
+          :disabled="!selected"
+          :label="t('owned.add')"
+        />
+      </div>
     </template>
   </UModal>
 </template>
