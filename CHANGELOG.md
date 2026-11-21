@@ -76,6 +76,11 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Fixed
 
+- The assistant answers when the tool-less last round returns DeepSeek tool-call markup instead
+  of prose: the stripped reply no longer ends the turn as `AI_EMPTY`, one answer-only request
+  with a plain “no more tools” turn asks for the final text in each provider's message shape,
+  and a provider that stays silent still ends the turn as `AI_EMPTY` — now marked on the user
+  message so the inline reason and Retry survive a reload.
 - Assistant results now sit under the answer as a results panel — chart, item cards, prices and
   a plain-text answer — while the tool block is a compact payload log (tool name, status, raw
   JSON), so the model's working data no longer hides what the owner asked for.

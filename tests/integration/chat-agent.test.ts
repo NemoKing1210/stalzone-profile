@@ -121,6 +121,60 @@ describe('chat agent', () => {
     expect(bodies[1]).not.toHaveProperty('tools');
   });
 
+  it('answers after the last round leaks tool markup instead of text', async () => {
+    setChatSettings(db);
+    updateChatSettings(db, ChatSettingsUpdateSchema.parse({ readToolAllowList: ['get_character'] }));
+    const bar = '\uff5c';
+    const dsml = [
+      `<${bar}DSML${bar} calls>`,
+      `<${bar}DSML${bar} invoke name="get_character">`,
+      `</${bar}DSML${bar} invoke>`,
+      `</${bar}DSML${bar} calls>`,
+    ].join('\n');
+    const bodies: Record<string, unknown>[] = [];
+    let call = 0;
+    const fetchImpl = (async (_url: string, init: RequestInit) => {
+      bodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+      call += 1;
+      if (call === 1) return json(toolCall('get_character', {}));
+      // The tool-less last round ignores the missing tools and returns markup again.
+      if (call === 2) return json({ choices: [{ message: { content: `Проверю.\n\n${dsml}` } }] });
+      return json({ choices: [{ message: { content: 'Your character is Nemo_King.' } }] });
+    }) as unknown as typeof fetch;
+
+    const result = await runChatTurn(db, { message: 'Who am I?' }, { fetchImpl, maxRounds: 2 });
+
+    expect(result.error).toBeNull();
+    expect(call).toBe(3);
+    expect(result.messages.at(-1)).toMatchObject({ role: 'assistant', content: 'Your character is Nemo_King.' });
+    expect(result.messages.some((message) => message.role === 'assistant' && message.content === 'Проверю.')).toBe(
+      false,
+    );
+    expect(result.messages.map((message) => message.content).join('\n')).not.toContain(`${bar}DSML`);
+    expect(bodies[2]).not.toHaveProperty('tools');
+    const nudged = bodies[2] as { messages: { role: string; content?: unknown }[] };
+    const last = nudged.messages.at(-1);
+    expect(last).toMatchObject({ role: 'user' });
+    expect(String(last?.content)).toMatch(/no more tools/i);
+  });
+
+  it('keeps AI_EMPTY when the provider stays silent after the answer nudge', async () => {
+    setChatSettings(db);
+    let call = 0;
+    const fetchImpl = (async () => {
+      call += 1;
+      return json({ choices: [{ message: { content: '' } }] });
+    }) as unknown as typeof fetch;
+
+    const result = await runChatTurn(db, { message: 'Hello' }, { fetchImpl });
+
+    expect(result.error).toBe('AI_EMPTY: the provider returned no text');
+    expect(call).toBe(2);
+    expect(result.messages.find((message) => message.role === 'user')).toMatchObject({
+      error: 'AI_EMPTY: the provider returned no text',
+    });
+  });
+
   it('recovers DeepSeek tool markup returned as text', async () => {
     setChatSettings(db);
     updateChatSettings(db, ChatSettingsUpdateSchema.parse({ readToolAllowList: ['get_character', 'find_items'] }));

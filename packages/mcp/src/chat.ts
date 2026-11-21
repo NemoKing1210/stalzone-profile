@@ -5,6 +5,8 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import {
   CHAT_ATTACHMENT_LIMITS,
   chatFileKind,
+  type ChatItemRef,
+  type ChatPin,
   type ChatSend,
   type ChatSettings,
   type ChatStreamEvent,
@@ -38,7 +40,6 @@ import {
   type ChatAttachmentData,
   type Db,
 } from '@profile/core';
-import type { ChatItemRef, ChatPin } from '@profile/shared/contracts';
 import { localClient, type ProfileClient } from './client.js';
 import { createProfileServer, isWriteTool, toolDefinitions, writeLimiter } from './registry.js';
 
@@ -361,6 +362,21 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
 
   try {
     const maxRounds = options.maxRounds ?? 4;
+    const request = (roundState: unknown, tools: typeof definitions) =>
+      callProviderWithRetry(fetchImpl, settings, base, key, session, {
+        system,
+        transcript,
+        images,
+        definitions: tools,
+        state: roundState,
+        temperature: settings.temperature,
+        maxTokens: settings.maxTokens,
+        reasoningEffort: settings.reasoningEffort,
+        timeoutMs: settings.timeoutMs,
+        stream: Boolean(options.onEvent),
+        onDelta: (kind, text) => emit({ type: 'delta', kind, text }),
+        signal: options.signal,
+      });
     for (let round = 0; round < maxRounds; round++) {
       rounds += 1;
       // The last round has no tools: the model must summarize what it already fetched
@@ -373,20 +389,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
         tools: lastRound ? 0 : definitions.length,
       });
       const roundStartedAt = Date.now();
-      const providerResult = await callProviderWithRetry(fetchImpl, settings, base, key, session, {
-        system,
-        transcript,
-        images,
-        definitions: lastRound ? [] : definitions,
-        state,
-        temperature: settings.temperature,
-        maxTokens: settings.maxTokens,
-        reasoningEffort: settings.reasoningEffort,
-        timeoutMs: settings.timeoutMs,
-        stream: Boolean(options.onEvent),
-        onDelta: (kind, text) => emit({ type: 'delta', kind, text }),
-        signal: options.signal,
-      });
+      const providerResult = await request(state, lastRound ? [] : definitions);
       const roundDurationMs = Date.now() - roundStartedAt;
       // A gateway may leak DeepSeek's native markup as text; recover the calls and hide it.
       const dsml = parseDsmlReply(providerResult.reply.text, offered);
@@ -401,7 +404,12 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
           }
         : providerResult;
       state = result.state;
-      if (result.reply.text.trim()) {
+      // On the tool-less last round a leaked call means the model ignored the missing
+      // tools; its prose is not the answer, so do not store it and let the nudge below ask.
+      const lastRoundToolAttempt =
+        lastRound &&
+        (providerResult.reply.calls.length > 0 || (dsml != null && dsml.calls.length > 0));
+      if (result.reply.text.trim() && !lastRoundToolAttempt) {
         replied = true;
         appendChatMessage(db, {
           threadId,
@@ -500,9 +508,38 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
       if (stopped) break;
       state = appendToolRound(state, settings.provider, result.reply, runs);
     }
+    // A provider can answer the tool-less round with another tool call, or with DeepSeek
+    // markup that strips to nothing (the DeepSeek gateways do); that must not end the turn
+    // silently after the tools have already run. Ask once more, plainly, for the answer.
+    if (!replied && !pending && !acted) {
+      rounds += 1;
+      const roundStartedAt = Date.now();
+      const nudge = await request(appendAnswerNudge(state, settings.provider), []);
+      const dsml = parseDsmlReply(nudge.reply.text, offered);
+      const text = (dsml ? dsml.text : nudge.reply.text).trim();
+      if (text) {
+        replied = true;
+        appendChatMessage(db, {
+          threadId,
+          role: 'assistant',
+          content: text,
+          refs: extractChatRefs(text, [...pins, ...userRefs]),
+          reasoning: nudge.reply.reasoning.trim() || null,
+          meta: {
+            model: settings.model,
+            durationMs: Date.now() - roundStartedAt,
+            ...(nudge.usage ? { usage: nudge.usage } : {}),
+          },
+        });
+      }
+    }
     // A compliant provider answers the tool-less last round; an empty one must not look
-    // like a delivered reply, which was the silent "did nothing" turn.
-    if (!replied && !pending && !acted) error = 'AI_EMPTY: the provider returned no text';
+    // like a delivered reply, which was the silent "did nothing" turn. The user message
+    // carries the reason, so the retry and the inline error survive a reload.
+    if (!replied && !pending && !acted) {
+      error = 'AI_EMPTY: the provider returned no text';
+      markFailure(error);
+    }
   } catch (turnError) {
     failure = turnError;
     error = turnError instanceof Error ? turnError.message : String(turnError);
@@ -554,6 +591,22 @@ async function callRegistry(sdk: Client, name: string, args: Json): Promise<unkn
   const content = (response as { content?: { type: string; text?: string }[] }).content ?? [];
   const text = content.find((entry) => entry.type === 'text')?.text ?? '{}';
   return safeJson(text);
+}
+
+/** The tool-less answer round the model is told to use when it ignored the earlier one. */
+const ANSWER_NUDGE =
+  'No more tools are available: answer the question using the results above. Do not call a tool or print tool-call markup.';
+
+/** Adds the answer-only user turn in the provider's own message shape. */
+function appendAnswerNudge(state: unknown, provider: string): unknown {
+  const messages = Array.isArray(state) ? state : [];
+  if (provider === 'anthropic') {
+    return [...messages, { role: 'user', content: [{ type: 'text', text: ANSWER_NUDGE }] }];
+  }
+  if (provider === 'google') {
+    return [...messages, { role: 'user', parts: [{ text: ANSWER_NUDGE }] }];
+  }
+  return [...(messages as OpenAiMessage[]), { role: 'user', content: ANSWER_NUDGE }];
 }
 
 function appendToolRound(state: unknown, provider: string, reply: ProviderReply, runs: ToolRun[]): unknown {
