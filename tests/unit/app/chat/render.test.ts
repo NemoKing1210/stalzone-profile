@@ -8,6 +8,7 @@ const card = (overrides: Partial<ChatItemView> = {}): ChatItemView => ({
   kind: 'weapon',
   category: 'weapon/assault_rifle',
   icon: '/icons/a.png',
+  itemId: null,
   instanceId: null,
   level: null,
   qty: null,
@@ -32,15 +33,49 @@ describe('assistant tool rendering', () => {
           },
         ],
       }),
-    ).toEqual({ kind: 'items', items: [card()] });
+    ).toEqual({ kind: 'items', items: [card({ itemId: 2110 })] });
   });
 
   it('maps a single catalog item from get_item', () => {
     expect(
       chatToolView('get_item', {
-        item: { name: 'АК-12', rank: 'RANK_MASTER', kind: 'weapon', category: 'weapon/assault_rifle', icon: '/icons/a.png' },
+        item: {
+          id: 2110,
+          name: 'АК-12',
+          rank: 'RANK_MASTER',
+          kind: 'weapon',
+          category: 'weapon/assault_rifle',
+          icon: '/icons/a.png',
+        },
       }),
-    ).toEqual({ kind: 'items', items: [card()] });
+    ).toEqual({ kind: 'items', items: [card({ itemId: 2110 })] });
+  });
+
+  it('maps one owned instance from get_inventory_item', () => {
+    const view = chatToolView('get_inventory_item', {
+      id: 5,
+      itemId: 2110,
+      name: 'АК-12',
+      rank: 'RANK_MASTER',
+      kind: 'weapon',
+      category: 'weapon/assault_rifle',
+      icon: '/icons/a.png',
+      level: 10,
+      qty: 1,
+      placement: { location: 'equipment', slot: 'primary' },
+    });
+    expect(view).toEqual({
+      kind: 'items',
+      items: [
+        card({
+          itemId: 2110,
+          instanceId: 5,
+          level: 10,
+          qty: 1,
+          location: 'primary',
+        }),
+      ],
+    });
   });
 
   it('maps owned instances with their id, level, qty and placement', () => {
@@ -48,6 +83,7 @@ describe('assistant tool rendering', () => {
       items: [
         {
           id: 1,
+          itemId: 2110,
           name: 'AA-12',
           kind: 'weapon',
           category: 'weapon/shotgun_rifle',
@@ -68,6 +104,7 @@ describe('assistant tool rendering', () => {
           rank: 'RANK_MASTER',
           category: 'weapon/shotgun_rifle',
           icon: '/icons/b.png',
+          itemId: 2110,
           instanceId: 1,
           level: 10,
           qty: 1,

@@ -1,6 +1,20 @@
+import type { ChatItemRef } from '@profile/shared/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { renderMarkdown } from '~/features/chat/model/markdown';
+import { renderChatText, renderMarkdown } from '~/features/chat/model/markdown';
+
+const ak: ChatItemRef = {
+  token: '@weapon:ак-12',
+  kind: 'weapon',
+  itemId: 11,
+  instanceId: null,
+  name: 'АК-12',
+  rank: 'common',
+  icon: null,
+  level: null,
+  quality: null,
+  virtual: false,
+};
 
 describe('chat markdown', () => {
   it('renders blocks and escapes raw HTML', () => {
@@ -33,5 +47,27 @@ describe('chat markdown', () => {
 
   it('rejects an unsafe code fence label', () => {
     expect(renderMarkdown('```"><img src=x>\ncode\n```')).not.toContain('<img');
+  });
+
+  it('renders a known item token as an internal link with its name', () => {
+    const html = renderMarkdown('сравни @weapon:ак-12 и всё', [ak]);
+    expect(html).toContain('class="sz-chat-ref"');
+    expect(html).toContain('АК-12</a>');
+    expect(html).toContain('href="/weapons?');
+    expect(html).not.toContain('target="_blank"');
+  });
+
+  it('leaves an unknown token and an escaped label alone', () => {
+    expect(renderMarkdown('@weapon:нет-такого', [ak])).toContain('@weapon:нет-такого');
+    const unsafe = renderMarkdown('@weapon:ак-12', [{ ...ak, name: '<img src=x>' }]);
+    expect(unsafe).not.toContain('<img');
+    expect(unsafe).toContain('&lt;img');
+  });
+
+  it('renders chips in plain user text without turning it into markdown', () => {
+    expect(renderChatText('смотри @weapon:ак-12\n*не курсив*', [ak])).toContain('class="sz-chat-ref"');
+    expect(renderChatText('смотри @weapon:ак-12\n*не курсив*', [ak])).toContain('*не курсив*');
+    expect(renderChatText('@weapon:нет', [ak])).toBe('@weapon:нет');
+    expect(renderChatText('<b>@weapon:ак-12</b>', [ak])).toContain('&lt;b&gt;');
   });
 });

@@ -6,7 +6,7 @@ import { artifactsKind } from '~/features/inventory/model/kinds/artifacts';
 import { containersKind } from '~/features/inventory/model/kinds/containers';
 import { modificationsKind } from '~/features/inventory/model/kinds/modifications';
 import { weaponsKind } from '~/features/inventory/model/kinds/weapons';
-import { allInventoryItems } from '~/features/inventory/model/instances';
+import { allInventoryItems } from '~/shared/lib/inventory';
 
 const range: RangeValue = { min: 0, max: 0, value: 0, missing: [] };
 

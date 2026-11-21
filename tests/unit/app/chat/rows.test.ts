@@ -1,4 +1,4 @@
-import type { ChatAttachment, ChatMessage } from '@profile/shared/contracts';
+import type { ChatAttachment, ChatItemRef, ChatMessage } from '@profile/shared/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { chatRows, toolRunCounts, type ChatRow } from '~/features/chat/model/rows';
@@ -101,6 +101,27 @@ describe('chat rows', () => {
       { name: 'find_items', count: 2 },
       { name: 'get_prices', count: 1 },
     ]);
+  });
+
+  it('keeps stored item refs on user and assistant rows', () => {
+    const ref: ChatItemRef = {
+      token: '@weapon:ак-12',
+      kind: 'weapon',
+      itemId: 11,
+      instanceId: null,
+      name: 'АК-12',
+      rank: null,
+      icon: null,
+      level: null,
+      quality: null,
+      virtual: false,
+    };
+    const rows = chatRows([
+      message({ id: 1, role: 'user', content: 'сравни @weapon:ак-12', refs: [ref] }),
+      message({ id: 2, role: 'assistant', content: 'Смотри @weapon:ак-12', refs: [ref] }),
+    ]);
+    expect(rows[0]).toMatchObject({ kind: 'user', refs: [ref] });
+    expect(rows[1]).toMatchObject({ kind: 'assistant', refs: [ref] });
   });
 
   it('hides leaked tool-call markup in assistant prose', () => {

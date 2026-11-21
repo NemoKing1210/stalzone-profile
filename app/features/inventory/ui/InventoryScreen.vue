@@ -14,6 +14,7 @@ import { ProfilePane, KeyHint } from '~/shared/ui';
 import { MODAL_WIDTH } from '~/shared/lib/modalWidth';
 
 import type { InventoryItemRead, ModificationSlot } from '@profile/shared/contracts';
+import { allInventoryItems } from '~/shared/lib/inventory';
 import type { ContainerFillTarget, InstanceEditTarget } from '~/shared/types/profile';
 import {
   filterInventoryRows,
@@ -22,7 +23,6 @@ import {
   sortInventoryRows,
   typeOptions,
 } from '../model/filters';
-import { allInventoryItems } from '../model/instances';
 import { windowSections } from '../model/listWindow';
 import { sortableHeader } from '../model/tableHeader';
 import type { InventoryColumn, InventoryKind } from '../model/types';

@@ -3,6 +3,7 @@ import type { ChatAttachment } from '@profile/shared/contracts';
 import { computed } from 'vue';
 
 import { formatChatError } from '~/shared/lib/chatTurnOutcome';
+import { renderChatText } from '../model/markdown';
 import type { ChatRow } from '../model/rows';
 import ChatAttachmentGrid from './ChatAttachmentGrid.vue';
 import ChatMarkdown from './ChatMarkdown.vue';
@@ -19,6 +20,8 @@ const emit = defineEmits<{
 
 const { t, locale } = useI18n();
 const errorText = computed(() => (props.row.kind === 'user' && props.row.error ? formatChatError(props.row.error, t) : ''));
+/** User text stays literal; only a known item token becomes a chip. */
+const userText = computed(() => (props.row.kind === 'user' ? renderChatText(props.row.text, props.row.refs) : ''));
 
 const time = computed(() => {
   const date = new Date(props.row.createdAt);
@@ -39,7 +42,8 @@ const time = computed(() => {
           @open-image="emit('openImage', $event)"
           @open-file="emit('openFile', $event)"
         />
-        <p v-if="row.text" class="whitespace-pre-wrap break-words text-[13px] leading-snug">{{ row.text }}</p>
+        <!-- eslint-disable-next-line vue/no-v-html -- renderChatText escapes everything -->
+        <p v-if="row.text" class="whitespace-pre-wrap break-words text-[13px] leading-snug" v-html="userText" />
         <div v-if="row.error" class="mt-1.5 flex flex-wrap items-center gap-2 border-t border-[var(--sz-danger)]/60 pt-1.5">
           <span class="sz-caps text-[10px] text-[var(--sz-danger-text)]">{{ t('chat.notDelivered') }}</span>
           <p class="min-w-0 flex-1 text-[11.5px] text-[var(--sz-danger-text)]" role="status">{{ errorText }}</p>
@@ -68,7 +72,7 @@ const time = computed(() => {
       :text="row.reasoning"
       :duration="row.meta?.durationMs == null ? undefined : Math.round(row.meta.durationMs / 1000)"
     />
-    <ChatMarkdown :text="row.text" />
+    <ChatMarkdown :text="row.text" :refs="row.refs" />
     <div class="mt-1 flex items-center gap-2">
       <UButton
         color="neutral"

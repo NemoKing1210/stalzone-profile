@@ -10,6 +10,7 @@ function item(name: string): ChatItemView {
     kind: 'weapon',
     category: 'weapon/assault_rifle',
     icon: null,
+    itemId: null,
     instanceId: null,
     level: 15,
     qty: null,

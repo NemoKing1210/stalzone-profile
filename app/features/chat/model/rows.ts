@@ -1,4 +1,4 @@
-import type { ChatAttachment, ChatMessage, ChatMessageMeta } from '@profile/shared/contracts';
+import type { ChatAttachment, ChatItemRef, ChatMessage, ChatMessageMeta } from '@profile/shared/contracts';
 
 import { cleanAssistantText } from './text';
 
@@ -17,6 +17,7 @@ export type ChatRow =
       id: string;
       text: string;
       attachments: ChatAttachment[];
+      refs: ChatItemRef[];
       /** Set when the turn failed; the bubble marks it as not delivered and offers Retry. */
       error: string | null;
       createdAt: string;
@@ -25,6 +26,7 @@ export type ChatRow =
       kind: 'assistant';
       id: string;
       text: string;
+      refs: ChatItemRef[];
       reasoning: string | null;
       meta: ChatMessageMeta | null;
       /** Tool runs of this turn, attached only to the turn's final answer. */
@@ -81,6 +83,7 @@ export function chatRows(messages: readonly ChatMessage[]): ChatRow[] {
         id: String(message.id),
         text: message.content,
         attachments: message.attachments,
+        refs: message.refs,
         error: message.error,
         createdAt: message.createdAt,
       });
@@ -90,6 +93,7 @@ export function chatRows(messages: readonly ChatMessage[]): ChatRow[] {
       kind: 'assistant' as const,
       id: String(message.id),
       text: cleanAssistantText(message.content),
+      refs: message.refs,
       reasoning: message.reasoning,
       meta: message.meta,
       results: [],

@@ -1,5 +1,7 @@
 import type { InventoryItemRead, InventoryRead, PlacementRead, StorageKind } from '@profile/shared/contracts';
 
+import { allInventoryItems } from '~/shared/lib/inventory';
+
 /** Where an instance sits, plus the names the tables show for that place. */
 export interface InstanceLocationRow {
   location: PlacementRead['location'] | null;
@@ -27,25 +29,6 @@ export interface InventoryIndex {
   storages: Map<number, { kind: StorageKind; name: string }>;
   containers: Map<number, InventoryItemRead>;
   weapons: Map<number, InventoryItemRead>;
-}
-
-/**
- * Every instance in the profile: equipped items, loose items, grid items, and the
- * artifacts and modifications nested inside them. One id appears once.
- */
-export function allInventoryItems(inventory: InventoryRead | null | undefined): InventoryItemRead[] {
-  if (!inventory) return [];
-  const seen = new Map<number, InventoryItemRead>();
-  const visit = (item: InventoryItemRead): void => {
-    if (seen.has(item.id)) return;
-    seen.set(item.id, item);
-    for (const child of [...(item.artifacts ?? []), ...(item.modifications ?? [])]) visit(child);
-  };
-
-  for (const item of Object.values(inventory.equipment ?? {})) if (item) visit(item);
-  for (const item of inventory.loose ?? []) visit(item);
-  for (const storage of inventory.storages ?? []) for (const item of storage.items ?? []) visit(item);
-  return [...seen.values()];
 }
 
 /** Build the lookup maps once per payload; location labels then cost a map read. */

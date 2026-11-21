@@ -8,6 +8,8 @@ export interface ChatItemView {
   kind: string | null;
   category: string | null;
   icon: string | null;
+  /** The catalog row behind the card; both pinning and the item link need it. */
+  itemId: number | null;
   /** The owned instance behind the card; null for a catalog row. */
   instanceId: number | null;
   level: number | null;
@@ -45,11 +47,19 @@ const KIND_PATHS: Record<string, string> = {
  * Where a chat card leads: the owned instance opens its own modal on the kind page, a catalog
  * row opens the catalog tab filtered to that name. An unknown or stackable kind has no page.
  */
-export function chatItemLink(item: ChatItemView): string | null {
-  const path = item.kind ? KIND_PATHS[item.kind] : undefined;
+export function chatItemHref(
+  kind: string | null,
+  instanceId: number | null,
+  name: string,
+): string | null {
+  const path = kind ? KIND_PATHS[kind] : undefined;
   if (!path) return null;
-  if (item.instanceId != null) return `${path}?item=${item.instanceId}`;
-  return `${path}?mode=catalog&name=${encodeURIComponent(item.name)}`;
+  if (instanceId != null) return `${path}?item=${instanceId}`;
+  return `${path}?mode=catalog&name=${encodeURIComponent(name)}`;
+}
+
+export function chatItemLink(item: ChatItemView): string | null {
+  return chatItemHref(item.kind, item.instanceId, item.name);
 }
 
 function asArray(value: unknown): Json[] {
@@ -72,6 +82,7 @@ function itemView(row: Json, location: string | null = null, instance = false): 
     kind: str(row.kind),
     category: str(row.category),
     icon: str(row.icon),
+    itemId: instance ? num(row.itemId) : num(row.itemId ?? row.id),
     instanceId: instance ? num(row.id) : null,
     level: num(row.level),
     qty: num(row.qty),
@@ -140,6 +151,10 @@ export function chatToolView(toolName: string, payload: unknown): ChatToolView {
     const item = body.item;
     const rows = item && typeof item === 'object' ? [item as Json] : asArray(body.items);
     return { kind: 'items', items: rows.map((row) => itemView(row)) };
+  }
+
+  if (toolName === 'get_inventory_item') {
+    return { kind: 'items', items: [itemView(body, placementLocation(body), true)] };
   }
 
   if (toolName === 'find_items' || toolName === 'compare_items') {
