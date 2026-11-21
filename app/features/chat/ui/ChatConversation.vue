@@ -11,6 +11,7 @@ import { storeToRefs } from 'pinia';
 import { useChatStore } from '~/stores/chat';
 import { addChatFiles, formatFileSize, type ChatFileIssue } from '../model/files';
 import { threadImages } from '../model/gallery';
+import { cleanAssistantText } from '../model/text';
 import ChatAttachmentGallery from './ChatAttachmentGallery.vue';
 import ChatAttachmentGrid from './ChatAttachmentGrid.vue';
 import ChatFilePreview from './ChatFilePreview.vue';
@@ -63,7 +64,7 @@ const uiMessages = computed<UiMessage[]>(() =>
   messages.value.map((message) => ({
     id: String(message.id),
     role: message.role === 'user' ? 'user' : 'assistant',
-    parts: [{ type: 'text', text: message.role === 'tool' ? '' : message.content }],
+    parts: [{ type: 'text', text: message.role === 'tool' ? '' : cleanAssistantText(message.content) }],
     metadata: {
       tool: message.role === 'tool',
       toolName: message.toolName ?? undefined,

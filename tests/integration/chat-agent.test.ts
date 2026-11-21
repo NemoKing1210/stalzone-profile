@@ -2,7 +2,17 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { closeDb, ensureDefaultSources, migrate, openDb, type Db, listEvents, updateChatSettings } from '@profile/core';
+import {
+  appendChatMessage,
+  closeDb,
+  createChatThread,
+  ensureDefaultSources,
+  listEvents,
+  migrate,
+  openDb,
+  updateChatSettings,
+  type Db,
+} from '@profile/core';
 import { runChatTurn, toolDefinitions } from '@profile/mcp';
 import { CHAT_PROVIDER_META, ChatSettingsUpdateSchema, type ChatProvider } from '@profile/shared/contracts';
 import { setChatSettings } from './chat-test-helpers';
@@ -94,6 +104,71 @@ describe('chat agent', () => {
     expect(result.error).toBeNull();
     expect(result.messages.at(-1)).toMatchObject({ role: 'assistant', content: 'Final answer.' });
     expect(bodies[1]).not.toHaveProperty('tools');
+  });
+
+  it('recovers DeepSeek tool markup returned as text', async () => {
+    setChatSettings(db);
+    updateChatSettings(db, ChatSettingsUpdateSchema.parse({ readToolAllowList: ['get_character', 'find_items'] }));
+    const bar = '\uff5c';
+    const dsml = [
+      `<${bar}DSML${bar} calls>`,
+      `<${bar}DSML${bar} invoke name="find_items">`,
+      `<${bar}DSML${bar} parameter name="q" string="true">АК</${bar}DSML${bar} parameter>`,
+      `<${bar}DSML${bar} parameter name="limit">1</${bar}DSML${bar} parameter>`,
+      `</${bar}DSML${bar} invoke>`,
+      `</${bar}DSML${bar} calls>`,
+    ].join('\n');
+    const bodies: string[] = [];
+    let call = 0;
+    const fetchImpl = (async (_url: string, init: RequestInit) => {
+      bodies.push(String(init.body));
+      call += 1;
+      return call === 1
+        ? json({ choices: [{ message: { content: `Проверю.\n\n${dsml}` } }] })
+        : json({ choices: [{ message: { content: 'Готово.' } }] });
+    }) as unknown as typeof fetch;
+
+    const result = await runChatTurn(db, { message: 'Топ' }, { fetchImpl });
+
+    expect(result.error).toBeNull();
+    expect(result.messages.some((message) => message.role === 'tool' && message.toolName === 'find_items')).toBe(true);
+    expect(result.messages.map((message) => message.content).join('\n')).not.toContain(`${bar}DSML`);
+    expect(result.messages.at(-1)).toMatchObject({ role: 'assistant', content: 'Готово.' });
+    const second = JSON.parse(bodies[1]!) as { messages: { role: string }[] };
+    expect(second.messages.some((message) => message.role === 'tool')).toBe(true);
+  });
+
+  it('reads an OpenAI content-parts answer', async () => {
+    setChatSettings(db);
+    const fetchImpl = (async () =>
+      json({ choices: [{ message: { content: [{ type: 'text', text: 'Привет.' }] } }] })) as unknown as typeof fetch;
+
+    const result = await runChatTurn(db, { message: 'Привет' }, { fetchImpl });
+
+    expect(result.error).toBeNull();
+    expect(result.messages.at(-1)).toMatchObject({ role: 'assistant', content: 'Привет.' });
+  });
+
+  it('keeps stored tool markup out of the next transcript', async () => {
+    setChatSettings(db);
+    const threadId = createChatThread(db, 'Old');
+    const bar = '\uff5c';
+    appendChatMessage(db, {
+      threadId,
+      role: 'assistant',
+      content: `Перед.\n\n<${bar}DSML${bar} calls>\n<${bar}DSML${bar} invoke name="find_items">\n</${bar}DSML${bar} invoke>\n</${bar}DSML${bar} calls>`,
+    });
+    const bodies: string[] = [];
+    const fetchImpl = (async (_url: string, init: RequestInit) => {
+      bodies.push(String(init.body));
+      return json({ choices: [{ message: { content: 'Дальше.' } }] });
+    }) as unknown as typeof fetch;
+
+    const result = await runChatTurn(db, { threadId, message: 'Продолжай' }, { fetchImpl });
+
+    expect(result.error).toBeNull();
+    expect(bodies[0]).not.toContain(`${bar}DSML`);
+    expect(bodies[0]).toContain('Перед.');
   });
 
   it('returns an OpenAI-compatible tool result as a protocol tool message', async () => {

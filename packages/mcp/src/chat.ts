@@ -113,7 +113,7 @@ function transcriptFor(db: Db, threadId: number, files: ChatAttachmentData[]): s
         .filter((file) => chatFileKind(file.name, file.mimeType) === 'text')
         .map((file) => fileBlock(file.name, file.data))
         .join('');
-      return `${label}: ${message.content}${blocks}`;
+      return `${label}: ${transcriptText(message.content)}${blocks}`;
     })
     .join('\n');
 }
@@ -124,6 +124,77 @@ function safeJson(text: string): Json {
   } catch {
     return {};
   }
+}
+
+/** Fullwidth bars are what DeepSeek emits; ASCII bars are accepted too. */
+const DSML_MARKER = /\|\s*DSML\s*\|/i;
+const DSML_BLOCK = /<\s*\|DSML\|\s*calls\s*>([\s\S]*?)<\/\s*\|DSML\|\s*calls\s*>/i;
+const DSML_INVOKE = /<\s*\|DSML\|\s*invoke\s+name="([^"]+)"\s*>([\s\S]*?)<\/\s*\|DSML\|\s*invoke\s*>/gi;
+const DSML_PARAM =
+  /<\s*\|DSML\|\s*parameter\s+name="([^"]+)"(?:\s+string="([^"]+)")?\s*>([\s\S]*?)<\/\s*\|DSML\|\s*parameter\s*>/gi;
+
+function decodeDsmlValue(value: string): string {
+  const codePoint = (raw: string, radix: number): string => {
+    const code = Number.parseInt(raw, radix);
+    return Number.isFinite(code) && code >= 0 && code <= 0x10ffff ? String.fromCodePoint(code) : '';
+  };
+  return value
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => codePoint(hex, 16))
+    .replace(/&#(\d+);/g, (_, decimal: string) => codePoint(decimal, 10))
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&amp;/g, '&');
+}
+
+function dsmlValue(raw: string): unknown {
+  const value = decodeDsmlValue(raw).trim();
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return value;
+  }
+}
+
+/** Keeps already-stored leaked markup out of the next prompt. */
+function transcriptText(text: string): string {
+  return DSML_MARKER.test(text.replaceAll('\uff5c', '|')) ? stripDsmlMarkup(text) : text;
+}
+
+/** Removes every tool-call block and a truncated tail so no markup reaches the UI. */
+function stripDsmlMarkup(text: string): string {
+  const normalized = text.replaceAll('\uff5c', '|');
+  return normalized
+    .replace(/<\s*\|DSML\|\s*calls\s*>[\s\S]*?<\/\s*\|DSML\|\s*calls\s*>/gi, '')
+    .replace(/<\s*\|DSML\|[\s\S]*$/i, '')
+    .trim();
+}
+
+/**
+ * Some OpenAI-compatible gateways return DeepSeek's native tool-call markup as ordinary
+ * text instead of `tool_calls`. Recover the calls so they still run, and strip the markup
+ * from the prose so the answer never shows it.
+ */
+function parseDsmlReply(text: string, allowed: ReadonlySet<string>): { text: string; calls: ToolCall[] } | null {
+  const normalized = text.replaceAll('\uff5c', '|');
+  if (!DSML_MARKER.test(normalized)) return null;
+  const calls: ToolCall[] = [];
+  const block = DSML_BLOCK.exec(normalized);
+  if (block) {
+    for (const invoke of (block[1] ?? '').matchAll(DSML_INVOKE)) {
+      const name = invoke[1] ?? '';
+      if (!allowed.has(name)) continue;
+      const args: Json = {};
+      for (const param of (invoke[2] ?? '').matchAll(DSML_PARAM)) {
+        const key = param[1] ?? '';
+        if (!key || key.startsWith('__')) continue;
+        args[key] = param[2] === 'true' ? decodeDsmlValue(param[3] ?? '') : dsmlValue(param[3] ?? '');
+      }
+      calls.push({ id: `dsml_${crypto.randomUUID()}`, name, args });
+    }
+  }
+  return { text: stripDsmlMarkup(text), calls };
 }
 
 /**
@@ -183,6 +254,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
   await sdk.connect(clientTransport);
 
   const definitions = toolDefinitions(settings.readToolAllowList);
+  const offered = new Set(definitions.map((definition) => definition.name));
   const storedFiles = listChatAttachmentData(db, threadId);
   const transcript = transcriptFor(db, threadId, storedFiles);
   const images = storedFiles
@@ -207,7 +279,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
       // The last round has no tools: the model must summarize what it already fetched
       // instead of the loop ending silently after another tool call.
       const lastRound = round === maxRounds - 1;
-      const result = await callProviderWithRetry(fetchImpl, settings, base, key, session, {
+      const providerResult = await callProviderWithRetry(fetchImpl, settings, base, key, session, {
         system,
         transcript,
         images,
@@ -218,6 +290,17 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
         reasoningEffort: settings.reasoningEffort,
         timeoutMs: settings.timeoutMs,
       });
+      // A gateway may leak DeepSeek's native markup as text; recover the calls and hide it.
+      const dsml = parseDsmlReply(providerResult.reply.text, offered);
+      const result = dsml
+        ? {
+            ...providerResult,
+            reply: {
+              text: dsml.text,
+              calls: providerResult.reply.calls.length || lastRound ? providerResult.reply.calls : dsml.calls,
+            },
+          }
+        : providerResult;
       state = result.state;
       if (result.reply.text.trim()) {
         replied = true;
@@ -400,6 +483,19 @@ async function callProvider(
   return callOpenAi(fetchImpl, provider, base, key, model, session, input);
 }
 
+/** OpenAI-compatible gateways occasionally return content parts instead of one string. */
+function openAiText(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return '';
+  let text = '';
+  for (const part of content) {
+    if (part && typeof part === 'object' && 'text' in part && typeof part.text === 'string') {
+      text += part.text;
+    }
+  }
+  return text;
+}
+
 async function callOpenAi(
   fetchImpl: FetchLike,
   provider: string,
@@ -460,7 +556,7 @@ async function callOpenAi(
   const message = body.choices?.[0]?.message;
   return {
     reply: {
-      text: message?.content ?? '',
+      text: openAiText(message?.content),
       calls: (message?.tool_calls ?? []).map((call) => ({
         id: call.id,
         name: call.function.name,

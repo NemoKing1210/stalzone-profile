@@ -9,6 +9,11 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Fixed
 
+- A gateway that returns DeepSeek's native tool-call markup (DSML) as ordinary text no longer
+  prints that markup to the owner: the server parses the block back into tool calls, runs
+  them, and strips the tags from the assistant prose, from the transcript sent on later
+  turns and from already-stored messages in the UI. A truncated markup tail is removed and
+  OpenAI-compatible content parts are read as text.
 - Audit follow-ups in the assistant: a `get_item` tool card renders the item instead of a
   placeholder “—” (the payload is `{ item }`, not `{ items }`), a confirmed write no longer
   reports `AI_EMPTY` when the model sends no closing text, and `useApiError` takes `t` from the
