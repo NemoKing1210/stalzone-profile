@@ -62,7 +62,7 @@ const GROUP_LABELS: Record<ChatThreadGroupKey, string> = {
             </button>
             <button
               type="button"
-              class="flex w-7 shrink-0 items-center justify-center border-l-2 border-transparent text-[var(--sz-text-dim)] transition-colors hover:bg-[var(--sz-surface-alt)] hover:text-[var(--sz-warning-text)] disabled:opacity-40"
+              class="flex w-7 shrink-0 items-center justify-center border-l-2 border-transparent text-[var(--sz-text-dim)] transition-colors hover:bg-[var(--sz-surface-alt)] hover:text-[var(--sz-warning-text)] disabled:opacity-40 max-sm:w-11"
               :disabled="disabled"
               :aria-label="t('chat.deleteThreadName', { title: thread.title })"
               :title="t('chat.deleteThread')"

@@ -250,7 +250,7 @@ defineExpose({ focus });
               v-for="suggestion in SUGGESTIONS"
               :key="suggestion"
               type="button"
-              class="border border-[var(--sz-border)] px-2 py-1 text-left text-[12px] text-[var(--sz-text)] transition-colors hover:border-[var(--sz-border-strong)] hover:bg-[var(--sz-surface-header)]"
+              class="border border-[var(--sz-border)] px-2 py-1 text-left text-[12px] text-[var(--sz-text)] transition-colors hover:border-[var(--sz-border-strong)] hover:bg-[var(--sz-surface-header)] max-sm:min-h-11"
               :disabled="sending"
               @click="chat.send(t(suggestion))"
             >
