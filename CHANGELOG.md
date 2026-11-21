@@ -65,6 +65,7 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Fixed
 
+- The live assistant no longer shows the “Thinking…” shimmer while its reasoning block is already streaming; the reasoning block is the working state.
 - The assistant chat's blocks read as one spacing system now: a user message is a single pane
   bubble with its time above instead of a bubble nested inside Nuxt UI's padded card, messages
   sit 12px apart instead of 32px, tool calls are separated by hairlines (a declined write shows

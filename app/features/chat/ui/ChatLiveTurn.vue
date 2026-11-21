@@ -20,7 +20,8 @@ const running = computed(() =>
 
     <UChatReasoning v-if="live?.reasoning" :text="live.reasoning" streaming :auto-close-delay="0" />
     <ChatMarkdown v-if="live?.text" :text="live.text" />
-    <p v-else-if="streaming" class="text-[12.5px] text-[var(--sz-text-muted)]" role="status">
+    <!-- The reasoning block is already the "working" state; a second shimmer duplicates it. -->
+    <p v-else-if="streaming && !live?.reasoning" class="text-[12.5px] text-[var(--sz-text-muted)]" role="status">
       <UChatShimmer :text="t('chat.thinking')" />
     </p>
 
