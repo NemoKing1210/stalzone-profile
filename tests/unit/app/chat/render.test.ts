@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { chatItemLink, chatToolView, type ChatItemView } from '~/features/chat/model/render';
+import { chatItemTarget, chatToolView, type ChatItemView } from '~/features/chat/model/render';
 
 const card = (overrides: Partial<ChatItemView> = {}): ChatItemView => ({
   name: 'АК-12',
@@ -177,19 +177,28 @@ describe('assistant tool rendering', () => {
   });
 });
 
-describe('chat card links', () => {
-  it('opens an owned instance on the page that owns its kind', () => {
-    expect(chatItemLink(card({ instanceId: 42 }))).toBe('/weapons?item=42');
+describe('chat card targets', () => {
+  it('opens an owned instance in the global modal', () => {
+    expect(chatItemTarget(card({ instanceId: 42 }))).toEqual({
+      mode: 'instance',
+      instanceId: 42,
+      kind: 'weapon',
+    });
   });
 
-  it('opens a catalog row on the catalog tab filtered to its name', () => {
-    expect(chatItemLink(card({ kind: 'modification', name: 'АКМЛ' }))).toBe(
-      `/modifications?mode=catalog&name=${encodeURIComponent('АКМЛ')}`,
-    );
+  it('opens a catalog row with the fields its header reads', () => {
+    expect(chatItemTarget(card({ kind: 'modification', name: 'АКМЛ' }))).toEqual({
+      mode: 'catalog',
+      kind: 'modification',
+      name: 'АКМЛ',
+      icon: '/icons/a.png',
+      rank: 'RANK_MASTER',
+      category: 'weapon/assault_rifle',
+    });
   });
 
-  it('has no page for a stackable or unknown kind', () => {
-    expect(chatItemLink(card({ kind: 'ammo' }))).toBeNull();
-    expect(chatItemLink(card({ kind: null }))).toBeNull();
+  it('has no target for a stackable or unknown kind', () => {
+    expect(chatItemTarget(card({ kind: 'ammo' }))).toBeNull();
+    expect(chatItemTarget(card({ kind: null }))).toBeNull();
   });
 });

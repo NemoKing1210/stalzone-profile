@@ -36,6 +36,14 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
+- Item cards open one global modal instead of navigating: the assistant's cards, chart bars
+  and chips, the kind tables and grids, the inventory tiles and the existing `?item=` /
+  `?mode=catalog&name=` deep links all hand a target to a store, and the host mounted in the
+  layout renders the card where the user is. The host resolves an owned instance from the
+  payload (API fallback) or a catalog card from `/api/v1/details/:key`, owns the
+  unverified-modification and artifact-card modals, closes with a toast when the target is
+  gone, and passes the weapon-modification candidates that the screens sent under the stale
+  `attachments` name.
 - The equipment pane reads like the rest of the inventory: worn gear uses the same hatched,
   rank-edged card as a grid tile (name, class, level, icon, caliber/attachments), empty slots
   carry corner brackets that turn accent on a compatible drag, and the doll is capped at 560px

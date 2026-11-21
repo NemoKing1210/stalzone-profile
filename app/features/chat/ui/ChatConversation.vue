@@ -14,6 +14,7 @@ import { storeToRefs } from 'pinia';
 
 import { CHAT_MESSAGE_ENTER_CLASS } from '~/shared/lib/motion';
 import { useChatStore } from '~/stores/chat';
+import { useItemModalStore } from '~/stores/itemModal';
 import { useProfileData } from '~/stores/profile-data';
 import { addChatFiles, formatFileSize, type ChatFileIssue } from '../model/files';
 import { threadImages } from '../model/gallery';
@@ -28,7 +29,7 @@ import {
   type ChatItemCandidate,
   type MentionRange,
 } from '../model/mentions';
-import { chatItemLink, type ChatItemView } from '../model/render';
+import { chatItemTarget, type ChatItemView } from '../model/render';
 import { chatRows, type ChatRow } from '../model/rows';
 import ChatAttachmentGallery from './ChatAttachmentGallery.vue';
 import ChatFilePreview from './ChatFilePreview.vue';
@@ -46,7 +47,7 @@ const props = withDefaults(defineProps<{ standalone?: boolean }>(), { standalone
 const chat = useChatStore();
 const { messages, pending, sending, queued, streaming, live, loadError } = storeToRefs(chat);
 const { t } = useI18n();
-const router = useRouter();
+const itemModal = useItemModalStore();
 const toast = useToast();
 const draft = ref('');
 const files = ref<ChatAttachmentInput[]>([]);
@@ -267,15 +268,15 @@ function openFile(file: ChatAttachment): void {
   previewOpen.value = true;
 }
 
-/** A tool card leads to the page that owns the kind, where the instance has its actions. */
 function retryMessage(id: string): void {
   const messageId = Number(id);
   if (Number.isInteger(messageId)) void chat.retry(messageId);
 }
 
+/** A tool card opens the global item modal; the conversation stays where it is. */
 function openItem(item: ChatItemView): void {
-  const link = chatItemLink(item);
-  if (link) void router.push(link);
+  const target = chatItemTarget(item);
+  if (target) itemModal.openTarget(target);
 }
 
 async function copyMessage(text: string): Promise<void> {

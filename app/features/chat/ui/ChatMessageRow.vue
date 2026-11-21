@@ -3,6 +3,9 @@ import type { ChatAttachment } from '@profile/shared/contracts';
 import { computed } from 'vue';
 
 import { formatChatError } from '~/shared/lib/chatTurnOutcome';
+import { useItemModalStore } from '~/stores/itemModal';
+
+import { chatItemFromEvent } from '../model/itemLinks';
 import { renderChatText } from '../model/markdown';
 import type { ChatRow } from '../model/rows';
 import ChatAttachmentGrid from './ChatAttachmentGrid.vue';
@@ -19,9 +22,18 @@ const emit = defineEmits<{
 }>();
 
 const { t, locale } = useI18n();
+const itemModal = useItemModalStore();
 const errorText = computed(() => (props.row.kind === 'user' && props.row.error ? formatChatError(props.row.error, t) : ''));
 /** User text stays literal; only a known item token becomes a chip. */
 const userText = computed(() => (props.row.kind === 'user' ? renderChatText(props.row.text, props.row.refs) : ''));
+
+/** An item chip opens the global modal in place; modified clicks stay with the browser. */
+function openChip(event: MouseEvent): void {
+  const target = chatItemFromEvent(event);
+  if (!target) return;
+  event.preventDefault();
+  itemModal.openTarget(target);
+}
 
 const time = computed(() => {
   const date = new Date(props.row.createdAt);
@@ -36,7 +48,10 @@ const time = computed(() => {
       <p v-if="time" class="whitespace-nowrap text-[10px] tabular-nums text-[var(--sz-text-dim)]">
         <time :datetime="row.createdAt">{{ time }}</time>
       </p>
-      <div class="w-fit max-w-full border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] px-2.5 py-1.5">
+      <div
+        class="w-fit max-w-full border border-[var(--sz-border)] bg-[var(--sz-surface-alt)] px-2.5 py-1.5"
+        @click="openChip"
+      >
         <ChatAttachmentGrid
           :attachments="row.attachments"
           @open-image="emit('openImage', $event)"

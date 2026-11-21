@@ -1,24 +1,11 @@
+import { catalogKey, type ItemModalTarget } from '~/shared/lib/itemModal';
+
 import { buildChatChart, type ChatChartData } from './chart';
+import type { ChatItemView } from './types';
+
+export type { ChatItemView } from './types';
 
 type Json = Record<string, unknown>;
-
-export interface ChatItemView {
-  name: string;
-  rank: string | null;
-  kind: string | null;
-  category: string | null;
-  icon: string | null;
-  /** The catalog row behind the card; both pinning and the item link need it. */
-  itemId: number | null;
-  /** The owned instance behind the card; null for a catalog row. */
-  instanceId: number | null;
-  level: number | null;
-  qty: number | null;
-  virtual: boolean;
-  /** Where the instance sits, or the storage name the tool reported. */
-  location: string | null;
-  weight: number | null;
-}
 
 export interface ChatPriceView {
   name: string;
@@ -34,32 +21,22 @@ export type ChatToolView =
   | { kind: 'text'; text: string }
   | { kind: 'json'; json: string };
 
-/** The page that owns each kind; a card opens that page at its instance or catalog row. */
-const KIND_PATHS: Record<string, string> = {
-  weapon: '/weapons',
-  armor: '/armor',
-  container: '/containers',
-  artifact: '/artifacts',
-  modification: '/modifications',
-};
-
 /**
- * Where a chat card leads: the owned instance opens its own modal on the kind page, a catalog
- * row opens the catalog tab filtered to that name. An unknown or stackable kind has no page.
+ * What a chat card points at: the global item modal's target. The owned instance needs only
+ * its id, a catalog row carries the few fields its header reads; an unknown or stackable
+ * kind has no card to open.
  */
-export function chatItemHref(
-  kind: string | null,
-  instanceId: number | null,
-  name: string,
-): string | null {
-  const path = kind ? KIND_PATHS[kind] : undefined;
-  if (!path) return null;
-  if (instanceId != null) return `${path}?item=${instanceId}`;
-  return `${path}?mode=catalog&name=${encodeURIComponent(name)}`;
-}
-
-export function chatItemLink(item: ChatItemView): string | null {
-  return chatItemHref(item.kind, item.instanceId, item.name);
+export function chatItemTarget(item: ChatItemView): ItemModalTarget | null {
+  if (!item.kind || catalogKey(item.kind, item.name) == null) return null;
+  if (item.instanceId != null) return { mode: 'instance', instanceId: item.instanceId, kind: item.kind };
+  return {
+    mode: 'catalog',
+    kind: item.kind,
+    name: item.name,
+    icon: item.icon,
+    rank: item.rank,
+    category: item.category,
+  };
 }
 
 function asArray(value: unknown): Json[] {

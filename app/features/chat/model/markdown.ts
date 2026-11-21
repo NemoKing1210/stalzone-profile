@@ -1,6 +1,6 @@
 import type { ChatItemRef } from '@profile/shared/contracts';
 import MarkdownIt from 'markdown-it';
-import { chatItemHref } from './render';
+import { itemPageHref } from '~/shared/lib/itemModal';
 
 /**
  * One renderer for assistant prose. `html: false` is the security boundary: raw HTML from the
@@ -13,6 +13,25 @@ const markdown = new MarkdownIt({ html: false, linkify: true, breaks: true });
 const LANGUAGE = /^[a-z0-9+#.-]{1,24}$/i;
 const ITEM_TOKEN = /^@[a-z]+:[\p{L}\p{N}-]+(?:[#~]\d+)?/u;
 const ITEM_TOKEN_ANY = /@[a-z]+:[\p{L}\p{N}-]+(?:[#~]\d+)?/gu;
+
+/**
+ * A chip's anchor: the deep link stays for copy and middle-click, the data attributes are
+ * what the click handler hands to the global item modal.
+ */
+function chipHtml(href: string, ref: ChatItemRef, label: string): string {
+  const esc = markdown.utils.escapeHtml;
+  const attrs = [
+    `href="${esc(href)}"`,
+    `data-item-kind="${esc(ref.kind)}"`,
+    ref.instanceId != null ? `data-item-instance="${ref.instanceId}"` : '',
+    `data-item-name="${esc(ref.name)}"`,
+    ref.icon ? `data-item-icon="${esc(ref.icon)}"` : '',
+    ref.rank ? `data-item-rank="${esc(ref.rank)}"` : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  return `<a class="sz-chat-ref" ${attrs}>${label}</a>`;
+}
 
 interface ChatMarkdownEnv {
   refs?: Map<string, ChatItemRef>;
@@ -56,8 +75,8 @@ markdown.inline.ruler.before('link', 'chat_item_ref', (state, silent) => {
   if (!silent) {
     const token = state.push('chat_item_ref', '', 0);
     token.content = ref.name;
-    const href = chatItemHref(ref.kind, ref.instanceId, ref.name);
-    token.meta = href ? { href } : null;
+    const href = itemPageHref(ref.kind, ref.instanceId, ref.name);
+    token.meta = href ? { href, ref } : null;
   }
   state.pos = start + match[0].length;
   return true;
@@ -67,11 +86,12 @@ markdown.renderer.rules.chat_item_ref = (tokens, index) => {
   const token = tokens[index];
   if (!token) return '';
   const meta: unknown = token.meta;
-  const href =
-    meta && typeof meta === 'object' && 'href' in meta && typeof meta.href === 'string' ? meta.href : null;
+  const chip =
+    meta && typeof meta === 'object' && 'href' in meta && typeof meta.href === 'string' && 'ref' in meta
+      ? (meta as { href: string; ref: ChatItemRef })
+      : null;
   const label = markdown.utils.escapeHtml(token.content);
-  if (!href) return label;
-  return `<a class="sz-chat-ref" href="${markdown.utils.escapeHtml(href)}">${label}</a>`;
+  return chip ? chipHtml(chip.href, chip.ref, label) : label;
 };
 
 export function renderMarkdown(text: string, refs: readonly ChatItemRef[] = []): string {
@@ -90,11 +110,9 @@ export function renderChatText(text: string, refs: readonly ChatItemRef[] = []):
     const ref = map.get(match[0]);
     if (!ref) continue;
     out += markdown.utils.escapeHtml(text.slice(last, start));
-    const href = chatItemHref(ref.kind, ref.instanceId, ref.name);
+    const href = itemPageHref(ref.kind, ref.instanceId, ref.name);
     const label = markdown.utils.escapeHtml(ref.name);
-    out += href
-      ? `<a class="sz-chat-ref" href="${markdown.utils.escapeHtml(href)}">${label}</a>`
-      : label;
+    out += href ? chipHtml(href, ref, label) : label;
     last = start + match[0].length;
   }
   return out + markdown.utils.escapeHtml(text.slice(last));

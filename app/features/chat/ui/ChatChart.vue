@@ -2,7 +2,7 @@
 import { RankBadge } from '~/entities/item';
 
 import { chartBars, type ChatChartData } from '../model/chart';
-import { chatItemLink, type ChatItemView } from '../model/render';
+import { chatItemTarget, type ChatItemView } from '../model/render';
 
 const props = defineProps<{ chart: ChatChartData }>();
 const emit = defineEmits<{ openItem: [item: ChatItemView] }>();
@@ -34,7 +34,7 @@ function formatValue(value: number): string {
 }
 
 function open(item: ChatItemView): void {
-  if (chatItemLink(item)) emit('openItem', item);
+  if (chatItemTarget(item)) emit('openItem', item);
 }
 </script>
 
@@ -76,7 +76,7 @@ function open(item: ChatItemView): void {
         <button
           type="button"
           class="group w-full text-left disabled:cursor-default"
-          :disabled="!chatItemLink(bar.series.item)"
+          :disabled="!chatItemTarget(bar.series.item)"
           :aria-label="t('chat.chart.open', { name: bar.series.item.name, value: formatValue(bar.value) })"
           @click="open(bar.series.item)"
         >

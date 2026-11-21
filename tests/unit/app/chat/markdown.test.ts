@@ -54,6 +54,8 @@ describe('chat markdown', () => {
     expect(html).toContain('class="sz-chat-ref"');
     expect(html).toContain('АК-12</a>');
     expect(html).toContain('href="/weapons?');
+    expect(html).toContain('data-item-kind="weapon"');
+    expect(html).toContain('data-item-name="АК-12"');
     expect(html).not.toContain('target="_blank"');
   });
 
@@ -67,6 +69,7 @@ describe('chat markdown', () => {
   it('renders chips in plain user text without turning it into markdown', () => {
     expect(renderChatText('смотри @weapon:ак-12\n*не курсив*', [ak])).toContain('class="sz-chat-ref"');
     expect(renderChatText('смотри @weapon:ак-12\n*не курсив*', [ak])).toContain('*не курсив*');
+    expect(renderChatText('@weapon:ак-12', [{ ...ak, instanceId: 11 }])).toContain('data-item-instance="11"');
     expect(renderChatText('@weapon:нет', [ak])).toBe('@weapon:нет');
     expect(renderChatText('<b>@weapon:ак-12</b>', [ak])).toContain('&lt;b&gt;');
   });

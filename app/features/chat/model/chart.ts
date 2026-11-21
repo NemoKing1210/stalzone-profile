@@ -1,4 +1,4 @@
-import type { ChatItemView } from './render';
+import type { ChatItemView } from './types';
 
 export type ChartDirection = 'higher' | 'lower';
 
