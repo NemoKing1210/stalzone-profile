@@ -120,14 +120,6 @@ export function useInventory() {
     return write(`/api/v1/inventory/storages/${id}`, { method: 'DELETE', body: {} });
   }
 
-  function autoArrange(storageId: number) {
-    return write(`/api/v1/inventory/storages/${storageId}/auto-arrange`, {
-      method: 'POST',
-      body: {},
-      silent: true,
-    });
-  }
-
   function tidy(storageId: number, order: string, dryRun = false) {
     return write(`/api/v1/inventory/storages/${storageId}/tidy`, {
       method: 'POST',
@@ -182,7 +174,6 @@ export function useInventory() {
     createStorage,
     updateStorage,
     deleteStorage,
-    autoArrange,
     tidy,
     setContainerFill,
     setWeaponModule,

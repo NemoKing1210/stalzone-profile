@@ -9,6 +9,13 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Fixed
 
+- The stash pane header no longer offers a second auto-arrange action: the filter row's
+  tidy button is now the only control, so `i-lucide-align-start-vertical`, the dead
+  `arrange` handler, the `useInventory.autoArrange` wrapper and the unused
+  `inventory.autoArrange`/`inventory.autoArrangeHint` strings are gone. The
+  `/api/v1/inventory/storages/:id/auto-arrange` route and the `auto_arrange_storage` MCP
+  tool are unchanged.
+
 - The built-in assistant and `/mcp` are fully observable now: every tool call writes an
   `mcp` log row with `channel` (`chat`/`mcp`/`stdio`) and the request id, a finished turn
   writes an `app` row (a provider failure is `warn` and never contains the prompt or

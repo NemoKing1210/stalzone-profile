@@ -340,8 +340,6 @@
     "overflowEmpty": "No incoming items.",
     "noStash": "No stash yet. Create one to store extra gear.",
     "loose": "No location",
-    "autoArrange": "Auto-arrange",
-    "autoArrangeHint": "Pack intake items into {name}",
     "emptyGrid": "Nothing here.",
     "noInventory": "This character has no inventory yet. Set the character up to create the grid.",
     "openSetup": "Open setup",

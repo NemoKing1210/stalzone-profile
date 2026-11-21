@@ -256,11 +256,6 @@ function selectStash(id: number): void {
   inventory.selectStorage(id);
 }
 
-async function arrange(): Promise<void> {
-  const storage = inventory.selectedStorage.value;
-  if (storage?.kind === 'stash') await inventory.autoArrange(storage.id);
-}
-
 const TIDY_ORDERS = ['kind', 'name', 'rank', 'footprint'] as const;
 const tidyItems = computed(() =>
   TIDY_ORDERS.map((order) => ({ label: t(`inventory.tidyOrders.${order}`), value: order })),
@@ -388,17 +383,6 @@ const containerNames = computed<Record<number, string>>(() => {
             <h2 v-else class="sz-caps min-w-0 truncate text-[var(--sz-text-muted)]">{{ stashPaneTitle }}</h2>
           </template>
           <template v-if="leftPane === 'stash'" #actions>
-            <UButton
-              v-if="inventory.selectedStorage.value?.kind === 'stash'"
-              icon="i-lucide-align-start-vertical"
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              :aria-label="t('inventory.autoArrange')"
-              :title="t('inventory.autoArrange')"
-              :disabled="!inventory.selectedStorage.value?.items.length || inventory.busy.value"
-              @click="arrange"
-            />
             <UButton
               icon="i-lucide-settings-2"
               size="xs"
