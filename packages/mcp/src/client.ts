@@ -262,7 +262,7 @@ export function localClient(db: Db, syncOptions: LocalClientOptions = {}): Profi
       const levels = query.levels?.length ? [...new Set(query.levels)].sort((a, b) => a - b) : [0, 15];
       const metricLevel = levels[levels.length - 1] ?? 15;
       const edges = item.kind === 'weapon' && query.withModifications ? listCompatForWeapon(db, item.id) : [];
-      const modifications = query.withModifications
+      const modifications = item.kind === 'weapon' && query.withModifications
         ? edges.length
           ? {
               verified: true,
