@@ -1,4 +1,4 @@
-import type { ChatAttachment, ChatMessage } from '@profile/shared/contracts';
+import type { ChatAttachment, ChatMessage, ChatMessageMeta } from '@profile/shared/contracts';
 
 import { cleanAssistantText } from './text';
 
@@ -13,7 +13,14 @@ export interface ChatToolRunView {
 
 export type ChatRow =
   | { kind: 'user'; id: string; text: string; attachments: ChatAttachment[]; createdAt: string }
-  | { kind: 'assistant'; id: string; text: string; createdAt: string }
+  | {
+      kind: 'assistant';
+      id: string;
+      text: string;
+      reasoning: string | null;
+      meta: ChatMessageMeta | null;
+      createdAt: string;
+    }
   | { kind: 'tools'; id: string; runs: ChatToolRunView[] };
 
 /**
@@ -53,6 +60,8 @@ export function chatRows(messages: readonly ChatMessage[]): ChatRow[] {
       kind: 'assistant',
       id: String(message.id),
       text: cleanAssistantText(message.content),
+      reasoning: message.reasoning,
+      meta: message.meta,
       createdAt: message.createdAt,
     });
   }

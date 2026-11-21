@@ -10,6 +10,8 @@ function message(id: number, attachments: { id: number; mimeType: string }[]) {
     toolName: null,
     toolCallId: null,
     payload: null,
+    reasoning: null,
+    meta: null,
     createdAt: '2026-11-21T00:00:00.000Z',
     attachments: attachments.map((file) => ({
       ...file,

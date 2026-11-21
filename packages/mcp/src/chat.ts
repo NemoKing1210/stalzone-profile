@@ -41,6 +41,8 @@ interface ToolCall {
 
 interface ProviderReply {
   text: string;
+  /** Reasoning the provider returned for this round; empty when it sent none. */
+  reasoning: string;
   calls: ToolCall[];
 }
 
@@ -48,6 +50,8 @@ interface ProviderResult {
   reply: ProviderReply;
   /** Provider-specific continuation state (OpenAI messages, Anthropic blocks, Google contents). */
   state: unknown;
+  /** Provider-reported token counts, normalized to input/output/total; absent when not sent. */
+  usage?: Record<string, number>;
 }
 
 export interface ChatTurnOptions {
@@ -304,6 +308,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
         round: rounds,
         tools: lastRound ? 0 : definitions.length,
       });
+      const roundStartedAt = Date.now();
       const providerResult = await callProviderWithRetry(fetchImpl, settings, base, key, session, {
         system,
         transcript,
@@ -315,6 +320,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
         reasoningEffort: settings.reasoningEffort,
         timeoutMs: settings.timeoutMs,
       });
+      const roundDurationMs = Date.now() - roundStartedAt;
       // A gateway may leak DeepSeek's native markup as text; recover the calls and hide it.
       const dsml = parseDsmlReply(providerResult.reply.text, offered);
       const result = dsml
@@ -322,6 +328,7 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
             ...providerResult,
             reply: {
               text: dsml.text,
+              reasoning: providerResult.reply.reasoning,
               calls: providerResult.reply.calls.length || lastRound ? providerResult.reply.calls : dsml.calls,
             },
           }
@@ -329,7 +336,17 @@ export async function runChatTurn(db: Db, input: ChatSend, options: ChatTurnOpti
       state = result.state;
       if (result.reply.text.trim()) {
         replied = true;
-        appendChatMessage(db, { threadId, role: 'assistant', content: result.reply.text.trim() });
+        appendChatMessage(db, {
+          threadId,
+          role: 'assistant',
+          content: result.reply.text.trim(),
+          reasoning: result.reply.reasoning.trim() || null,
+          meta: {
+            model: settings.model,
+            durationMs: roundDurationMs,
+            ...(result.usage ? { usage: result.usage } : {}),
+          },
+        });
       }
       if (!result.reply.calls.length) break;
 
@@ -538,6 +555,31 @@ function openAiText(content: unknown): string {
   return text;
 }
 
+/**
+ * Provider token counts under their native names, normalized to input/output/total. A number
+ * the provider did not send stays absent; nothing is estimated.
+ */
+function providerUsage(raw: unknown): Record<string, number> | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const pick = (...keys: string[]): number | undefined => {
+    for (const key of keys) {
+      if (!(key in raw)) continue;
+      const value = Reflect.get(raw, key);
+      if (typeof value === 'number' && Number.isFinite(value)) return value;
+    }
+    return undefined;
+  };
+  const input = pick('prompt_tokens', 'input_tokens', 'promptTokenCount');
+  const output = pick('completion_tokens', 'output_tokens', 'candidatesTokenCount');
+  const total = pick('total_tokens', 'totalTokenCount');
+  if (input === undefined && output === undefined && total === undefined) return undefined;
+  return {
+    ...(input === undefined ? {} : { input }),
+    ...(output === undefined ? {} : { output }),
+    ...(total === undefined ? {} : { total }),
+  };
+}
+
 async function callOpenAi(
   fetchImpl: FetchLike,
   provider: string,
@@ -593,12 +635,27 @@ async function callOpenAi(
   });
   if (!response.ok) throw new Error(`AI_HTTP_${response.status}`);
   const body = (await response.json()) as {
-    choices?: { message?: { content?: string | null; tool_calls?: { id: string; function: { name: string; arguments: string } }[] } }[];
+    choices?: {
+      message?: {
+        content?: string | null;
+        reasoning_content?: string | null;
+        reasoning?: string | null;
+        tool_calls?: { id: string; function: { name: string; arguments: string } }[];
+      };
+    }[];
+    usage?: unknown;
   };
   const message = body.choices?.[0]?.message;
+  const reasoning =
+    typeof message?.reasoning_content === 'string'
+      ? message.reasoning_content
+      : typeof message?.reasoning === 'string'
+        ? message.reasoning
+        : '';
   return {
     reply: {
       text: openAiText(message?.content),
+      reasoning,
       calls: (message?.tool_calls ?? []).map((call) => ({
         id: call.id,
         name: call.function.name,
@@ -606,6 +663,7 @@ async function callOpenAi(
       })),
     },
     state: messages,
+    usage: providerUsage(body.usage),
   };
 }
 
@@ -650,16 +708,24 @@ async function callAnthropic(
     signal: AbortSignal.timeout(input.timeoutMs),
   });
   if (!response.ok) throw new Error(`AI_HTTP_${response.status}`);
-  const body = (await response.json()) as { content?: { type: string; text?: string; id?: string; name?: string; input?: Json }[] };
+  const body = (await response.json()) as {
+    content?: { type: string; text?: string; thinking?: string; id?: string; name?: string; input?: Json }[];
+    usage?: unknown;
+  };
   const blocks = body.content ?? [];
   return {
     reply: {
       text: blocks.filter((block) => block.type === 'text').map((block) => block.text ?? '').join('\n'),
+      reasoning: blocks
+        .filter((block) => block.type === 'thinking')
+        .map((block) => block.thinking ?? '')
+        .join('\n'),
       calls: blocks
         .filter((block) => block.type === 'tool_use')
         .map((block) => ({ id: block.id ?? crypto.randomUUID(), name: block.name ?? '', args: block.input ?? {} })),
     },
     state: messages,
+    usage: providerUsage(body.usage),
   };
 }
 
@@ -688,12 +754,16 @@ async function callGoogle(
   });
   if (!response.ok) throw new Error(`AI_HTTP_${response.status}`);
   const body = (await response.json()) as {
-    candidates?: { content?: { parts?: { text?: string; functionCall?: { name?: string; args?: Json } }[] } }[];
+    candidates?: {
+      content?: { parts?: { text?: string; thought?: boolean; functionCall?: { name?: string; args?: Json } }[] };
+    }[];
+    usageMetadata?: unknown;
   };
   const parts = body.candidates?.[0]?.content?.parts ?? [];
   return {
     reply: {
-      text: parts.map((part) => part.text ?? '').join(''),
+      text: parts.filter((part) => part.thought !== true).map((part) => part.text ?? '').join(''),
+      reasoning: parts.filter((part) => part.thought === true).map((part) => part.text ?? '').join(''),
       calls: parts
         .filter((part) => part.functionCall)
         .map((part) => ({
@@ -703,6 +773,7 @@ async function callGoogle(
         })),
     },
     state: contents,
+    usage: providerUsage(body.usageMetadata),
   };
 }
 

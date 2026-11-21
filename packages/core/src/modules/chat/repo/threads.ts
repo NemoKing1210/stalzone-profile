@@ -1,4 +1,4 @@
-import type { ChatAttachment, ChatMessage, ChatThread } from '@profile/shared/contracts';
+import type { ChatAttachment, ChatMessage, ChatMessageMeta, ChatThread } from '@profile/shared/contracts';
 import type { Db } from '../../../platform/db/index.js';
 import { prepareChatAttachment } from '../files.js';
 
@@ -17,6 +17,8 @@ export interface ChatMessageRow {
   tool_name: string | null;
   tool_call_id: string | null;
   payload: string | null;
+  reasoning: string | null;
+  meta: string | null;
   created_at: string;
 }
 
@@ -81,6 +83,14 @@ function message(row: ChatMessageRow, attachments: ChatAttachment[] = []): ChatM
       payload = null;
     }
   }
+  let meta: ChatMessageMeta | null = null;
+  if (row.meta) {
+    try {
+      meta = JSON.parse(row.meta) as ChatMessageMeta;
+    } catch {
+      meta = null;
+    }
+  }
   return {
     id: row.id,
     threadId: row.thread_id,
@@ -89,6 +99,8 @@ function message(row: ChatMessageRow, attachments: ChatAttachment[] = []): ChatM
     toolName: row.tool_name,
     toolCallId: row.tool_call_id,
     payload,
+    reasoning: row.reasoning ?? null,
+    meta,
     attachments,
     createdAt: row.created_at,
   };
@@ -164,6 +176,8 @@ export function appendChatMessage(
     toolName?: string | null;
     toolCallId?: string | null;
     payload?: unknown;
+    reasoning?: string | null;
+    meta?: ChatMessageMeta | null;
     attachments?: ChatAttachmentInsert[];
   },
 ): number {
@@ -175,8 +189,8 @@ export function appendChatMessage(
   return db.transaction(() => {
     const info = db
       .prepare(
-        `INSERT INTO chat_message (thread_id, role, content, tool_name, tool_call_id, payload, created_at)
-         VALUES (@thread_id, @role, @content, @tool_name, @tool_call_id, @payload, @created_at)`,
+        `INSERT INTO chat_message (thread_id, role, content, tool_name, tool_call_id, payload, reasoning, meta, created_at)
+         VALUES (@thread_id, @role, @content, @tool_name, @tool_call_id, @payload, @reasoning, @meta, @created_at)`,
       )
       .run({
         thread_id: input.threadId,
@@ -185,6 +199,8 @@ export function appendChatMessage(
         tool_name: input.toolName ?? null,
         tool_call_id: input.toolCallId ?? null,
         payload: input.payload === undefined ? null : JSON.stringify(input.payload),
+        reasoning: input.reasoning ?? null,
+        meta: input.meta == null ? null : JSON.stringify(input.meta),
         created_at: now,
       });
     const messageId = Number(info.lastInsertRowid);

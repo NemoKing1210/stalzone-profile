@@ -46,8 +46,9 @@ const time = computed(() => {
         <time :datetime="row.createdAt">{{ time }}</time>
       </span>
     </div>
+    <UChatReasoning v-if="row.reasoning" :text="row.reasoning" />
     <ChatMarkdown :text="row.text" />
-    <div class="mt-1 flex">
+    <div class="mt-1 flex items-center justify-between gap-2">
       <UButton
         color="neutral"
         variant="ghost"
@@ -57,6 +58,12 @@ const time = computed(() => {
         :aria-label="t('chat.copyMessage')"
         @click="emit('copy', row.text)"
       />
+      <p v-if="row.meta?.model || row.meta?.usage?.total" class="truncate text-[10px] text-[var(--sz-text-dim)]">
+        <span v-if="row.meta?.model" class="font-mono">{{ row.meta.model }}</span>
+        <span v-if="row.meta?.usage?.total">
+          {{ t('chat.tokenUsage', { count: row.meta.usage.total }) }}
+        </span>
+      </p>
     </div>
   </article>
 </template>

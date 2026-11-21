@@ -434,6 +434,18 @@ export const ChatThreadSchema = z.object({
 });
 export type ChatThread = z.infer<typeof ChatThreadSchema>;
 
+/**
+ * Provider facts about one assistant message, kept only when the provider returned them:
+ * the model id, the time to first full reply in milliseconds, and the provider's own token
+ * usage. Nothing here is computed or back-filled; a missing value stays `null`.
+ */
+export const ChatMessageMetaSchema = z.object({
+  model: z.string().optional(),
+  durationMs: z.number().int().nonnegative().optional(),
+  usage: z.record(z.string(), z.number()).optional(),
+});
+export type ChatMessageMeta = z.infer<typeof ChatMessageMetaSchema>;
+
 export const ChatMessageSchema = z.object({
   id: z.number().int(),
   threadId: z.number().int(),
@@ -443,6 +455,10 @@ export const ChatMessageSchema = z.object({
   toolCallId: z.string().nullable(),
   /** Structured tool result the page can render with the site's components. */
   payload: z.unknown().nullable(),
+  /** Reasoning the provider returned for this answer; never synthesized, never re-sent. */
+  reasoning: z.string().nullable().default(null),
+  /** Model, duration and token usage of the assistant round, when the provider reported them. */
+  meta: ChatMessageMetaSchema.nullable().default(null),
   /** Files the owner attached to this message; metadata only, bytes are served separately. */
   attachments: z.array(ChatAttachmentSchema).default([]),
   createdAt: z.string(),
