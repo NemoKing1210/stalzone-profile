@@ -9,6 +9,7 @@ import { detailRows } from '../model/details';
 import { itemFormFields } from '../model/itemForm';
 import ContainerPanel from './grid/ContainerPanel.vue';
 import DamageFalloffChart from './DamageFalloffChart.vue';
+import RemoveItemModal from './RemoveItemModal.vue';
 import WeaponPanel from './grid/WeaponPanel.vue';
 
 const props = withDefaults(
@@ -39,7 +40,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   'update:open': [value: boolean];
   update: [patch: Record<string, unknown>];
-  remove: [];
+  remove: [qty: number];
   install: [slot: ModuleSlot, attachmentItemId: number | null];
   fill: [slots: (number | null)[]];
   edit: [];
@@ -140,9 +141,9 @@ function save(): void {
 
 const confirmOpen = ref(false);
 
-function confirmRemove(): void {
+function confirmRemove(qty: number): void {
   confirmOpen.value = false;
-  emit('remove');
+  emit('remove', qty);
 }
 </script>
 
@@ -287,21 +288,13 @@ function confirmRemove(): void {
         </div>
       </div>
 
-      <UModal
+      <RemoveItemModal
         v-model:open="confirmOpen"
-        :title="t('inventory.removeItemTitle')"
-        :ui="{ content: MODAL_WIDTH.narrow }"
-      >
-        <template #body>
-          <p class="text-[12.5px]">{{ t('inventory.removeItemDesc', { name: props.name }) }}</p>
-        </template>
-        <template #footer>
-          <div class="flex w-full justify-end gap-2">
-            <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="confirmOpen = false" />
-            <UButton color="error" :loading="props.busy" :label="t('common.delete')" @click="confirmRemove" />
-          </div>
-        </template>
-      </UModal>
+        :name="props.name"
+        :qty="props.item?.qty ?? 1"
+        :loading="props.busy"
+        @confirm="confirmRemove"
+      />
     </template>
   </UModal>
 </template>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { InventoryItemRead, ModuleSlot, StorageRead } from '@profile/shared/contracts';
 
-import { ConfirmActionModal, ProfilePane } from '~/shared/ui';
+import { ProfilePane } from '~/shared/ui';
 import type { DropTarget } from '../../model/drag';
 import { storageLabel } from '../../model/labels';
 import { quickMove, type ItemMenuAction } from '../../model/menu';
@@ -15,6 +15,7 @@ import WeightHud from './WeightHud.vue';
 import DragPreview from './DragPreview.vue';
 import EquipmentDoll from './EquipmentDoll.vue';
 import ItemDetailsModal from '../ItemDetailsModal.vue';
+import RemoveItemModal from '../RemoveItemModal.vue';
 import AddOwnedModal from '../AddOwnedModal.vue';
 import ItemGrid from './ItemGrid.vue';
 import LoadoutPanel from './LoadoutPanel.vue';
@@ -177,23 +178,23 @@ async function updateSelected(patch: Record<string, unknown>): Promise<void> {
   if (item) await inventory.updateItem(item.id, patch);
 }
 
-async function removeSelected(): Promise<void> {
+async function removeSelected(qty: number): Promise<void> {
   const item = selectedItem.value;
   if (!item) return;
-  const result = await inventory.removeItem(item.id);
-  if (result) {
+  const result = await inventory.removeItem(item.id, qty);
+  if (result && qty >= item.qty) {
     detailsOpen.value = false;
     selectedId.value = null;
   }
 }
 
-async function confirmRemoval(): Promise<void> {
+async function confirmRemoval(qty: number): Promise<void> {
   const item = removal.value;
   if (!item) return;
-  const result = await inventory.removeItem(item.id);
+  const result = await inventory.removeItem(item.id, qty);
   if (!result) return;
   removal.value = null;
-  if (selectedId.value === item.id) {
+  if (qty >= item.qty && selectedId.value === item.id) {
     detailsOpen.value = false;
     selectedId.value = null;
   }
@@ -539,10 +540,10 @@ const containerNames = computed<Record<number, string>>(() => {
       @fill="applyFill"
     />
 
-    <ConfirmActionModal
+    <RemoveItemModal
       :open="removal !== null"
-      :title="t('inventory.removeItemTitle')"
-      :description="t('inventory.removeItemDesc', { name: removal?.name ?? '' })"
+      :name="removal?.displayName ?? removal?.name ?? ''"
+      :qty="removal?.qty ?? 1"
       :loading="inventory.busy.value"
       @update:open="(value: boolean) => !value && (removal = null)"
       @confirm="confirmRemoval"

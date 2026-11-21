@@ -290,11 +290,11 @@ async function updateSelected(patch: Record<string, unknown>): Promise<void> {
   if (item) await inventory.updateItem(item.id, patch);
 }
 
-async function removeSelected(): Promise<void> {
+async function removeSelected(qty: number): Promise<void> {
   const item = selectedItem.value;
   if (!item) return;
-  const result = await inventory.removeItem(item.id);
-  if (result) {
+  const result = await inventory.removeItem(item.id, qty);
+  if (result && qty >= item.qty) {
     dialogOpen.value = false;
     selectedKey.value = null;
   }
