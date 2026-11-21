@@ -26,7 +26,7 @@ import {
   autoArrangeStorage,
   buildItemCard,
   buildPayload,
-  compareWeapons,
+  compareCatalogItems,
   describeCatalog,
   listCompatForWeapon,
   metricRow,
@@ -63,6 +63,7 @@ import {
   updateInventoryItem,
   updateLoggingSettings as writeLoggingSettings,
   updateStorage,
+  type CompareResult,
   type Db,
   type ItemRow,
   type PlanInput,
@@ -140,7 +141,7 @@ export interface ProfileClient {
     levels?: number[];
     withModifications?: boolean;
   }): Promise<Json | null>;
-  compareItems(a: string, b: string, level: number): Promise<Json[]>;
+  compareItems(items: string[], kind: string | undefined, level: number, hp: number): Promise<CompareResult>;
   getInventory(): Promise<InventoryRead>;
   listStorages(): Promise<StorageRead[]>;
   listInventoryItems(query?: InventoryListQuery): Promise<InventoryItemRead[]>;
@@ -284,8 +285,8 @@ export function localClient(db: Db, syncOptions: LocalClientOptions = {}): Profi
       };
     },
 
-    async compareItems(a, b, level) {
-      return compareWeapons(db, [a, b], level) as Json[];
+    async compareItems(items, kind, level, hp) {
+      return compareCatalogItems(db, items, kind, level, hp);
     },
 
     async getInventory() {
@@ -593,8 +594,13 @@ export function httpClient(baseUrl: string, token: string): ProfileClient {
       if (withModifications) args.with_modifications = true;
       return ((await call('get_item', args)).item ?? null) as Json | null;
     },
-    async compareItems(a, b, level) {
-      return (await call('compare_items', { a, b, level })).items as Json[];
+    async compareItems(items, kind, level, hp) {
+      return (await call('compare_items', {
+        items,
+        ...(kind ? { kind } : {}),
+        level,
+        hp,
+      })) as unknown as CompareResult;
     },
     async getInventory() {
       return (await call('get_inventory')) as unknown as InventoryRead;

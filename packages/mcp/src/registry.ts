@@ -220,7 +220,7 @@ const TOOL_DOCS: Record<string, string> = {
       'Search catalog items by name, kind, rank and slot; sort/filter by a metric or stat id and choose summary/metrics/full',
     describe_catalog: 'Metric and stat dictionary, kind counts and catalog freshness',
     get_item: 'Item card: typed stats, effects, icon and the derived detail card',
-    compare_items: 'Compare two weapons by DPS and TTK at a refinement level',
+    compare_items: 'Compare 2–10 catalog items by their kind metrics and name the best per metric',
     get_inventory: 'Storages, equipment, the intake stash and the computed loadout',
     list_storages: 'Storages with grid items, weight and effective height, including intake',
     list_inventory_items: 'Inventory instances filtered by kind, location or storage',
@@ -498,8 +498,10 @@ export function createProfileServer(
     'compare_items',
     { description: TOOL_DOCS.compare_items, inputSchema: TOOL_SCHEMAS.compare_items },
     async (args) => {
+      const items = args.items ?? [args.a, args.b].filter((item): item is string => typeof item === 'string');
+      if (items.length < 2) return fail('INVALID_ARGUMENT', 'Provide items or a and b');
       try {
-        return ok({ items: await client.compareItems(args.a ?? '', args.b ?? '', args.level) });
+        return ok(await client.compareItems(items, args.kind, args.level, args.hp));
       } catch (error) {
         return errorResult(error);
       }

@@ -71,7 +71,10 @@ export const READ_OUTPUT_SCHEMAS: Record<string, z.ZodTypeAny> = {
   find_items: CatalogQueryResultSchema,
   describe_catalog: CatalogDescriptionSchema,
   get_item: z.object({ item: McpItemSchema }),
-  compare_items: z.object({ items: z.array(z.object({ found: z.boolean() }).loose()) }),
+  compare_items: z.object({
+    items: z.array(z.object({ found: z.boolean() }).loose()),
+    best: z.record(z.string(), z.string().nullable()),
+  }),
   get_inventory: InventoryReadSchema,
   list_storages: z.object({ storages: z.array(StorageReadSchema) }),
   list_inventory_items: z.object({ items: z.array(InventoryItemReadSchema) }),

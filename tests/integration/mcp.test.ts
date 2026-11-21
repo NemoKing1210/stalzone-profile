@@ -141,13 +141,29 @@ describe('MCP registry', () => {
 
   it('compares DPS/TTK from typed stats', async () => {
     const compared = await callTool('compare_items', { a: 'АК-12', b: 'KS-1', level: 15 });
-    const items = (compared.structuredContent as { items: { found: boolean; dps: number; ttk: number }[] })
-      .items;
+    const items = (
+      compared.structuredContent as {
+        items: { found: boolean; metrics: { dps: number | null; ttk: number | null } }[];
+      }
+    ).items;
     expect(items.map((row) => row.found)).toEqual([true, true]);
     for (const row of items) {
-      expect(typeof row.dps).toBe('number');
-      expect(typeof row.ttk).toBe('number');
+      expect(typeof row.metrics.dps).toBe('number');
+      expect(typeof row.metrics.ttk).toBe('number');
     }
+  });
+
+  it('compares more than two items and names the best DPS', async () => {
+    const compared = await callTool('compare_items', {
+      items: ['АК-12', 'KS-1', 'ПП-19'],
+      level: 15,
+    });
+    const body = compared.structuredContent as {
+      items: { found: boolean }[];
+      best: { dps: string | null };
+    };
+    expect(body.items).toHaveLength(3);
+    expect(body.best.dps).toBe('АК-12');
   });
 
   it('returns ranked weapons with metrics in one call', async () => {

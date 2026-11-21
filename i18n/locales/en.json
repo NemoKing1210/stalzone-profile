@@ -1594,7 +1594,7 @@
         "find_items": "Search catalog items and rank them by a metric or stat id.",
         "describe_catalog": "Metric and stat dictionary, kind counts and catalog freshness.",
         "get_item": "Item card: stats, effects, icon and the derived detail card.",
-        "compare_items": "Compare two weapons by DPS and TTK at a refinement level.",
+        "compare_items": "Compare 2–10 catalog items and name the best per metric.",
         "get_inventory": "Storages, equipment, the intake stash and the computed loadout.",
         "list_storages": "Storages with grid items, weight and effective height.",
         "list_inventory_items": "Inventory items filtered by kind, location or storage.",

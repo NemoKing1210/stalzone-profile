@@ -43,9 +43,9 @@ describe('MCP read output contracts', () => {
     const client = localClient(db);
     const outputs: Record<string, unknown> = {
       get_character: await client.getCharacter(),
-      find_items: { items: await client.findItems({ limit: 10 }) },
+      find_items: await client.findItems({ limit: 10 }),
       get_item: { item: await client.getItem({ name: 'АК-12' }) },
-      compare_items: { items: await client.compareItems('АК-12', 'KS-1', 15) },
+      compare_items: await client.compareItems(['АК-12', 'KS-1'], undefined, 15, 600),
       get_inventory: await client.getInventory(),
       list_storages: { storages: await client.listStorages() },
       list_inventory_items: { items: await client.listInventoryItems() },
