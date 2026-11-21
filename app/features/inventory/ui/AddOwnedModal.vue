@@ -76,13 +76,18 @@ watch(open, (value) => {
   if (value) reset();
 });
 
-function reset(): void {
+/** A fresh item form; the catalog context (search, rank, sort) stays as the user left it. */
+function resetForm(): void {
   selected.value = null;
   form.level = 0;
   form.qty = 1;
   form.rarityPct = null;
   form.skin = undefined;
   form.virtual = false;
+}
+
+function reset(): void {
+  resetForm();
   activeKind.value = props.kind ?? 'all';
 }
 
@@ -95,7 +100,8 @@ async function submit(): Promise<void> {
   if (!result) return;
 
   const instanceId = (result.diff.after as { id?: number | null } | null)?.id;
-  open.value = false;
+  // One add may be followed by another; keep the modal and the catalog context open.
+  resetForm();
   emit('saved');
   if (instanceId) emit('created', { instanceId, name: item.name, kind: item.kind });
 }

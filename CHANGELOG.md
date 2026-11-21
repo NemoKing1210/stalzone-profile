@@ -31,6 +31,9 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
+- The add-item modal stays open after a successful add: the picked item and its form reset,
+  while the catalog search, rank filter and sort stay put, so several items can be added in
+  one pass.
 - The add-item modal's catalog picker has a sort control and a direction toggle. Rank is the
   default order (legend first) with unranked rows last; name and weight are the other orders,
   switching to them sets the natural direction. `GET /api/v1/items` accepts `sort=rank|name|
