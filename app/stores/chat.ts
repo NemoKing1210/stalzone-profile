@@ -43,6 +43,9 @@ export const useChatStore = defineStore('chat', () => {
   /** A confirmation belongs to its thread; switching away and back restores it. */
   const pendingByThread = ref<Record<number, ChatPendingWrite | null>>({});
   const sending = ref(false);
+  /** Turns waiting behind the one in flight; the composer keeps accepting messages meanwhile. */
+  const queue = ref<{ body: Record<string, unknown>; threadId: number | null }[]>([]);
+  let pumping = false;
   /** True only while the provider is delivering fragments; `sending` stays true through the save. */
   const streaming = ref(false);
   /** The answer being streamed; persisted rows are replaced by the canonical list on `done`. */
@@ -55,6 +58,7 @@ export const useChatStore = defineStore('chat', () => {
   let navigation = 0;
 
   const activeThread = computed(() => threads.value.find((thread) => thread.id === activeThreadId.value) ?? null);
+  const queued = computed(() => queue.value.length);
   const pending = computed(() =>
     activeThreadId.value == null ? null : (pendingByThread.value[activeThreadId.value] ?? null),
   );
@@ -135,9 +139,35 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  /** Stops the in-flight turn; the stream closes and the thread is reloaded from the database. */
+  /** Stops the in-flight turn and drops what was queued behind it; the thread is reloaded from the database. */
   function stop(): void {
+    queue.value = [];
     aborter.value?.abort();
+  }
+
+  /** Queue one turn; `threadId` is the conversation it was composed in (null: a new thread). */
+  function enqueue(body: Record<string, unknown>, threadId: number | null = activeThreadId.value): void {
+    queue.value = [...queue.value, { body, threadId }];
+    void pump();
+  }
+
+  /** Runs queued turns one at a time; `sending` covers the whole drain, not a single turn. */
+  async function pump(): Promise<void> {
+    if (pumping) return;
+    pumping = true;
+    sending.value = true;
+    try {
+      while (queue.value.length) {
+        const next = queue.value[0];
+        if (!next) break;
+        queue.value = queue.value.slice(1);
+        // A turn composed in a brand-new thread joins the thread the previous turn adopted.
+        await runTurn(next.threadId ?? activeThreadId.value, next.body);
+      }
+    } finally {
+      pumping = false;
+      sending.value = false;
+    }
   }
 
   /**
@@ -145,10 +175,7 @@ export const useChatStore = defineStore('chat', () => {
    * transcript with the canonical rows. A turn the owner navigated away from still finishes in
    * the store and reports through a toast, exactly like the non-streaming path did.
    */
-  async function turn(body: Record<string, unknown>): Promise<void> {
-    if (sending.value) return;
-    sending.value = true;
-    const requestThreadId = activeThreadId.value;
+  async function runTurn(requestThreadId: number | null, body: Record<string, unknown>): Promise<void> {
     const navigationAtRequest = navigation;
     loadError.value = null;
     const controller = new AbortController();
@@ -250,14 +277,13 @@ export const useChatStore = defineStore('chat', () => {
       aborter.value = null;
       // `sending` stays true through the thread-list refresh; thread switching stays allowed.
       await loadThreads().catch(() => undefined);
-      sending.value = false;
     }
   }
 
   async function send(message: string, files: ChatAttachmentInput[] = []): Promise<void> {
     const text = message.trim();
     if (!text && files.length === 0) return;
-    await turn({ message: text, ...(files.length ? { files } : {}) });
+    enqueue({ message: text, ...(files.length ? { files } : {}) });
   }
 
   /**
@@ -296,7 +322,7 @@ export const useChatStore = defineStore('chat', () => {
     const threadId = activeThreadId.value;
     if (!write || threadId == null) return;
     setPending(threadId, null);
-    await turn({ message: t('chat.confirmed'), confirm: { toolName: write.toolName, args: write.args } });
+    enqueue({ message: t('chat.confirmed'), confirm: { toolName: write.toolName, args: write.args } }, threadId);
   }
 
   async function declinePending(): Promise<void> {
@@ -304,7 +330,7 @@ export const useChatStore = defineStore('chat', () => {
     const threadId = activeThreadId.value;
     if (!write || threadId == null) return;
     setPending(threadId, null);
-    await turn({ message: t('chat.declined'), decline: { toolName: write.toolName } });
+    enqueue({ message: t('chat.declined'), decline: { toolName: write.toolName } }, threadId);
   }
 
   return {
@@ -313,6 +339,7 @@ export const useChatStore = defineStore('chat', () => {
     messages,
     pendingByThread,
     sending,
+    queued,
     streaming,
     live,
     loadError,

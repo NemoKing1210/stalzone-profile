@@ -700,6 +700,7 @@
     "copyFailed": "Could not copy",
     "copyMessage": "Copy message",
     "roleAssistant": "Assistant",
+    "queued": "{count} queued",
     "toolsUsed": "Tool calls: {count}",
     "toolDeclined": "declined",
     "download": "Download",

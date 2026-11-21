@@ -1,7 +1,7 @@
 import type { ChatAttachment, ChatMessage } from '@profile/shared/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { chatRows } from '~/features/chat/model/rows';
+import { chatRows, toolRunCounts } from '~/features/chat/model/rows';
 
 function message(overrides: Partial<ChatMessage> & Pick<ChatMessage, 'id' | 'role' | 'content'>): ChatMessage {
   return {
@@ -63,6 +63,18 @@ describe('chat rows', () => {
       createdAt: '2026-11-21T10:00:00.000Z',
     };
     expect(chatRows([user(1, '', [png])])[0]).toMatchObject({ kind: 'user', text: '', attachments: [png] });
+  });
+
+  it('counts distinct tool actions for the header badges', () => {
+    const runs = [
+      { id: '1', name: 'find_items', status: 'ok' as const, payload: null },
+      { id: '2', name: 'get_prices', status: 'ok' as const, payload: null },
+      { id: '3', name: 'find_items', status: 'declined' as const, payload: null },
+    ];
+    expect(toolRunCounts(runs)).toEqual([
+      { name: 'find_items', count: 2 },
+      { name: 'get_prices', count: 1 },
+    ]);
   });
 
   it('hides leaked tool-call markup in assistant prose', () => {

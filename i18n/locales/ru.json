@@ -700,6 +700,7 @@
     "copyFailed": "Не удалось скопировать",
     "copyMessage": "Копировать сообщение",
     "roleAssistant": "Ассистент",
+    "queued": "В очереди: {count}",
     "toolsUsed": "Вызовы инструментов: {count}",
     "toolDeclined": "отклонено",
     "download": "Скачать",

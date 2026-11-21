@@ -19,7 +19,7 @@ import ChatLiveTurn from './ChatLiveTurn.vue';
 import ChatRowView from './ChatRowView.vue';
 
 const chat = useChatStore();
-const { messages, pending, sending, streaming, live, loadError } = storeToRefs(chat);
+const { messages, pending, sending, queued, streaming, live, loadError } = storeToRefs(chat);
 const { t } = useI18n();
 const toast = useToast();
 const draft = ref('');
@@ -210,7 +210,7 @@ async function copyMessage(text: string): Promise<void> {
 
 async function send(): Promise<void> {
   const text = draft.value.trim();
-  if ((!text && !files.value.length) || sending.value || draftTooLong.value) return;
+  if ((!text && !files.value.length) || draftTooLong.value) return;
   const outgoing = files.value;
   draft.value = '';
   files.value = [];
@@ -256,7 +256,6 @@ defineExpose({ focus });
               :key="suggestion"
               type="button"
               class="border border-[var(--sz-border)] px-2 py-1 text-left text-[12px] text-[var(--sz-text)] transition-colors hover:border-[var(--sz-border-strong)] hover:bg-[var(--sz-surface-header)] max-sm:min-h-11"
-              :disabled="sending"
               @click="chat.send(t(suggestion))"
             >
               {{ t(suggestion) }}
@@ -370,13 +369,10 @@ defineExpose({ focus });
       >
         {{ t('chat.charCount', { used: draft.length, max: MESSAGE_LIMIT }) }}
       </p>
-      <UChatPrompt
-        v-model="draft"
-        :placeholder="t('chat.placeholder')"
-        :loading="sending"
-        :disabled="sending"
-        @submit="send"
-      >
+      <p v-if="queued" class="mb-1 text-[11px] text-[var(--sz-text-dim)]" aria-live="polite">
+        {{ t('chat.queued', { count: queued }) }}
+      </p>
+      <UChatPrompt v-model="draft" :placeholder="t('chat.placeholder')" @submit="send">
         <template #footer>
           <UButton
             color="neutral"
@@ -385,7 +381,7 @@ defineExpose({ focus });
             icon="i-lucide-paperclip"
             :aria-label="t('chat.attach')"
             :title="t('chat.attach')"
-            :disabled="sending || files.length >= CHAT_ATTACHMENT_LIMITS.files"
+            :disabled="files.length >= CHAT_ATTACHMENT_LIMITS.files"
             @click="fileInput?.click()"
           />
           <UButton
@@ -400,8 +396,7 @@ defineExpose({ focus });
             @click="chat.stop"
           />
           <UChatPromptSubmit
-            v-else
-            class="ms-auto max-sm:size-11"
+            :class="sending ? 'max-sm:size-11' : 'ms-auto max-sm:size-11'"
             :disabled="(!draft.trim() && !files.length) || draftTooLong"
             :aria-label="t('chat.send')"
           />

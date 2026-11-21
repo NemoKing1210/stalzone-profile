@@ -9,6 +9,12 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
+- The assistant composer no longer locks while a turn is in flight: messages sent meanwhile
+  queue in the store and run one turn at a time, the queue size shows above the composer, and
+  Stop clears the queue with the active turn.
+- A stored tool-call block starts collapsed and its header shows one badge per distinct
+  action with its count (`find_items ×2`), instead of opening automatically when payloads
+  carry rows.
 - Weapon modules are **modifications** everywhere: the interface (`/modifications`, nav,
   filters, slot labels, item cards, guide), the contracts (`ModificationSlot`,
   `modificationItemId`, `weapon_modification`), the API

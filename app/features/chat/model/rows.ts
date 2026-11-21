@@ -23,6 +23,18 @@ export type ChatRow =
     }
   | { kind: 'tools'; id: string; runs: ChatToolRunView[] };
 
+export interface ChatToolRunCount {
+  name: string;
+  count: number;
+}
+
+/** Header badges: one entry per distinct action, in first-seen order. */
+export function toolRunCounts(runs: readonly ChatToolRunView[]): ChatToolRunCount[] {
+  const counts = new Map<string, number>();
+  for (const run of runs) counts.set(run.name, (counts.get(run.name) ?? 0) + 1);
+  return [...counts].map(([name, count]) => ({ name, count }));
+}
+
 /**
  * One rendered row per stored message, with consecutive tool calls folded into a single
  * block. Order follows the message ids, so a tool group always sits between the assistant
