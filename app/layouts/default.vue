@@ -14,6 +14,8 @@ const profile = useProfileData();
 if (import.meta.server) await profile.refresh();
 const route = useRoute();
 const assistant = useAssistantPanelStore();
+/** `/chat` owns the full viewport below the nav: its thread rail docks to the site rail. */
+const immersive = computed(() => route.path === '/chat');
 
 /** Desktop rail width; the drawer reuses the same panel on narrow screens. */
 const COLLAPSED_WIDTH = '4rem';
@@ -120,7 +122,13 @@ const sideWidth = computed(() => (collapsed.value ? COLLAPSED_WIDTH : EXPANDED_W
       class="min-h-screen transition-[padding] duration-200 ease-[cubic-bezier(.2,.8,.2,1)] lg:pl-[var(--sz-side-width)]"
       :style="{ '--sz-side-width': sideWidth }"
     >
-      <main class="mx-auto w-full max-w-[1600px] px-4 py-4 sm:px-6 lg:pt-14">
+      <main
+        :class="
+          immersive
+            ? 'w-full'
+            : 'mx-auto w-full max-w-[1600px] px-4 py-4 sm:px-6 lg:pt-14'
+        "
+      >
         <slot />
       </main>
     </div>

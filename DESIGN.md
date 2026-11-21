@@ -451,6 +451,13 @@ client is hydrated:
   submit button beside the field, and on touch the panel's controls keep a 44px target. It is
   a real dialog (title/description, focus trap, Esc/overlay close, focus returns to the
   trigger) and reduced motion drops the slide.
+- `/chat` (2026-11-21): an immersive two-column screen. The thread rail — search, New thread,
+  day groups with counts and per-thread delete — docks flush to the site navigation: the same
+  `bg-ink-950`, a shared 48px header line and the active thread's 2px accent inset bar, the
+  same language as the active nav entry. The conversation column centres its title, the
+  model/provider strip and the body at 52rem; the composer sits at the bottom with a right
+  gutter for the floating radio and no top divider. Below 1024 the rail becomes a left
+  `USlideover` of `min(88vw, 20rem)`.
 
 ### 5.2 Page archetypes
 

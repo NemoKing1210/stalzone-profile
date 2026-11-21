@@ -6,7 +6,7 @@ import {
   type ChatSettingsRead,
 } from '@profile/shared/contracts';
 import { storeToRefs } from 'pinia';
-import { ConfirmActionModal, ProfilePane } from '~/shared/ui';
+import { ConfirmActionModal } from '~/shared/ui';
 
 import { useChatStore } from '~/stores/chat';
 import { chatModelItems } from '../model/modelChoice';
@@ -37,10 +37,18 @@ const {
 const threadQuery = ref('');
 const visibleThreads = computed(() => filterThreads(threads.value, threadQuery.value));
 const mobileThreadsOpen = ref(false);
+const conversation = ref<{ focus: () => void } | null>(null);
 
 function openThread(id: number): void {
   mobileThreadsOpen.value = false;
   void chat.openThread(id);
+}
+
+async function startThread(): Promise<void> {
+  mobileThreadsOpen.value = false;
+  chat.newThread();
+  await nextTick();
+  conversation.value?.focus();
 }
 
 /** The same audited `chat_settings.model` Settings -> Assistant writes; no per-thread model. */
@@ -180,114 +188,160 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="space-y-4">
-    <header class="flex flex-wrap items-end justify-between gap-2">
-      <div>
-        <h1>{{ t('chat.title') }}</h1>
-        <p class="text-[12.5px] text-[var(--sz-text-muted)]">{{ t('chat.summary') }}</p>
-      </div>
-      <div class="flex flex-col items-end gap-1">
-        <div class="flex flex-wrap items-center justify-end gap-2">
-          <template v-if="chatSettings">
-            <USelectMenu
-              v-if="modelEnabled"
-              :model-value="currentModelItem"
-              :items="modelItems"
-              create-item="always"
-              size="sm"
-              class="w-52 max-w-full"
-              :loading="savingModel"
-              :disabled="assistantBusy"
-              :placeholder="t('chat.modelPlaceholder')"
-              :aria-label="t('chat.modelLabel')"
-              @update:model-value="selectModel"
-            />
-            <template v-else>
-              <USelectMenu
-                :model-value="currentModelItem"
-                :items="modelItems"
-                size="sm"
-                class="w-52 max-w-full"
-                disabled
-                :aria-label="t('chat.modelLabel')"
-              />
-              <UButton
-                to="/settings?tab=assistant"
-                size="sm"
-                color="neutral"
-                variant="link"
-                icon="i-lucide-settings-2"
-                :label="t('chat.modelOpenSettings')"
-              />
-            </template>
-          </template>
-          <span class="inline-flex min-w-0 items-center gap-1.5" :title="providerDetail">
-            <span class="size-1.5 shrink-0 rounded-full" :class="providerTone.dot" aria-hidden="true" />
-            <span v-if="providerLabel" class="max-w-36 truncate text-[11px] text-[var(--sz-text-muted)]">
-              {{ providerLabel }}
-            </span>
-            <span class="text-[11px]" :class="providerTone.text" role="status">{{ providerStateLabel }}</span>
-            <UButton
-              icon="i-lucide-refresh-cw"
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              :loading="refreshing"
-              :disabled="!modelEnabled || sending"
-              :aria-label="t('chat.providerRefresh')"
-              :title="t('chat.providerRefresh')"
-              @click="checkProvider"
-            />
-          </span>
-          <UButton
-            icon="i-lucide-panel-left"
-            :label="t('chat.threads')"
-            color="neutral"
-            variant="ghost"
-            class="lg:hidden"
-            :aria-label="t('chat.threads')"
-            @click="mobileThreadsOpen = true"
-          />
-          <UButton
-            icon="i-lucide-plus"
-            :label="t('chat.newThread')"
-            color="neutral"
-            variant="outline"
-            @click="chat.newThread"
-          />
-        </div>
-        <p v-if="modelError" class="max-w-72 text-right text-[11px] text-[var(--sz-warning-text)]">
-          {{ modelError }}
-        </p>
-      </div>
-    </header>
+  <section class="flex h-[calc(100dvh-3rem)] min-h-0 flex-col lg:h-dvh">
+    <h1 class="sr-only">{{ t('chat.title') }}</h1>
 
-    <div class="grid gap-3 lg:grid-cols-[260px_minmax(0,1fr)]">
-      <ProfilePane :title="t('chat.threads')" dense class="hidden lg:block">
+    <div class="flex min-h-0 flex-1">
+      <!-- Second navigation level: the thread rail docked to the site rail, sharing its ink. -->
+      <aside
+        class="hidden w-60 shrink-0 flex-col border-r border-[var(--sz-border)] bg-ink-950 lg:flex xl:w-[17rem]"
+        :aria-label="t('chat.threads')"
+      >
+        <div class="flex min-h-12 shrink-0 items-center gap-2 border-b border-[var(--sz-border)] px-3">
+          <UIcon
+            name="i-lucide-message-square-text"
+            class="size-4 shrink-0 text-[var(--sz-text-muted)]"
+            aria-hidden="true"
+          />
+          <h2 class="sz-caps truncate text-[var(--sz-text-muted)]">{{ t('chat.threads') }}</h2>
+          <span class="ms-auto shrink-0 text-[11px] tabular-nums text-[var(--sz-text-dim)]">
+            <span class="sr-only">{{ t('chat.threadCount', { count: threads.length }) }}</span>
+            <span aria-hidden="true">{{ threads.length }}</span>
+          </span>
+        </div>
+
         <ChatThreadList
           v-model:query="threadQuery"
+          class="min-h-0 flex-1"
           :threads="visibleThreads"
+          :has-threads="threads.length > 0"
           :active-thread-id="activeThreadId"
           :disabled="sending"
           @open="openThread"
           @delete="askDelete"
+          @create="startThread"
         />
-      </ProfilePane>
+      </aside>
 
-      <ProfilePane :title="activeThread?.title ?? t('chat.newTitle')" dense flush>
-        <ChatConversation class="h-[calc(100dvh-21.5rem)] min-h-[320px] lg:h-[calc(100dvh-18rem)]" />
-      </ProfilePane>
+      <div class="flex min-h-0 min-w-0 flex-1 flex-col bg-[var(--sz-surface)]">
+        <header class="shrink-0 border-b border-[var(--sz-border)] bg-ink-950">
+          <div class="mx-auto flex min-h-12 w-full max-w-[52rem] items-center gap-2 px-3 lg:px-4 lg:pe-24">
+            <UButton
+              size="sm"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-panel-left"
+              class="shrink-0 lg:hidden max-sm:size-11"
+              :aria-label="t('chat.threads')"
+              @click="mobileThreadsOpen = true"
+            />
+            <div class="min-w-0 flex-1">
+              <p class="sz-caps text-[var(--sz-text-dim)]">{{ t('chat.panelTitle') }}</p>
+              <h2
+                class="truncate text-[13px] font-medium normal-case leading-tight tracking-normal text-[var(--sz-text)]"
+                :title="activeThread?.title ?? t('chat.newTitle')"
+              >
+                {{ activeThread?.title ?? t('chat.newTitle') }}
+              </h2>
+            </div>
+            <UButton
+              size="sm"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-plus"
+              class="shrink-0 lg:hidden max-sm:size-11"
+              :aria-label="t('chat.newThread')"
+              :title="t('chat.newThread')"
+              @click="startThread"
+            />
+          </div>
+        </header>
+
+        <div class="shrink-0 border-b border-[var(--sz-border)] bg-ink-950">
+          <div class="mx-auto flex w-full max-w-[52rem] flex-wrap items-center gap-x-2 gap-y-1 px-3 py-1.5 lg:px-4">
+            <template v-if="chatSettings">
+              <USelectMenu
+                v-if="modelEnabled"
+                :model-value="currentModelItem"
+                :items="modelItems"
+                create-item="always"
+                size="sm"
+                class="w-52 max-w-full max-sm:w-full"
+                :loading="savingModel"
+                :disabled="assistantBusy"
+                :placeholder="t('chat.modelPlaceholder')"
+                :aria-label="t('chat.modelLabel')"
+                @update:model-value="selectModel"
+              />
+              <template v-else>
+                <USelectMenu
+                  :model-value="currentModelItem"
+                  :items="modelItems"
+                  size="sm"
+                  class="w-52 max-w-full max-sm:w-full"
+                  disabled
+                  :aria-label="t('chat.modelLabel')"
+                />
+                <UButton
+                  to="/settings?tab=assistant"
+                  size="sm"
+                  color="neutral"
+                  variant="link"
+                  icon="i-lucide-settings-2"
+                  :label="t('chat.modelOpenSettings')"
+                />
+              </template>
+            </template>
+            <span class="inline-flex min-w-0 items-center gap-1.5 max-sm:min-h-11" :title="providerDetail">
+              <span class="size-1.5 shrink-0 rounded-full" :class="providerTone.dot" aria-hidden="true" />
+              <span v-if="providerLabel" class="max-w-36 truncate text-[11px] text-[var(--sz-text-muted)]">
+                {{ providerLabel }}
+              </span>
+              <span class="text-[11px]" :class="providerTone.text" role="status">{{ providerStateLabel }}</span>
+              <UButton
+                icon="i-lucide-refresh-cw"
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                class="max-sm:size-11"
+                :loading="refreshing"
+                :disabled="!modelEnabled || sending"
+                :aria-label="t('chat.providerRefresh')"
+                :title="t('chat.providerRefresh')"
+                @click="checkProvider"
+              />
+            </span>
+            <p v-if="modelError" class="w-full text-[11px] text-[var(--sz-warning-text)]">{{ modelError }}</p>
+          </div>
+        </div>
+
+        <div class="mx-auto flex min-h-0 w-full max-w-[52rem] flex-1 flex-col">
+          <ChatConversation ref="conversation" standalone class="min-h-0 flex-1" />
+        </div>
+      </div>
     </div>
 
-    <USlideover v-model:open="mobileThreadsOpen" side="left" :title="t('chat.threads')">
+    <USlideover
+      v-model:open="mobileThreadsOpen"
+      side="left"
+      :title="t('chat.threads')"
+      :ui="{
+        content: 'w-[min(88vw,20rem)] max-w-none border-r border-[var(--sz-border)] bg-ink-950',
+        header: 'min-h-12 border-b border-[var(--sz-border)] px-3 py-2',
+        body: 'flex min-h-0 flex-1 flex-col p-0',
+      }"
+    >
       <template #body>
         <ChatThreadList
           v-model:query="threadQuery"
+          class="min-h-0 flex-1"
           :threads="visibleThreads"
+          :has-threads="threads.length > 0"
           :active-thread-id="activeThreadId"
           :disabled="sending"
           @open="openThread"
           @delete="askDelete"
+          @create="startThread"
         />
       </template>
     </USlideover>

@@ -19,6 +19,12 @@ import ChatFilePreview from './ChatFilePreview.vue';
 import ChatLiveTurn from './ChatLiveTurn.vue';
 import ChatRowView from './ChatRowView.vue';
 
+/**
+ * `standalone` is the `/chat` screen: the composer sits on the page itself, so it drops its
+ * divider and keeps a right gutter for the floating radio button.
+ */
+const props = withDefaults(defineProps<{ standalone?: boolean }>(), { standalone: false });
+
 const chat = useChatStore();
 const { messages, pending, sending, queued, streaming, live, loadError } = storeToRefs(chat);
 const { t } = useI18n();
@@ -322,7 +328,13 @@ defineExpose({ focus });
       </div>
     </div>
 
-    <div class="border-t border-[var(--sz-border)] p-2">
+    <div
+      :class="
+        props.standalone
+          ? 'p-2 pe-[4.5rem] min-[1500px]:pe-2'
+          : 'border-t border-[var(--sz-border)] p-2'
+      "
+    >
       <template v-if="files.length">
         <ul class="mb-1.5 flex flex-wrap gap-1.5" :aria-label="t('chat.attachments')">
           <li

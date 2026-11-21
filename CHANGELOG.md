@@ -31,6 +31,13 @@ The project has no tagged releases yet, so entries are grouped by date, newest f
 
 ### Changed
 
+- Assistant chat is a full-height two-column screen instead of a padded page: the thread
+  rail with search, New thread, day groups and hover delete docks directly to the site
+  navigation (same ink, one 48 px header line, the active thread carrying the nav's 2 px
+  accent bar), the conversation is centred at 52 rem with the model and provider strip under
+  the title, and the composer sits at the bottom with the floating radio docked beside it.
+  Below 1024 the rail becomes the left slideover; an empty search now reads as "no match"
+  with a Clear search action instead of the empty-history text.
 - Assistant item results are cards, not text rows: `find_items`, `get_item`,
   `list_inventory_items`, `get_inventory` and `list_storages` render the site's item card with
   icon, rank, level, quantity and location. A click opens the page that owns the kind and the
